@@ -1,0 +1,675 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'package:syncfusion_flutter_datepicker/datepicker.dart';
+import 'package:carvy/api/config.dart';
+import 'package:carvy/controller/add_items_host_controller.dart';
+import 'package:carvy/customwidget/form_elements.dart';
+import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
+import 'package:carvy/customwidget/project_color.dart';
+import 'package:carvy/helper/http_service.dart';
+import 'package:carvy/model/calendar_model.dart';
+import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/theme_style.dart';
+import 'package:carvy/view/host/bottom_bar_host.dart';
+import 'package:carvy/view/host/common_widget_host.dart';
+import 'package:carvy/view/host/calender/edit_price_on_edit_third_step_calender.dart';
+
+import 'package:carvy/work_space.dart';
+
+class EditCalenderOnThirdStepCommon extends StatefulWidget {
+  const EditCalenderOnThirdStepCommon({super.key});
+
+  @override
+  State<EditCalenderOnThirdStepCommon> createState() =>
+      _EditCalenderOnThirdStepCommonState();
+}
+
+class _EditCalenderOnThirdStepCommonState
+    extends State<EditCalenderOnThirdStepCommon> {
+  AddItemsHostController addItemsHostController = Get.find();
+  DateRangePickerController dateRangePickerControllers =
+      DateRangePickerController();
+  List<Map<String, Object>> selectedDateRange = [];
+  bool isDateSelected = false;
+  List<PickerDateRange> selectedDates = [];
+  List selectedPriceMap = [];
+  List selectedAvailableRange = [];
+  List selectedNotAvailableRange = [];
+  List myNewDateAndStatusListAvailable = [];
+  List myNewDateAndStatusListNotAvailable = [];
+
+  List<PickerDateRange> initialList = [];
+
+  String endDate = '';
+
+  String startDate = '';
+  List<PickerDateRange> availableDates = [];
+  List<PickerDateRange> notAvailableDates = [];
+  List<PickerDateRange> bookedDates = [];
+  List<String> avialblePrice = [];
+  CalendarItemId? calendarItemId;
+  ItemDates? itemDates;
+
+  dynamic futurePrice;
+  dynamic bookedPrice;
+
+  int toggle = 1;
+
+  int initialLabelIndex = 0;
+
+  @override
+  initState() {
+    super.initState();
+    fetchDataCalendar();
+  }
+
+  void submitMethod() async {
+    if (addItemsHostController.isChecked1.value == false &&
+        addItemsHostController.isChecked2.value == false) {
+      showErrorToastMessage("Please Select the checkBox");
+      return;
+    }
+
+    DateTime now = DateTime.now();
+    DateTime maxDate = now.add(const Duration(days: 120));
+
+    if (addItemsHostController.isChecked1.value) {
+      if (addItemsHostController.textEditingControllerFuturePrice.text == "" ||
+          addItemsHostController.textEditingControllerFuturePrice.text == "0") {
+        showErrorToastMessage("Price should not be zero or empty");
+        return;
+      }
+
+      for (var x in selectedAvailableRange) {
+        DateTime startDate = x['date'].startDate ?? DateTime.now();
+        DateTime endDate = x['date'].endDate ?? DateTime.now();
+
+        if (endDate.isAfter(maxDate)) {
+          showErrorToastMessage(
+              "The selected date range must be within the current date to the next 120 days.");
+          return;
+        }
+
+        Duration totalRange = endDate.difference(startDate);
+        List aList = [];
+
+        for (int i = 0; i <= totalRange.inDays; i++) {
+          aList.add(jsonEncode({
+            "date": DateFormat("yyyy-MM-dd")
+                .parse("${x['date'].startDate.add(Duration(days: i))}")
+                .toString()
+                .split(" ")[0],
+            "status": x['status'],
+            "price": x['value']
+          }));
+        }
+
+        myNewDateAndStatusListAvailable.add(aList);
+      }
+    }
+
+    if (addItemsHostController.isChecked2.value) {
+      for (var x in selectedNotAvailableRange) {
+        DateTime startDate = x['date'].startDate ?? DateTime.now();
+        DateTime endDate = x['date'].endDate ?? DateTime.now();
+        DateTime today = DateTime.now();
+        DateTime currentDateOnly = DateTime(today.year, today.month, today.day);
+        DateTime startDateOnly =
+            DateTime(startDate.year, startDate.month, startDate.day);
+        DateTime endDateOnly =
+            DateTime(endDate.year, endDate.month, endDate.day);
+
+        if (endDate.isAfter(maxDate)) {
+          showErrorToastMessage(
+              "The selected date range must be within the current date to the next 120 days.");
+          return;
+        }
+
+        Duration totalRange = endDate.difference(startDate);
+        List aList = [];
+
+        for (int i = 0; i <= totalRange.inDays; i++) {
+          aList.add(jsonEncode({
+            "date": DateFormat("yyyy-MM-dd")
+                .parse("${x['date'].startDate.add(Duration(days: i))}")
+                .toString()
+                .split(" ")[0],
+            "status": x['status'],
+            "price": "0".toString()
+          }));
+        }
+        myNewDateAndStatusListNotAvailable.add(aList);
+      }
+    }
+
+    showLoading();
+    Map map = {
+      "availability_dates": addItemsHostController.isChecked1.value
+          ? myNewDateAndStatusListAvailable.toString()
+          : myNewDateAndStatusListNotAvailable.toString(),
+      "id": (item?.id ?? addItemsHostController.itemHostId).toString()
+    };
+
+    var response = await httpPost(Config.addEditCalender, map);
+    closeLoading();
+    if (response != null) {
+      if (response['status'] == 200) {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (builder) => const EditCalenderOnThirdStepCommon()));
+      } else {
+        showErrorToastMessage(response['error']);
+      }
+    }
+  }
+
+  String price = "";
+  String? avaialbleCellPrice;
+
+  Future<void> fetchDataCalendar() async {
+    showLoading();
+    var response = await httpGet(Config.getItemDates, {
+      "item_id": (item?.id ?? addItemsHostController.itemHostId).toString()
+    });
+
+    if (response != null) {
+      closeLoading();
+      calendarItemId = CalendarItemId.fromJson(response);
+
+      if (calendarItemId != null && calendarItemId!.data != null) {
+        setState(() {
+          itemDates = calendarItemId!.data!.itemDates;
+        });
+
+        if (itemDates != null) {
+          if (itemDates!.notAvailableDates != null) {
+            String jsonString = jsonEncode(itemDates!.notAvailableDates!);
+            List jsonList = jsonDecode(jsonString);
+
+            if (jsonList.isNotEmpty) {
+              for (var x in jsonList) {
+                notAvailableDates.add(PickerDateRange(
+                  DateTime.tryParse(x['date']),
+                  DateTime.tryParse(x['date']),
+                ));
+              }
+            }
+          }
+          avaialbleCellPrice = '';
+
+          // Additional logic for available dates
+          if (itemDates!.availableDates != null) {
+            String jsonString = jsonEncode(itemDates!.availableDates!);
+            List jsonList = jsonDecode(jsonString);
+
+            if (jsonList.isNotEmpty) {
+              for (var x in jsonList) {
+                availableDates.add(PickerDateRange(
+                  DateTime.tryParse(x['date']),
+                  DateTime.tryParse(x['date']),
+                ));
+                avialblePrice.add(x['price']);
+              }
+            }
+          }
+
+          if (itemDates!.bookedDates != null) {
+            String jsonString = jsonEncode(itemDates!.bookedDates!);
+            List jsonList = jsonDecode(jsonString);
+
+            if (jsonList.isNotEmpty) {
+              for (var x in jsonList) {
+                bookedDates.add(PickerDateRange(
+                  DateTime.tryParse(x['date']),
+                  DateTime.tryParse(x['date']),
+                ));
+                bookedPrice = x['price'];
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: notifires.getbgcolor,
+      appBar: AppBar(
+        surfaceTintColor: notifires.getbgcolor,
+        backgroundColor: notifires.getbgcolor,
+        leadingWidth: 80,
+        leading: InkWell(
+            onTap: () {
+              Get.to(() => const BottomHost(initialIndex: 0));
+            },
+            child: Padding(
+              padding:
+                  const EdgeInsets.only(left: 20, top: 8, bottom: 8, right: 20),
+              child: PhysicalModel(
+                color: Colors.transparent,
+                shadowColor: notifires.getGrey4Whitecolor,
+                elevation: 5.0, // Adjust the elevation value as needed
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  alignment: Alignment.center,
+                  height: 40,
+                  width: 40,
+                  decoration: BoxDecoration(
+                      color: notifires.getboxcolor,
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Icon(Icons.arrow_back,
+                      color: getColorBasedOnActiveModuleid()),
+                ),
+              ),
+            )),
+        title: Text(
+          "Calendar".tr,
+          style: heading2Grey1(context),
+        ),
+        centerTitle: true,
+      ),
+      body: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: notifires.getboxcolor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: notifires.getGrey3Whitecolor.withOpacity(0.1),
+                    spreadRadius: 3,
+                    blurRadius: 5,
+                    offset: const Offset(0, 0), // changes position of shadow
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 120,
+                      height: 120,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12), // Image border
+                        child: SizedBox.fromSize(
+                          size: const Size.fromRadius(180), // Image radius
+                          child: FadeInImage.assetNetwork(
+                            fadeInCurve: Curves.easeInCirc,
+                            placeholder: "assets/images/ezgif.com-crop.gif",
+                            height: 50,
+                            image: (item?.frontImage?.thumbnail) ?? '',
+                            imageErrorBuilder: (context, error, stackTrace) {
+                              return getErrorImage();
+                            },
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Flexible(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item?.title ?? "No Title".tr,
+                                style: heading3Grey1(context)),
+                            Text(
+                              item?.description ?? "No Description".tr,
+                              style: regular2(context),
+                              maxLines: 2,
+                              softWrap: true,
+                            ),
+                          ]),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const Divider(
+            thickness: 2,
+            endIndent: 12,
+            indent: 12,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Avability(
+                    color: greentext,
+                    borderColor: lightsGrey,
+                  ),
+                  const SizedBox(width: 10),
+                  LabelNames(labelname: 'Booked'.tr),
+                  const SizedBox(width: 15),
+                  Avability(
+                    color: redColor,
+                    borderColor: redColor,
+                  ),
+                  const SizedBox(width: 10),
+                  LabelNames(labelname: 'Not available'.tr),
+                  const SizedBox(width: 15),
+                  Avability(
+                    color: darkbox,
+                    borderColor: notifires.getwhiteblackcolor,
+                  ),
+                  const SizedBox(width: 10),
+                  LabelNames(labelname: 'Available'.tr)
+                ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(children: [
+              Avability(color: yellowColor, borderColor: yellowColor),
+              const SizedBox(width: 12),
+              LabelNames(labelname: "Selected".tr),
+              const SizedBox(width: 15),
+              Avability(
+                  color: greycolor.withOpacity(0.4),
+                  borderColor: greycolor.withOpacity(0.4)),
+              const SizedBox(width: 15),
+              LabelNames(labelname: "Past Dates".tr)
+            ]),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 800,
+            child: SfDateRangePicker(
+                headerStyle: DateRangePickerHeaderStyle(
+                  textAlign: TextAlign.start,
+                  textStyle: TextStyle(fontSize: 18, color: boxcolor),
+                ),
+                monthCellStyle: DateRangePickerMonthCellStyle(
+                    blackoutDateTextStyle: const TextStyle(
+                      color: Colors.white,
+                    ),
+                    blackoutDatesDecoration: BoxDecoration(
+                        shape: BoxShape.circle, color: Colors.green.shade100)),
+                controller: dateRangePickerControllers,
+                monthViewSettings: DateRangePickerMonthViewSettings(
+                  viewHeaderStyle: DateRangePickerViewHeaderStyle(
+                    backgroundColor: darkbox.withOpacity(
+                        0.1), // Change background color of the header
+                    textStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                        fontSize: 12),
+                    // Change text style of the day headers
+                  ),
+                ),
+                backgroundColor: Colors.white,
+                navigationDirection:
+                    DateRangePickerNavigationDirection.vertical,
+                navigationMode: DateRangePickerNavigationMode.scroll,
+                enableMultiView: true,
+                allowViewNavigation: false,
+                // enablePastDates: true,
+                minDate: DateTime.now(),
+                view: DateRangePickerView.month,
+                selectionMode: DateRangePickerSelectionMode.range,
+                onSelectionChanged: (DateRangePickerSelectionChangedArgs args) {
+                  PickerDateRange? selectedRange = args.value;
+
+                  if (selectedRange != null) {
+                    selectedDates = [selectedRange];
+
+                    DateTime startDate =
+                        selectedRange.startDate ?? DateTime.now();
+
+                    DateTime endDate = selectedRange.endDate ?? DateTime.now();
+                    Duration totalRange = endDate.difference(startDate);
+
+                    List<DateTime> allDates = [];
+
+                    for (int i = 0; i <= totalRange.inDays; i++) {
+                      allDates.add(startDate.add(Duration(days: i)));
+                    }
+
+                    if (allDates.isNotEmpty) {
+                      setState(() {
+                        isDateSelected = true;
+                      });
+                    } else {
+                      setState(() {
+                        isDateSelected = false;
+                      });
+                    }
+                  } else {}
+
+                  if (selectedDates.isNotEmpty) {
+                    selectedAvailableRange = selectedDates
+                        .map((date) => {
+                              "date": date,
+                              "value": addItemsHostController
+                                      .textEditingControllerPrice.text.isEmpty
+                                  ? "0"
+                                  : addItemsHostController
+                                      .textEditingControllerPrice.text,
+                              'status': "Available",
+                            })
+                        .toList();
+                  }
+
+                  if (selectedDates.isNotEmpty) {
+                    selectedNotAvailableRange = selectedDates
+                        .map((date) => {
+                              "date": date,
+                              "value": addItemsHostController
+                                      .textEditingControllerPrice.text.isEmpty
+                                  ? "0"
+                                  : addItemsHostController
+                                      .textEditingControllerPrice.text,
+                              'status': "Not Available",
+                            })
+                        .toList();
+                  }
+                },
+                cellBuilder: (BuildContext context,
+                    DateRangePickerCellDetails cellDetails) {
+                  Color cellColor = whiteColor; // Default value
+                  Color textColor = blackColor; // Default value
+                  String cellPrice = '';
+
+                  bool isNotAvailableDate = false;
+                  bool isBookedDate = false;
+                  bool isAvailableDate = false;
+                  bool isSelectedDate = false;
+                  isBookedDate = bookedDates.any((range) {
+                    return range.startDate != null &&
+                        range.endDate != null &&
+                        (cellDetails.date.isAfter(range.startDate!) &&
+                                cellDetails.date.isBefore(range.endDate!) ||
+                            cellDetails.date
+                                .isAtSameMomentAs(range.startDate!) ||
+                            cellDetails.date.isAtSameMomentAs(range.endDate!));
+                  });
+
+                  if (isBookedDate) {
+                    cellColor = greentext;
+                    textColor = whiteColor;
+                    cellPrice = '$currency $bookedPrice';
+                  } else {
+                    // Check if the date is available
+                    isAvailableDate = availableDates.any((range) {
+                      return range.startDate != null &&
+                          range.endDate != null &&
+                          (cellDetails.date.isAfter(range.startDate!) &&
+                                  cellDetails.date.isBefore(range.endDate!) ||
+                              cellDetails.date
+                                  .isAtSameMomentAs(range.startDate!) ||
+                              cellDetails.date
+                                  .isAtSameMomentAs(range.endDate!));
+                    });
+
+                    if (isAvailableDate) {
+                      cellColor = darkbox;
+                      textColor = whiteColor;
+
+                      int index = availableDates.indexWhere((range) =>
+                          range.startDate != null &&
+                          range.endDate != null &&
+                          (cellDetails.date.isAfter(range.startDate!) &&
+                                  cellDetails.date.isBefore(range.endDate!) ||
+                              cellDetails.date
+                                  .isAtSameMomentAs(range.startDate!) ||
+                              cellDetails.date
+                                  .isAtSameMomentAs(range.endDate!)));
+
+                      if (index != -1 && index < avialblePrice.length) {
+                        var dataForDate = avialblePrice[index];
+                        cellPrice = "$currency $dataForDate";
+                      }
+                    } else {
+                      // Check if the date is not available
+                      isNotAvailableDate = notAvailableDates.any((range) {
+                        return range.startDate != null &&
+                            range.endDate != null &&
+                            (cellDetails.date.isAfter(range.startDate!) &&
+                                    cellDetails.date.isBefore(range.endDate!) ||
+                                cellDetails.date
+                                    .isAtSameMomentAs(range.startDate!) ||
+                                cellDetails.date
+                                    .isAtSameMomentAs(range.endDate!));
+                      });
+
+                      if (isNotAvailableDate) {
+                        cellColor = Colors.red;
+                        textColor = whiteColor;
+                      }
+                    }
+
+                    // Check if the date is selected
+                    isSelectedDate = selectedDates.any((range) {
+                      return range.startDate != null &&
+                          range.endDate != null &&
+                          (cellDetails.date.isAfter(range.startDate!) &&
+                                  cellDetails.date.isBefore(range.endDate!) ||
+                              cellDetails.date
+                                  .isAtSameMomentAs(range.startDate!) ||
+                              cellDetails.date
+                                  .isAtSameMomentAs(range.endDate!));
+                    });
+
+                    if (isSelectedDate) {
+                      cellColor = orangeColor;
+                      textColor = whiteColor;
+                      cellPrice = ''; // Set price to empty for selected dates
+                    }
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.all(5.0),
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: cellDetails.date.isBefore(DateTime.now())
+                                ? greyColor.withOpacity(0.5)
+                                : darkbox,
+                            width: 1.5,
+                            style: BorderStyle.solid),
+                        borderRadius: BorderRadius.circular(5),
+                        color: cellColor,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            convertToLocaleDigits(
+                                cellDetails.date.day.toString()),
+                            style: TextStyle(
+                                color: cellDetails.date.isBefore(DateTime.now())
+                                    ? whiteColor
+                                    : textColor,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            convertToLocaleDigits(cellPrice.toString()),
+                            style: smallAirBk.copyWith(
+                                fontSize: 8,
+                                color: cellDetails.date.isBefore(DateTime.now())
+                                    ? whiteColor
+                                    : textColor,
+                                fontWeight: FontWeight.w500),
+                            textAlign: TextAlign.center,
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+          ),
+        ],
+      ),
+      floatingActionButton: isDateSelected
+          ? SizedBox(
+              height: 50,
+              child: InkWell(
+                onTap: () {
+                  showModalBottomSheet(
+                    constraints: const BoxConstraints.expand(),
+                    useRootNavigator: true,
+                    backgroundColor: notifires.getblackwhitecolor,
+                    isScrollControlled: true,
+                    useSafeArea: false,
+                    context: context,
+                    builder: (BuildContext context) {
+                      return EditPriceOnThirdStepCommonCalender(
+                        selectedDates: selectedDates,
+                        onPressed: () {
+                          submitMethod();
+                        },
+                        selectedAvailableRange: selectedAvailableRange,
+                      );
+                    },
+                  );
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    InkWell(
+                        child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.radiusExtraLarge,
+                          vertical: 11),
+                      decoration: BoxDecoration(
+                          border: Border.all(color: darkbox),
+                          color: darkbox,
+                          borderRadius: BorderRadius.circular(
+                              Dimensions.radiusExtraLarge)),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.edit,
+                            size: 15,
+                            color: whiteColor,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Edit'.tr,
+                            style: smallHeadigAirBd.copyWith(color: whiteColor),
+                          ),
+                        ],
+                      ),
+                    ))
+                  ],
+                ),
+              ),
+            )
+          : const SizedBox(),
+      // : null,
+    );
+  }
+}

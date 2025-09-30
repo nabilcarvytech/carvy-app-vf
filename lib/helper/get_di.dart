@@ -1,0 +1,38 @@
+import 'package:get/get.dart';
+import 'package:carvy/controller/add_address_controller.dart';
+import 'package:carvy/controller/add_bank_account_controller.dart';
+import 'package:carvy/controller/auth_controller.dart';
+import 'package:carvy/controller/global_scope_controller.dart';
+import 'package:carvy/controller/general_controller.dart';
+import 'package:carvy/controller/kyc_controller.dart';
+import 'package:carvy/controller/notification_controller.dart';
+import 'package:carvy/controller/profile_controller.dart';
+import 'package:carvy/controller/static_controller.dart';
+import 'package:carvy/controller/ticket_controller.dart';
+import 'package:carvy/controller/wish_list_controller.dart';
+import '../controller/add_items_host_controller.dart';
+import '../controller/publix_profile_controller.dart';
+import '../controller/booking_controller.dart';
+import '../controller/items_detail_controller.dart';
+import '../controller/search_controller.dart';
+import '../controller/home_controller.dart';
+
+init() async {
+  Get.lazyPut(() => WishListController());
+  Get.lazyPut(() => AuthController());
+  Get.lazyPut(() => GlobalScopeController());
+  Get.lazyPut(() => GeneralController());
+  Get.lazyPut(() => HomeController());
+  Get.lazyPut(() => SearchControllerHome());
+  Get.lazyPut(() => BookingController());
+  Get.lazyPut(() => StaticController());
+  Get.lazyPut(() => ProfileController());
+  Get.lazyPut(() => NotificationController());
+  Get.lazyPut(() => TicketController());
+  Get.lazyPut(() => PublicProfileController());
+  Get.lazyPut(() => ItemDetailsController());
+  Get.lazyPut(() => AddItemsHostController());
+  Get.lazyPut(() => AddBankAccount());
+  Get.lazyPut(() => AddAddressController());
+  Get.lazyPut(() => KycController());
+}

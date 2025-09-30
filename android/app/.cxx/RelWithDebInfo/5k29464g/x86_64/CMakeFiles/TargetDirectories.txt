@@ -1,0 +1,2 @@
+/Users/sizh/Documents/carvy-vehicle-app/android/app/.cxx/RelWithDebInfo/5k29464g/x86_64/CMakeFiles/edit_cache.dir
+/Users/sizh/Documents/carvy-vehicle-app/android/app/.cxx/RelWithDebInfo/5k29464g/x86_64/CMakeFiles/rebuild_cache.dir

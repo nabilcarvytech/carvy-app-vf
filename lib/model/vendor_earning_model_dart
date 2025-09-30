@@ -1,0 +1,112 @@
+class VendorEarning {
+  dynamic? status;
+  String? message;
+  Data? data;
+  String? error;
+
+  VendorEarning({this.status, this.message, this.data, this.error});
+
+  VendorEarning.fromJson(Map<String, dynamic> json) {
+    status = json['status'];
+    message = json['message'];
+    data = json['data'] != null ? new Data.fromJson(json['data']) : null;
+    error = json['error'];
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = new Map<String, dynamic>();
+    data['status'] = this.status;
+    data['message'] = this.message;
+    if (this.data != null) {
+      data['data'] = this.data!.toJson();
+    }
+    data['error'] = this.error;
+    return data;
+  }
+}
+
+class Data {
+  List<VendorBookings>? vendorBookings;
+  dynamic? offset;
+  dynamic? totalBookings;
+  dynamic? totalEarnings;
+
+  Data(
+      {this.vendorBookings,
+      this.offset,
+      this.totalBookings,
+      this.totalEarnings});
+
+  Data.fromJson(Map<String, dynamic> json) {
+    if (json['VendorBookings'] != null) {
+      vendorBookings = <VendorBookings>[];
+      json['VendorBookings'].forEach((v) {
+        vendorBookings!.add(new VendorBookings.fromJson(v));
+      });
+    }
+    offset = json['offset'];
+    totalBookings = json['totalBookings'];
+    totalEarnings = json['totalEarnings'];
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = new Map<String, dynamic>();
+    if (this.vendorBookings != null) {
+      data['VendorBookings'] =
+          this.vendorBookings!.map((v) => v.toJson()).toList();
+    }
+    data['offset'] = this.offset;
+    data['totalBookings'] = this.totalBookings;
+    data['totalEarnings'] = this.totalEarnings;
+    return data;
+  }
+}
+
+class VendorBookings {
+  dynamic? id;
+  dynamic? checkIn;
+  dynamic? status;
+  dynamic? vendorCommission;
+  dynamic? adminCommission;
+  dynamic? basePrice;
+  dynamic? doorstepPrice;
+  dynamic? couponDiscount;
+  dynamic? total;
+
+  VendorBookings(
+      {this.id,
+      this.checkIn,
+      this.status,
+      this.vendorCommission,
+      this.adminCommission,
+      this.basePrice,
+      this.doorstepPrice,
+      this.couponDiscount,
+      this.total});
+
+  VendorBookings.fromJson(Map<String, dynamic> json) {
+    id = json['id'];
+    checkIn = json['check_in'];
+    status = json['status'];
+    vendorCommission = json['vendor_commission'];
+    adminCommission = json['admin_commission'];
+    basePrice = json['base_price'];
+    doorstepPrice = json['doorstep_price'];
+    couponDiscount = json['coupon_discount'];
+    total = json['total'];
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = new Map<String, dynamic>();
+    data['id'] = this.id;
+    data['check_in'] = this.checkIn;
+    data['status'] = this.status;
+    data['vendor_commission'] = this.vendorCommission;
+    data['admin_commission'] = this.adminCommission;
+    data['base_price'] = this.basePrice;
+    data['doorstep_price'] = this.doorstepPrice;
+    data['coupon_discount'] = this.couponDiscount;
+    data['total'] = this.total;
+    return data;
+  }
+}

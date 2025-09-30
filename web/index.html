@@ -1,0 +1,180 @@
+<!DOCTYPE html><html><head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="carvy_vehicle">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <title>carvy_vehicle</title>
+  <link rel="manifest" href="manifest.json">
+  <script type="application/javascript" src="/assets/packages/flutter_inappwebview_web/assets/web/web_support.js" defer=""></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
+  <!-- Add Firebase Messaging SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
+  <script async="" defer="" src="https://maps.googleapis.com/maps/api/js?key=add_googleapi_key_here"></script>
+  <script src="https://accounts.google.com/gsi/client" async="" defer=""></script>
+  <script src="https://apis.google.com/js/api.js"></script>
+  <meta name="google-signin-client_id" content="add_google-signin-client_id">
+  <script src="flutter.js" defer=""></script>
+  
+  
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+  
+  
+  
+  
+  <style id="splash-screen-style">
+    html {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      background-color: #17BEBB;
+      background-image: url("splash/img/light-background.png");
+      background-size: 100% 100%;
+    }
+
+    .center {
+      margin: 0;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      -ms-transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%);
+    }
+
+    .contain {
+      display:block;
+      width:100%; height:100%;
+      object-fit: contain;
+    }
+
+    .stretch {
+      display:block;
+      width:100%; height:100%;
+    }
+
+    .cover {
+      display:block;
+      width:100%; height:100%;
+      object-fit: cover;
+    }
+
+    .bottom {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      -ms-transform: translate(-50%, 0);
+      transform: translate(-50%, 0);
+    }
+
+    .bottomLeft {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+    }
+
+    .bottomRight {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+    }
+  </style>
+  <script id="splash-screen-script">
+    function removeSplashFromWeb() {
+      document.getElementById("splash")?.remove();
+      document.getElementById("splash-branding")?.remove();
+      document.body.style.background = "transparent";
+    }
+  </script>
+</head>
+
+<body>
+  <script>
+    // Firebase configuration
+    //  please change the credentrials
+    const firebaseConfig = {
+      apiKey: "add_api_key",
+      authDomain: "add_domain_name",
+      databaseURL: "databaseURL",
+      projectId: "projectId",
+      storageBucket: "storageBucket",
+      messagingSenderId: "messagingSenderId",
+      appId: "appId",
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+
+    // Initialize Firebase Messaging
+    const messaging = firebase.messaging();
+
+
+
+
+    // Function to initialize Google API Client
+    function initClient() {
+      gapi.load('client:auth2', () => {
+        gapi.client.init({
+          clientId: '_addclientId',
+          discoveryDocs: ["https://people.googleapis.com/$discovery/rest?version=v1"],
+          scope: 'profile email'
+        }).then(() => {
+          console.log('GAPI client initialized successfully.');
+        }).catch(error => {
+          console.error('Error initializing GAPI client:', error);
+        });
+      });
+    }
+
+    // Initialize the page
+    window.addEventListener('load', function () {
+      initClient();
+
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          serviceWorkerVersion: null,
+        },
+        onEntrypointLoaded: function (engineInitializer) {
+          engineInitializer.initializeEngine().then(function (appRunner) {
+            appRunner.runApp();
+          });
+        }
+      });
+    });
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('flutter-first-frame', function () {
+        navigator.serviceWorker.register('flutter_service_worker.js');
+      });
+    }
+  </script>
+  <!-- Include Flutter app script -->
+  <script src="main.dart.js"></script>
+  <script>
+    // Initialize Google Maps
+    function initMap() {
+      const mapOptions = {
+        center: { lat: 37.7749, lng: -122.4194 }, // Example coordinates
+        zoom: 11,
+      };
+      const map = new google.maps.Map(document.getElementById('map'), mapOptions);
+    }
+
+    // Ensure the map is initialized once the Google Maps API is loaded
+    window.onload = function () {
+      initMap();
+    };
+  </script>.
+
+
+</body></html>

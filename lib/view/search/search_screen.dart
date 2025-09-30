@@ -1,0 +1,1242 @@
+import 'dart:ui';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:google_places_flutter/google_places_flutter.dart';
+import 'package:google_places_flutter/model/prediction.dart';
+import 'package:provider/provider.dart';
+import 'package:carvy/controller/booking_controller.dart';
+import 'package:carvy/controller/home_controller.dart';
+import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
+import 'package:carvy/customwidget/data_not_found.dart';
+import 'package:carvy/customwidget/form_elements.dart';
+import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
+import 'package:carvy/customwidget/project_color.dart';
+import 'package:carvy/model/items_model.dart';
+import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/theme_style.dart';
+import 'package:get/get.dart';
+import 'package:carvy/view/itemdetail/vehicle/view_on_map_screen.dart';
+import '../../api/config.dart';
+import '../../controller/search_controller.dart';
+import '../../utils/vehicle_common_widgets.dart';
+import '../../work_space.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:provider/provider.dart';
+import 'package:syncfusion_flutter_datepicker/datepicker.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:provider/provider.dart';
+import 'package:syncfusion_flutter_datepicker/datepicker.dart';
+
+class SearchScreen extends StatefulWidget {
+  const SearchScreen({super.key});
+
+  @override
+  State<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends State<SearchScreen> {
+  BookingController bookingController = Get.find();
+  late HomeController homeController;
+  late SearchControllerHome _searchController;
+  late FocusNode _focusNode;
+  List<Items>? list = [];
+  ItemModel? itemModel;
+  bool showAll = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (handleSearchFordetail == true) {
+      currentTabIndexforLocation = 1;
+    }
+    homeController = Get.find();
+    _searchController = Get.find();
+    _focusNode = FocusNode();
+    generalScopeController.textEditingControllerCity.addListener(clear);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+      _searchController.sendvalueInApiforrecentValue.value = false;
+    });
+  }
+
+  Future<void> searchMethod() async {
+    itemModel = null;
+    list = [];
+    setState(() {});
+    showLoading();
+    try {
+      String price =
+          "${_searchController.startRange.value}-${_searchController.endRage.value}";
+      var result = await _searchController.searchItems(
+        '',
+        _searchController.selectedtypesvalues.toString(),
+        price,
+        '0',
+        '0',
+        _searchController.featuresvalues.toString(),
+        "1000",
+        generalScopeController.startDateCustomDate.value.toString(),
+        generalScopeController.endDateCustomDate.value.toString(),
+        activeModuleId.value == 1 ? "0" : "0",
+        "$slatsearch",
+        "$sLongSearch",
+        context,
+        _searchController.maketypeFunction(),
+      );
+
+      itemModel = ItemModel.fromJson(result);
+      list!.addAll(itemModel!.data!.items!);
+      _searchController.searchFilterList.addAll(itemModel!.data!.items!);
+      _searchController.offset = itemModel!.data!.offset!;
+      setState(() {
+        if (list!.isNotEmpty) {
+          closeLoading();
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ViewOnMapScreen(title: "", list: list),
+            ),
+          );
+        } else {
+          closeLoading();
+          showErrorToastMessage("Data not found!".tr);
+        }
+      });
+    } catch (error) {
+      closeLoading();
+    }
+  }
+
+  void clear() {
+    if (generalScopeController.textEditingControllerCity.text.isEmpty) {
+      sLongSearch = "";
+      slatsearch = "";
+      generalScopeController.slat = "";
+      generalScopeController.sLong = "";
+      generalScopeController.textEditingControllerCity.clear();
+      generalScopeController.homeSearchLocation.value = "";
+    }
+  }
+
+  @override
+  void dispose() {
+    generalScopeController.textEditingControllerCity.removeListener(clear);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void search() {
+    if (slatsearch.toString().isNotEmpty && sLongSearch.toString().isNotEmpty) {
+      if (_searchController.hitApiOnMap == true) {
+        searchMethod();
+      } else if (_searchController.startDate.value == "" &&
+          _searchController.endDates.value == "") {
+        setState(() {
+          FocusManager.instance.primaryFocus?.unfocus();
+          currentTabIndexforLocation = 1;
+        });
+      } else if (generalScopeController.homeSearchLocation.value != "") {
+        _searchController.submitMethod(context);
+      }
+    } else {
+      _searchController.submitMethod(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final notifires = Provider.of<ColorNotifires>(context, listen: true);
+    return Align(
+      alignment: Alignment.center,
+      child: SizedBox(
+        width: Dimensions.containerWidth,
+        child: Scaffold(
+          bottomNavigationBar: SizedBox(
+            height: 70,
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: CustomsButtons(
+                backgroundColor: getColorBasedOnActiveModuleid(),
+                text: "Search".tr,
+                onPressed: () {
+                  if (handleSearchFordetail == true) {
+                    Get.back();
+                    return;
+                  }
+                  search();
+                },
+              ),
+            ),
+          ),
+          backgroundColor: notifires.getbgcolor,
+          appBar: AppBar(
+            scrolledUnderElevation: 0,
+            automaticallyImplyLeading: false,
+            centerTitle: true,
+            backgroundColor: notifires.getbgcolor,
+            elevation: 0,
+            actions: [
+              IconButton(
+                onPressed: () {
+                  _searchController.clearFilter();
+                },
+                icon: Icon(
+                  size: 27,
+                  Icons.delete_forever,
+                  color: notifires.getGrey2Whitecolor,
+                ),
+              ),
+            ],
+          ),
+          body: Padding(
+            padding: const EdgeInsets.only(left: 9, right: 9),
+            child: IndexedStack(
+              index: currentTabIndexforLocation,
+              children: [
+                // Tab 0: Location
+                ListView(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Where'.tr,
+                            style: heading2Grey1(context).copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: notifires.getwhiteblackcolor,
+                            ),
+                          ),
+                          SizedBox(
+                            height: 10,
+                          ),
+                          SizedBox(
+                            height: 40,
+                            child: Stack(
+                              alignment: Alignment.centerRight,
+                              children: [
+                                GooglePlaceAutoCompleteTextField(
+                                  textStyle: regular2(context),
+                                  boxDecoration: BoxDecoration(
+                                      color: notifires.getboxcolor,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: notifires.getGrey2Whitecolor,
+                                          width: 1)),
+                                  isLatLngRequired: true,
+                                  textEditingController: generalScopeController
+                                      .textEditingControllerCity,
+                                  googleAPIKey: Config.googleKey,
+                                  countries: null,
+                                  inputDecoration: InputDecoration(
+                                      prefixIcon: Icon(
+                                        Icons.search,
+                                        color: notifires.getgreycolor,
+                                      ),
+                                      contentPadding: const EdgeInsets.only(
+                                          left: 10, top: 2, right: 10),
+                                      hintStyle: regular3(context),
+                                      hintText: "Search location".tr,
+                                      border: InputBorder.none),
+                                  getPlaceDetailWithLatLng:
+                                      (Prediction prediction) {
+                                    setState(() {
+                                      slatsearch = prediction.lat.toString();
+                                      sLongSearch = prediction.lng.toString();
+                                      _searchController.getPlaceDetailFromId(
+                                          prediction.placeId);
+                                      _searchController
+                                          .setBoolForCurrentLocation
+                                          .value = false;
+                                      generalScopeController.citySelected =
+                                          generalScopeController
+                                              .textEditingControllerCity.text;
+                                      generalScopeController
+                                          .textEditingControllerCity
+                                          .text = prediction.description!;
+                                      generalScopeController.homeSearchLocation
+                                          .value = prediction.description!;
+                                      generalScopeController
+                                              .textEditingControllerCity
+                                              .selection =
+                                          TextSelection.fromPosition(
+                                              TextPosition(
+                                                  offset: prediction
+                                                      .description!.length));
+                                      FocusScope.of(context).unfocus();
+                                      search();
+                                    });
+                                  },
+                                  itemClick: (Prediction prediction) {
+                                    //  FocusManager.instance.primaryFocus?.unfocus();
+                                  },
+                                  itemBuilder:
+                                      (context, index, Prediction prediction) {
+                                    return Container(
+                                      decoration: BoxDecoration(
+                                        color: notifires.getboxcolor,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 0, vertical: 0),
+                                      child: Column(
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 2),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.location_on,
+                                                  color: notifires.getgreycolor,
+                                                ),
+                                                const SizedBox(width: 7),
+                                                Expanded(
+                                                  child: Text(
+                                                    prediction.description ??
+                                                        "",
+                                                    style: normalAirBk.copyWith(
+                                                        color: notifires
+                                                            .getwhiteblackcolor),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          Divider(
+                                            color: notifires.getgreycolor,
+                                            thickness: 1,
+                                          ),
+                                          const SizedBox(height: 5),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    generalScopeController
+                                        .textEditingControllerCity
+                                        .clear();
+                                    generalScopeController.citySelected = "";
+                                    generalScopeController
+                                        .homeSearchLocation.value = "";
+                                    slatsearch = "";
+                                    sLongSearch = "";
+                                    FocusScope.of(context).unfocus();
+                                  },
+                                  child: Container(
+                                    width: 40,
+                                    height: 40,
+                                    color: Colors.transparent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          GestureDetector(
+                            onTap: () {
+                              _searchController
+                                  .getUserLocationForBetterSearch(context)
+                                  .then((_) {
+                                if (_searchController.hitApiOnMap == true) {
+                                  searchMethod();
+                                }
+                              });
+                            },
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        getColorBasedOnActiveModuleid()
+                                            .withOpacity(0.2),
+                                        getColorBasedOnActiveModuleid()
+                                            .withOpacity(0.1),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(CupertinoIcons.location),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Around Current Location'.tr,
+                                        style: heading2Grey1(context).copyWith(
+                                          fontSize: 15,
+                                          color: notifires.getwhiteblackcolor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        "Tap here".tr,
+                                        style: regular3(context).copyWith(
+                                          fontSize: 13,
+                                          color: notifires.getGrey1Whitecolor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Text(
+                                textAlign: TextAlign.start,
+                                'Popular Regions'.tr,
+                                style: heading2Grey1(context).copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: notifires.getwhiteblackcolor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Obx(
+                            () => homeController.homeDataLoading.value == true
+                                ? Container(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Column(
+                                      children: [
+                                        CircularProgressIndicator(
+                                          valueColor: AlwaysStoppedAnimation<
+                                                  Color>(
+                                              getColorBasedOnActiveModuleid()),
+                                          strokeWidth: 2,
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'Discovering destinations...'.tr,
+                                          style: regular3(context).copyWith(
+                                            color: notifires.getGrey1Whitecolor,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : GridView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: showAll
+                                        ? homeController.homeDataModel!.data!
+                                            .locations!.length
+                                        : (homeController.homeDataModel!.data!
+                                                    .locations!.length >
+                                                8
+                                            ? 8
+                                            : homeController.homeDataModel!
+                                                .data!.locations!.length),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 4,
+                                      mainAxisExtent: 85,
+                                      mainAxisSpacing: 12,
+                                      crossAxisSpacing: 12,
+                                    ),
+                                    itemBuilder: (context, index) {
+                                      final location = homeController
+                                          .homeDataModel!
+                                          .data!
+                                          .locations![index];
+                                      final isSelected = generalScopeController
+                                              .homeSearchLocation.value ==
+                                          location.cityName;
+                                      return AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 250),
+                                        curve: Curves.easeInOut,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? getColorBasedOnActiveModuleid()
+                                                : notifires.getGrey2Whitecolor
+                                                    .withOpacity(0.3),
+                                            width: isSelected ? 2 : 1,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(
+                                                  isSelected ? 0.12 : 0.06),
+                                              blurRadius: isSelected ? 10 : 6,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ],
+                                          gradient: isSelected
+                                              ? LinearGradient(
+                                                  colors: [
+                                                    getColorBasedOnActiveModuleid()
+                                                        .withOpacity(0.15),
+                                                    Colors.transparent,
+                                                  ],
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                )
+                                              : null,
+                                        ),
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            onTap: () {
+                                              if (location.latitude != null &&
+                                                  location.longitude != null) {
+                                                slatsearch = location.latitude;
+                                                sLongSearch =
+                                                    location.longitude;
+                                                generalScopeController
+                                                    .homeSearchLocation
+                                                    .value = location.cityName!;
+                                                generalScopeController
+                                                    .textEditingControllerCity
+                                                    .text = location.cityName!;
+                                                search();
+                                              } else {
+                                                slatsearch = "";
+                                                sLongSearch = "";
+                                              }
+                                            },
+                                            splashColor:
+                                                getColorBasedOnActiveModuleid()
+                                                    .withOpacity(0.3),
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                              child: Stack(
+                                                children: [
+                                                  myNetworkImage(
+                                                    "${location.image}",
+                                                  ),
+                                                  Positioned.fill(
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        gradient:
+                                                            LinearGradient(
+                                                          begin: Alignment
+                                                              .topCenter,
+                                                          end: Alignment
+                                                              .bottomCenter,
+                                                          stops: const [
+                                                            0.7,
+                                                            1.0
+                                                          ],
+                                                          colors: [
+                                                            Colors.transparent,
+                                                            Colors.black
+                                                                .withOpacity(
+                                                                    0.8),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Positioned(
+                                                    bottom: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              8),
+                                                      decoration: BoxDecoration(
+                                                        gradient:
+                                                            LinearGradient(
+                                                          begin: Alignment
+                                                              .topCenter,
+                                                          end: Alignment
+                                                              .bottomCenter,
+                                                          colors: [
+                                                            Colors.transparent,
+                                                            Colors.black
+                                                                .withOpacity(
+                                                                    0.9),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(3),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: Colors
+                                                                  .white
+                                                                  .withOpacity(
+                                                                      0.2),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          4),
+                                                            ),
+                                                            child: Icon(
+                                                              Icons.place,
+                                                              color: whiteColor,
+                                                              size: 10,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              width: 4),
+                                                          Expanded(
+                                                            child: Text(
+                                                              (location.cityName
+                                                                              ?.length ??
+                                                                          0) >
+                                                                      6
+                                                                  ? "${location.cityName!.substring(0, 6)}..."
+                                                                  : location
+                                                                          .cityName ??
+                                                                      "",
+                                                              style: boldstyle(
+                                                                      context)
+                                                                  .copyWith(
+                                                                color:
+                                                                    whiteColor,
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                              maxLines: 1,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                          if (isSelected)
+                                                            Container(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .all(2),
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                color:
+                                                                    getColorBasedOnActiveModuleid(),
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                              ),
+                                                              child: Icon(
+                                                                Icons.check,
+                                                                color:
+                                                                    whiteColor,
+                                                                size: 12,
+                                                              ),
+                                                            ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 44,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  showAll = !showAll;
+                                });
+                              },
+                              icon: Icon(
+                                showAll ? Icons.expand_less : Icons.expand_more,
+                                size: 18,
+                                color: getColorBasedOnActiveModuleid(),
+                              ),
+                              label: Text(
+                                showAll ? "See Less".tr : "See More".tr,
+                                style: regular2(context).copyWith(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: getColorBasedOnActiveModuleid(),
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: getColorBasedOnActiveModuleid()
+                                      .withOpacity(0.3),
+                                  width: 1.5,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                backgroundColor:
+                                    notifires.getboxcolor.withOpacity(0.5),
+                                elevation: 1,
+                                shadowColor: getColorBasedOnActiveModuleid()
+                                    .withOpacity(0.1),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          currentTabIndexforLocation = 1; // Switch to date tab
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          color: notifires.getboxcolor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color:
+                                notifires.getGrey2Whitecolor.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: notifires.getboxcolor.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: getColorBasedOnActiveModuleid()
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.calendar_today,
+                                  color: getColorBasedOnActiveModuleid(),
+                                  size: 20,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 15,
+                              ),
+                              Expanded(
+                                child: Obx(() => Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _searchController.startDate.value !=
+                                                      "" &&
+                                                  _searchController
+                                                          .endDates.value !=
+                                                      ""
+                                              ? "Selected Date Range".tr
+                                              : "Select your dates".tr,
+                                          style: regular2(context).copyWith(
+                                            fontSize: 12,
+                                            color: notifires.getGrey1Whitecolor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _searchController.startDate.value !=
+                                                      "" &&
+                                                  _searchController
+                                                          .endDates.value !=
+                                                      ""
+                                              ? "${_searchController.startDate.value} ${_searchController.startTimeSearch.value} - ${_searchController.endDates.value} ${_searchController.endTimeSearch.value}"
+                                              : "Tap to select dates".tr,
+                                          style: regular3(context).copyWith(
+                                            fontSize: 14,
+                                            color: notifires.getwhiteblackcolor,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    )),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                // Tab 1: Date/Calendar
+                ListView(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        if (handleSearchFordetail == true) {
+                          return;
+                        }
+                        setState(() {
+                          currentTabIndexforLocation = 0; // Switch to date tab
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          color: notifires.getboxcolor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color:
+                                notifires.getGrey2Whitecolor.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: notifires.getboxcolor.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: getColorBasedOnActiveModuleid()
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.location_on,
+                                  color: getColorBasedOnActiveModuleid(),
+                                  size: 20,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 15,
+                              ),
+                              Expanded(
+                                child: Obx(() => Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Location".tr,
+                                          style: regular2(context).copyWith(
+                                            fontSize: 12,
+                                            color: notifires.getGrey1Whitecolor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          generalScopeController
+                                                      .homeSearchLocation
+                                                      .value
+                                                      .length >
+                                                  20
+                                              ? "${generalScopeController.homeSearchLocation.value.substring(0, 17)}..."
+                                              : generalScopeController
+                                                      .homeSearchLocation
+                                                      .value
+                                                      .isEmpty
+                                                  ? "All location".tr
+                                                  : generalScopeController
+                                                      .homeSearchLocation.value,
+                                          style: regular3(context).copyWith(
+                                            fontSize: 14,
+                                            color:
+                                                getColorBasedOnActiveModuleid(),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    )),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: notifires.getboxcolor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: notifires.getGrey2Whitecolor.withOpacity(0.3),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          height: 600,
+                          child: Stack(
+                            children: [
+                              SfDateRangePicker(
+                                startRangeSelectionColor: Colors.transparent,
+                                endRangeSelectionColor: Colors.transparent,
+                                rangeSelectionColor: Colors.transparent,
+                                selectionColor: Colors.transparent,
+                                navigationDirection:
+                                    DateRangePickerNavigationDirection.vertical,
+                                navigationMode:
+                                    DateRangePickerNavigationMode.scroll,
+                                enableMultiView: true,
+                                headerStyle: DateRangePickerHeaderStyle(
+                                  backgroundColor: notifires.getboxcolor,
+                                  textStyle: TextStyle(
+                                    color: notifires.getwhiteblackcolor,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                monthCellStyle: DateRangePickerMonthCellStyle(
+                                  todayTextStyle: TextStyle(
+                                    color: themeColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  weekendTextStyle: TextStyle(
+                                    color: themeColor,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  textStyle: TextStyle(
+                                    color: notifires.getwhiteblackcolor,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                monthViewSettings:
+                                    DateRangePickerMonthViewSettings(
+                                  dayFormat: 'EEE',
+                                  viewHeaderStyle:
+                                      DateRangePickerViewHeaderStyle(
+                                    backgroundColor:
+                                        notifires.getboxcolor.withOpacity(0.8),
+                                    textStyle: TextStyle(
+                                      color: notifires.getwhiteblackcolor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                backgroundColor: notifires.getboxcolor,
+                                minDate: DateTime.now(),
+                                maxDate: DateTime.now()
+                                    .add(const Duration(days: 160)),
+                                controller: _searchController
+                                    .dateRangePickerControllerCustom,
+                                selectionMode:
+                                    DateRangePickerSelectionMode.range,
+                                onSelectionChanged: (args) {
+                                  _searchController
+                                      .onSelectionChangedCustomDatePicker(args);
+                                  if (args.value is PickerDateRange &&
+                                      args.value.startDate != null &&
+                                      args.value.endDate != null) {}
+                                },
+                                cellBuilder: (context, details) {
+                                  final now = DateTime.now();
+                                  final isToday =
+                                      details.date.year == now.year &&
+                                          details.date.month == now.month &&
+                                          details.date.day == now.day;
+
+                                  bool isDisabled =
+                                      details.date.isBefore(now) && !isToday;
+
+                                  final range = _searchController
+                                      .dateRangePickerControllerCustom
+                                      .selectedRange;
+                                  bool isSelected = false;
+
+                                  if (range != null) {
+                                    DateTime? start = range.startDate;
+                                    DateTime? end = range.endDate ?? start;
+
+                                    if (start != null && end != null) {
+                                      if (isSameDate(details.date, start) ||
+                                          isSameDate(details.date, end) ||
+                                          (details.date.isAfter(start) &&
+                                              details.date.isBefore(end))) {
+                                        isSelected = true;
+                                      }
+                                    }
+                                  }
+
+                                  return Container(
+                                    margin: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? getColorBasedOnActiveModuleid()
+                                          : isDisabled
+                                              ? Colors.transparent
+                                              : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isDisabled
+                                            ? Colors.grey.shade300
+                                            : isSelected
+                                                ? Colors.transparent
+                                                : notifires.getGrey2Whitecolor
+                                                    .withOpacity(0.4),
+                                        width: isSelected ? 0 : 1,
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      convertToLocaleDigits(
+                                          "${details.date.day}"),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDisabled
+                                            ? Colors.grey.shade400
+                                            : isSelected
+                                                ? Colors.white
+                                                : notifires.getwhiteblackcolor,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 12, horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    color: notifires.getbgcolor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.08),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              "Start Time".tr,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: notifires
+                                                    .getwhiteblackcolor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Obx(() {
+                                              final startSlots =
+                                                  getSlotsStartTime();
+                                              final startIndex =
+                                                  startSlots.isNotEmpty ? 0 : 0;
+
+                                              return SizedBox(
+                                                height: 120,
+                                                child: CupertinoPicker(
+                                                  scrollController:
+                                                      FixedExtentScrollController(
+                                                    initialItem: startIndex,
+                                                  ),
+                                                  itemExtent: 40,
+                                                  onSelectedItemChanged:
+                                                      (index) {
+                                                    _searchController
+                                                            .startTimeSearch
+                                                            .value =
+                                                        startSlots[index];
+                                                  },
+                                                  children: startSlots
+                                                      .map((time) => Center(
+                                                            child: Text(
+                                                              time,
+                                                              style: TextStyle(
+                                                                fontSize: 16,
+                                                                color: notifires
+                                                                    .getwhiteblackcolor,
+                                                              ),
+                                                            ),
+                                                          ))
+                                                      .toList(),
+                                                ),
+                                              );
+                                            }),
+                                          ],
+                                        ),
+                                      ),
+
+                                      const SizedBox(width: 16),
+
+                                      // End Time
+                                      Expanded(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              "End Time".tr,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: notifires
+                                                    .getwhiteblackcolor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Obx(() {
+                                              final endSlots =
+                                                  getSlotsEndTime();
+                                              final endIndex =
+                                                  endSlots.isNotEmpty
+                                                      ? endSlots.length - 1
+                                                      : 0;
+
+                                              return SizedBox(
+                                                height: 120,
+                                                child: CupertinoPicker(
+                                                  scrollController:
+                                                      FixedExtentScrollController(
+                                                    initialItem: endIndex,
+                                                  ),
+                                                  itemExtent: 40,
+                                                  onSelectedItemChanged:
+                                                      (index) {
+                                                    _searchController
+                                                            .endTimeSearch
+                                                            .value =
+                                                        endSlots[index];
+                                                  },
+                                                  children: endSlots
+                                                      .map((time) => Center(
+                                                            child: Text(
+                                                              time,
+                                                              style: TextStyle(
+                                                                fontSize: 16,
+                                                                color: notifires
+                                                                    .getwhiteblackcolor,
+                                                              ),
+                                                            ),
+                                                          ))
+                                                      .toList(),
+                                                ),
+                                              );
+                                            }),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<String> getSlotsStartTime() {
+    switch (_searchController.curreentStatus.value) {
+      case "CurrebtDate":
+        if (_searchController.handleTimeSlotsOnCurrentDate.value == true) {
+          return _searchController.currenttimeSlots;
+        } else {
+          return _searchController.filteredTimeSlotsEndTime;
+        }
+      case "StartCurrentEndOther":
+        return _searchController.currenttimeSlots;
+      case "SameDate":
+        return _searchController.filteredTimeSlotsEndTime;
+      case "otherDates":
+        return _searchController.filteredTimeSlotsEndTime;
+      default:
+        return bookingController.manualTimeSlots;
+    }
+  }
+
+  List<String> getSlotsEndTime() {
+    switch (_searchController.curreentStatus.value) {
+      case "CurrebtDate":
+        if (_searchController.startDate.value ==
+            _searchController.endDates.value) {
+          if (_searchController.handleTimeSlotsOnCurrentDate.value == true) {
+            return _searchController.currenttimeSlots;
+          } else {
+            return _searchController.filteredTimeSlotsEndTime;
+          }
+        } else {
+          return bookingController.manualTimeSlots;
+        }
+      case "SameDate":
+        return _searchController.filteredTimeSlotsEndTime;
+      case "otherDates":
+        if (_searchController.startDate.value ==
+            _searchController.endDates.value) {
+          return _searchController.filteredTimeSlotsEndTime;
+        } else {
+          return bookingController.manualTimeSlots;
+        }
+      default:
+        return bookingController.manualTimeSlots;
+    }
+  }
+}
