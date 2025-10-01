@@ -65,7 +65,6 @@ class _GoogleUpdateState extends State<GoogleUpdate> {
                       if (phoneNumber == null || phoneNumber.number.isEmpty) {
                         return 'Please enter your phone number';
                       }
-
                       int expectedLength =
                           phoneLengths[phoneNumber.countryISOCode] ?? 10;
                       if (phoneNumber.number.length != expectedLength) {
@@ -85,13 +84,10 @@ class _GoogleUpdateState extends State<GoogleUpdate> {
                       profileController.defaultCountry.value = value.code;
                     },
                     onChanged: (value) {
-                      // Limit the input to the expected length
                       int expectedLength = phoneLengths[
                               profileController.defaultCountry.value] ??
                           10;
-
                       if (value!.number.length > expectedLength) {
-                        // Truncate the input to the expected length
                         profileController.textEditingPhoneUpdateController
                             .text = value.number.substring(0, expectedLength);
                         profileController.textEditingPhoneUpdateController

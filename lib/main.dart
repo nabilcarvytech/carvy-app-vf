@@ -60,7 +60,6 @@ void main() async {
   });
 
   FlutterError.onError = (FlutterErrorDetails details) {};
-
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
