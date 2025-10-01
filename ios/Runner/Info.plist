@@ -77,8 +77,6 @@
 	</array>
 </dict>
 </plist> -->
-
-
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -86,34 +84,28 @@
 		<!-- 🔑 CHANGE THIS: Replace with your actual API Key -->
 		<key>API_KEY</key>
 		<string>AIzaSyD0uCmoNbNm0E1DsuP0gZIlgue9ePX0tG0</string>
-
 		<key>CADisableMinimumFrameDurationOnPhone</key>
 		<true/>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
-
 		<!-- ✏️ CHANGE THIS: Update with your final app name -->
 		<key>CFBundleDisplayName</key>
 		<string>Carvy</string>
-
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
-
 		<!-- ✏️ CHANGE THIS: Update with your final app name -->
 		<key>CFBundleName</key>
 		<string>Carvy</string>
-
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
 		<string>$(FLUTTER_BUILD_NAME)</string>
 		<key>CFBundleSignature</key>
 		<string>????</string>
-
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>
@@ -126,31 +118,24 @@
 				</array>
 			</dict>
 		</array>
-
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
-
 		<!-- 🔄 CHANGE THIS: Replace with your actual Firebase iOS App ID -->
 		<key>GOOGLE_APP_ID</key>
 		<string>1:415377246287:ios:8eee51c7ed29b162db023a</string>
-
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
-
 		<!-- 📷 Camera usage -->
 		<key>NSCameraUsageDescription</key>
 		<string>Carvy needs access to your camera to capture and upload pictures of your ID for booking verification or to take photos of vehicles and update your profile.</string>
-
 		<!-- 📍 Location usage -->
 		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 		<string>Carvy uses your location to find nearby vehicles and deals when you're actively using the app. Additionally, we may update available vehicles and offers in your vicinity even when the app is running in the background to provide you with the best deals.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>UniBooker Vehicle needs access to your location to provide relevant vehicle options and deals while you're using the app.</string>
-
 		<!-- 🖼 Photo library usage -->
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Carvy requires access to your photo library to upload pictures of your ID or other documents for booking verification, or to add profile and vehicle images.</string>
-
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>UIBackgroundModes</key>
