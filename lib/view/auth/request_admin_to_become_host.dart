@@ -76,10 +76,7 @@ class _RequestTobecomeHopstState extends State<RequestTobecomeHopst> {
       backgroundColor: notifires.getbgcolor,
       body: Stack(
         children: [
-          Positioned(
-              right: 0,
-              top: 0,
-              child: Image.asset("assets/images/Vector2.png")),
+      
           SingleChildScrollView(
             child: Align(
               alignment: Alignment.center,

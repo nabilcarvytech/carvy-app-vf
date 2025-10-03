@@ -81,10 +81,7 @@ class _OtpScreenState extends State<OtpScreen> {
           backgroundColor: notifires.getbgcolor,
           body: Stack(
             children: [
-              Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Image.asset("assets/images/Vector2.png")),
+         
               Positioned(
                 left: 0,
                 bottom: 0,

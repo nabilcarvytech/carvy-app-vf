@@ -42,10 +42,7 @@ class _SignUpState extends State<SignUp> {
         backgroundColor: notifires.getbgcolor,
         body: Stack(
           children: [
-            Positioned(
-                right: 0,
-                top: 0,
-                child: Image.asset("assets/images/Vector2.png")),
+       
             SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Align(

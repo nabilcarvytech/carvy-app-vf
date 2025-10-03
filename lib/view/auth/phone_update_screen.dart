@@ -38,7 +38,6 @@ class _PhoneUpdateScreenState extends State<PhoneUpdateScreen> {
   @override
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
-
     return Align(
       alignment: Alignment.center,
       child: Form(
@@ -48,11 +47,7 @@ class _PhoneUpdateScreenState extends State<PhoneUpdateScreen> {
           child: Scaffold(
             backgroundColor: notifires.getbgcolor,
             body: Stack(
-              children: [
-                Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Image.asset("assets/images/Vector2.png")),
+              children: [        
                 Positioned(
                   left: 0,
                   right: 0,

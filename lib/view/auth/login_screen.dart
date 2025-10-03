@@ -65,10 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: notifires.getbgcolor,
         body: Stack(
           children: [
-            Positioned(
-                right: 0,
-                top: 0,
-                child: Image.asset("assets/images/Vector2.png")),
+    
             Positioned(
               left: 0,
               top: 0,

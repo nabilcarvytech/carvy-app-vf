@@ -3,10 +3,10 @@ class Config {
   static const String oneSiginalAppid = '849877b4-f438-495e-8ccd-62f016aaa09c';
   static const String oneSiginalApiKey =
       'os_v2_app_qsmhpnhuhbev5dgnmlybnkvatqcckvlx27yei5nl2dsodym3ogtcporczydtoahqxfhab6qixogr2o4qtl5p7vttac56wlbr2j43kqa';
-// Temporary base domain URL for setup (please add your final URL here)
-     static const String baseurl = 'https://vehicle.unibooker.app/api/v1/';
-  static const String baseurlForBearer = 'https://vehicle.unibooker.app/api/';
-// Do not change any code below this line. ==================================================
+     static const String baseurl = 'https://admin.carvy.tech/api/v1/';
+  static const String baseurlForBearer = 'https://admin.carvy.tech/api/';
+//   static const String baseurl = 'https://vehicle.unibooker.app/api/v1/';
+//   static const String baseurlForBearer = 'https://vehicle.unibooker.app/api/';
   static const String secretKey = '49382716504938271650493827165049';
   static const String registerUser = 'userRegister';
   static const String socialLogin = 'social-login';

@@ -18,13 +18,13 @@ class VehicleOnBoardingScreen extends StatefulWidget {
 class _VehicleOnBoardingScreenState extends State<VehicleOnBoardingScreen> {
   List content = [
     {
-      "image": "assets/images/slider1Vehicle.png",
+      "image": "assets/images/car-photo.png",
       "title": "Welcome to $appName",
       "description":
           "Book cars and bikes easily for any journey. Quick rides or long trips, we've got you covered"
     },
     {
-      "image": "assets/images/slider2vehicle.png",
+      "image": "assets/images/bike-photo.png",
       "title": "Find Your Car and Bike Today",
       "description":
           "Effortlessly rent cars and bikes for any trip. Choose from a variety of vehicles for your journey."
@@ -47,17 +47,14 @@ class _VehicleOnBoardingScreenState extends State<VehicleOnBoardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: whiteColor,
       body: Stack(
         children: [
-          Positioned(
-              right: 0,
-              top: 0,
-              child: Image.asset("assets/images/Vector2.png")),
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            top: 70,
+            top: 180,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,

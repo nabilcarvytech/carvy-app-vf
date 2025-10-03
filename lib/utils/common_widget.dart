@@ -4705,9 +4705,9 @@ Widget switchToModules(BuildContext context) {
               trackOutlineColor: WidgetStateProperty.resolveWith<Color?>(
                   (Set<WidgetState> states) {
                 if (states.contains(WidgetState.selected)) {
-                  return getColorBasedOnActiveModuleid(); // When the switch is ON
+                  return getColorBasedOnActiveModuleid(); 
                 }
-                return getColorBasedOnActiveModuleid(); // When the switch is OFF
+                return getColorBasedOnActiveModuleid(); 
               }),
               onChanged: (value) {
                 isHostMode.value = value;

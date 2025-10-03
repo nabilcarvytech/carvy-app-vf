@@ -42,10 +42,8 @@ Color lightGrey = const Color(0xFFbbbbbb);
 Color pinnetsColor = const Color.fromARGB(255, 248, 236, 217);
 Color darkgrey = const Color(0xFFF6F4F4);
 Color darkbox = const Color(0xff2ec4b6);
-
 Color vehicleThemeColor = const Color(0xff78290f);
 Color bookableThemeColor = greensColor;
-
 Color boatThemeColor = const Color(0xff48cae4);
 Color spaceThemeColor = const Color(0xfff7a072);
 Color parkingThemeColor = const Color(0xff9d4edd);
