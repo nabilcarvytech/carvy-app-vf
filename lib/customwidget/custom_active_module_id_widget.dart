@@ -49,7 +49,6 @@ void switchphostFunmction(BuildContext context) {
           ));
     }
   }
-
   generalController.update();
 }
 
@@ -58,7 +57,6 @@ void tobecomeHost(BuildContext context) async {
     loginAlert(context);
     return;
   }
-
   showLoading();
   try {
     var responce = await httpPost(Config.getHostStatus, {});

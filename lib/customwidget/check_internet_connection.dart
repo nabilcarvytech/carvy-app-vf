@@ -5,11 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 
-
 class ConnectivityWrapper extends StatefulWidget {
   final Widget child;
   const ConnectivityWrapper({super.key, required this.child});
-
   @override
   State<ConnectivityWrapper> createState() => _ConnectivityWrapperState();
 }
@@ -18,7 +16,6 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
   late StreamSubscription<InternetConnectionStatus> _internetSubscription;
   bool _hasInternet = true;
-
   @override
   void initState() {
     super.initState();
@@ -37,8 +34,6 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
         setState(() => _hasInternet = false);
       }
     });
-
-    // Internet status listener
     _internetSubscription = InternetConnectionChecker().onStatusChange.listen((status) {
       setState(() => _hasInternet = status == InternetConnectionStatus.connected);
     });
@@ -48,9 +43,7 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Your main content
         widget.child,
-        // Internet status banner
         if (!_hasInternet)
           Positioned(
             top: 0,
@@ -98,14 +91,12 @@ class CustomConnectionNotifier extends StatelessWidget {
   final Widget child;
   final double height;
   final Alignment alignment;
-
   const CustomConnectionNotifier({
     super.key,
     required this.child,
     this.height = 50.0,
     this.alignment = Alignment.bottomLeft,
   });
-
   @override
   Widget build(BuildContext context) {
     return LocalConnectionNotifier(

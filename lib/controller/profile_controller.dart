@@ -69,7 +69,6 @@ class ProfileController extends GetxController implements GetxService {
   }
 
   Future<void> setFirstNameFromLoginModel() async {
-    print("jvnkbgnkjsfnbg");
     clear();
     if (loginModel != null) {
       if (loginModel!.data!.firstName != null) {

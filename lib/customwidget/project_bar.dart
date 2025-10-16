@@ -48,7 +48,7 @@ class CustomAppBars extends StatelessWidget implements PreferredSizeWidget {
           child: PhysicalModel(
             color: Colors.transparent,
             shadowColor: notifires.getGrey4Whitecolor,
-            elevation: 1.0, // Adjust the elevation value as needed
+            elevation: 1.0, 
             borderRadius: BorderRadius.circular(8),
             child: Container(
               alignment: Alignment.center,
@@ -68,17 +68,14 @@ class CustomAppBars extends StatelessWidget implements PreferredSizeWidget {
       actions: actions,
     );
   }
-
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 
-//CustomAppBarHeader //
 
 class CustomAppBarHeaders extends StatelessWidget
     implements PreferredSizeWidget {
   const CustomAppBarHeaders({super.key});
-
   @override
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
@@ -90,14 +87,12 @@ class CustomAppBarHeaders extends StatelessWidget
       }
     });
   }
-
   @override
   Size get preferredSize => const Size(200, kToolbarHeight);
 }
 
 class BottomAppBarFooters extends StatelessWidget {
   const BottomAppBarFooters({super.key});
-
   @override
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
@@ -117,7 +112,6 @@ class BottomAppBarFooters extends StatelessWidget {
                         height: 270,
                         margin: const EdgeInsets.only(top: 30),
                         width: Dimensions.containerWidth,
-                        // width: double.infinity,
                         color: const Color.fromARGB(255, 248, 236, 217)
                             .withOpacity(0.5),
                         child: Row(
@@ -480,7 +474,6 @@ class BottomAppBarFooters extends StatelessWidget {
                     width: Dimensions.containerWidth,
                     height: 120,
                     color: const Color.fromARGB(255, 248, 236, 217),
-                    // color: WhiteColor,
                     child: const Center(
                       child: Text('copyright @ 2023-2024'),
                     ),
@@ -494,8 +487,6 @@ class BottomAppBarFooters extends StatelessWidget {
     });
   }
 }
-
-//DetailBottomAppBar //
 
 class DetailBottomBar extends StatelessWidget implements PreferredSizeWidget {
   const DetailBottomBar({super.key});
@@ -531,7 +522,7 @@ class DetailBottomBar extends StatelessWidget implements PreferredSizeWidget {
                       shape: WidgetStateProperty.all(
                         RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(Dimensions
-                              .radiusSmall), // Adjust the radius as per your need
+                              .radiusSmall),
                         ),
                       ),
                     ),
@@ -556,14 +547,10 @@ class DetailBottomBar extends StatelessWidget implements PreferredSizeWidget {
       }
     });
   }
-
   @override
   Size get preferredSize => const Size(200, kToolbarHeight);
-// @override
-// Size get preferredSize => Size.fromHeight(kToolbarHeight);
 }
 
-//bottomSheetBar //
 
 class DynamicBottomSheetContent extends StatefulWidget {
   final String title;
@@ -588,14 +575,13 @@ class DynamicBottomSheetContent extends StatefulWidget {
 }
 
 class _DynamicBottomSheetContentState extends State<DynamicBottomSheetContent> {
-  bool isCancelSelected = true; // Initially, the "Cancel" button is selected
+  bool isCancelSelected = true;
   bool isDeleteSelected = false;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      // height:100,
       decoration: BoxDecoration(
           color: notifires.getblackwhitecolor,
           borderRadius: const BorderRadius.only(
@@ -621,7 +607,6 @@ class _DynamicBottomSheetContentState extends State<DynamicBottomSheetContent> {
           Expanded(
             child: SizedBox(
               width: double.infinity,
-              // height: 20,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -653,7 +638,6 @@ class _DynamicBottomSheetContentState extends State<DynamicBottomSheetContent> {
                         onPressed: widget.onpressed1,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: getColorBasedOnActiveModuleid(),
-                          // onPrimary: WhiteColor, // Customize the text color
                           shape: RoundedRectangleBorder(
                             side: BorderSide(
                                 width: 1.0,
@@ -765,7 +749,7 @@ class CustomAppBarLogins extends StatelessWidget
                               Dimensions.radiusExtraLarge)),
                       child: ElevatedButton(
                           onPressed: () {
-                            // Get.toNamed(Routes.homeMain);
+                    
                           },
                           style: ElevatedButton.styleFrom(
                               elevation: 0,
@@ -863,7 +847,7 @@ class CustomAppBarLogins extends StatelessWidget
   Size get preferredSize => const Size(200, kToolbarHeight);
 }
 
-//DEMO //
+
 
 class Demo extends StatelessWidget implements PreferredSizeWidget {
   const Demo({super.key});
@@ -909,7 +893,7 @@ class Demo extends StatelessWidget implements PreferredSizeWidget {
                       const SizedBox(width: 30),
                       Flexible(
                         flex: 2,
-                        // gilroySemiBold.copyWith(fontSize:17)
+
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [

@@ -6,7 +6,6 @@ import 'dart:ui' as ui;
 import '../customwidget/project_color.dart';
 import '../utils/common_widget.dart';
 import '../utils/theme_style.dart';
-
 import '../work_space.dart';
 
 class MapViewController extends GetxController implements GetxService{
@@ -21,14 +20,12 @@ class MapViewController extends GetxController implements GetxService{
     final double vehicleImageSize = width.toDouble();
     const double vehicleImageX = 0.0;
     const double vehicleImageY = 0.0;
-
     canvas.drawImageRect(
       vehicleImageFrame.image,
       Rect.fromLTRB(0, 0, vehicleImageFrame.image.width.toDouble(), vehicleImageFrame.image.height.toDouble()),
       Rect.fromLTWH(vehicleImageX, vehicleImageY, vehicleImageSize, vehicleImageSize), // Position and size
       Paint(),
     );
-
     final ui.Image markerImage = await pictureRecorder.endRecording().toImage(width, height);
     final ByteData? byteData = await markerImage.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
@@ -44,16 +41,13 @@ class MapViewController extends GetxController implements GetxService{
         style: const TextStyle(
           fontSize: 15.0,
           color: Colors.white,
-          // fontWeight: FontWeight.w300,
         ),
       ),
       textDirection: TextDirection.ltr,
     );
     textPainter.layout();
-
     int textWidth = textPainter.width.toInt();
     int width = (textWidth + 15).clamp(30, 50);
-
     final Paint backgroundPaint = Paint()..color = getColorBasedOnActiveModuleid();
     canvas.drawRRect(
       RRect.fromRectAndCorners(
@@ -84,8 +78,6 @@ class MapViewController extends GetxController implements GetxService{
     final double textX = (width - textPainter.width) / 2;
     final double textY = (height - textPainter.height) / 2;
     textPainter.paint(canvas, Offset(textX, textY));
-
-
     final ui.Image markerImage = await pictureRecorder.endRecording().toImage(width, height);
     final ByteData? byteData = await markerImage.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
@@ -172,5 +164,4 @@ class MapViewController extends GetxController implements GetxService{
       },
     );
   }
-
 }

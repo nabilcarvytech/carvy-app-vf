@@ -55,20 +55,24 @@ Widget commonlyUserlogoAlert() {
       width: 50,
       height: 50,
       decoration: BoxDecoration(color: getColorBasedOnActiveModuleid()),
-      child: Image.asset('assets/images/logo-carvy.png', fit: BoxFit.fill),
+      child: Image.asset('assets/images/small-app-logo.jpg', fit: BoxFit.fill),
     )),
   );
 }
 
 Widget commonlyUserlogo() {
   return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
           width: 100,
           height: 100,
           decoration: BoxDecoration(color: getColorBasedOnActiveModuleid()),
           child:
-              Image.asset('assets/images/logo-carvy.png', fit: BoxFit.fill)));
+              Image.asset('assets/images/app-logo-car.jpg', fit: BoxFit.fill)));
+}
+
+Widget splashLogo() {
+  return Image.asset('assets/images/spl-logo.png',width: 300,);
 }
 
 class LocationItem {

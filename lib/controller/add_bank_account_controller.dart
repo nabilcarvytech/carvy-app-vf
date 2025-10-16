@@ -24,7 +24,6 @@ class AddBankAccount extends GetxController implements GetxService {
   var isloading = false.obs;
   var isLoadingPayment = false.obs;
   InsertDataAccount? insertDataAccount;
-
   PaymentMethodModel? paymentMethodModel;
   GetPaymentTypeModel? getPaymentTypeModel;
 

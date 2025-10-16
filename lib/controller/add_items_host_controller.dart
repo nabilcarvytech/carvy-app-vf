@@ -678,7 +678,6 @@ class AddItemsHostController extends GetxController implements GetxService {
       closeLoading();
       if (response != null) {
         if (response['status'] == 200) {
-          // print("object");object
           fetchItemId = FetchItemId.fromJson(response);
           if (fetchItemId!.insertItemHost != null) {
             itemHostId = fetchItemId!.insertItemHost!.id!;

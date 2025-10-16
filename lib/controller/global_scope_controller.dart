@@ -21,7 +21,6 @@ class GlobalScopeController extends GetxController {
   RxString startDateCustomDate = "".obs;
   RxString endDateCustomDate = "".obs;
   RxString homeSearchLocation = ''.obs;
-
   String? citySelected;
   String slat = "";
   String sLong = "";

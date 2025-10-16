@@ -9,7 +9,6 @@ import '../customwidget/custom_active_module_id_widget.dart';
 import '../work_space.dart';
 
 GeneralDataModel? generalDataModel;
-
 class GeneralController extends GetxController implements GetxService {
   late TabController tabController;
   RxInt currentIndex = 0.obs;

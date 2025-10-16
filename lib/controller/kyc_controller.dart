@@ -435,7 +435,7 @@ class KycController extends GetxController implements GetxService {
     } catch (e, stackTrace) {
       closeLoading();
       debugPrint("Error in submit: $e");
-      debugPrint("StackTrace: $stackTrace"); // Print detailed error trace
+      debugPrint("StackTrace: $stackTrace");
       showErrorToastMessage("An error occurred. Please try again later.");
     }
   }
@@ -546,7 +546,6 @@ class KycController extends GetxController implements GetxService {
                               "Back".tr,
                               style: TextStyle(
                                   color: whiteColor,
-                                  // fontFamily: FontStyles.gilroyMedium,
                                   fontWeight: FontWeight.bold),
                             ))))),
                 actionName == "Review"
@@ -570,7 +569,6 @@ class KycController extends GetxController implements GetxService {
                                   "$actionName".tr,
                                   style: const TextStyle(
                                       color: Colors.white,
-                                      // fontFamily: FontStyles.gilroyMedium,
                                       fontWeight: FontWeight.bold),
                                 ))))),
               ],

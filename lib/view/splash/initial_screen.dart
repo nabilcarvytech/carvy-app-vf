@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:provider/provider.dart';
@@ -26,10 +25,8 @@ class _InitialScreenState extends State<InitialScreen> {
   @override
   void initState() {
     super.initState();
-    // Remove splash after a delay or when data is loaded
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) {
-        FlutterNativeSplash.remove();
         setScreen();
       }
     });

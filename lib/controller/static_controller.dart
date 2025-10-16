@@ -50,7 +50,6 @@ class StaticController extends GetxController implements GetxService {
         throw Exception("Failed to fetch data or empty response");
       }
     } catch (e) {
-      // print("Error fetching data: $e");
       string.value = 'Error fetching data';
     }
   }

@@ -52,14 +52,12 @@ class _CustomBottomSheetState extends State<CustomBottomSheet> {
                 InkWell(
                   onTap: () {
                     if (GlobalScopeController.selectedRadio == -1) {
-                      // If no radio button is selected, show a message to the user
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Please select a reason'.tr),
                         ),
                       );
-                    } else {
-                      // If a radio button is selected, pop the Navigator with the selected orderCancellationId
+                    } else {       
                       Navigator.pop(
                         context,
                         widget
@@ -69,7 +67,7 @@ class _CustomBottomSheetState extends State<CustomBottomSheet> {
                             .orderCancellationId,
                       );
                       GlobalScopeController.selectedRadio =
-                          -1; // Reset the selected radio button
+                          -1; 
                     }
                   },
                   child: Container(
@@ -108,8 +106,7 @@ class _CustomBottomSheetState extends State<CustomBottomSheet> {
                       child: Text("Data not Found".tr,
                           style: TextStyle(
                             fontSize: 18,
-                            color: notifires.getwhiteblackcolor,
-                            // fontFamily: FontStyles.gilroyMedium
+                            color: notifires.getwhiteblackcolor,                
                           )),
                     ),
                   )
@@ -132,7 +129,7 @@ class _CustomBottomSheetState extends State<CustomBottomSheet> {
                                     spreadRadius: 3,
                                     blurRadius: 5,
                                     offset: const Offset(
-                                        0, 0), // changes position of shadow
+                                        0, 0), 
                                   ),
                                 ],
                               ),

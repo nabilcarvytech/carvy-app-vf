@@ -32,14 +32,11 @@ bool checkUpdateStep2 = false;
 bool connectionLost = false;
 bool openOtpAfterImageSubmit = false;
 bool otpSheetOpened = false;
-
 bool bookingAgrinmentVendor = false;
 bool bookingAgrinmentVendor2 = false;
 bool handleSearchFordetail = false;
-
 bool bookingAgrinmentuser = false;
 bool bookingAgrinmentUser2 = false;
-
 AddAddressController addAddressController = Get.find();
 String currency = "";
 String? paymentStatus = "";
@@ -48,14 +45,10 @@ dynamic maxPriceRange;
 dynamic minPricerange;
 dynamic showerrorWhenloginwithOtherDevice = "";
 int currentTabIndexforLocation = 0;
-
 enum ScreenMode { add, edit }
-
 bool darkMode = GetStorage().read("getDarkValue") ?? false;
 String bearerToken = GetStorage().read("bearerToken") ?? "";
-
 enum EditOptions { op1, op2, op3 }
-
 SearchControllerHome filterController = Get.find();
 setdefultData() {
   addAddressController.preventDate.value = true;
@@ -84,17 +77,14 @@ dynamic showHideMake = "";
 dynamic showHideMustView = "";
 dynamic showHideBecomeHost = "";
 dynamic showhidedistance = "";
-
 dynamic digitalsingnature = "";
 dynamic internalVehicleImage = "";
 dynamic kycenable = "";
-
 dynamic checkItemPiblicationLimit = "";
 String? slatsearch = "";
 String? sLongSearch = "";
 String token = "";
 dynamic oneSiginalplayerid = GetStorage().read('oneSiginalplayerid') ?? "";
-
 dynamic userId = GetStorage().read('userIdGlobal') ?? "";
 String deviceTokenForNotifications = "";
 LoginModel? loginModel;

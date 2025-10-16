@@ -130,7 +130,6 @@ Future<void> firebaseInit() async {
   try {
     await FirebaseMessaging.instance
         .requestPermission(sound: true, alert: true);
-
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingHandler);
   } catch (e) {
     //
@@ -153,8 +152,7 @@ void _handleMessage(RemoteMessage message) {
     }
   }
   if (messageKeyData is Map<String, dynamic>) {
-    // Map<String, dynamic> conversations = messageKeyData['conversations'];
-    // String productId = conversations['property_id'];
+
   }
 }
 
@@ -192,11 +190,9 @@ Future<void> getFCMToken() async {
     //
   }
 }
-
 Future<void> addTagWithKey(String token) async {
   await OneSignal.User.addTagWithKey("FCMToken", token);
 }
-
 Future<void> fetchPlayerId(fcmToken) async {
   try {
     oneSiginalplayerid = OneSignal.User.pushSubscription.id;
@@ -206,10 +202,8 @@ Future<void> fetchPlayerId(fcmToken) async {
         Config.fcmUpdate,
         {"fcm": fcmToken, "player_id": oneSiginalplayerid},
       );
-
       print(oneSiginalplayerid);
       print("OmneSignialid");
-      // add set the notification
     } else {}
   } catch (error) {
     //
@@ -232,12 +226,10 @@ Future<void> showNotification() async {
           showOneSignalNotification(event.notification);
         }
       }
-
       event.preventDefault();
     });
-    isOneSignalListenerAdded = true; // Mark the listener as added
+    isOneSignalListenerAdded = true; 
   }
-
   OneSignal.Notifications.addClickListener((event) {
     if (markNotificationAsProcessed(event.notification.notificationId)) {
       handleNotificationClick(event.notification.additionalData!['route'],
@@ -250,15 +242,11 @@ BookingController bookingController = Get.find();
 void handleNotificationClick(String? route, var data) {
   if (token.isEmpty) {
     showErrorToastMessage("Please Login first");
-
     return;
   }
   if (route != null) {
-    //for chat routing==========
     if (route == "inbox") {}
-    //userEnd notification routing================
     if (data!["vendorNotification"] == 0) {
-      // for booking or cancelled====
       if (route == "booking") {
         Get.to(const HomeMain(initialIndex: 2));
         generalController.currentIndex.value = 2;
@@ -276,7 +264,6 @@ void handleNotificationClick(String? route, var data) {
         bookingController.tabIndexOfMybooking = 1;
       }
     }
-    // vendorEnd notification routing=============
     else if (data!["vendorNotification"] == 1) {
       if (route == "booking") {
         isHostMode.value = true;
@@ -290,7 +277,6 @@ void handleNotificationClick(String? route, var data) {
           bookingController.tabIndexOfMybooking = 0;
         }
       }
-      // for review===
       else if (route == "review") {
         isHostMode.value = true;
         Get.to(const BottomHost(initialIndex: 2));
@@ -304,22 +290,18 @@ void handleNotificationClick(String? route, var data) {
 
 Future<void> initializeNotifications() async {
   flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('launch_background');
-
   const DarwinInitializationSettings initializationSettingsDarwin =
       DarwinInitializationSettings(
     requestAlertPermission: true,
     requestBadgePermission: true,
     requestSoundPermission: true,
   );
-
   const InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
     iOS: initializationSettingsDarwin,
   );
-
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
     onDidReceiveNotificationResponse:
@@ -336,3 +318,5 @@ Future<void> initializeNotifications() async {
     },
   );
 }
+
+

@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-
 import 'package:location/location.dart' as loc;
 import 'package:http/http.dart' as http;
 import 'package:carvy/api/config.dart';
@@ -26,7 +25,7 @@ class AddAddressController extends GetxController implements GetxService {
   TextEditingController countryController = TextEditingController();
   TextEditingController postalCodeController = TextEditingController();
   RxString doorSteplatitude =
-      "28.5830".obs; // Latitude of Maya Market, NH-80, Lakhisarai, Bihar
+      "28.5830".obs; 
   RxString doorSteplongitude = "77.3130".obs;
   String? selectedLat, selectedLong;
   var markers = <Marker>{}.obs;

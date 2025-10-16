@@ -61,12 +61,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
   DatabaseReference? dbRef;
   final database = FirebaseDatabase.instance.ref().child("chatList");
   final userDb = FirebaseDatabase.instance.ref().child("users");
-
   bool isUploading = false;
   bool showGoToBottomButton = false;
-
   DateTime? lastNotificationTime;
-
   bool isOff = false;
   bool isCompleted = false;
   String bookingStatus = "";
@@ -90,7 +87,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final RegExp phoneRegex = RegExp(r'\b\d{10,}\b');
     final RegExp emailRegex =
         RegExp(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b');
-
     if (phoneRegex.hasMatch(messageText) || emailRegex.hasMatch(messageText)) {
       return;
     }
@@ -115,7 +111,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
         bookingIO: "${widget.bookingId}",
         bookingStatus: "${widget.bookingStatus}",
         userImage: "");
-
     ChatMessages chatMassege2 = ChatMessages(
       timeZone: "",
       roomId: widget.conversationId.toString(),
@@ -134,7 +129,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
       bookingStatus: "${widget.bookingStatus}",
       userImage: "",
     );
-
     String bookingIdForKey = "${widget.bookingId}";
     database
         .child("$userId")
@@ -144,7 +138,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
         .child("${widget.reciverId}")
         .child("${bookingIdForKey}_$userId")
         .set(chatMassege2.toMap());
-
     final message = ChatMessages(
         bookingStatus: "${widget.bookingStatus}",
         timeZone: "",
@@ -164,40 +157,28 @@ class _ConversationScreenState extends State<ConversationScreen> {
         playeridUser2: '${playerId}',
         bookingIO: bookingIdForKey,
         userImage: "");
-
     dbRef?.push().set(message.toMap());
-
-    String bookingIdForSeen = widget.bookingId ?? ""; // Fallback
-
+    String bookingIdForSeen = widget.bookingId ?? "";
     bool isSeen = await _isMessageSeen(
         "${widget.reciverId}", "O${bookingIdForSeen}_$userId");
-
     String notificationMessage =
         "New message from ${loginModel!.data!.firstName}: $messageText";
-
+    sendNotification(
+         notificationMessage, widget.conversationId);
+    print("jhjhbvdhs");
+    print(widget.playerId);
+    print(playerId);
     DateTime currentTime = DateTime.now();
-    if (lastNotificationTime == null ||
-        currentTime.difference(lastNotificationTime!).inSeconds > 60) {
-      if (!isSeen) {
-        sendNotification(
-            "${widget.playerId}", notificationMessage, widget.conversationId);
-        lastNotificationTime = currentTime;
-      }
-    }
-
     textEditingControllermessage.clear();
   }
 
-  Future<void> sendNotification(playerId, message, conversationId) async {
+  Future<void> sendNotification( message, conversationId) async {
     var headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Basic ${Config.oneSiginalApiKey}'
     };
 
-    var request = http.Request(
-        'POST', Uri.parse('https://onesignal.com/api/v1/notifications'));
-
-    request.body = json.encode({
+    var bodyData = {
       "app_id": Config.oneSiginalAppid,
       "include_player_ids": [playerId],
       "headings": {"en": "New Chat Message"},
@@ -214,28 +195,29 @@ class _ConversationScreenState extends State<ConversationScreen> {
         "title": widget.title,
         "route": "inbox"
       }
-    });
-
+    };
+    var request = http.Request(
+        'POST', Uri.parse('https://onesignal.com/api/v1/notifications'));
     request.headers.addAll(headers);
+    request.body = json.encode(bodyData);
 
     try {
       http.StreamedResponse response = await request.send();
+      var responseBody = await response.stream.bytesToString();
       if (response.statusCode == 200) {
-      } else {}
+      } else {
+      }
     } catch (e) {
-      //
     }
   }
 
   @override
   void initState() {
     super.initState();
-
     dbRef = FirebaseDatabase.instance
         .ref()
         .child("chats")
         .child("${widget.conversationId}");
-
     isChatOpen = true;
     fetchData();
     scrollController.addListener(_scrollListener);
@@ -278,7 +260,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   bool clickOption = false;
-
   @override
   Widget build(BuildContext context) {
     return Align(
@@ -392,7 +373,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
                                       .child("${widget.bookingId}_$userId")
                                       .update({'seen': true});
                                 }
-// update Bookingstatus
 
                                 if (messageList['senderId'] ==
                                     userId.toString()) {
@@ -450,11 +430,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
                           ? _buildChatDisabledUI(
                               widget.bookingStatus.toString())
                           : Align(
-                              // alignment: Alignment.bottomCenter,
                               child: Container(
                                 padding: const EdgeInsets.only(
                                     left: 5, bottom: 10, top: 10, right: 10),
-                                // height: 60,
                                 color: notifires.getbgcolor,
                                 child: Row(
                                   children: <Widget>[
@@ -469,7 +447,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
                                             controller:
                                                 textEditingControllermessage,
                                             onSubmitted: (v) {
-                                              // sendMsgFunction();
                                               _submitMessage();
                                             },
                                             minLines: 1,

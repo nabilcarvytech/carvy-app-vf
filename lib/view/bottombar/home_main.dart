@@ -171,7 +171,7 @@ class _HomeMainScreenState extends State<HomeMain>
                     ),
                     child: Center(
                       child: ClipOval(
-                        child: Image.asset("assets/images/logo.jpg",
+                        child: Image.asset("assets/images/small-app-logo.jpg",
                             fit: BoxFit.fill),
                       ),
                     ),

@@ -7,7 +7,6 @@ import 'package:carvy/model/user_thread_model.dart';
 
 class TicketController extends GetxController implements GetxService {
   RxBool ticketLoading = false.obs;
-
   getdata(Threads thread, List<ReplyThreadsData> list,
       ReplyThreadsModel? replyThreads) async {
     Map<String, String> postData = {"thread_id": thread.threadId.toString()};
@@ -15,14 +14,12 @@ class TicketController extends GetxController implements GetxService {
     replyThreads = ReplyThreadsModel.fromJson(response);
     list = replyThreads.data!.replyThreadsData!;
   }
-
   getUserOpenTicket() async {
     var response = await httpGet(Config.getUserThreads, {});
     if (response != null) {
       return UserThreadModel.fromJson(response);
     }
   }
-
   getUsercloseTicket() async {
     Map<String, String> postData = {"thread_status": "0"};
     var response = await httpGet(Config.getUserThreads, postData);
@@ -30,7 +27,6 @@ class TicketController extends GetxController implements GetxService {
       return UserThreadModel.fromJson(response);
     }
   }
-
   createSupportTicket(title, desc) async {
     showLoading();
     Map<String, String> postData = {"title": title, "description": desc};

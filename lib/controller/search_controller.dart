@@ -77,7 +77,6 @@ class SearchControllerHome extends GetxController implements GetxService {
     }
     update();
   }
-
   String? from;
   String? to;
   String? numberofPeople;
@@ -99,7 +98,6 @@ class SearchControllerHome extends GetxController implements GetxService {
       to = "To date";
     }
   }
-
   RxString startDate = ''.obs;
   RxString endDates = ''.obs;
   @override
@@ -117,17 +115,14 @@ class SearchControllerHome extends GetxController implements GetxService {
   late RxList<String> filteredTimeSlotsEndTime;
   late List<String> avalibleSlots;
   RxString curreentStatus = "".obs;
-  // }'
   bool isToday(DateTime date) {
     final now = DateTime.now();
     return date.year == now.year &&
         date.month == now.month &&
         date.day == now.day;
   }
-
   RxString startTimeSearch = ''.obs;
   RxString endTimeSearch = ''.obs;
-
   DateRangePickerController dateRangePickerControllerCustom =
       DateRangePickerController();
 
@@ -169,36 +164,23 @@ class SearchControllerHome extends GetxController implements GetxService {
     if (args.value is PickerDateRange) {
       final PickerDateRange range = args.value;
       final DateTime startDateTime = range.startDate!;
-      // For single-date selection, endDate is null or same as startDate
       final DateTime endDateTime = range.endDate ?? startDateTime;
-
-      // Format dates for storage and display
       generalScopeController.startDateCustomDate.value =
           DateFormat('yyyy-MM-dd').format(startDateTime);
       generalScopeController.endDateCustomDate.value =
           DateFormat('yyyy-MM-dd').format(endDateTime);
       startDate.value = DateFormat('MMM d, EEE').format(startDateTime);
       endDates.value = DateFormat('MMM d, EEE').format(endDateTime);
-
-      // Persist to GetStorage for AppBar
       GetStorage().write("startDate", startDate.value);
       GetStorage().write("endDates", endDates.value);
-
-      // Normalize dates to ignore time for isToday check
       final DateTime today = DateTime.now();
       final DateTime normalizedStart =
           DateTime(startDateTime.year, startDateTime.month, startDateTime.day);
       final DateTime normalizedToday =
           DateTime(today.year, today.month, today.day);
-
-      print(
-          'Selected start: $normalizedStart, Today: $normalizedToday'); // Debug
-
       if (normalizedStart == normalizedToday) {
-        print('Single date is today: $startDateTime');
         handleCurrentDateSelection(startDateTime, endDateTime);
       } else {
-        print('Single date is not today: $startDateTime');
         handleOtherDateSelection(startDateTime, endDateTime);
       }
     }
@@ -297,15 +279,12 @@ class SearchControllerHome extends GetxController implements GetxService {
       if (currentTime.hour == 23 && currentTime.minute >= 30) {
         return [];
       }
-
       while (currentTime.isBefore(endDate) ||
           currentTime.isAtSameMomentAs(endDate)) {
         String formattedTime = formatTime(currentTime);
         currenttimeSlots.add(formattedTime);
-
         currentTime = currentTime.add(const Duration(minutes: 30));
       }
-
       return currenttimeSlots;
     } else {
       return [];
@@ -384,7 +363,6 @@ class SearchControllerHome extends GetxController implements GetxService {
       startIndex = endIndex;
       endIndex = temp;
     }
-
     filteredTimeSlotsEndTime.value = manualTimeSlots.sublist(
         max(0, startIndex), min(manualTimeSlots.length, endIndex + 1));
 
@@ -414,13 +392,11 @@ class SearchControllerHome extends GetxController implements GetxService {
   var isLoadingVehicle = false.obs;
   var isLoadingVehiclemake = false.obs;
   var isLoadingBoat = false.obs;
-
   List<dynamic> maketypesValus = [];
   List<dynamic> selectedtypesvalues = [];
   List<dynamic> featuresvalues = [];
   List<dynamic> odometerValues = [];
   List<dynamic> selectedModelYear = [];
-
   List<dynamic> fitvalue = [];
   List<dynamic> colorvalue = [];
   List<dynamic> sizevalue = [];
@@ -431,7 +407,6 @@ class SearchControllerHome extends GetxController implements GetxService {
   bool showMore = true;
   RxDouble startRange = 0.0.obs;
   RxDouble endRage = 0.0.obs;
-
   AmenitiesModel? amenitiesModelVehicle;
   Odometer? odometerModelVehicle;
   ItemTypeModel? vehicleTypeModel;
@@ -591,7 +566,6 @@ class SearchControllerHome extends GetxController implements GetxService {
         }
       }
     }
-
     if (webPlateForm) {
       Get.toNamed(
         WebRoutes.afterSearch,
@@ -639,7 +613,6 @@ class SearchControllerHome extends GetxController implements GetxService {
       "size": sizevalue.toString(),
       "collection": collectionvalue.toString(),
     };
-
     return map;
   }
 
@@ -647,7 +620,6 @@ class SearchControllerHome extends GetxController implements GetxService {
   void disposeFunction() {
     selectedBeds = 1;
     selectedBathroom = 1;
-
     showMore = true;
   }
 
@@ -795,7 +767,6 @@ class SearchControllerHome extends GetxController implements GetxService {
 
   RxBool searchOurRecommendationCheck = false.obs;
   ItemModel? itemModel;
-
   AmenitiesModel? fitmodel;
   AmenitiesModel? colorModel;
   AmenitiesModel? sizeModel;
@@ -826,25 +797,20 @@ class SearchControllerHome extends GetxController implements GetxService {
         final placeDetails = placesResult['result'];
         centralLat = placeDetails['geometry']['location']['lat'];
         centralLng = placeDetails['geometry']['location']['lng'];
-
         final geocodeRequest =
             'https://maps.googleapis.com/maps/api/geocode/json?place_id=$placeId&key=${Config.googleKey}';
         final geocodeResponse = await http.get(Uri.parse(geocodeRequest));
-
         if (geocodeResponse.statusCode == 200) {
           final geocodeResult = json.decode(geocodeResponse.body);
           if (geocodeResult['status'] == 'OK') {
             final components = geocodeResult['results'][0]['address_components']
                 as List<dynamic>;
-
             String? city;
             String? zipCode;
             String? country;
             String? state;
-
             for (var component in components) {
               final types = component['types'] as List<dynamic>;
-
               if (types.contains('postal_code')) {
                 zipCode = component['long_name'];
               }
@@ -902,14 +868,11 @@ class SearchControllerHome extends GetxController implements GetxService {
     centralLng = "";
     placeRadius = "";
     generalScopeController.textEditingControllerCity.clear();
-
     var uuid = const Uuid();
     String sessionId = uuid.v4();
     print("Session ID: $sessionId");
-
     try {
       showLoading();
-
       bool serviceEnabled = await location.serviceEnabled();
       if (!serviceEnabled) {
         serviceEnabled = await location.requestService();
@@ -950,24 +913,19 @@ class SearchControllerHome extends GetxController implements GetxService {
       if (locationData.latitude != null && locationData.longitude != null) {
         slatsearch = locationData.latitude.toString();
         sLongSearch = locationData.longitude.toString();
-
         String placeId =
             await getPlaceId(locationData.latitude!, locationData.longitude!);
-
         String fullAddress = await getAddressFromPlaceId(placeId);
         generalScopeController.homeSearchLocation.value = fullAddress;
         generalScopeController.textEditingControllerCity.text = fullAddress;
         update();
-
         if (filterController.hitApiOnMap == true) {
           Navigator.pop(context);
         }
       } else {
-        print("Session ID: $sessionId, Error: Location data is null.");
         showErrorToastMessage("Failed to get current location.");
       }
     } catch (e) {
-      print("Session ID: $sessionId, Error: $e");
       closeLoading();
     }
   }
@@ -978,7 +936,6 @@ class SearchControllerHome extends GetxController implements GetxService {
         'https://maps.googleapis.com/maps/api/geocode/json?latlng=$latitude,$longitude&key=${Config.googleKey}',
       ),
     );
-
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       if (data['results'] != null && data['results'].length > 0) {
@@ -997,7 +954,6 @@ class SearchControllerHome extends GetxController implements GetxService {
         'https://maps.googleapis.com/maps/api/geocode/json?place_id=$placeId&key=${Config.googleKey}',
       ),
     );
-
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       if (data['results'] != null && data['results'].length > 0) {
@@ -1009,6 +965,5 @@ class SearchControllerHome extends GetxController implements GetxService {
       throw Exception('Failed to fetch address.');
     }
   }
-
   RxString selectredeShortByvalue = "Nearest Location".obs;
 }

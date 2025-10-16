@@ -107,7 +107,6 @@ class NotificationController extends GetxController implements GetxService {
     if (response != null) {
       if (response['status'] == 200) {
         newMessage.value = value;
-
         if (value) {
           vv = 1;
         } else {
