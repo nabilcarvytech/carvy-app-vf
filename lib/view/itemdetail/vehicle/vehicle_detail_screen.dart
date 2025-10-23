@@ -1242,17 +1242,12 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                                       ),
                                                     ),
                                                   );
-
                                                   return;
                                                 }
-
-                                                // Extract times
                                                 String? startTime =
                                                     data["next_start_time"];
                                                 String? endTime =
                                                     data["next_end_time"];
-
-                                                // Availability overrides
                                                 final availability =
                                                     data["availability"];
                                                 if (availability != null) {
@@ -1264,8 +1259,6 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                                       endTime;
                                                   startTime ??= "12:00 AM";
                                                   endTime ??= "11:30 AM";
-
-                                                  // Assign to controller
                                                   bookingController
                                                       .selectedStartTime
                                                       .value = startTime;
@@ -1308,7 +1301,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                                   );
                                                 }
 
-                                                // Apply fallback if still null
+                        
 
                                                 debugPrint(
                                                   '✅ Checkout Time -> Start: $startTime | End: $endTime',

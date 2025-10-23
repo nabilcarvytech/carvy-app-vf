@@ -444,7 +444,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                                   LabelNames(labelname: 'Not available'.tr),
                                   const SizedBox(width: 20),
                                   Avability(
-                                    color: darkbox,
+                                    color: themeColor,
                                     borderColor: notifires.getwhiteblackcolor,
                                   ),
                                   const SizedBox(width: 10),
@@ -497,7 +497,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                               monthViewSettings:
                                   DateRangePickerMonthViewSettings(
                                 viewHeaderStyle: DateRangePickerViewHeaderStyle(
-                                  backgroundColor: darkbox.withOpacity(0.1),
+                                  backgroundColor: themeColor.withOpacity(0.1),
                                   textStyle: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Colors.black,
@@ -623,7 +623,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                                   });
 
                                   if (isAvailableDate) {
-                                    cellColor = darkbox;
+                                    cellColor = themeColor;
                                     textColor = whiteColor;
 
                                     int index =
@@ -698,7 +698,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                                           color: cellDetails.date
                                                   .isBefore(DateTime.now())
                                               ? greyColor.withOpacity(0.5)
-                                              : darkbox,
+                                              : themeColor,
                                           width: 1.5,
                                           style: BorderStyle.solid),
                                       borderRadius: BorderRadius.circular(5),
@@ -770,8 +770,8 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                                         horizontal: Dimensions.radiusExtraLarge,
                                         vertical: 11),
                                     decoration: BoxDecoration(
-                                        border: Border.all(color: darkbox),
-                                        color: darkbox,
+                                        border: Border.all(color: themeColor),
+                                        color: themeColor,
                                         borderRadius: BorderRadius.circular(
                                             Dimensions.radiusExtraLarge)),
                                     child: Row(

@@ -77,6 +77,7 @@ class SearchControllerHome extends GetxController implements GetxService {
     }
     update();
   }
+
   String? from;
   String? to;
   String? numberofPeople;
@@ -98,6 +99,7 @@ class SearchControllerHome extends GetxController implements GetxService {
       to = "To date";
     }
   }
+
   RxString startDate = ''.obs;
   RxString endDates = ''.obs;
   @override
@@ -121,10 +123,24 @@ class SearchControllerHome extends GetxController implements GetxService {
         date.month == now.month &&
         date.day == now.day;
   }
+
   RxString startTimeSearch = ''.obs;
   RxString endTimeSearch = ''.obs;
   DateRangePickerController dateRangePickerControllerCustom =
       DateRangePickerController();
+  String convert12To24(String time12) {
+    DateFormat inputFormat = DateFormat('h:mm a');
+    DateFormat outputFormat = DateFormat('HH:mm');
+    DateTime dateTime = inputFormat.parse(time12);
+    return outputFormat.format(dateTime);
+  }
+
+  String convert24To12(String time24) {
+    DateFormat inputFormat = DateFormat('HH:mm');
+    DateFormat outputFormat = DateFormat('h:mm a');
+    DateTime dateTime = inputFormat.parse(time24);
+    return outputFormat.format(dateTime);
+  }
 
   void setDefaultDates({
     required RxString startDateCustomDate,
@@ -134,7 +150,6 @@ class SearchControllerHome extends GetxController implements GetxService {
   }) {
     DateTime currentDate = DateTime.now();
     DateTime futureDate = currentDate.add(const Duration(days: 2));
-
     startDateCustomDate.value = DateFormat('yyyy-MM-dd').format(currentDate);
     endDateCustomDate.value = DateFormat('yyyy-MM-dd').format(futureDate);
     startDate.value = DateFormat('MMM d, EEE').format(currentDate);
@@ -145,6 +160,8 @@ class SearchControllerHome extends GetxController implements GetxService {
         DateFormat('yyyy-MM-dd').parse(startDateCustomDate.value);
     DateTime parsedEnd =
         DateFormat('yyyy-MM-dd').parse(endDateCustomDate.value);
+    startTimeSearch.value = "00:30";
+    endTimeSearch.value = "23:30";
     if (isToday(parsedStart)) {
       handleCurrentDateSelection(parsedStart, parsedEnd);
     } else {
@@ -160,7 +177,6 @@ class SearchControllerHome extends GetxController implements GetxService {
     endTimeSearch.value = '';
     avalibleSlots.clear();
     update();
-
     if (args.value is PickerDateRange) {
       final PickerDateRange range = args.value;
       final DateTime startDateTime = range.startDate!;
@@ -188,7 +204,9 @@ class SearchControllerHome extends GetxController implements GetxService {
   }
 
   void handleCurrentDateSelection(
-      DateTime selectedStartDate, DateTime selectedEndDate) {
+    DateTime selectedStartDate,
+    DateTime selectedEndDate,
+  ) {
     List<String> timeSlots = generateTimeSlots(selectedStartDate);
     if (timeSlots.isNotEmpty) {
       String nextSlot = timeSlots.first;
@@ -196,15 +214,14 @@ class SearchControllerHome extends GetxController implements GetxService {
 
       if (selectedStartDate == selectedEndDate) {
         startTimeSearch.value = nextSlot;
-        endTimeSearch.value = "11:30 PM";
-        print(2);
+        endTimeSearch.value = "23:30";
         curreentStatus.value = "CurrebtDate";
-        filterTimeSlotsfunctionSameDate(startTimeSearch.value, "12:30 AM");
+        filterTimeSlotsfunctionSameDate(startTimeSearch.value, "00:30");
       } else {
         curreentStatus.value = "StartCurrentEndOther";
         startTimeSearch.value = nextSlot;
-        endTimeSearch.value = "12:30 AM";
-        filterTimeSlotsfunctionSameDate(startTimeSearch.value, "12:30 AM");
+        endTimeSearch.value = "00:30";
+        filterTimeSlotsfunctionSameDate(startTimeSearch.value, "00:30");
         handleNextDaySlots(selectedEndDate);
       }
     } else {
@@ -214,19 +231,25 @@ class SearchControllerHome extends GetxController implements GetxService {
   }
 
   void handleOtherDateSelection(
-      DateTime selectedStartDate, DateTime selectedEndDate) {
+    DateTime selectedStartDate,
+    DateTime selectedEndDate,
+  ) {
     if (selectedStartDate == selectedEndDate) {
       curreentStatus.value = "OtherSameDate";
-      startTimeSearch.value = "12:30 AM";
-      endTimeSearch.value = "1:30 AM";
+      startTimeSearch.value = "00:30";
+      endTimeSearch.value = "01:30";
       filterTimeSlotsfunctionSameDate(
-          startTimeSearch.value, endTimeSearch.value);
+        startTimeSearch.value,
+        endTimeSearch.value,
+      );
     } else {
       curreentStatus.value = "CrossOtherDates";
-      startTimeSearch.value = "12:30 AM";
-      endTimeSearch.value = "1:30 AM";
+      startTimeSearch.value = "00:30";
+      endTimeSearch.value = "01:30";
       filterTimeSlotsfunctionSameDate(
-          startTimeSearch.value, endTimeSearch.value);
+        startTimeSearch.value,
+        endTimeSearch.value,
+      );
       handleNextDaySlots(selectedEndDate);
     }
 
@@ -275,19 +298,18 @@ class SearchControllerHome extends GetxController implements GetxService {
         23,
         59,
       );
-
       if (currentTime.hour == 23 && currentTime.minute >= 30) {
         return [];
       }
       while (currentTime.isBefore(endDate) ||
           currentTime.isAtSameMomentAs(endDate)) {
-        String formattedTime = formatTime(currentTime);
+        String formattedTime = DateFormat('HH:mm').format(currentTime);
         currenttimeSlots.add(formattedTime);
         currentTime = currentTime.add(const Duration(minutes: 30));
       }
       return currenttimeSlots;
     } else {
-      return [];
+      return getManualTimeSlots24();
     }
   }
 
@@ -295,55 +317,7 @@ class SearchControllerHome extends GetxController implements GetxService {
       String startTimeString, String endTimeString) {
     filteredTimeSlotsEndTime.clear();
     update();
-    List<String> manualTimeSlots = [
-      '12:30 AM',
-      '1:00 AM',
-      '1:30 AM',
-      '2:00 AM',
-      '2:30 AM',
-      '3:00 AM',
-      '3:30 AM',
-      '4:00 AM',
-      '4:30 AM',
-      '5:00 AM',
-      '5:30 AM',
-      '6:00 AM',
-      '6:30 AM',
-      '7:00 AM',
-      '7:30 AM',
-      '8:00 AM',
-      '8:30 AM',
-      '9:00 AM',
-      '9:30 AM',
-      '10:00 AM',
-      '10:30 AM',
-      '11:00 AM',
-      '11:30 AM',
-      '12:00 PM',
-      '12:30 PM',
-      '1:00 PM',
-      '1:30 PM',
-      '2:00 PM',
-      '2:30 PM',
-      '3:00 PM',
-      '3:30 PM',
-      '4:00 PM',
-      '4:30 PM',
-      '5:00 PM',
-      '5:30 PM',
-      '6:00 PM',
-      '6:30 PM',
-      '7:00 PM',
-      '7:30 PM',
-      '8:00 PM',
-      '8:30 PM',
-      '9:00 PM',
-      '9:30 PM',
-      '10:00 PM',
-      '10:30 PM',
-      '11:00 PM',
-      '11:30 PM'
-    ];
+    List<String> manualTimeSlots = getManualTimeSlots24();
 
     DateTime startTime = convertToDateTime(startTimeString);
     DateTime endTime = convertToDateTime(endTimeString);
@@ -365,27 +339,76 @@ class SearchControllerHome extends GetxController implements GetxService {
     }
     filteredTimeSlotsEndTime.value = manualTimeSlots.sublist(
         max(0, startIndex), min(manualTimeSlots.length, endIndex + 1));
-
     update();
     return filteredTimeSlotsEndTime;
   }
 
   DateTime convertToDateTime(String timeString) {
-    List<String> parts = timeString.split(':');
-    int hours = int.parse(parts[0]);
-    int minutes = int.parse(parts[1].split(' ')[0]);
-    String amOrPm = parts[1].split(' ')[1];
-
-    if (amOrPm == 'PM' && hours < 12) {
-      hours += 12;
-    } else if (amOrPm == 'AM' && hours == 12) {
-      hours = 0;
+    try {
+      DateFormat format = DateFormat('HH:mm');
+      return format.parse(timeString);
+    } catch (e) {
+      List<String> parts = timeString.split(':');
+      int hours = int.parse(parts[0]);
+      int minutes = int.parse(parts[1]);
+      return DateTime(1, 1, 1, hours, minutes);
     }
-    return DateTime(1, 1, 1, hours, minutes);
+  }
+
+  List<String> getManualTimeSlots24() {
+    return [
+      '00:30',
+      '01:00',
+      '01:30',
+      '02:00',
+      '02:30',
+      '03:00',
+      '03:30',
+      '04:00',
+      '04:30',
+      '05:00',
+      '05:30',
+      '06:00',
+      '06:30',
+      '07:00',
+      '07:30',
+      '08:00',
+      '08:30',
+      '09:00',
+      '09:30',
+      '10:00',
+      '10:30',
+      '11:00',
+      '11:30',
+      '12:00',
+      '12:30',
+      '13:00',
+      '13:30',
+      '14:00',
+      '14:30',
+      '15:00',
+      '15:30',
+      '16:00',
+      '16:30',
+      '17:00',
+      '17:30',
+      '18:00',
+      '18:30',
+      '19:00',
+      '19:30',
+      '20:00',
+      '20:30',
+      '21:00',
+      '21:30',
+      '22:00',
+      '22:30',
+      '23:00',
+      '23:30'
+    ];
   }
 
   String formatTime(DateTime time) {
-    return DateFormat('h:mm a').format(time);
+    return DateFormat('HH:mm').format(time);
   }
 
   var isLoadingItems = false.obs;
@@ -529,11 +552,22 @@ class SearchControllerHome extends GetxController implements GetxService {
   }
 
   bool isEndTimeBeforeStartTime(String startTime, String endTime) {
-    DateFormat dateFormat = DateFormat('h:mm a');
-    DateTime startTimeDateTime = dateFormat.parse(startTime);
-    DateTime endTimeDateTime = dateFormat.parse(endTime);
-    return endTimeDateTime.isBefore(startTimeDateTime) ||
-        endTimeDateTime == startTimeDateTime;
+    bool is24HourFormat =
+        startTime.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$')) &&
+            endTime.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'));
+    if (is24HourFormat) {
+      DateFormat dateFormat = DateFormat('HH:mm');
+      DateTime startTimeDateTime = dateFormat.parse(startTime);
+      DateTime endTimeDateTime = dateFormat.parse(endTime);
+      return endTimeDateTime.isBefore(startTimeDateTime) ||
+          endTimeDateTime == startTimeDateTime;
+    } else {
+      DateFormat dateFormat = DateFormat('h:mm a');
+      DateTime startTimeDateTime = dateFormat.parse(startTime);
+      DateTime endTimeDateTime = dateFormat.parse(endTime);
+      return endTimeDateTime.isBefore(startTimeDateTime) ||
+          endTimeDateTime == startTimeDateTime;
+    }
   }
 
   Future submitMethod(BuildContext context, [bool? apply]) async {
@@ -649,7 +683,13 @@ class SearchControllerHome extends GetxController implements GetxService {
       offset = 0;
     }
     slot;
+    String startTimeForBackend = startTimeSearch.value;
+    String endTimeForBackend = endTimeSearch.value;
 
+    if (startTimeSearch.value.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'))) {
+      startTimeForBackend = convert24To12(startTimeSearch.value);
+      endTimeForBackend = convert24To12(endTimeSearch.value);
+    }
     Map<String, dynamic> map = {
       "title": title,
       "price": price,
@@ -676,8 +716,8 @@ class SearchControllerHome extends GetxController implements GetxService {
               : "cheapest_price",
       "meta": meta,
       "odometer": odometerValues.toString(),
-      "start_time": startTimeSearch.value,
-      "end_time": endTimeSearch.value,
+      "start_time": startTimeForBackend,
+      "end_time": endTimeForBackend,
       "modelYear": selectedModelYear.toString(),
     };
 
@@ -715,7 +755,6 @@ class SearchControllerHome extends GetxController implements GetxService {
           search['controller_value'] ?? '';
       generalScopeController.homeSearchLocation.value =
           search['controller_value'] ?? '';
-
       if (desildetoSendparametersBasedOnPage.value == true) {
         Navigator.pop(context);
       } else {
@@ -747,7 +786,6 @@ class SearchControllerHome extends GetxController implements GetxService {
     if (storedData is List) {
       return storedData.whereType<Map<String, dynamic>>().toList();
     }
-
     return [];
   }
 
@@ -755,7 +793,6 @@ class SearchControllerHome extends GetxController implements GetxService {
   void datanotFoundUi() {
     dataNotFound = "Vehicle Not Available".tr;
   }
-
   routeBasedOnmoduleId(BuildContext context, VoidCallback onRefresh) async {
     showPopUpScreen(
         context,
@@ -965,5 +1002,6 @@ class SearchControllerHome extends GetxController implements GetxService {
       throw Exception('Failed to fetch address.');
     }
   }
+
   RxString selectredeShortByvalue = "Nearest Location".obs;
 }

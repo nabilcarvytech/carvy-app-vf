@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:pinput/pinput.dart';
 import 'package:carvy/controller/booking_controller.dart';
@@ -61,18 +62,21 @@ Widget commonlyUserlogoAlert() {
 }
 
 Widget commonlyUserlogo() {
-  return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(color: getColorBasedOnActiveModuleid()),
-          child:
-              Image.asset('assets/images/app-logo-car.jpg', fit: BoxFit.fill)));
+  return ClipOval(
+    child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(color: getColorBasedOnActiveModuleid()),
+        child:
+            Image.asset('assets/images/app-logo-car.jpg', fit: BoxFit.fill)),
+  );
 }
 
 Widget splashLogo() {
-  return Image.asset('assets/images/spl-logo.png',width: 300,);
+  return Image.asset(
+    'assets/images/spl-logo.png',
+    width: 300,
+  );
 }
 
 class LocationItem {
@@ -271,7 +275,6 @@ Widget itemVerticalView(
               width: double.infinity,
               height: 230,
               decoration: BoxDecoration(
-                // color: notifires.getboxcolor,
                 color: blackColor,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
@@ -296,16 +299,14 @@ Widget itemVerticalView(
                       borderRadius: BorderRadius.circular(12),
                       child: Stack(
                         children: [
-                          // Image
                           Positioned.fill(
                             child: myNetworkImageWithShimmer(list[index].image),
                           ),
-
                           Positioned.fill(
                             child: Align(
                               alignment: Alignment.bottomCenter,
                               child: Container(
-                                height: 80, // adjust shadow height
+                                height: 80,
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     begin: Alignment.topCenter,
@@ -320,7 +321,6 @@ Widget itemVerticalView(
                               ),
                             ),
                           ),
-
                           Positioned(
                             bottom: 7,
                             left: 0,
@@ -460,7 +460,6 @@ Widget itemVerticalView(
                               ],
                             ),
                           ),
-
                           Positioned(
                             top: 10,
                             right: 10,
@@ -477,11 +476,11 @@ Widget itemVerticalView(
                                                     false ||
                                                 list[index].isInWishlist == null
                                             ? SvgPicture.asset(
-                                                'assets/images/whitHeart.svg', // Update the asset path to the SVG file
+                                                'assets/images/whitHeart.svg',
                                                 height: 20,
                                               )
                                             : SvgPicture.asset(
-                                                'assets/images/redHeart.svg', // Update the asset path to the SVG file
+                                                'assets/images/redHeart.svg',
                                                 height: 20,
                                               ),
                                         onTap: () async {
@@ -933,7 +932,7 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
           ),
         );
       } else {
-        return Container(); // Fallback for invalid index
+        return Container();
       }
     }),
   );
@@ -1048,8 +1047,7 @@ myBookingListWidget(
                                           bookingId: list[index].id.toString(),
                                           hostId: list[index].hostId.toString(),
                                           userId: userId.toString(),
-                                          newStatus:
-                                              "Cancelled", // or "Confirmed", "Pending", etc.
+                                          newStatus: "Cancelled",
                                         );
 
                                         onItemCancelled(index);
@@ -1225,7 +1223,6 @@ myBookingListWidget(
                                               builder: (builder) =>
                                                   VehiclePhotoesBooking(
                                                       id: "${list[index].id}")));
-                                      // Handle image submission flow
                                     },
                                   ),
                                 ),
@@ -1353,8 +1350,6 @@ myBookingListWidget(
             );
           }
         });
-
-        /////handle the buttomsheet
         return Padding(
           padding:
               const EdgeInsets.only(left: 13, right: 13, bottom: 10, top: 10),
@@ -1633,7 +1628,8 @@ myBookingListWidget(
                             FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                "${list[index].checkIn}".tr,
+                                DateTimeFormatter.to24HourFormat(
+                                    list[index].checkIn),
                                 style: regular2(context).copyWith(),
                               ),
                             ),
@@ -1647,7 +1643,8 @@ myBookingListWidget(
                             FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                "${list[index].checkOut}".tr,
+                                DateTimeFormatter.to24HourFormat(
+                                    list[index].checkOut),
                                 style: regular2(context).copyWith(),
                               ),
                             ),
@@ -1855,13 +1852,10 @@ myBookingListWidget(
                       ],
                     ),
                   ),
-
-//////
                   Divider(
                     color: notifires.getwhiteblackcolor.withOpacity(0.2),
                     thickness: 1,
                   ),
-
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Column(
@@ -1926,14 +1920,10 @@ myBookingListWidget(
                       ],
                     ),
                   ),
-
-///////
-
                   Divider(
                     color: notifires.getwhiteblackcolor.withOpacity(0.2),
                     thickness: 1,
                   ),
-
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Column(
@@ -2002,7 +1992,6 @@ myBookingListWidget(
                                                       BorderRadius.circular(13),
                                                 ),
                                                 child: Center(
-                                                    // child: Text("Cancel"),
                                                     child: Text(
                                                   list[index].reviewStatus !=
                                                               null &&
@@ -2089,16 +2078,13 @@ myBookingListWidget(
                                                                     bottom: 0),
                                                             decoration:
                                                                 BoxDecoration(
-                                                              // color: btnText == "Cancel" ? RedColor:yelloColor,
                                                               color: redColor,
-
                                                               borderRadius:
                                                                   BorderRadius
                                                                       .circular(
                                                                           13),
                                                             ),
                                                             child: Center(
-                                                                // child: Text("Cancel"),
                                                                 child: Text(
                                                               "Cancel".tr,
                                                               style: boldstyle(
@@ -2203,7 +2189,6 @@ myBookingListWidget(
                                                                               Column(
                                                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                                                 children: [
-                                                                                  // Bullet points
                                                                                   Text(
                                                                                     "Before proceeding with the vehicle delivery, you are required to sign the booking’s Terms & Conditions.\n\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:".tr,
                                                                                     style: regular02.copyWith(
@@ -2222,9 +2207,7 @@ myBookingListWidget(
                                                                                       color: getColorBasedOnActiveModuleid(),
                                                                                     ),
                                                                                   ),
-
                                                                                   const SizedBox(height: 12),
-
                                                                                   Text(
                                                                                     "Signing the Terms & Conditions helps establish a clear agreement, ensuring a smooth and fair transaction.".tr,
                                                                                     style: regular02.copyWith(
@@ -2275,10 +2258,8 @@ myBookingListWidget(
                                                                   );
                                                                 },
                                                               );
-
                                                               return;
                                                             }
-
                                                             if (result.data
                                                                     .userSigned ==
                                                                 0) {
@@ -2302,7 +2283,6 @@ myBookingListWidget(
                                                       }
                                                       if (internalVehicleImage ==
                                                           "Active") {
-                                                        // validation for iteriorImage
                                                         if (list[index]
                                                             .iteriorImage
                                                             .isEmpty) {
@@ -2396,7 +2376,6 @@ myBookingListWidget(
                                                                                   onPressed: () async {
                                                                                     Navigator.pop(context);
                                                                                     Navigator.push(context, MaterialPageRoute(builder: (builder) => VehiclePhotoesBooking(id: "${list[index].id}")));
-                                                                                    // Handle image submission flow
                                                                                   },
                                                                                 ),
                                                                               ),
@@ -2620,7 +2599,7 @@ myBookingListWidget(
                                                           showModalBottomSheet<
                                                               String>(
                                                             isScrollControlled:
-                                                                true, // Ensures the bottom sheet resizes with the keyboard
+                                                                true,
                                                             context: context,
                                                             shape:
                                                                 const RoundedRectangleBorder(
@@ -2644,7 +2623,7 @@ myBookingListWidget(
                                                                       bottom: MediaQuery.of(
                                                                               context)
                                                                           .viewInsets
-                                                                          .bottom, // Pushes up with the keyboard
+                                                                          .bottom,
                                                                     ),
                                                                     child:
                                                                         SingleChildScrollView(
@@ -2716,21 +2695,16 @@ myBookingListWidget(
                                                                                     bookingId: list[index].id.toString(),
                                                                                     hostId: list[index].hostId.toString(),
                                                                                     userId: userId.toString(),
-                                                                                    newStatus: "Completed", // or "Confirmed", "Pending", etc.
+                                                                                    newStatus: "Completed",
                                                                                   );
 
-                                                                                  // Navigate to HomeMain (Trips tab, index 2)
                                                                                   Navigator.pushReplacement(
                                                                                     context,
                                                                                     MaterialPageRoute(
                                                                                       builder: (context) => const HomeMain(initialIndex: 2),
                                                                                     ),
                                                                                   );
-
-                                                                                  // Navigator.pop(
-                                                                                  //     context);
                                                                                 } else {
-                                                                                  // Refresh the bottom sheet UI if needed
                                                                                   setBottomSheetState(() {});
                                                                                 }
                                                                               }).catchError((error) {
@@ -2769,17 +2743,14 @@ myBookingListWidget(
                                                                           0),
                                                               decoration:
                                                                   BoxDecoration(
-                                                                // color: btnText == "Cancel" ? RedColor:yelloColor,
                                                                 color:
                                                                     getColorBasedOnActiveModuleid(),
-
                                                                 borderRadius:
                                                                     BorderRadius
                                                                         .circular(
                                                                             13),
                                                               ),
                                                               child: Center(
-                                                                  // child: Text("Cancel"),
                                                                   child: Text(
                                                                 "DropOff?".tr,
                                                                 style: boldstyle(
@@ -2808,8 +2779,7 @@ myBookingListWidget(
                                           child: InkWell(
                                             onTap: () {
                                               showModalBottomSheet<String>(
-                                                isScrollControlled:
-                                                    true, // Ensures the bottom sheet resizes with the keyboard
+                                                isScrollControlled: true,
                                                 context: context,
                                                 shape:
                                                     const RoundedRectangleBorder(
@@ -2831,7 +2801,7 @@ myBookingListWidget(
                                                           bottom: MediaQuery.of(
                                                                   context)
                                                               .viewInsets
-                                                              .bottom, // Pushes up with the keyboard
+                                                              .bottom,
                                                         ),
                                                         child:
                                                             SingleChildScrollView(
@@ -2925,7 +2895,6 @@ myBookingListWidget(
                                                                       Navigator.pop(
                                                                           context);
                                                                     } else {
-                                                                      // Refresh the bottom sheet UI if needed
                                                                       setBottomSheetState(
                                                                           () {});
                                                                     }
@@ -3121,17 +3090,13 @@ bottomSheetReviewed(rating, text) {
         const SizedBox(
           height: 10,
         ),
-
-        // Review text
         Padding(
           padding: const EdgeInsets.only(left: 10, right: 10, top: 10),
           child: Text(
-            // "${rating}".tr,
             "$text".tr,
             style: heading01.copyWith(color: grey1),
           ),
         ),
-
         const SizedBox(
           height: 50,
         ),
@@ -3140,9 +3105,11 @@ bottomSheetReviewed(rating, text) {
   );
 }
 
+
+
+
 Widget myNetworkImage(String? image, [bool? shoeIcononError]) {
   if (image != null && Uri.tryParse(image) != null) {
-    // Valid URL, proceed with loading
     return Image.network(
       image,
       fit: BoxFit.cover,
@@ -3217,7 +3184,6 @@ Widget myNetworkImageFillBox(String? image) {
 
 Widget myNetworkImageFitWidth(String? image) {
   if (image != null && Uri.tryParse(image) != null) {
-    // Valid URL, proceed with loading
     return Image.network(
       image,
       fit: BoxFit.cover,
@@ -3254,7 +3220,6 @@ Widget getErrorImage() {
 }
 
 Widget getErrorIcon() {
-  // Return a default error image or handle it based on your app's requirements
   return Icon(
     Icons.account_circle_rounded,
     size: 40,
@@ -3382,7 +3347,6 @@ dialogExit(BuildContext context) {
                                 "Cancel".tr,
                                 style: const TextStyle(
                                     color: Colors.white,
-                                    // fontFamily: FontStyles.gilroyMedium,
                                     fontWeight: FontWeight.bold),
                               ))))),
                   Expanded(
@@ -3467,7 +3431,6 @@ loginAlert(BuildContext context) {
                                 "Cancel".tr,
                                 style: const TextStyle(
                                     color: Colors.black,
-                                    // fontFamily: FontStyles.gilroyMedium,
                                     fontWeight: FontWeight.bold),
                               ))))),
                   Expanded(
@@ -3489,7 +3452,6 @@ loginAlert(BuildContext context) {
                                 "Login".tr,
                                 style: const TextStyle(
                                     color: Colors.white,
-                                    // fontFamily: FontStyles.gilroyMedium,
                                     fontWeight: FontWeight.bold),
                               ))))),
                 ],
@@ -3530,7 +3492,6 @@ void bookingScetionClean(BuildContext context) {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Icon with gradient background
               Container(
                 width: 80,
                 height: 80,
@@ -3544,10 +3505,7 @@ void bookingScetionClean(BuildContext context) {
                   size: 40,
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // Title
               Text(
                 'Clear Booking Section'.tr,
                 style: TextStyle(
@@ -3557,10 +3515,7 @@ void bookingScetionClean(BuildContext context) {
                 ),
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 12),
-
-              // Description
               Text(
                 'Are you sure you want to clear this booking section?'.tr,
                 style: TextStyle(
@@ -3570,13 +3525,9 @@ void bookingScetionClean(BuildContext context) {
                 ),
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 24),
-
-              // Buttons Row
               Row(
                 children: [
-                  // Cancel Button
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
@@ -3603,10 +3554,7 @@ void bookingScetionClean(BuildContext context) {
                       ),
                     ),
                   ),
-
                   const SizedBox(width: 16),
-
-                  // Clear Button
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
@@ -3685,7 +3633,6 @@ loginExpireAlert(BuildContext context) {
                                 "Cancel".tr,
                                 style: const TextStyle(
                                     color: Colors.black,
-                                    // fontFamily: FontStyles.gilroyMedium,
                                     fontWeight: FontWeight.bold),
                               ))))),
                   Expanded(
@@ -3705,7 +3652,6 @@ loginExpireAlert(BuildContext context) {
                                 "Login".tr,
                                 style: const TextStyle(
                                     color: Colors.white,
-                                    // fontFamily: FontStyles.gilroyMedium,
                                     fontWeight: FontWeight.bold),
                               ))))),
                 ],
@@ -3940,9 +3886,7 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
                             padding: const EdgeInsets.only(left: 10),
                             child: featuresbox(txt: '$x'.tr, image: "$x"),
                           ),
-                          const SizedBox(
-                              height:
-                                  10), // Adjust the height according to your needs
+                          const SizedBox(height: 10),
                         ],
                       ),
                   ],
@@ -3996,7 +3940,6 @@ bottomSheetReview(id, count, bool fromPropBooking, Bookings bookings,
     StateSetter setState, context) {
   return Container(
     padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-    // height: 600,
     child: SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -4004,9 +3947,7 @@ bottomSheetReview(id, count, bool fromPropBooking, Bookings bookings,
           Text(
             "Leave a Review".tr,
             style: heading01.copyWith(
-                fontSize: 20,
-                // fontFamily: FontStyles.gilroyBold,
-                color: getColorBasedOnActiveModuleid()),
+                fontSize: 20, color: getColorBasedOnActiveModuleid()),
           ),
           const SizedBox(
             height: 16,
@@ -4038,7 +3979,6 @@ bottomSheetReview(id, count, bool fromPropBooking, Bookings bookings,
           Obx(() => Text(
                 "${"Rating".tr}: ${generalScopeController.selectedRatingValue.value}",
                 style: const TextStyle(
-                  // fontFamily: FontStyles.gilroyMedium,
                   fontWeight: FontWeight.bold,
                 ),
               )),
@@ -4122,9 +4062,7 @@ bottomSheetReview(id, count, bool fromPropBooking, Bookings bookings,
                       color: themeColor.withOpacity(.3)),
                   child: Text("Maybe Later".tr,
                       style: const TextStyle(
-                          // color: ThemeColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16)),
+                          fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
               InkWell(
@@ -4137,7 +4075,6 @@ bottomSheetReview(id, count, bool fromPropBooking, Bookings bookings,
                     showErrorToastMessage("Write Message".tr);
                     return;
                   }
-
                   showLoading();
                   var response = await httpPost(Config.giveReviewByUser, {
                     "rating":
@@ -4145,12 +4082,10 @@ bottomSheetReview(id, count, bool fromPropBooking, Bookings bookings,
                     "message": textEditingControllerReview.text,
                     "booking_id": '$id'
                   });
-
                   closeLoading();
                   if (response != null) {
                     if (response['status'] == 200) {
                       showToastMessage(response['message']);
-
                       bookings.reviewStatusSetter = "1";
                       bookings.reviewRatingSetter =
                           "${generalScopeController.selectedRatingValue.value.toInt()}";
@@ -4300,8 +4235,8 @@ carbuildBottomAppBar() {
                     backgroundColor: WidgetStateProperty.all(themeColor),
                     shape: WidgetStateProperty.all(
                       RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(Dimensions
-                            .radiusSmall), // Adjust the radius as per your need
+                        borderRadius:
+                            BorderRadius.circular(Dimensions.radiusSmall),
                       ),
                     ),
                   ),
@@ -4342,7 +4277,6 @@ Container carBoxHost({
   String? title,
   String? desc,
   String? imageUrl,
-  // bool isSelected = false
 }) {
   return Container(
     alignment: Alignment.center,
@@ -4350,8 +4284,6 @@ Container carBoxHost({
     decoration: BoxDecoration(
       border: Border.all(width: 2.0, color: notifires.getgreywhite),
       borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-      // color:
-      //     isSelected ? notifires.getWhitepinnetsColor : notifires.getgreywhite,
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -4418,9 +4350,7 @@ Widget summeryText() {
       style: interRegular.copyWith(
           fontFamily: "IntelSemiBold",
           color: getColorBasedOnActiveModuleid(),
-          fontSize: 14
-          // fontWeight: FontWeight.bold,
-          ),
+          fontSize: 14),
     ),
     TextSpan(
         text: "and that carvy can ".tr,
@@ -4502,7 +4432,7 @@ Widget backButtonfordetailPage(BuildContext context) {
         child: PhysicalModel(
           color: Colors.transparent,
           shadowColor: notifires.getGrey4Whitecolor,
-          elevation: 1.0, // Adjust the elevation value as needed
+          elevation: 1.0,
           borderRadius: BorderRadius.circular(8),
           child: Container(
             alignment: Alignment.center,
@@ -4562,7 +4492,7 @@ Widget backButtonfordetailPageForVehicle(BuildContext context, bool check) {
         child: PhysicalModel(
           color: Colors.transparent,
           shadowColor: notifires.getGrey4Whitecolor,
-          elevation: 1.0, // Adjust the elevation value as needed
+          elevation: 1.0,
           borderRadius: BorderRadius.circular(8),
           child: Container(
             alignment: Alignment.center,
@@ -4709,9 +4639,9 @@ Widget switchToModules(BuildContext context) {
               trackOutlineColor: WidgetStateProperty.resolveWith<Color?>(
                   (Set<WidgetState> states) {
                 if (states.contains(WidgetState.selected)) {
-                  return getColorBasedOnActiveModuleid(); 
+                  return getColorBasedOnActiveModuleid();
                 }
-                return getColorBasedOnActiveModuleid(); 
+                return getColorBasedOnActiveModuleid();
               }),
               onChanged: (value) {
                 isHostMode.value = value;
@@ -4871,7 +4801,7 @@ profileUpdate(context) {
                   Expanded(
                       child: InkWell(
                           onTap: () {
-                            Navigator.pop(context); // Close the dialog first
+                            Navigator.pop(context);
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               showPopUpScreen(context, MyProfile());
                             });
@@ -4994,7 +4924,6 @@ addAddressAlert(BuildContext context) {
                                 "Cancel".tr,
                                 style: const TextStyle(
                                     color: Colors.black,
-                                    // fontFamily: FontStyles.gilroyMedium,
                                     fontWeight: FontWeight.bold),
                               ))))),
                   Expanded(

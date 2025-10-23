@@ -2529,7 +2529,7 @@ myBookingHostListWidget(
                                 FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
-                                    " ${list[index].checkIn}".tr,
+                                    " ${DateTimeFormatter.to24HourFormat(list[index].checkIn)}".tr,
                                     style: regular2(context).copyWith(),
                                   ),
                                 ),
@@ -2537,7 +2537,7 @@ myBookingHostListWidget(
                                 FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(
-                                    "${list[index].checkOut}".tr,
+                                    "${DateTimeFormatter.to24HourFormat(list[index].checkOut)}".tr,
                                     style: regular2(context).copyWith(),
                                   ),
                                 ),

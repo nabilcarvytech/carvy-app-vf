@@ -149,28 +149,34 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
             bottomNavigationBar: Obx(
               () => bookingController.isDateAvailale.value == false
                   ? const SizedBox()
-                  : SizedBox(
-                      height: 70,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: ElevatedButton(
+                  : SafeArea(
+                      child: SizedBox(
+                        height: 70,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ElevatedButton(
                             onPressed: () {
                               onpress(context);
                             },
                             style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    getColorBasedOnActiveModuleid(),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(13))),
+                              backgroundColor: getColorBasedOnActiveModuleid(),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(13),
+                              ),
+                            ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text("Continue".tr,
-                                    style: heading2(context)
-                                        .copyWith(color: bgColor)),
+                                Text(
+                                  "Continue".tr,
+                                  style: heading2(context)
+                                      .copyWith(color: bgColor),
+                                ),
                               ],
-                            )),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
             ),
@@ -549,8 +555,12 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                             .toString() !=
                                                         ''
                                                     ? bookingController
-                                                        .startDate
-                                                        .toString()
+                                                            .startDate
+                                                            .toString() +
+                                                        ' ' +
+                                                        bookingController
+                                                            .selectedStartTime
+                                                            .value
                                                     : 'YYYY-MM-DD',
                                                 style:
                                                     regular2(context).copyWith(
@@ -558,6 +568,21 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                       .getwhiteblackcolor,
                                                 )),
                                           ),
+                                          // Obx(
+                                          //   () => Text(
+                                          //       bookingController.startDate
+                                          //                   .toString() !=
+                                          //               ''
+                                          //           ? bookingController
+                                          //               .startDate
+                                          //               .toString()
+                                          //           : 'YYYY-MM-DD',
+                                          //       style:
+                                          //           regular2(context).copyWith(
+                                          //         color: notifires
+                                          //             .getwhiteblackcolor,
+                                          //       )),
+                                          // ),
                                         ],
                                       ),
                                     ),
@@ -595,7 +620,11 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                             .toString() !=
                                                         ''
                                                     ? bookingController.endDate
-                                                        .toString()
+                                                            .toString() +
+                                                        ' ' +
+                                                        bookingController
+                                                            .selectedEndTime
+                                                            .value
                                                     : 'YYYY-MM-DD',
                                                 style:
                                                     regular2(context).copyWith(
@@ -603,6 +632,20 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                       .getwhiteblackcolor,
                                                 )),
                                           ),
+                                          // Obx(
+                                          //   () => Text(
+                                          //       bookingController.endDate
+                                          //                   .toString() !=
+                                          //               ''
+                                          //           ? bookingController.endDate
+                                          //               .toString()
+                                          //           : 'YYYY-MM-DD',
+                                          //       style:
+                                          //           regular2(context).copyWith(
+                                          //         color: notifires
+                                          //             .getwhiteblackcolor,
+                                          //       )),
+                                          // ),
                                         ],
                                       ),
                                     ),

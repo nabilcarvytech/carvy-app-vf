@@ -59,16 +59,14 @@ class _VehicleTypeScreenState extends State<VehicleTypeScreen> {
     }
   }
 
+List<int> generateYearsList() {
+  int currentYear = DateTime.now().year;
   List<int> years = [];
-
-  List<int> generateYearsList() {
-    int currentYear = DateTime.now().year;
-    for (int i = currentYear; i >= currentYear - 20; i--) {
-      years.add(i);
-    }
-    return years;
+  for (int i = currentYear; i >= currentYear - 6; i--) {
+    years.add(i);
   }
-
+  return years;
+}
   bool isMakeSelected = false;
   bool cleardata = false;
   @override

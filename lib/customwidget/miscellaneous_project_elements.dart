@@ -1065,7 +1065,8 @@ class TimePickerPopup extends StatefulWidget {
   final List<String> timesList;
   final Function(String) onSelected;
   final Color checkmarkColor;
-  final String? initialValue; // Added initialValue parameter
+  final String? initialValue; 
+  final bool format24Hour;
 
   const TimePickerPopup({
     super.key,
@@ -1073,7 +1074,8 @@ class TimePickerPopup extends StatefulWidget {
     required this.onSelected,
     this.hintText = 'Select Time',
     required this.checkmarkColor,
-    this.initialValue, // Optional initial value
+    this.initialValue,
+    this.format24Hour = false,
   });
 
   @override
@@ -1230,7 +1232,9 @@ class TimePickerEndTime extends StatefulWidget {
   final List<String> timesList;
   final Function(String) onSelected;
   final Color checkmarkColor;
-  final String? initialValue; // Added initialValue parameter
+  final String? initialValue; 
+  final bool format24Hour;
+  // Added initialValue parameter
 
   const TimePickerEndTime({
     super.key,
@@ -1239,6 +1243,7 @@ class TimePickerEndTime extends StatefulWidget {
     this.hintText = 'Select Time',
     required this.checkmarkColor,
     this.initialValue, // Optional initial value
+    this.format24Hour = false,
   });
 
   @override

@@ -733,9 +733,10 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 ),
                                                 const Spacer(),
                                                 Text(
-                                                    bookingController
-                                                        .selectedStartTime
-                                                        .toString(),
+                                                    TimeFormatter.to24Hour(
+                                                        bookingController
+                                                            .selectedStartTime
+                                                            .toString()),
                                                     style: regular2(context)
                                                         .copyWith(
                                                             color: notifires
@@ -756,9 +757,10 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 ),
                                                 const Spacer(),
                                                 Text(
-                                                  bookingController
-                                                      .selectedEndTime
-                                                      .toString(),
+                                                  TimeFormatter.to24Hour(
+                                                      bookingController
+                                                          .selectedEndTime
+                                                          .toString()),
                                                   style: regular2(context)
                                                       .copyWith(
                                                           color: notifires

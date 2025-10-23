@@ -102,15 +102,41 @@ class BookingController extends GetxController implements GetxService {
     }
     isDateChecking.value = true;
     try {
+      String startTimeForBackend = selectedStartTime.value;
+      String endTimeForBackend = selectedEndTime.value;
+
+      if (selectedStartTime.value.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'))) {
+        startTimeForBackend = convert24To12(selectedStartTime.value);
+        endTimeForBackend = convert24To12(selectedEndTime.value);
+      }
       Map map = {
         "item_id": "$idFeatured",
         "check_in": startDate.value,
         "check_out": endDate.value,
-        "start_time": selectedStartTime.value,
-        "end_time": selectedEndTime.value,
+        "start_time": startTimeForBackend,
+        "end_time": endTimeForBackend,
       };
 
       var result = await httpPost(Config.checkBookingAvailability, map);
+
+      if (result['status'] == 200 || result['status'] == 422) {
+        final data = result["data"];
+        if (data != null) {
+          if (data["next_start_time"] != null) {
+            nextStartTime.value = convert12To24(data["next_start_time"]);
+            nextEndTime.value = convert12To24(data["next_end_time"]);
+          }
+
+          if (data["availability"] != null) {
+            final availability = data["availability"];
+            if (availability["next_start_time"] != null) {
+              nextStartTime.value =
+                  convert12To24(availability["next_start_time"]);
+              nextEndTime.value = convert12To24(availability["next_end_time"]);
+            }
+          }
+        }
+      }
       if (result['status'] == 422) {
         isDateAvailale.value = false;
         isDateChecking.value = false;
@@ -144,7 +170,10 @@ class BookingController extends GetxController implements GetxService {
 
       update();
       return result;
-    } finally {}
+    } finally {
+      isDateChecking.value = false;
+      update();
+    }
   }
 
   int tabIndexOfMybooking = 0;
@@ -187,20 +216,89 @@ class BookingController extends GetxController implements GetxService {
     }
   }
 
-  var error = false.obs;
+  String convert12To24(String time12) {
+    if (time12.isEmpty) return "";
+    try {
+      String cleanTime = time12.trim().toUpperCase();
+      if (!cleanTime.contains(" ")) {
+        cleanTime = cleanTime.replaceAllMapped(
+            RegExp(r'([0-9])([AP]M)'), (Match m) => '${m[1]} ${m[2]}');
+      }
+      DateFormat inputFormat = DateFormat('h:mm a');
+      DateFormat outputFormat = DateFormat('HH:mm');
+      DateTime dateTime = inputFormat.parse(cleanTime);
+      return outputFormat.format(dateTime);
+    } catch (e) {
+      debugPrint('Error converting 12 to 24: $e for time: $time12');
+      try {
+        String cleanTime = time12.trim().toUpperCase();
+        bool isPM = cleanTime.contains('PM');
+        String timeWithoutAmPm =
+            cleanTime.replaceAll(RegExp(r'[AP]M'), '').trim();
 
+        List<String> parts = timeWithoutAmPm.split(':');
+        if (parts.length != 2) return time12;
+        int hours = int.tryParse(parts[0]) ?? 0;
+        int minutes = int.tryParse(parts[1]) ?? 0;
+
+        if (isPM && hours < 12) {
+          hours += 12;
+        } else if (!isPM && hours == 12) {
+          hours = 0;
+        }
+        return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
+      } catch (e2) {
+        debugPrint('Manual conversion also failed: $e2');
+        return "00:00";
+      }
+    }
+  }
+
+  String convert24To12(String time24) {
+    try {
+      DateFormat inputFormat = DateFormat('HH:mm');
+      DateFormat outputFormat = DateFormat('h:mm a');
+      DateTime dateTime = inputFormat.parse(time24);
+      return outputFormat.format(dateTime);
+    } catch (e) {
+      try {
+        List<String> parts = time24.split(':');
+        int hours = int.parse(parts[0]);
+        int minutes = int.parse(parts[1]);
+
+        String amPm = hours >= 12 ? 'PM' : 'AM';
+        int hour12 = hours % 12;
+        if (hour12 == 0) hour12 = 12;
+
+        return '$hour12:${minutes.toString().padLeft(2, '0')} $amPm';
+      } catch (e) {
+        return time24;
+      }
+    }
+  }
+
+  var error = false.obs;
   getDataBookingSummery(
       dynamic idFeatured, coupon, wallet, isAddDoorStepPrice) async {
     error.value = false;
     update();
+
+    String startTimeForBackend = selectedStartTime.value;
+    String endTimeForBackend = selectedEndTime.value;
+
+    if (selectedStartTime.value.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'))) {
+      startTimeForBackend = convert24To12(selectedStartTime.value);
+      endTimeForBackend = convert24To12(selectedEndTime.value);
+    }
+
     Map map = {
       "item_id": "$idFeatured",
       "check_in": "$startDate",
       "check_out": "$endDate",
       "coupon_code": coupon,
       "wallet_amount": "$wallet",
-      "start_time": selectedStartTime.value,
-      "end_time": selectedEndTime.value,
+      "start_time": startTimeForBackend,
+      "end_time": endTimeForBackend,
       "doorStep_price": "$isAddDoorStepPrice",
     };
     var response = await httpPost(Config.getItemPrices, map);
@@ -362,6 +460,13 @@ class BookingController extends GetxController implements GetxService {
       String addDoorStepPrice,
       dynamic meta) async {
     meta ??= "";
+    String startTimeForBackend = selectedStartTime.value;
+    String endTimeForBackend = selectedEndTime.value;
+
+    if (selectedStartTime.value.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'))) {
+      startTimeForBackend = convert24To12(selectedStartTime.value);
+      endTimeForBackend = convert24To12(selectedEndTime.value);
+    }
     Map map = {
       "item_id": itemId,
       "check_in": checkIn,
@@ -384,8 +489,8 @@ class BookingController extends GetxController implements GetxService {
       "coupon_discount": couponDiscount,
       "discount_type": discountType,
       "cleaning_charges": cleaningCharges,
-      "start_time": selectedStartTime.value,
-      "end_time": selectedEndTime.value,
+      "start_time": startTimeForBackend,
+      "end_time": endTimeForBackend,
       "onlinepayment": "$paymentStatus",
       "doorStep_price": addDoorStepPrice,
       "doorStep_address": addDoorStepPrice != "0" ? doorStepAddress() : "",
@@ -410,12 +515,25 @@ class BookingController extends GetxController implements GetxService {
   RxString hindTimeSEnd = "".obs;
   RxInt currentdatebool = 1.obs;
   RxInt currentdateboospace = 1.obs;
+
   bool isEndTimeBeforeStartTime(String startTime, String endTime) {
-    DateFormat dateFormat = DateFormat('h:mm a');
-    DateTime startTimeDateTime = dateFormat.parse(startTime);
-    DateTime endTimeDateTime = dateFormat.parse(endTime);
-    return endTimeDateTime.isBefore(startTimeDateTime) ||
-        endTimeDateTime == startTimeDateTime;
+    bool is24HourFormat =
+        startTime.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$')) &&
+            endTime.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'));
+
+    if (is24HourFormat) {
+      DateFormat dateFormat = DateFormat('HH:mm');
+      DateTime startTimeDateTime = dateFormat.parse(startTime);
+      DateTime endTimeDateTime = dateFormat.parse(endTime);
+      return endTimeDateTime.isBefore(startTimeDateTime) ||
+          endTimeDateTime == startTimeDateTime;
+    } else {
+      DateFormat dateFormat = DateFormat('h:mm a');
+      DateTime startTimeDateTime = dateFormat.parse(startTime);
+      DateTime endTimeDateTime = dateFormat.parse(endTime);
+      return endTimeDateTime.isBefore(startTimeDateTime) ||
+          endTimeDateTime == startTimeDateTime;
+    }
   }
 
   commonNavigateToBookingSummary(BuildContext context, idFeatured, itemDetails,
@@ -488,7 +606,6 @@ class BookingController extends GetxController implements GetxService {
   RxString checkTheSelectedEndDate = "".obs;
   bool isBetween(DateTime startTime, DateTime endTime) {
     DateTime currentTime = DateTime.now();
-
     if (currentTime.isAfter(startTime) && currentTime.isBefore(endTime)) {
       return true;
     }
@@ -496,23 +613,67 @@ class BookingController extends GetxController implements GetxService {
   }
 
   DateTime convertToDateTime(String timeString) {
-    List<String> parts = timeString.split(':');
-    int hours = int.parse(parts[0]);
-    int minutes = int.parse(parts[1].split(' ')[0]);
-    String amOrPm = parts[1].split(' ')[1];
-    if (amOrPm == 'PM' && hours < 12) {
-      hours += 12;
-    } else if (amOrPm == 'AM' && hours == 12) {
-      hours = 0;
+    try {
+      DateFormat format = DateFormat('HH:mm');
+      return format.parse(timeString);
+    } catch (e) {
+      List<String> parts = timeString.split(':');
+      int hours = int.parse(parts[0]);
+      int minutes = int.parse(parts[1]);
+      return DateTime(1, 1, 1, hours, minutes);
     }
-    return DateTime(1, 1, 1, hours, minutes);
   }
 
-  String convertToAmPm(String timeString) {
-    DateFormat inputFormat = DateFormat('HH:mm');
-    DateFormat outputFormat = DateFormat('h:mm a');
-    DateTime dateTime = inputFormat.parse(timeString);
-    return outputFormat.format(dateTime);
+  List<String> getManualTimeSlots24() {
+    return [
+      '00:30',
+      '01:00',
+      '01:30',
+      '02:00',
+      '02:30',
+      '03:00',
+      '03:30',
+      '04:00',
+      '04:30',
+      '05:00',
+      '05:30',
+      '06:00',
+      '06:30',
+      '07:00',
+      '07:30',
+      '08:00',
+      '08:30',
+      '09:00',
+      '09:30',
+      '10:00',
+      '10:30',
+      '11:00',
+      '11:30',
+      '12:00',
+      '12:30',
+      '13:00',
+      '13:30',
+      '14:00',
+      '14:30',
+      '15:00',
+      '15:30',
+      '16:00',
+      '16:30',
+      '17:00',
+      '17:30',
+      '18:00',
+      '18:30',
+      '19:00',
+      '19:30',
+      '20:00',
+      '20:30',
+      '21:00',
+      '21:30',
+      '22:00',
+      '22:30',
+      '23:00',
+      '23:30'
+    ];
   }
 
   List<String> generateTimeSlots(DateTime selectedDate) {
@@ -533,24 +694,15 @@ class BookingController extends GetxController implements GetxService {
       if (currentTime.hour == 23 && currentTime.minute >= 30) {
         return [];
       }
-
       while (currentTime.isBefore(endDate) ||
           currentTime.isAtSameMomentAs(endDate)) {
-        String period = (currentTime.hour < 12) ? 'AM' : 'PM';
-        int hourIn12HourFormat = (currentTime.hour == 0)
-            ? 12
-            : ((currentTime.hour > 12)
-                ? currentTime.hour - 12
-                : currentTime.hour);
-
-        String formattedTime =
-            "$hourIn12HourFormat:${currentTime.minute.toString().padLeft(2, '0')} $period";
+        String formattedTime = DateFormat('HH:mm').format(currentTime);
         currenttimeSlots.add(formattedTime);
         currentTime = currentTime.add(const Duration(minutes: 30));
       }
       return currenttimeSlots;
     } else {
-      return [];
+      return getManualTimeSlots24();
     }
   }
 
@@ -563,16 +715,13 @@ class BookingController extends GetxController implements GetxService {
 
   DateTime? _lastSelectionTime;
   DateTime? _lastAlertTime;
-
   final Duration _alertDebounceDuration = const Duration(minutes: 2);
   final Duration _debounceDuration = const Duration(milliseconds: 300);
-
   DateTime? previousStartDate;
   DateTime? previousEndDate;
   var nextStartTime = "".obs;
   var nextEndTime = "".obs;
   var handleTimeSlotsOnCurrentDate = false.obs;
-
   DateTime? _lastSnackbarShownTime;
   final Duration _snackbarDebounceDuration = const Duration(minutes: 1);
 
@@ -587,23 +736,19 @@ class BookingController extends GetxController implements GetxService {
     handleTimeSlotsOnCurrentDate.value = false;
     avalibleSlots.clear();
     update();
-
     final now = DateTime.now();
     if (_lastSelectionTime != null &&
         now.difference(_lastSelectionTime!) < _debounceDuration) {
       return;
     }
     _lastSelectionTime = now;
-
     if (args.value is PickerDateRange) {
       final DateTime? selectedStartDate = args.value.startDate as DateTime?;
       final DateTime? selectedEndDate = args.value.endDate as DateTime?;
-
       bool isStartDateAvailable = selectedStartDate != null &&
           availableDates.contains(selectedStartDate);
       bool isEndDateAvailable =
           selectedEndDate != null && availableDates.contains(selectedEndDate);
-
       if (!isStartDateAvailable ||
           (selectedEndDate != null && !isEndDateAvailable)) {
         _showUnavailableDateError(now);
@@ -642,13 +787,11 @@ class BookingController extends GetxController implements GetxService {
           return;
         }
       }
-
       bool isStartDateToday = isToday(selectedStartDate);
       if (isStartDateToday) {
         DateTime startTime = DateTime(now.year, now.month, now.day, 23, 01);
         DateTime endTime = DateTime(now.year, now.month, now.day, 23, 59);
         bool isBetweenTimeRange = isBetween(startTime, endTime);
-
         if (isBetweenTimeRange) {
           if (_lastSnackbarShownTime == null ||
               now.difference(_lastSnackbarShownTime!) >
@@ -668,31 +811,35 @@ class BookingController extends GetxController implements GetxService {
           return;
         }
       }
-
       checkDateApi(idFeatured: '$idFeatured').then((value) {
         if (value != null && value["data"] != null) {
+          print("1");
           if (value["data"]["next_start_time"] != null) {
-            nextStartTime.value = value["data"]["next_start_time"];
-            nextEndTime.value = value["data"]["next_end_time"];
+            print("2");
+            nextStartTime.value =
+                convert12To24(value["data"]["next_start_time"]);
+            nextEndTime.value = convert12To24(value["data"]["next_end_time"]);
             debugPrint(
                 'next_available_time_on_checkout: ${nextStartTime.value}');
           } else {
-            nextStartTime.value = "12:00 AM";
-            nextEndTime.value = "11:30 AM";
+            print("3");
+            nextStartTime.value = "00:00";
+            nextEndTime.value = "11:30";
             debugPrint(
                 'next_available_time_on_checkout is null, using fallback: ${nextStartTime.value}');
           }
-
           if (value["data"]["availability"] != null &&
               value["data"]["availability"]["next_start_time"] != null) {
+            print("4");
             nextStartTime.value =
-                value["data"]["availability"]["next_start_time"];
-            nextEndTime.value = value["data"]["availability"]["next_end_time"];
+                convert12To24(value["data"]["availability"]["next_start_time"]);
+            nextEndTime.value =
+                convert12To24(value["data"]["availability"]["next_end_time"]);
             debugPrint(
                 'next_start_time from availability: ${nextStartTime.value}');
           }
-
           if (isToday(selectedStartDate)) {
+            print("5");
             compareAndGenerateSlots(
                 selectedStartDate, nextStartTime.value, nextEndTime.value);
           } else {
@@ -701,54 +848,63 @@ class BookingController extends GetxController implements GetxService {
               filterTimeSlotsfunctionSameDate(
                   nextStartTime.value, nextEndTime.value);
             } else {
+              print("6");
               filterTimeSlotsfunctionSameDate(
                   nextStartTime.value, nextEndTime.value);
               curreentStatus.value = "otherDates";
             }
           }
-
           setDefaultTime();
           update();
         } else {
+          print("7");
           showErrorToastMessage(
               "Failed to fetch availability. Please try again.");
         }
       }).catchError((error) {
+        print("8");
         debugPrint('Error in checkDateApi: $error');
         showErrorToastMessage(
             "An error occurred while checking availability.".tr);
-        nextStartTime.value = "12:00 AM";
-        nextEndTime.value = "11:30 PM";
+        nextStartTime.value = "00:00";
+        nextEndTime.value = "23:30";
         update();
       });
       update();
     }
   }
 
-  void compareAndGenerateSlots(
-      DateTime selectedStartDate, String nextStartTime, String nextEndTime) {
-    DateFormat dateFormat = DateFormat('h:mm a');
-    DateTime parsedNextStartTime = dateFormat.parse(nextStartTime);
-    DateTime nextStartTimeWithToday = DateTime(
-      DateTime.now().year,
-      DateTime.now().month,
-      DateTime.now().day,
-      parsedNextStartTime.hour,
-      parsedNextStartTime.minute,
-    );
-    DateTime currentTime = DateTime.now();
-    if (currentTime.isAfter(nextStartTimeWithToday)) {
-      handleTimeSlotsOnCurrentDate.value = true;
-      curreentStatus.value = "CurrebtDate";
-      generateTimeSlots(selectedStartDate);
-      update();
-    } else {
-      curreentStatus.value = "CurrebtDate";
-      filterTimeSlotsfunctionSameDate(nextStartTime, nextEndTime);
-      update();
-    }
-    update();
+void compareAndGenerateSlots(
+    DateTime selectedStartDate, String nextStartTime, String nextEndTime) {
+  DateTime parsedNextStartTime;
+  if (nextStartTime.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'))) {
+    DateFormat dateFormat24 = DateFormat('HH:mm');
+    parsedNextStartTime = dateFormat24.parse(nextStartTime);
+  } else {
+    DateFormat dateFormat12 = DateFormat('h:mm a');
+    parsedNextStartTime = dateFormat12.parse(nextStartTime);
   }
+
+  DateTime nextStartTimeWithToday = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+    parsedNextStartTime.hour,
+    parsedNextStartTime.minute,
+  );
+  DateTime currentTime = DateTime.now();
+   print("kljl${currentTime}");
+  if (currentTime.isAfter(nextStartTimeWithToday)) {
+    handleTimeSlotsOnCurrentDate.value = true;
+    curreentStatus.value = "CurrentDate";
+    generateTimeSlots(selectedStartDate);
+  } else {
+    curreentStatus.value = "CurrentDate";
+    filterTimeSlotsfunctionSameDate(nextStartTime, nextEndTime);
+  }
+  update();
+}
+
 
   void _showUnavailableDateError(DateTime now) {
     if (_lastAlertTime == null ||
@@ -763,113 +919,14 @@ class BookingController extends GetxController implements GetxService {
     }
   }
 
-  List<String> manualTimeSlots = [
-    '12:30 AM',
-    '1:00 AM',
-    '1:30 AM',
-    '2:00 AM',
-    '2:30 AM',
-    '3:00 AM',
-    '3:30 AM',
-    '4:00 AM',
-    '4:30 AM',
-    '5:00 AM',
-    '5:30 AM',
-    '6:00 AM',
-    '6:30 AM',
-    '7:00 AM',
-    '7:30 AM',
-    '8:00 AM',
-    '8:30 AM',
-    '9:00 AM',
-    '9:30 AM',
-    '10:00 AM',
-    '10:30 AM',
-    '11:00 AM',
-    '11:30 AM',
-    '12:00 PM',
-    '12:30 PM',
-    '1:00 PM',
-    '1:30 PM',
-    '2:00 PM',
-    '2:30 PM',
-    '3:00 PM',
-    '3:30 PM',
-    '4:00 PM',
-    '4:30 PM',
-    '5:00 PM',
-    '5:30 PM',
-    '6:00 PM',
-    '6:30 PM',
-    '7:00 PM',
-    '7:30 PM',
-    '8:00 PM',
-    '8:30 PM',
-    '9:00 PM',
-    '9:30 PM',
-    '10:00 PM',
-    '10:30 PM',
-    '11:00 PM',
-    '11:30 PM'
-  ];
-
   List<String> filterTimeSlotsfunctionSameDate(
       String startTimeString, String endTimeString) {
     filteredTimeSlotsEndTime.clear();
     update();
-    List<String> manualTimeSlots = [
-      '12:30 AM',
-      '1:00 AM',
-      '1:30 AM',
-      '2:00 AM',
-      '2:30 AM',
-      '3:00 AM',
-      '3:30 AM',
-      '4:00 AM',
-      '4:30 AM',
-      '5:00 AM',
-      '5:30 AM',
-      '6:00 AM',
-      '6:30 AM',
-      '7:00 AM',
-      '7:30 AM',
-      '8:00 AM',
-      '8:30 AM',
-      '9:00 AM',
-      '9:30 AM',
-      '10:00 AM',
-      '10:30 AM',
-      '11:00 AM',
-      '11:30 AM',
-      '12:00 PM',
-      '12:30 PM',
-      '1:00 PM',
-      '1:30 PM',
-      '2:00 PM',
-      '2:30 PM',
-      '3:00 PM',
-      '3:30 PM',
-      '4:00 PM',
-      '4:30 PM',
-      '5:00 PM',
-      '5:30 PM',
-      '6:00 PM',
-      '6:30 PM',
-      '7:00 PM',
-      '7:30 PM',
-      '8:00 PM',
-      '8:30 PM',
-      '9:00 PM',
-      '9:30 PM',
-      '10:00 PM',
-      '10:30 PM',
-      '11:00 PM',
-      '11:30 PM'
-    ];
+    List<String> manualTimeSlots = getManualTimeSlots24();
 
     DateTime startTime = convertToDateTime(startTimeString);
     DateTime endTime = convertToDateTime(endTimeString);
-
     int startIndex = manualTimeSlots
         .indexWhere((slot) => convertToDateTime(slot).isAfter(startTime));
     if (startIndex == -1) {
@@ -888,7 +945,6 @@ class BookingController extends GetxController implements GetxService {
 
     filteredTimeSlotsEndTime.value = manualTimeSlots.sublist(
         max(0, startIndex), min(manualTimeSlots.length, endIndex + 1));
-
     update();
     return filteredTimeSlotsEndTime;
   }
@@ -934,7 +990,7 @@ class BookingController extends GetxController implements GetxService {
 
   List<String> getSlotsStartTime() {
     switch (curreentStatus.value) {
-      case "CurrebtDate":
+      case "CurrentDate":
         if (handleTimeSlotsOnCurrentDate.value == true) {
           return currenttimeSlots;
         } else {
@@ -946,13 +1002,13 @@ class BookingController extends GetxController implements GetxService {
       case "otherDates":
         return filteredTimeSlotsEndTime;
       default:
-        return manualTimeSlots;
+        return getManualTimeSlots24();
     }
   }
 
   List<String> getSlotsEndTime() {
     switch (curreentStatus.value) {
-      case "CurrebtDate":
+      case "CurrentDate":
         if (startDate.value == endDate.value) {
           if (handleTimeSlotsOnCurrentDate.value == true) {
             return currenttimeSlots;
@@ -960,7 +1016,7 @@ class BookingController extends GetxController implements GetxService {
             return filteredTimeSlotsEndTime;
           }
         } else {
-          return manualTimeSlots;
+          return getManualTimeSlots24();
         }
       case "SameDate":
         return filteredTimeSlotsEndTime;
@@ -968,10 +1024,10 @@ class BookingController extends GetxController implements GetxService {
         if (startDate.value == endDate.value) {
           return filteredTimeSlotsEndTime;
         } else {
-          return manualTimeSlots;
+          return getManualTimeSlots24();
         }
       default:
-        return manualTimeSlots;
+        return getManualTimeSlots24();
     }
   }
 
@@ -998,6 +1054,7 @@ class BookingController extends GetxController implements GetxService {
             isenableendTime.value = true;
           },
           checkmarkColor: themeColor,
+          format24Hour: true,
         ),
       ),
     );
@@ -1016,6 +1073,7 @@ class BookingController extends GetxController implements GetxService {
             selectedEndTime.value = value;
           },
           checkmarkColor: themeColor,
+          format24Hour: true,
         ),
       ),
     );
@@ -1037,7 +1095,6 @@ class BookingController extends GetxController implements GetxService {
       "doorstep_latitude": addAddressController.doorSteplatitude.value,
       "doorstep_longitude": addAddressController.doorSteplongitude.value,
     };
-
     String jsonString = jsonEncode(map);
     return jsonString;
   }
@@ -1077,7 +1134,6 @@ class BookingController extends GetxController implements GetxService {
     bookingDetailMake = "Model";
     bookingDetailType = "Type";
     bookingType = "Year";
-
     String itemInfoString = decodedData[0]['item_info'] ?? "";
     Map<String, dynamic> itemInfoVehicle = jsonDecode(itemInfoString);
     vehicleType = itemInfoVehicle['vehicleType'] ?? '';
@@ -1134,7 +1190,6 @@ class BookingController extends GetxController implements GetxService {
     showhideisReturn.value = false;
     showLoading();
     String result = "no";
-
     try {
       var response = await httpPost(Config.updateItemReceivedStatus, {
         "booking_id": bookingId,
@@ -1142,15 +1197,12 @@ class BookingController extends GetxController implements GetxService {
         "pick_otp": otpController.text
       });
       closeLoading();
-
       if (response["status"] == 200) {
         String? isItemReceived =
             response["data"]["booking_extension"]["is_item_received"];
-
         if (isItemReceived == "1") {
           showhideisReturn.value = true;
           result = "yes";
-
           update();
         }
       } else {
@@ -1168,23 +1220,19 @@ class BookingController extends GetxController implements GetxService {
     dropoffshowHise.value = false;
     showLoading();
     String result = "error";
-
     try {
       var response = await httpPost(Config.updateItemReturnedStatus, {
         "booking_id": bookingId,
         "is_item_returned": "1",
         "drop_otp": dropOtpController.text,
       });
-
       closeLoading();
-
       if (response["status"] == 200) {
         var isItemDelivered =
             response["data"]["booking_extension"]["is_item_delivered"];
         showToastMessage(response["message"]);
         result = isItemDelivered == "1" ? "no" : "yes";
         dropoffshowHise.value = true;
-
         update();
       } else {
         showErrorToastMessage(response['error']);
@@ -1194,7 +1242,6 @@ class BookingController extends GetxController implements GetxService {
       print("Error in OTP verification: $e");
       showErrorToastMessage("OTP verification failed.");
     }
-
     return result;
   }
 
@@ -1204,7 +1251,6 @@ class BookingController extends GetxController implements GetxService {
       dropoffshowHise.value = false;
       otpController.clear();
       dropOtpController.clear();
-
       update();
     });
   }
@@ -1229,7 +1275,6 @@ class BookingController extends GetxController implements GetxService {
       } else {
         print("Chat node does not exist for user: $userId, skipping update");
       }
-
       if (hostUserChatSnapshot.snapshot.exists) {
         await hostUserChatRef.update({'bookingStatus': newStatus});
         print("Updated booking status to $newStatus for host: $hostId");
@@ -1247,18 +1292,15 @@ class BookingController extends GetxController implements GetxService {
     if (showloading == true) {
       showLoading();
     }
-
     signatureDataResponse = null;
     try {
       var responce =
           await httpGet(Config.getDigitalSingnature, {"booking_id": "${id}"});
-
       if (responce != null && responce["success"] == 200) {
         signatureDataResponse = SignatureDataResponse.fromJson(responce);
         if (showloading == true) {
           closeLoading();
         }
-
         return signatureDataResponse;
       } else {
         if (showloading == true) {
@@ -1281,7 +1323,6 @@ class BookingController extends GetxController implements GetxService {
     String result;
     var response = await httpPost(Config.updateItemDeliveredStatus,
         {"booking_id": bookingId, "is_item_delivered": "1"});
-
     if (response["status"] == 200) {
       isItemDelivered =
           response["data"]["booking_extension"]["is_item_delivered"];

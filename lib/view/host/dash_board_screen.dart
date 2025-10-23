@@ -1042,7 +1042,7 @@ class VehicleItemCard extends StatelessWidget {
                         return;
                       }
                       onVehicleDetails
-                          ?.call(); // Call the vehicle details callback
+                          ?.call();
                     },
                     child: Container(
                       width: double.maxFinite,
@@ -1239,7 +1239,7 @@ class VehicleItemCard extends StatelessWidget {
                           onPressed: onEdit,
                           style: TextButton.styleFrom(
                             backgroundColor: getColorBasedOnActiveModuleid()
-                                .withValues(alpha: .6),
+                               ,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(25),
                             ),
@@ -1256,9 +1256,9 @@ class VehicleItemCard extends StatelessWidget {
                       const SizedBox(width: 15),
                       Expanded(
                         child: TextButton(
-                          onPressed: onDelete, // Call the delete callback
+                          onPressed: onDelete, 
                           style: TextButton.styleFrom(
-                            backgroundColor: notifires.getGrey1Whitecolor,
+                            backgroundColor: yelloColor2,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(25),
                             ),

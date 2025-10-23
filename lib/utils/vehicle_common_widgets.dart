@@ -1133,7 +1133,6 @@ Widget customDatePickerForFilter(BuildContext context) {
             const SizedBox(
               height: 6,
             ),
-            // Selected Date Display
             Obx(() => Flexible(
                   child: Text(
                     controllerHome.startDate.value != "" &&
@@ -1171,7 +1170,7 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
       case "otherDates":
         return searchController.filteredTimeSlotsEndTime;
       default:
-        return bookingController.manualTimeSlots;
+        return bookingController.getManualTimeSlots24();
     }
   }
 
@@ -1186,7 +1185,7 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
             return searchController.filteredTimeSlotsEndTime;
           }
         } else {
-          return bookingController.manualTimeSlots;
+          return bookingController.getManualTimeSlots24();
         }
       case "SameDate":
         return searchController.filteredTimeSlotsEndTime;
@@ -1195,10 +1194,10 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
             searchController.endDates.value) {
           return searchController.filteredTimeSlotsEndTime;
         } else {
-          return bookingController.manualTimeSlots;
+          return bookingController.getManualTimeSlots24();
         }
       default:
-        return bookingController.manualTimeSlots;
+        return bookingController.getManualTimeSlots24();
     }
   }
 

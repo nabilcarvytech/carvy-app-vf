@@ -51,7 +51,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
                 child: Column(
                   children: [
-                    splashLogo(),        
+                    splashLogo(),
                   ],
                 ),
               ),

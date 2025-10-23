@@ -155,23 +155,6 @@ class _SearchScreenState extends State<SearchScreen> {
       child: SizedBox(
         width: Dimensions.containerWidth,
         child: Scaffold(
-          bottomNavigationBar: SizedBox(
-            height: 70,
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: CustomsButtons(
-                backgroundColor: getColorBasedOnActiveModuleid(),
-                text: "Search".tr,
-                onPressed: () {
-                  if (handleSearchFordetail == true) {
-                    Get.back();
-                    return;
-                  }
-                  search();
-                },
-              ),
-            ),
-          ),
           backgroundColor: notifires.getbgcolor,
           appBar: AppBar(
             scrolledUnderElevation: 0,
@@ -197,7 +180,6 @@ class _SearchScreenState extends State<SearchScreen> {
             child: IndexedStack(
               index: currentTabIndexforLocation,
               children: [
-                // Tab 0: Location
                 ListView(
                   children: [
                     Padding(
@@ -274,9 +256,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                       search();
                                     });
                                   },
-                                  itemClick: (Prediction prediction) {
-                                    //  FocusManager.instance.primaryFocus?.unfocus();
-                                  },
+                                  itemClick: (Prediction prediction) {},
                                   itemBuilder:
                                       (context, index, Prediction prediction) {
                                     return Container(
@@ -718,88 +698,92 @@ class _SearchScreenState extends State<SearchScreen> {
                     GestureDetector(
                       onTap: () {
                         setState(() {
-                          currentTabIndexforLocation = 1; // Switch to date tab
+                          currentTabIndexforLocation = 1;
                         });
                       },
-                      child: Container(
-                        padding: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          color: notifires.getboxcolor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color:
-                                notifires.getGrey2Whitecolor.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10.0),
                         child: Container(
-                          width: double.infinity,
+                          padding: const EdgeInsets.all(8.0),
                           decoration: BoxDecoration(
-                            color: notifires.getboxcolor.withOpacity(0.5),
-                            borderRadius: BorderRadius.circular(8),
+                            color: notifires.getboxcolor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color:
+                                  notifires.getGrey2Whitecolor.withOpacity(0.3),
+                              width: 1,
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: getColorBasedOnActiveModuleid()
-                                      .withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: notifires.getboxcolor.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: getColorBasedOnActiveModuleid()
+                                        .withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.calendar_today,
+                                    color: getColorBasedOnActiveModuleid(),
+                                    size: 20,
+                                  ),
                                 ),
-                                child: Icon(
-                                  Icons.calendar_today,
-                                  color: getColorBasedOnActiveModuleid(),
-                                  size: 20,
+                                SizedBox(
+                                  width: 15,
                                 ),
-                              ),
-                              SizedBox(
-                                width: 15,
-                              ),
-                              Expanded(
-                                child: Obx(() => Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _searchController.startDate.value !=
-                                                      "" &&
-                                                  _searchController
-                                                          .endDates.value !=
-                                                      ""
-                                              ? "Selected Date Range".tr
-                                              : "Select your dates".tr,
-                                          style: regular2(context).copyWith(
-                                            fontSize: 12,
-                                            color: notifires.getGrey1Whitecolor,
+                                Expanded(
+                                  child: Obx(() => Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _searchController.startDate.value !=
+                                                        "" &&
+                                                    _searchController
+                                                            .endDates.value !=
+                                                        ""
+                                                ? "Selected Date Range".tr
+                                                : "Select your dates".tr,
+                                            style: regular2(context).copyWith(
+                                              fontSize: 12,
+                                              color:
+                                                  notifires.getGrey1Whitecolor,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _searchController.startDate.value !=
-                                                      "" &&
-                                                  _searchController
-                                                          .endDates.value !=
-                                                      ""
-                                              ? "${_searchController.startDate.value} ${_searchController.startTimeSearch.value} - ${_searchController.endDates.value} ${_searchController.endTimeSearch.value}"
-                                              : "Tap to select dates".tr,
-                                          style: regular3(context).copyWith(
-                                            fontSize: 14,
-                                            color: notifires.getwhiteblackcolor,
-                                            fontWeight: FontWeight.w500,
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _searchController.startDate.value !=
+                                                        "" &&
+                                                    _searchController
+                                                            .endDates.value !=
+                                                        ""
+                                                ? "${_searchController.startDate.value} ${_searchController.startTimeSearch.value} - ${_searchController.endDates.value} ${_searchController.endTimeSearch.value}"
+                                                : "Tap to select dates".tr,
+                                            style: regular3(context).copyWith(
+                                              fontSize: 14,
+                                              color:
+                                                  notifires.getwhiteblackcolor,
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                           ),
-                                        ),
-                                      ],
-                                    )),
-                              ),
-                            ],
+                                        ],
+                                      )),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                // Tab 1: Date/Calendar
                 ListView(
                   children: [
                     GestureDetector(
@@ -808,7 +792,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           return;
                         }
                         setState(() {
-                          currentTabIndexforLocation = 0; // Switch to date tab
+                          currentTabIndexforLocation = 0;
                         });
                       },
                       child: Container(
@@ -890,6 +874,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     const SizedBox(height: 12),
                     Container(
+                      height: 550,
                       decoration: BoxDecoration(
                         color: notifires.getboxcolor,
                         borderRadius: BorderRadius.circular(12),
@@ -907,22 +892,19 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: SizedBox(
-                          height: 600,
-                          child: Stack(
-                            children: [
-                              SfDateRangePicker(
+                        child: Stack(
+                          children: [
+                            SizedBox(
+                              height: 380,
+                              child: SfDateRangePicker(
                                 startRangeSelectionColor: Colors.transparent,
                                 endRangeSelectionColor: Colors.transparent,
                                 rangeSelectionColor: Colors.transparent,
                                 selectionColor: Colors.transparent,
-                                navigationDirection:
-                                    DateRangePickerNavigationDirection.vertical,
-                                navigationMode:
-                                    DateRangePickerNavigationMode.scroll,
-                                enableMultiView: true,
+                                enableMultiView: false,
                                 headerStyle: DateRangePickerHeaderStyle(
                                   backgroundColor: notifires.getboxcolor,
+                                  textAlign: TextAlign.center,
                                   textStyle: TextStyle(
                                     color: notifires.getwhiteblackcolor,
                                     fontSize: 16,
@@ -945,7 +927,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 ),
                                 monthViewSettings:
                                     DateRangePickerMonthViewSettings(
-                                  dayFormat: 'EEE',
+                                  dayFormat: "EEE",
                                   viewHeaderStyle:
                                       DateRangePickerViewHeaderStyle(
                                     backgroundColor:
@@ -960,7 +942,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 backgroundColor: notifires.getboxcolor,
                                 minDate: DateTime.now(),
                                 maxDate: DateTime.now()
-                                    .add(const Duration(days: 160)),
+                                    .add(const Duration(days: 180)),
                                 controller: _searchController
                                     .dateRangePickerControllerCustom,
                                 selectionMode:
@@ -978,15 +960,12 @@ class _SearchScreenState extends State<SearchScreen> {
                                       details.date.year == now.year &&
                                           details.date.month == now.month &&
                                           details.date.day == now.day;
-
                                   bool isDisabled =
                                       details.date.isBefore(now) && !isToday;
-
                                   final range = _searchController
                                       .dateRangePickerControllerCustom
                                       .selectedRange;
                                   bool isSelected = false;
-
                                   if (range != null) {
                                     DateTime? start = range.startDate;
                                     DateTime? end = range.endDate ?? start;
@@ -1000,7 +979,6 @@ class _SearchScreenState extends State<SearchScreen> {
                                       }
                                     }
                                   }
-
                                   return Container(
                                     margin: const EdgeInsets.all(2),
                                     decoration: BoxDecoration(
@@ -1037,157 +1015,203 @@ class _SearchScreenState extends State<SearchScreen> {
                                   );
                                 },
                               ),
-                              Positioned(
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 12, horizontal: 16),
-                                  decoration: BoxDecoration(
-                                    color: notifires.getbgcolor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.08),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              "Start Time".tr,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: notifires
-                                                    .getwhiteblackcolor,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Obx(() {
-                                              final startSlots =
-                                                  getSlotsStartTime();
-                                              final startIndex =
-                                                  startSlots.isNotEmpty ? 0 : 0;
-
-                                              return SizedBox(
-                                                height: 120,
-                                                child: CupertinoPicker(
-                                                  scrollController:
-                                                      FixedExtentScrollController(
-                                                    initialItem: startIndex,
-                                                  ),
-                                                  itemExtent: 40,
-                                                  onSelectedItemChanged:
-                                                      (index) {
-                                                    _searchController
-                                                            .startTimeSearch
-                                                            .value =
-                                                        startSlots[index];
-                                                  },
-                                                  children: startSlots
-                                                      .map((time) => Center(
-                                                            child: Text(
-                                                              time,
-                                                              style: TextStyle(
-                                                                fontSize: 16,
-                                                                color: notifires
-                                                                    .getwhiteblackcolor,
-                                                              ),
-                                                            ),
-                                                          ))
-                                                      .toList(),
-                                                ),
-                                              );
-                                            }),
-                                          ],
-                                        ),
-                                      ),
-
-                                      const SizedBox(width: 16),
-
-                                      // End Time
-                                      Expanded(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              "End Time".tr,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: notifires
-                                                    .getwhiteblackcolor,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Obx(() {
-                                              final endSlots =
-                                                  getSlotsEndTime();
-                                              final endIndex =
-                                                  endSlots.isNotEmpty
-                                                      ? endSlots.length - 1
-                                                      : 0;
-
-                                              return SizedBox(
-                                                height: 120,
-                                                child: CupertinoPicker(
-                                                  scrollController:
-                                                      FixedExtentScrollController(
-                                                    initialItem: endIndex,
-                                                  ),
-                                                  itemExtent: 40,
-                                                  onSelectedItemChanged:
-                                                      (index) {
-                                                    _searchController
-                                                            .endTimeSearch
-                                                            .value =
-                                                        endSlots[index];
-                                                  },
-                                                  children: endSlots
-                                                      .map((time) => Center(
-                                                            child: Text(
-                                                              time,
-                                                              style: TextStyle(
-                                                                fontSize: 16,
-                                                                color: notifires
-                                                                    .getwhiteblackcolor,
-                                                              ),
-                                                            ),
-                                                          ))
-                                                      .toList(),
-                                                ),
-                                              );
-                                            }),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 12, horizontal: 16),
+                                decoration: BoxDecoration(
+                                  color: notifires.getbgcolor,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
                                 ),
-                              )
-                            ],
-                          ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            "Start Time".tr,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color:
+                                                  notifires.getwhiteblackcolor,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Obx(() {
+                                            final startSlots =
+                                                getSlotsStartTime();
+                                            final startIndex =
+                                                startSlots.isNotEmpty ? 0 : 0;
+
+                                            return SizedBox(
+                                              height: 120,
+                                              child: CupertinoPicker(
+                                                scrollController:
+                                                    FixedExtentScrollController(
+                                                  initialItem: startIndex,
+                                                ),
+                                                itemExtent: 40,
+                                                onSelectedItemChanged: (index) {
+                                                  _searchController
+                                                          .startTimeSearch
+                                                          .value =
+                                                      startSlots[index];
+                                                },
+                                                children: startSlots
+                                                    .map((time) => Center(
+                                                          child: Text(
+                                                            time, 
+                                                            style: TextStyle(
+                                                              fontSize: 16,
+                                                              color: notifires
+                                                                  .getwhiteblackcolor,
+                                                            ),
+                                                          ),
+                                                        ))
+                                                    .toList(),
+                                              ),
+                                            );
+                                          }),
+                                    
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            "End Time".tr,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color:
+                                                  notifires.getwhiteblackcolor,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Obx(() {
+                                            final endSlots = getSlotsEndTime();
+                                            final endIndex = endSlots.isNotEmpty
+                                                ? endSlots.length - 1
+                                                : 0;
+                                            return SizedBox(
+                                              height: 120,
+                                              child: CupertinoPicker(
+                                                scrollController:
+                                                    FixedExtentScrollController(
+                                                  initialItem: endIndex,
+                                                ),
+                                                itemExtent: 40,
+                                                onSelectedItemChanged: (index) {
+                                                  _searchController
+                                                      .endTimeSearch
+                                                      .value = endSlots[index];
+                                                },
+                                                children: endSlots
+                                                    .map((time) => Center(
+                                                          child: Text(
+                                                            time,
+                                                            style: TextStyle(
+                                                              fontSize: 16,
+                                                              color: notifires
+                                                                  .getwhiteblackcolor,
+                                                            ),
+                                                          ),
+                                                        ))
+                                                    .toList(),
+                                              ),
+                                            );
+                                          }),
+                                          // Obx(() {
+                                          //   final endSlots =
+                                          //       getSlotsEndTime();
+                                          //   final endIndex =
+                                          //       endSlots.isNotEmpty
+                                          //           ? endSlots.length - 1
+                                          //           : 0;
+
+                                          //   return SizedBox(
+                                          //     height: 120,
+                                          //     child: CupertinoPicker(
+                                          //       scrollController:
+                                          //           FixedExtentScrollController(
+                                          //         initialItem: endIndex,
+                                          //       ),
+                                          //       itemExtent: 40,
+                                          //       onSelectedItemChanged:
+                                          //           (index) {
+                                          //         _searchController
+                                          //                 .endTimeSearch
+                                          //                 .value =
+                                          //             endSlots[index];
+                                          //       },
+                                          //       children: endSlots
+                                          //           .map((time) => Center(
+                                          //                 child: Text(
+                                          //                   time,
+                                          //                   style: TextStyle(
+                                          //                     fontSize: 16,
+                                          //                     color: notifires
+                                          //                         .getwhiteblackcolor,
+                                          //                   ),
+                                          //                 ),
+                                          //               ))
+                                          //           .toList(),
+                                          //     ),
+                                          //   );
+                                          // }),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          ],
                         ),
                       ),
-                    ),
+                    ),          
                     const SizedBox(height: 16),
                     const SizedBox(height: 8),
                   ],
                 ),
               ],
             ),
+          ),
+          bottomNavigationBar:       SafeArea(
+            child: Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: CustomsButtons(
+                          backgroundColor: getColorBasedOnActiveModuleid(),
+                          text: "Search".tr,
+                          onPressed: () {
+                            if (handleSearchFordetail == true) {
+                              Get.back();
+                              return;
+                            }
+                            search();
+                          },
+                        ),
+                      ),
           ),
         ),
       ),
@@ -1209,7 +1233,7 @@ class _SearchScreenState extends State<SearchScreen> {
       case "otherDates":
         return _searchController.filteredTimeSlotsEndTime;
       default:
-        return bookingController.manualTimeSlots;
+        return bookingController.getManualTimeSlots24();
     }
   }
 
@@ -1224,7 +1248,7 @@ class _SearchScreenState extends State<SearchScreen> {
             return _searchController.filteredTimeSlotsEndTime;
           }
         } else {
-          return bookingController.manualTimeSlots;
+          return bookingController.getManualTimeSlots24();
         }
       case "SameDate":
         return _searchController.filteredTimeSlotsEndTime;
@@ -1233,10 +1257,10 @@ class _SearchScreenState extends State<SearchScreen> {
             _searchController.endDates.value) {
           return _searchController.filteredTimeSlotsEndTime;
         } else {
-          return bookingController.manualTimeSlots;
+          return bookingController.getManualTimeSlots24();
         }
       default:
-        return bookingController.manualTimeSlots;
+        return bookingController.getManualTimeSlots24();
     }
   }
 }

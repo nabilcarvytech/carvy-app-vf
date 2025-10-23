@@ -37,7 +37,7 @@ Color onoffColor = const Color(0xffE7E7E7);
 Color onoffColor2 = const Color(0xffE7E7E7);
 Color fevAndSearchColor = const Color(0xFFf7f7f7);
 Color lightblue = const Color(0xFFccdbfd);
-Color greensColor = const Color(0xFF2a9d8f);
+Color greensColor = yelloColor2;
 Color lightGrey = const Color(0xFFbbbbbb);
 Color pinnetsColor = const Color.fromARGB(255, 248, 236, 217);
 Color darkgrey = const Color(0xFFF6F4F4);
@@ -116,7 +116,7 @@ class ColorNotifires with ChangeNotifier {
   get getfevAndSearch => isDark ? darkmode : fevAndSearchColor;
   get getlightblackwhite => isDark ? blackColor : fevAndSearchColor;
   get getswitchcolor => isDark ? blueColor : lightsGrey;
-  get getthemecolor => isDark ? themeColor : blackColor;
+  get getthemecolor => isDark ? yelloColor2 : blackColor;
   get getthemewhitecolor => isDark ? whiteColor : themeColor;
   get getWhitepinnetsColor => isDark ? whiteColor : pinnetsColor;
   get getWhitetodarkgeryColor => isDark ? darkmode : darkgrey;

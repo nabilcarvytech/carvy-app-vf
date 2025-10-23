@@ -20,10 +20,8 @@ import 'package:carvy/work_space.dart';
 
 class LoginScreen extends StatefulWidget implements PreferredSizeWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
-
   @override
   Size get preferredSize => throw UnimplementedError();
 }
@@ -33,7 +31,6 @@ class _LoginScreenState extends State<LoginScreen> {
   AuthController authController = Get.find();
   ProfileController profileController = Get.find();
   SearchControllerHome filterController = Get.find();
-
   void someMethodWhereYouCallLogin() {
     authController.loginMethod(context, _formKey);
   }
@@ -65,7 +62,6 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: notifires.getbgcolor,
         body: Stack(
           children: [
-    
             Positioned(
               left: 0,
               top: 0,

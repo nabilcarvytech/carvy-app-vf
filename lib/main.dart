@@ -34,7 +34,6 @@ void main() async {
   }
   await firebaseInit();
   await initializeNotifications();
-
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     var lanValue = GetStorage().read("lanValue");
     Locale selectedLocale;
@@ -48,19 +47,16 @@ void main() async {
     }
     await updateLanguage(selectedLocale);
     globallanguage = selectedLocale;
-
     try {
       await generalController.fetchGeneralSettings();
     } catch (e, stackTrace) {
       debugPrint('main: Error fetching general settings: $e\n$stackTrace');
     }
   });
-
   FlutterError.onError = (FlutterErrorDetails details) {};
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
-
   runApp(
     ScreenUtilInit(
       designSize: const Size(360, 640),

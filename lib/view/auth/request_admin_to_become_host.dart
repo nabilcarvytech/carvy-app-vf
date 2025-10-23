@@ -76,7 +76,6 @@ class _RequestTobecomeHopstState extends State<RequestTobecomeHopst> {
       backgroundColor: notifires.getbgcolor,
       body: Stack(
         children: [
-      
           SingleChildScrollView(
             child: Align(
               alignment: Alignment.center,
@@ -148,7 +147,7 @@ class _RequestTobecomeHopstState extends State<RequestTobecomeHopst> {
                           ),
                           TextFieldRefs(
                             inputAlignment: TextAlign.start,
-                            txt: "Company name (optional)".tr,
+                            txt: "Company name".tr,
                             icons: Icon(
                               Icons.comment_bank,
                               color: acentColor,
@@ -223,13 +222,18 @@ class _RequestTobecomeHopstState extends State<RequestTobecomeHopst> {
                             },
                           ),
                           const SizedBox(height: 20),
-                          CustomDropdown(
-                            options: const ["Citizenship", "Residence"],
+                          LegalFormDropdown(
+                            options: const [
+                              "SARL",
+                              "SARL AU",
+                              "Individual", "Branch Office",
+                              "Joint-stock Company",
+                              "Others"
+                            ],
+                            acentColor: acentColor,
                             onSelected: (value) {
-                              authController.selectresedinceType =
-                                  value.toString();
+                              authController.selectLegalForm = value.toString();
                             },
-                            checkmarkColor: acentColor,
                           ),
                           const SizedBox(height: 20),
                           FormField(
@@ -590,6 +594,11 @@ class _RequestTobecomeHopstState extends State<RequestTobecomeHopst> {
                                       "Please Enter Last Name".tr);
                                   return;
                                 }
+                                if (authController.companyName.text == "") {
+                                  showErrorToastMessage(
+                                      "Please Enter Company Name".tr);
+                                  return;
+                                }
                                 if (authController.becomeLeadEmail.text == "") {
                                   showErrorToastMessage(
                                       "Please Enter the Email".tr);
@@ -601,7 +610,7 @@ class _RequestTobecomeHopstState extends State<RequestTobecomeHopst> {
                                       "Please Enter the Pho".tr);
                                   return;
                                 }
-                                if (authController.selectresedinceType == "") {
+                                if (authController.selectLegalForm == "") {
                                   showErrorToastMessage(
                                       "Please select Nationality/Residency".tr);
                                   return;

@@ -910,7 +910,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 color: notifires.getGrey3Whitecolor.withOpacity(0.2),
                 spreadRadius: 5,
                 blurRadius: 15,
-                offset: const Offset(5, 5), // changes position of shadow
+                offset: const Offset(5, 5),
               ),
             ],
           ),
@@ -931,7 +931,7 @@ class _HostErecieptState extends State<HostEreciept> {
                         height: 5,
                       ),
                       Text(
-                        "${widget.bookings.checkIn}",
+                        "${DateTimeFormatter.to24HourFormat(widget.bookings.checkIn)}",
                         style: regular2(context),
                       ),
                       const SizedBox(
@@ -950,7 +950,7 @@ class _HostErecieptState extends State<HostEreciept> {
                         height: 5,
                       ),
                       Text(
-                        "${widget.bookings.checkOut}",
+                   "${DateTimeFormatter.to24HourFormat(widget.bookings.checkOut)}",
                         style: regular2(context),
                       ),
                       const SizedBox(

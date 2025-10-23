@@ -62,15 +62,14 @@ class CustomsButtons extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment:
-                CrossAxisAlignment.center, // Center the content in the row
+                CrossAxisAlignment.center, 
             children: [
-              // Display the text first
               Text(
                 text,
                 style: heading2(context).copyWith(color: textColor ?? bgColor),
                 overflow:
-                    TextOverflow.ellipsis, // Handle text overflow with ellipsis
-                maxLines: 1, // Ensure text is on a single line
+                    TextOverflow.ellipsis, 
+                maxLines: 1,
               ),
               if (icon != null) const SizedBox(width: 10),
               if (icon != null) Icon(icon, color: bgColor),
@@ -79,7 +78,6 @@ class CustomsButtons extends StatelessWidget {
     );
   }
 }
-//password fields//
 
 class CustomTextFields extends StatefulWidget {
   final String txt;
@@ -124,12 +122,12 @@ class _CustomTextFieldsState extends State<CustomTextFields> {
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           borderSide: BorderSide(
-              color: notifires.getBoxColor), // Error color set to green
+              color: notifires.getBoxColor),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           borderSide: BorderSide(
-              color: notifires.getBoxColor), // Focused error color set to green
+              color: notifires.getBoxColor),
         ),
         hintText: widget.txt.tr,
         fillColor: notifires.getBoxColor,
@@ -194,7 +192,7 @@ class TextFieldRefs extends StatefulWidget {
   final TextAlign inputAlignment;
   final TextInputAction? textInputAction;
   final String? Function(String?)? onChange;
-  final VoidCallback? onEditingComplete; // Add this line
+  final VoidCallback? onEditingComplete;
   final FocusNode? focusNode;
   final bool readOnly;
   final String? suffixtext;
@@ -360,7 +358,6 @@ class _TextFieldRefForDiscountState extends State<TextFieldRefsForDiscount> {
       cursorColor: notifires.getwhiteblackcolor,
       style: heading3(context).copyWith(color: getColorBasedOnActiveModuleid()),
       onTap: widget.onTap,
-      // Added onTap callback
       decoration: InputDecoration(
         suffixText: widget.suffixtext,
         filled: true,
@@ -372,7 +369,6 @@ class _TextFieldRefForDiscountState extends State<TextFieldRefsForDiscount> {
                 color: Colors.green, size: 20)
             : null,
         errorStyle: regular(context).copyWith(color: pc1),
-        // border: InputBorder.none,
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: notifires.getboxcolor),
@@ -398,7 +394,6 @@ class _TextFieldRefForDiscountState extends State<TextFieldRefsForDiscount> {
   }
 }
 
-//IntelPhoneFields //
 
 class IntelPhoneFieldRefs extends StatefulWidget {
   final TextEditingController textEditingControllerCommons;

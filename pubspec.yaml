@@ -89,9 +89,6 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/small-app-logo.jpg"
   image_path_ios: "assets/images/small-app-logo.jpg"
-  adaptive_icon_background: "#0057FF"
-  adaptive_icon_foreground: "assets/images/small-app-logo.jpg"
-
 
 flutter:
   uses-material-design: true

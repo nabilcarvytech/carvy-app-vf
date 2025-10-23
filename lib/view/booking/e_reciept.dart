@@ -375,12 +375,12 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                         Text("${bookingController.bookingDateStart}".tr,
                             style: heading3Grey1(context)),
                         const SizedBox(height: 5),
-                        Text("${widget.bookings!.checkIn}",
+                        Text("${DateTimeFormatter.to24HourFormat(widget.bookings!.checkIn)}",
                             style: regular2(context)),
                         const SizedBox(height: 5),
                         widget.bookings!.module == "1"
                             ? const SizedBox()
-                            : Text("${widget.bookings!.startTime}",
+                            : Text("${TimeFormatter.to24Hour(widget.bookings!.startTime)}",
                                 style: regular2(context)),
                       ],
                     ),
@@ -390,12 +390,12 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                         Text("${bookingController.bookingDateEnd}".tr,
                             style: heading3Grey1(context)),
                         const SizedBox(height: 5),
-                        Text("${widget.bookings!.checkOut}",
+                        Text("${DateTimeFormatter.to24HourFormat(widget.bookings!.checkOut)}",
                             style: regular2(context)),
                         const SizedBox(height: 5),
                         widget.bookings!.module == "1"
                             ? const SizedBox()
-                            : Text("${widget.bookings!.endTime}",
+                            : Text("${TimeFormatter.to24Hour(widget.bookings!.endTime)}",
                                 style: regular2(context)),
                       ],
                     ),

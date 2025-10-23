@@ -24,7 +24,6 @@ class GeneralController extends GetxController implements GetxService {
   Future<void> fetchGeneralSettings([bool? runOnHomePage]) async {
     var datastorelocally = GetStorage().read("generalSettings");
     failed.value = false;
-
     if (runOnHomePage == false) {
       hasGeneralData.value = true;
     }
@@ -109,7 +108,6 @@ class GeneralController extends GetxController implements GetxService {
     internalVehicleImage =
         generalDataModel?.data?.metaData?.bookingInternalImage ?? "";
     kycenable = generalDataModel?.data?.metaData?.kyc ?? "";
-
     update();
   }
 }

@@ -34,7 +34,7 @@ class _InitialScreenState extends State<InitialScreen> {
 
   Future<void> setScreen() async {
     final duration = Duration(
-      seconds: GetStorage().read('Firstuser') == null ? 5 : 0,
+      seconds: GetStorage().read('Firstuser') == null ? 4 : 3,
     );
 
     Timer(duration, () {

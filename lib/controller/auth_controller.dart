@@ -844,7 +844,7 @@ class AuthController extends GetxController implements GetxService {
   var selectedImagyoBecomeAhostbase64 = "";
   var selectlettobecomeHost = "";
   var selectlongTibecomeHost = "";
-  var selectresedinceType = "";
+  var selectLegalForm = "";
   var selectIdentityType = "";
   int fileSizeThreshold = 1024 * 1024;
   int goodQuality = 85;
@@ -894,7 +894,7 @@ class AuthController extends GetxController implements GetxService {
         "email": becomeLeadEmail.text,
         "phone": becomeLeadPhoneNumber.text,
         "country_code": countryCode,
-        "residency_type": selectresedinceType,
+        "residency_type": selectLegalForm,
         "full_address": becomeLeadFulladdress.text,
         "identity_type": selectIdentityType,
         "identity_image": selectedImagyoBecomeAhostbase64,

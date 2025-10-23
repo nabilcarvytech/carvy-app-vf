@@ -45,10 +45,14 @@ dynamic maxPriceRange;
 dynamic minPricerange;
 dynamic showerrorWhenloginwithOtherDevice = "";
 int currentTabIndexforLocation = 0;
+
 enum ScreenMode { add, edit }
+
 bool darkMode = GetStorage().read("getDarkValue") ?? false;
 String bearerToken = GetStorage().read("bearerToken") ?? "";
+
 enum EditOptions { op1, op2, op3 }
+
 SearchControllerHome filterController = Get.find();
 setdefultData() {
   addAddressController.preventDate.value = true;
@@ -99,13 +103,12 @@ Map<String, dynamic> itemInfoDetails = {};
 Map<String, dynamic> bookingMetaList = {};
 bool isInboxOpen = false;
 bool isChatOpen = false;
-
 bool handleBackonBooking = false;
 bool handleLoginBack = false;
 final List locale = [
   {'name': 'English', 'locale': const Locale('en', 'US')},
   {'name': 'Spanish', 'locale': const Locale('es', 'ES')},
-  // {'name': 'Russia', 'locale': const Locale('ru', 'RU')},
+  {'name': 'French', 'locale': const Locale('fr', 'FR')},
   // {'name': 'Thailand', 'locale': const Locale('th', 'TH')},
   {'name': 'Arabic', 'locale': const Locale('ar', 'AR')}
 ];
@@ -260,7 +263,7 @@ Future clearAllController() async {
   authController.selectedImagyoBecomeAhostbase64 = '';
   authController.selectlettobecomeHost = "";
   authController.selectlongTibecomeHost = "";
-  authController.selectresedinceType = "";
+  authController.selectLegalForm = "";
   authController.selectIdentityType = "";
   authController.identityimageforWeb = null;
   currency = "";
@@ -367,6 +370,33 @@ String getMonthName(int month, {String locale = 'en'}) {
     return arabicMonths[month - 1];
   }
   return englishMonths[month - 1];
+}
+
+class DateTimeFormatter {
+  static String to24HourFormat(String? dateTimeStr) {
+    if (dateTimeStr == null || dateTimeStr.isEmpty) return '';
+
+    try {
+      final dateTime = DateFormat("dd-MM-yyyy hh:mm a").parse(dateTimeStr);
+      final formattedDate = DateFormat("dd-MM-yyyy").format(dateTime);
+      final formattedTime = DateFormat("HH:mm").format(dateTime);
+      return "$formattedDate $formattedTime";
+    } catch (e) {
+      return dateTimeStr;
+    }
+  }
+}
+
+class TimeFormatter {
+  static String to24Hour(String? time) {
+    if (time == null || time.isEmpty) return '';
+    try {
+      final dateTime = DateFormat("hh:mm a").parse(time);
+      return DateFormat("HH:mm").format(dateTime);
+    } catch (e) {
+      return time;
+    }
+  }
 }
 
 String getWeekdayName(int weekday, {String locale = 'en'}) {
