@@ -35,6 +35,7 @@ class _VehiclePriceScreenState extends State<VehiclePriceScreen> {
     if (addItemsHostController
         .textEditingControllerDoorstepPrice.text.isNotEmpty) {
       addItemsHostController.isCheckeddoorstep = true;
+      addItemsHostController.isCheckedSecurityDeposit = true;
     }
   }
 
@@ -121,7 +122,7 @@ class _VehiclePriceScreenState extends State<VehiclePriceScreen> {
                                                 "Doorstep delivery Price".tr))
                                   ],
                                 ),
-                                const SizedBox(height: 5),
+                                 const SizedBox(height: 5),
                                 addItemsHostController.isCheckeddoorstep
                                     ? TextFieldRefs(
                                         onChange: (value) {
@@ -140,6 +141,54 @@ class _VehiclePriceScreenState extends State<VehiclePriceScreen> {
                                         textEditingControllerCommon:
                                             addItemsHostController
                                                 .textEditingControllerDoorstepPrice,
+                                        inputType: TextInputType.number,
+                                        inputAlignment: TextAlign.left,
+                                      )
+                                    : const SizedBox(),
+                                    const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Transform.translate(
+                                      offset: const Offset(-10, 0),
+                                      child: Checkbox(
+                                        activeColor:
+                                            getColorBasedOnActiveModuleid(),
+                                        value: addItemsHostController
+                                            .isCheckedSecurityDeposit,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            addItemsHostController
+                                                .isCheckedSecurityDeposit = value!;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    Transform.translate(
+                                        offset: const Offset(-10, 0),
+                                        child: LabelNames(
+                                            labelname:
+                                                "Security Deposit Price".tr))
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                addItemsHostController.isCheckedSecurityDeposit
+                                    ? TextFieldRefs(
+                                        onChange: (value) {
+                                          addItemsHostController.cleanNumericInput(
+                                              addItemsHostController
+                                                  .textEditingControllerSecurityDeposit,
+                                              value!);
+                                          return null;
+                                        },
+                                        suffixtext: currency,
+                                        onTap: () {
+                                          addItemsHostController.numerictype =
+                                              true;
+                                        },
+                                        txt: "Enter the price".tr,
+                                        textEditingControllerCommon:
+                                            addItemsHostController
+                                                .textEditingControllerSecurityDeposit,
                                         inputType: TextInputType.number,
                                         inputAlignment: TextAlign.left,
                                       )
@@ -196,6 +245,16 @@ class _VehiclePriceScreenState extends State<VehiclePriceScreen> {
                 return;
               }
             }
+              if (addItemsHostController.isCheckedSecurityDeposit == true) {
+              if (addItemsHostController
+                  .textEditingControllerSecurityDeposit.text.isEmpty) {
+                showErrorToastMessage(
+                    "Please uncheck the security deposit or enter the security deposit."
+                        .tr);
+                return;
+              }
+            }
+
 
             addItemsHostController.validateprice(
                 context: context,

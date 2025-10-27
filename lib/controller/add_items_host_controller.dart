@@ -37,6 +37,8 @@ import '../model/add_rules_model.dart';
 
 class AddItemsHostController extends GetxController implements GetxService {
   bool isCheckeddoorstep = false;
+  bool isCheckedSecurityDeposit = false;
+  bool isAgeRestricted = false;
   RxBool isChecked1 = false.obs;
   RxBool isChecked2 = false.obs;
   bool numerictype = false;
@@ -167,23 +169,38 @@ class AddItemsHostController extends GetxController implements GetxService {
       TextEditingController();
   TextEditingController textEditingControllerFuturePrice =
       TextEditingController();
-
+  TextEditingController textEditingControllerEditLicensePlate =
+      TextEditingController();
+  TextEditingController textEditingControllerLicensePlate =
+      TextEditingController();
+  TextEditingController textEditingControllerEditMinDays =
+      TextEditingController();
+  TextEditingController textEditingControllerMinDays = TextEditingController();
+  TextEditingController textEditingControllerEditMinAge =
+      TextEditingController();
+  TextEditingController textEditingControllerMinAge = TextEditingController();
+  String? insuranceCoverage;
+  bool isSmokingAllowed = false;
+  bool isInternationalTravelAllowed = false;
   TextEditingController seatcapicity = TextEditingController();
   DateRangePickerController dateRangePickerController =
       DateRangePickerController();
   var isloading = true.obs;
   var isvechileloading = true.obs;
-  String priceMapData() {
-    Map<String, dynamic> map = {
-      "cleaning_fee": textEditingControllerCleaningFee.text,
-      "additional_fee": textEditingControllerAdditionalGusets.text,
-      "security_fee": textEditingControllerSecurityDeposit.text,
-      "weekend_price": textEditingControllerWeekendPricing.text,
-      "rules": selectedRulesList,
-      "service_type": serviceType ?? "",
-    };
-    String jsonString = jsonEncode(map);
-    return jsonString;
+
+  void setInsuranceCoverage(String? value) {
+    insuranceCoverage = value;
+    update();
+  }
+
+  void setSmokingAllowed(bool value) {
+    isSmokingAllowed = value;
+    update();
+  }
+
+  void setInternationalTravelAllowed(bool value) {
+    isInternationalTravelAllowed = value;
+    update();
   }
 
   var isloadingCat = true.obs;
@@ -208,7 +225,6 @@ class AddItemsHostController extends GetxController implements GetxService {
       listTransmission.assignAll(transmission!.data!.options!);
       isTransmission.value = false;
     }
-
     update();
   }
 
@@ -235,26 +251,20 @@ class AddItemsHostController extends GetxController implements GetxService {
   Future<void> getDatafuelType() async {
     final storage = GetStorage();
     final cachedData = storage.read("getFueltype");
-
     if (cachedData == null) {
       var response = await httpGet(Config.fuelType, {});
       if (response != null) {
-        print("Response from API: $response");
         try {
           fuelTypeModel = FuelTypeModel.fromJson(response);
           fuelTypeList.assignAll(fuelTypeModel!.fuelTypes);
           storage.write("getFueltype", response);
-        } catch (e) {
-          print("Error parsing fuel type data: $e");
-        }
+        } catch (e) {}
       }
     } else {
       try {
         fuelTypeModel = FuelTypeModel.fromJson(cachedData);
         fuelTypeList.assignAll(fuelTypeModel!.fuelTypes);
-      } catch (e) {
-        print("Error loading cached fuel type data: $e");
-      }
+      } catch (e) {}
     }
     update();
   }
@@ -262,11 +272,9 @@ class AddItemsHostController extends GetxController implements GetxService {
   void cleanNumericInput(TextEditingController controller, String value) {
     if (value.isNotEmpty && !RegExp(r'^\d*\.?\d*$').hasMatch(value)) {
       String cleanedText = value.replaceAll(RegExp(r'[^\d.]'), '');
-
       if (RegExp(r'\..*\.').hasMatch(cleanedText)) {
         cleanedText = cleanedText.replaceFirst(RegExp(r'\.$'), '');
       }
-
       controller.text = cleanedText;
       controller.selection = TextSelection.fromPosition(
         TextPosition(offset: cleanedText.length),
@@ -276,12 +284,12 @@ class AddItemsHostController extends GetxController implements GetxService {
 
   var isloadingType = false.obs;
   Future<void> getDataItemType() async {
-    isloadingType.value == true;
+    isloadingType.value = true;
     var response2 = await httpGet(Config.itemsType, {});
     if (response2 != null) {
       itemTypeModel = ItemTypeModel.fromJson(response2);
       update();
-      isloadingType.value == false;
+      isloadingType.value = false;
       vehicleListItemType.assignAll(itemTypeModel!.data!.itemTypes!);
       GetStorage().write("vehicleStr", response2);
     }
@@ -292,18 +300,14 @@ class AddItemsHostController extends GetxController implements GetxService {
   Future<void> getDataAmenties() async {
     isAmentiesloading.value = true;
     GetStorage().read("amenitiesVechicle");
-
     var response = await httpGet(Config.amenities, {});
     if (response != null) {
       amenitiesModel = AmenitiesModel.fromJson(response);
       update();
-
       vehicleListAmenities.assignAll(amenitiesModel!.data!.amenities!);
       GetStorage().write("amenitiesVechicle", response);
-
       isAmentiesloading.value = false;
     }
-
     update();
   }
 
@@ -325,19 +329,15 @@ class AddItemsHostController extends GetxController implements GetxService {
         }
       }
     }
-
     isMakeModel.value = false;
     update();
   }
 
-  Future<void> getVehicleDataMakeModelforOnTap(
-    value,
-  ) async {
+  Future<void> getVehicleDataMakeModelforOnTap(value) async {
     isMakeModelonTap.value = true;
     showLoading();
     var response = await httpGet(
         Config.getMakesModel, {"type_id": "${value == "" ? "" : value}"});
-
     if (response != null) {
       getMakeModel = GetMakeModel.fromJson(response);
       update();
@@ -355,9 +355,7 @@ class AddItemsHostController extends GetxController implements GetxService {
     update();
   }
 
-  Future<void> getVehicleDataMakeModelforEditinitial(
-    value,
-  ) async {
+  Future<void> getVehicleDataMakeModelforEditinitial(value) async {
     isMakeModel.value = true;
     var response = await httpGet(
         Config.getMakesModel, {"type_id": "${value == "" ? "" : value}"});
@@ -372,7 +370,6 @@ class AddItemsHostController extends GetxController implements GetxService {
         }
       }
     }
-
     isMakeModel.value = false;
     update();
   }
@@ -398,7 +395,6 @@ class AddItemsHostController extends GetxController implements GetxService {
     if (response4 != null) {
       cancellationPoliciesModel = CancellationPoliciesModel.fromJson(response4);
       update();
-
       listCancellationPoliciesVehcile
           .assignAll(cancellationPoliciesModel!.data!.cancellationPolicies!);
       GetStorage().write("cancellationPoliciesVech", response4);
@@ -408,7 +404,6 @@ class AddItemsHostController extends GetxController implements GetxService {
   }
 
   var isRuleloading = true.obs;
-
   Future<void> getRules() async {
     isRuleloading.value = true;
     var response4 = await httpGet(Config.getItemRules, {});
@@ -425,13 +420,8 @@ class AddItemsHostController extends GetxController implements GetxService {
   String? selectedEditBookableSubCategoryId;
   MyItemsModel? myPropertiesModels;
   Map<String, dynamic> itemInfoDescription = {};
+  Map<String, dynamic> itemInfoData = {};
   dynamic cleaningFee = "";
-  String convertToAmPm(String timeString) {
-    DateFormat inputFormat = DateFormat('HH:mm');
-    DateFormat outputFormat = DateFormat('h:mm a');
-    DateTime dateTime = inputFormat.parse(timeString);
-    return outputFormat.format(dateTime);
-  }
 
   Future<void> fetchItemData() async {
     cleanTextController();
@@ -500,18 +490,15 @@ class AddItemsHostController extends GetxController implements GetxService {
             .where((id) => id != null)
             .toList();
       }
-      if (item!.metaData != null) {
+      if (item!.metaData != null && item!.itemInfo != null) {
         itemInfoDescription = json.decode(item!.metaData!);
-
+        itemInfoData = json.decode(item!.itemInfo!);
         if (itemInfoDescription["rules"] != null) {
           selectedRulesList = itemInfoDescription["rules"];
         }
-        print("object1");
         if (itemInfoDescription["odometer"] != null) {
-          print("object");
           selectedOdometerId.value = itemInfoDescription["odometer"];
         }
-
         if (itemInfoDescription["service_type"] != null) {
           serviceType = itemInfoDescription["service_type"].toString() != ""
               ? itemInfoDescription["service_type"].toString()
@@ -520,37 +507,65 @@ class AddItemsHostController extends GetxController implements GetxService {
           convertFirstLettertoCapital =
               value[0].toUpperCase() + value.substring(1);
         }
-
         if (itemInfoDescription["category_id"] != null) {
           selectedMake = itemInfoDescription["category_id"].toString();
         }
-
         if (itemInfoDescription["subcategory_id"] != null) {
           selectedModel = itemInfoDescription["subcategory_id"].toString();
         }
-
         if (itemInfoDescription["year"] != null) {
           selectedYear = itemInfoDescription["year"];
         }
-
         if (itemInfoDescription["transmission"] != null) {
           selectTransmission = itemInfoDescription["transmission"];
         }
-
         if (itemInfoDescription["doorStep_price"] != null) {
           textEditingControllerDoorstepPrice.text =
               itemInfoDescription["doorStep_price"].toString();
         }
-
+        if (itemInfoDescription["security_fee"] != null) {
+          textEditingControllerSecurityDeposit.text =
+              itemInfoDescription["security_fee"].toString();
+        }
         if (itemInfoDescription["number_of_seats"] != null) {
           seatcapicity.text = itemInfoDescription["number_of_seats"].toString();
         }
-
         if (itemInfoDescription["fuel_type"] != null) {
           selectedFueltypeid.value =
               itemInfoDescription["fuel_type"].toString();
         }
+        if (itemInfoData["license_plate"] != null) {
+          textEditingControllerEditLicensePlate.text =
+              itemInfoData["license_plate"].toString();
+        }
+        if (itemInfoData["min_rental_days"] != null) {
+          textEditingControllerEditMinDays.text =
+              itemInfoData["min_rental_days"].toString();
+        }
+        if (itemInfoData["insurance_coverage"] != null) {
+          insuranceCoverage = itemInfoData["insurance_coverage"].toString();
+        }
+        if (itemInfoData["min_age"] != null) {
+          textEditingControllerMinAge.text = itemInfoData["min_age"].toString();
+        }
+        if (itemInfoData["smoking_status"] != null) {
+          isSmokingAllowed = itemInfoData["smoking_status"] == true ||
+              itemInfoData["smoking_status"] == "true" ||
+              itemInfoData["smoking_status"] == "1" ||
+              itemInfoData["smoking_status"] == 1;
+        } else {
+          isSmokingAllowed = false;
+        }
 
+        if (itemInfoData["international_travel_status"] != null) {
+          isInternationalTravelAllowed =
+              itemInfoData["international_travel_status"] == true ||
+                  itemInfoData["international_travel_status"] == "true" ||
+                  itemInfoData["international_travel_status"] == "1" ||
+                  itemInfoData["international_travel_status"] == 1;
+        } else {
+          isInternationalTravelAllowed = false;
+        }
         update();
       }
     }
@@ -562,6 +577,9 @@ class AddItemsHostController extends GetxController implements GetxService {
       "doorStep_price": isCheckeddoorstep == true
           ? textEditingControllerDoorstepPrice.text
           : "",
+      "security_fee": isCheckedSecurityDeposit == true
+          ? textEditingControllerSecurityDeposit.text
+          : "",
       "category_id": selectedMake ?? "",
       "subcategory_id": selectedModel ?? "",
       "odometer": selectedOdometerId.value,
@@ -570,39 +588,20 @@ class AddItemsHostController extends GetxController implements GetxService {
       "service_type": serviceType ?? "",
       "fuel_type_id": selectedFueltypeid.value,
       "number_of_seats": seatcapicity.text,
+      "license_plate": textEditingControllerLicensePlate.text.isNotEmpty
+          ? textEditingControllerLicensePlate.text
+          : textEditingControllerEditLicensePlate.text,
+      "min_rental_days": textEditingControllerMinDays.text.isNotEmpty
+          ? textEditingControllerMinDays.text
+          : textEditingControllerEditMinDays.text,
+      "insurance_coverage": insuranceCoverage ?? "",
+      "min_age":
+          isAgeRestricted == true ? textEditingControllerMinAge.text : "",
+      "smoking_status": isSmokingAllowed ? 1 : 0,
+      "international_travel_status": isInternationalTravelAllowed ? 1 : 0,
     };
-
     String jsonString = jsonEncode(map);
     return jsonString;
-  }
-
-  String convertTo24HourFormat(String timeString) {
-    if (timeString.isEmpty || timeString == "") {
-      return '';
-    }
-
-    DateFormat inputFormat = DateFormat('h:mm a');
-    DateFormat outputFormat = DateFormat('HH:mm');
-    if (!timeString.contains(RegExp(r'[ap]m', caseSensitive: false))) {
-      timeString += ' AM';
-    }
-    DateTime dateTime = inputFormat.parse(timeString);
-    return outputFormat.format(dateTime);
-  }
-
-  bool isEndTimeBeforeStartTime(String startTime, String endTime) {
-    try {
-      if (startTime.isEmpty && endTime.isEmpty) {
-        return false;
-      }
-      DateFormat dateFormat = DateFormat('HH:mm');
-      DateTime startTimeDateTime = dateFormat.parse(startTime);
-      DateTime endTimeDateTime = dateFormat.parse(endTime);
-      return endTimeDateTime.isBefore(startTimeDateTime) ||
-          endTimeDateTime == startTimeDateTime;
-    } catch (e) {
-      return true;
-    }
   }
 
   Future<void> cleanTextController() async {
@@ -626,10 +625,21 @@ class AddItemsHostController extends GetxController implements GetxService {
     textEditingControllerSecurityDeposit.clear();
     textEditingControllerCleaningFee.clear();
     textEditingControllerWeekendPricing.clear();
+    textEditingControllerLicensePlate.clear();
+    textEditingControllerEditLicensePlate.clear();
+    textEditingControllerMinDays.clear();
+    textEditingControllerEditMinDays.clear();
+    textEditingControllerMinAge.clear();
+    textEditingControllerEditMinAge.clear();
+    insuranceCoverage = null;
+    isSmokingAllowed = false;
+    isInternationalTravelAllowed = false;
     selectedLat.value = "";
     selectedLong.value = "";
     selectedAmenitiesList = [];
     isCheckeddoorstep = false;
+    isAgeRestricted = false;
+    isCheckedSecurityDeposit = false;
     selectedCityName = "";
     selectedRulesList = [];
     selectedRadio = 1;
@@ -671,9 +681,8 @@ class AddItemsHostController extends GetxController implements GetxService {
         "booking_policies_id": '1',
         "platitude": selectedLat.value,
         "plongitude": selectedLong.value,
-        "metaData": vehicleHostMetaData()
+        "metaData": vehicleHostMetaData(),
       };
-
       var response = await httpPost(Config.insertItem, itemMap);
       closeLoading();
       if (response != null) {
@@ -693,7 +702,6 @@ class AddItemsHostController extends GetxController implements GetxService {
       closeLoading();
     }
   }
-
   bool selectLocation = false;
   Future updateMethod() async {
     showLoading();
@@ -722,9 +730,8 @@ class AddItemsHostController extends GetxController implements GetxService {
         "state_region": textEditingControllerEditState.text.toString(),
         "city_name": textEditingControllerEditCity.text.toString(),
         "booking_policies_id": '1',
-        "metaData": vehicleHostMetaData()
+        "metaData": vehicleHostMetaData(),
       };
-
       var response = await httpPost(Config.editItem, itemEditMap);
       closeLoading();
       if (response != null) {
@@ -761,7 +768,6 @@ class AddItemsHostController extends GetxController implements GetxService {
       "gallery_image_delete":
           listDeleteImages.isEmpty ? "" : listDeleteImages.toString(),
     };
-
     var response = await httpPost(Config.addEditItemImage, map);
     closeLoading();
     if (response != null) {
@@ -845,22 +851,20 @@ class AddItemsHostController extends GetxController implements GetxService {
         String? country;
         String? state;
         for (var component in components) {
-          final types = component['types'] as List<dynamic>;
-          if (types.contains('postal_code')) {
+          if (component['types'].contains('postal_code')) {
             zipCode = component['long_name'];
           }
-          if (types.contains('country')) {
+          if (component['types'].contains('country')) {
             country = component['long_name'];
           }
-          if (types.contains('administrative_area_level_1')) {
+          if (component['types'].contains('administrative_area_level_1')) {
             state = component['long_name'];
           }
-          if (types.contains('locality') ||
-              types.contains('administrative_area_level_3')) {
+          if (component['types'].contains('locality') ||
+              component['types'].contains('administrative_area_level_3')) {
             city = component['long_name'];
           }
         }
-
         if (zipCode != null) {
           if (mode == ScreenMode.add) {
             textEditingControllerZip.text = zipCode;
@@ -977,17 +981,14 @@ class AddItemsHostController extends GetxController implements GetxService {
       showErrorToastMessage("The Price should not be Zero".tr);
       return;
     }
-
     if (weeklyDiscount != null && weeklyDiscount > 90) {
       showErrorToastMessage("Weekly Discount cannot exceed 90%");
       return;
     }
-
     if (monthlyDiscount != null && monthlyDiscount > 90) {
       showErrorToastMessage("Monthly Discount cannot exceed 90%");
       return;
     }
-
     try {
       if (formKey.currentState!.validate()) {
         if (mode == ScreenMode.edit) {
@@ -1017,7 +1018,6 @@ class AddItemsHostController extends GetxController implements GetxService {
         : textEditingControllerAddress.text.isEmpty) {
       showErrorToastMessage("Enter the address field".tr);
     }
-
     if (selectedCityName == null) {
       showErrorToastMessage("Please Select Location".tr);
       return;
@@ -1050,6 +1050,46 @@ class AddItemsHostController extends GetxController implements GetxService {
     String title = titleController!.text;
     String area = areaController?.text ?? "455";
     String description = descriptionController!.text;
+    String licensePlate = mode == ScreenMode.edit
+        ? textEditingControllerEditLicensePlate.text
+        : textEditingControllerLicensePlate.text;
+    String minRentalDays = mode == ScreenMode.edit
+        ? textEditingControllerEditMinDays.text
+        : textEditingControllerMinDays.text;
+    if (licensePlate.isEmpty) {
+      showErrorToastMessage("Please enter the License Plate Number".tr);
+      return;
+    }
+    if (minRentalDays.isEmpty) {
+      showErrorToastMessage("Please enter the Minimum Rental Days".tr);
+      return;
+    }
+    if (!RegExp(r'^\d+$').hasMatch(minRentalDays)) {
+      showErrorToastMessage("Minimum Rental Days must be a valid number".tr);
+      return;
+    }
+    if (int.parse(minRentalDays) <= 0) {
+      showErrorToastMessage("Minimum Rental Days must be greater than 0".tr);
+      return;
+    }
+    if (insuranceCoverage == null) {
+      showErrorToastMessage("Please select an Insurance Coverage option".tr);
+      return;
+    }
+    if (isAgeRestricted && textEditingControllerMinAge.text.isEmpty) {
+      showErrorToastMessage("Please enter the Minimum Age".tr);
+      return;
+    }
+    if (isAgeRestricted &&
+        !RegExp(r'^\d+$').hasMatch(textEditingControllerMinAge.text)) {
+      showErrorToastMessage("Minimum Age must be a valid number".tr);
+      return;
+    }
+    if (isAgeRestricted && int.parse(textEditingControllerMinAge.text) < 18) {
+      showErrorToastMessage("Minimum Age must be at least 18".tr);
+      return;
+    }
+
     ValidationService.validateAndNavigate(
       title: title,
       area: area,
@@ -1091,7 +1131,6 @@ class AddItemsHostController extends GetxController implements GetxService {
       showErrorToastMessage("Please Select Model".tr);
       return;
     }
-
     if (selectTransmission == null || selectTransmission!.isEmpty) {
       showErrorToastMessage("Please Select Transmission option".tr);
       return;
@@ -1108,7 +1147,6 @@ class AddItemsHostController extends GetxController implements GetxService {
       showErrorToastMessage("Please Enter the number of seats".tr);
       return;
     }
-
     if (mode == ScreenMode.edit) {
       onNextButtonPressed?.call();
     } else {
@@ -1119,7 +1157,6 @@ class AddItemsHostController extends GetxController implements GetxService {
   }
 
   dynamic dashBoardData;
-
   void readDashBoardData() {
     dashBoardData = GetStorage().read("vehicleDashBoard");
   }

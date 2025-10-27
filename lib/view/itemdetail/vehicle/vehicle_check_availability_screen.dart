@@ -83,7 +83,6 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
             .kycStatus(kycController.activeStatus.value, context)
             .then((isValid) {
           if (!isValid) return;
-
           bookingController.commonNavigateToBookingSummary(
               context,
               widget.idFeatured,
@@ -139,7 +138,6 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
     final yearText = convertToLocaleDigits(
       date.year.toString(),
     );
-
     return Align(
       alignment: Alignment.center,
       child: Container(
@@ -255,8 +253,6 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
 
                                 Text("$monthName $yearText",
                                     style: heading2(context)),
-
-                                // Next button
                                 IconButton(
                                   icon: Icon(
                                     Icons.arrow_forward_ios,
@@ -355,7 +351,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                   cellDate != today) ||
                                               !isDateAvailable
                                           ? Colors.grey.withOpacity(
-                                              0.2) // 🔒 Blocked dates (past/unavailable, except today)
+                                              0.2)
                                           : bookingController.alreadySelectedList
                                                   .contains(cellDetails.date)
                                               ? pc1.withOpacity(.4)
@@ -398,8 +394,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                               color: (cellDate
                                                           .isBefore(today) &&
                                                       cellDate != today)
-                                                  ? Colors.grey
-                                                      .shade600 // 🔒 Blocked past date
+                                                  ? Colors.grey.shade600
                                                   : bookingController
                                                           .alreadySelectedList
                                                           .contains(
@@ -407,14 +402,13 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                       ? Colors.white
                                                       : isDateAvailable
                                                           ? Colors.black
-                                                          : Colors.grey
-                                                              .shade600, // 🔒 unavailable date
+                                                          : Colors
+                                                              .grey.shade600,
                                               decoration: (cellDate.isBefore(
                                                               today) &&
                                                           cellDate != today) ||
                                                       !isDateAvailable
-                                                  ? TextDecoration
-                                                      .lineThrough // ❌ strike through
+                                                  ? TextDecoration.lineThrough
                                                   : TextDecoration.none,
                                             ),
                                           ),
@@ -424,14 +418,13 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                   priceText.toString()),
                                               style: regular(context).copyWith(
                                                 fontSize: 9,
-                                                color: (cellDate.isBefore(
-                                                                today) &&
-                                                            cellDate !=
-                                                                today) ||
-                                                        !isDateAvailable
-                                                    ? Colors.grey
-                                                        .shade500 // 🔒 muted price
-                                                    : grey2,
+                                                color:
+                                                    (cellDate.isBefore(today) &&
+                                                                cellDate !=
+                                                                    today) ||
+                                                            !isDateAvailable
+                                                        ? Colors.grey.shade500
+                                                        : grey2,
                                               ),
                                             ),
                                         ],
@@ -554,35 +547,17 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                 bookingController.startDate
                                                             .toString() !=
                                                         ''
-                                                    ? bookingController
-                                                            .startDate
-                                                            .toString() +
-                                                        ' ' +
-                                                        bookingController
+                                                    ? '${bookingController
+                                                            .startDate} ${bookingController
                                                             .selectedStartTime
-                                                            .value
+                                                            .value}'
                                                     : 'YYYY-MM-DD',
                                                 style:
                                                     regular2(context).copyWith(
                                                   color: notifires
                                                       .getwhiteblackcolor,
                                                 )),
-                                          ),
-                                          // Obx(
-                                          //   () => Text(
-                                          //       bookingController.startDate
-                                          //                   .toString() !=
-                                          //               ''
-                                          //           ? bookingController
-                                          //               .startDate
-                                          //               .toString()
-                                          //           : 'YYYY-MM-DD',
-                                          //       style:
-                                          //           regular2(context).copyWith(
-                                          //         color: notifires
-                                          //             .getwhiteblackcolor,
-                                          //       )),
-                                          // ),
+                                          ),                                   
                                         ],
                                       ),
                                     ),
@@ -619,33 +594,16 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                 bookingController.endDate
                                                             .toString() !=
                                                         ''
-                                                    ? bookingController.endDate
-                                                            .toString() +
-                                                        ' ' +
-                                                        bookingController
+                                                    ? '${bookingController.endDate} ${bookingController
                                                             .selectedEndTime
-                                                            .value
+                                                            .value}'
                                                     : 'YYYY-MM-DD',
                                                 style:
                                                     regular2(context).copyWith(
                                                   color: notifires
                                                       .getwhiteblackcolor,
                                                 )),
-                                          ),
-                                          // Obx(
-                                          //   () => Text(
-                                          //       bookingController.endDate
-                                          //                   .toString() !=
-                                          //               ''
-                                          //           ? bookingController.endDate
-                                          //               .toString()
-                                          //           : 'YYYY-MM-DD',
-                                          //       style:
-                                          //           regular2(context).copyWith(
-                                          //         color: notifires
-                                          //             .getwhiteblackcolor,
-                                          //       )),
-                                          // ),
+                                          ),                                     
                                         ],
                                       ),
                                     ),
@@ -760,7 +718,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(
-                                          12), // Rounded corners
+                                          12), 
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.grey.withOpacity(0.2),

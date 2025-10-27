@@ -41,7 +41,7 @@ Color greensColor = yelloColor2;
 Color lightGrey = const Color(0xFFbbbbbb);
 Color pinnetsColor = const Color.fromARGB(255, 248, 236, 217);
 Color darkgrey = const Color(0xFFF6F4F4);
-Color darkbox = const Color(0xff2ec4b6);
+Color darkbox = themeColor;
 Color vehicleThemeColor = const Color(0xff78290f);
 Color bookableThemeColor = greensColor;
 Color boatThemeColor = const Color(0xff48cae4);
@@ -86,7 +86,7 @@ class ColorNotifires with ChangeNotifier {
     isDark = value;
     notifyListeners();
   }
-
+  
   get getIsDark => isDark;
   get getbgcolor => isDark ? darkmode : bgColor;
   get getbgnextcolor => isDark
@@ -112,7 +112,6 @@ class ColorNotifires with ChangeNotifier {
   get getdarkscolor => isDark ? blackColor : bgColor;
   get getdarkwhitecolor => isDark ? whiteColor : whiteColor;
   get getblackblue => isDark ? blueColor : blackColor;
-
   get getfevAndSearch => isDark ? darkmode : fevAndSearchColor;
   get getlightblackwhite => isDark ? blackColor : fevAndSearchColor;
   get getswitchcolor => isDark ? blueColor : lightsGrey;
@@ -134,7 +133,6 @@ class ColorNotifires with ChangeNotifier {
 }
 
 late ColorNotifires notifires;
-
 class CustomThemes {
   static const themeColor = Color(0xffF29931);
 }

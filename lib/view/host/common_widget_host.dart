@@ -850,7 +850,7 @@ class CustomDropdownHostYearsState extends State<CustomDropdownHostYears> {
                   return Container(
                     color: isSelected
                         ? Colors.transparent
-                        : Colors.transparent, // Highlight the selected item
+                        : Colors.transparent, 
                     child: ListTile(
                       title: Text(
                         widget.years![index].toString(),
@@ -1757,9 +1757,9 @@ class _DiscountPrizeState extends State<DiscountPrize> {
                         .textEditingControllerEditWeekDiscount,
                 inputType: TextInputType.number,
                 inputAlignment: TextAlign.start,
-                // Add validation and numeric input restriction
+  
                 validator: (value) {
-                  // Ensure only numbers are allowed and handle leading zero
+  
                   if (value!.length > 1) {
                     if (value.startsWith("0")) {
                       String cleanedValue = value.substring(1, value.length);

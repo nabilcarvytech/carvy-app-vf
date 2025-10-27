@@ -369,7 +369,6 @@ class Bookings {
   String? get securityMoney => _securityMoney;
   String? get ivaTax => _ivaTax;
   String? get doorStepPrice => _doorStepPrice;
-
   String? get totalGuest => _totalGuest;
   String? get total => _total;
   String? get adminCommission => _adminCommission;

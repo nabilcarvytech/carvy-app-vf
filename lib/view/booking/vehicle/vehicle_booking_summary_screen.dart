@@ -1310,6 +1310,43 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             const SizedBox(
                                               height: 2,
                                             ),
+                                             bookingController.getItemPrices!.data!.securityDeposit!.isEmpty  ||
+                                                    bookingController.getItemPrices!
+                                                        .data!.securityDeposit ==
+                                                        "0"
+                                                    
+                                                ? const SizedBox()
+                                                : Row(
+                                                    children: [
+                                                      Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            "Security Deposit".tr,
+                                                            style: regular2(
+                                                                    context)
+                                                                .copyWith(
+                                                                    color: notifires
+                                                                        .getGrey3Whitecolor),
+                                                          )
+                                                        ],
+                                                      ),
+                                                      const Spacer(),
+                                                      Text(
+                                                        "${bookingController.currency} ${bookingController.getItemPrices!.data!.securityDeposit!}",
+                                                        style: regular2(context)
+                                                            .copyWith(
+                                                                color: notifires
+                                                                    .getGrey3Whitecolor),
+                                                      ),
+                                                      const SizedBox(
+                                                        width: 10,
+                                                      )
+                                                    ],
+                                                  ),
+                                                const  SizedBox(height: 2,),
                                             bookingController.getItemPrices!
                                                         .data!.tax ==
                                                     "0"

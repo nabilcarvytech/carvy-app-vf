@@ -7,7 +7,6 @@ import 'package:carvy/work_space.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
-
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
@@ -22,7 +21,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 4000),
+      duration: const Duration(milliseconds: 3000),
     );
     controller?.forward();
   }
@@ -41,19 +40,10 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              FadeTransition(
-                opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                  CurvedAnimation(
-                    parent: controller!,
-                    reverseCurve: Curves.bounceInOut,
-                    curve: Curves.easeInCubic,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    splashLogo(),
-                  ],
-                ),
+              Column(
+                children: [
+                  splashLogo(),
+                ],
               ),
             ],
           ),

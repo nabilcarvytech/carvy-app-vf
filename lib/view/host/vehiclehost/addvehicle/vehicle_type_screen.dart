@@ -62,7 +62,7 @@ class _VehicleTypeScreenState extends State<VehicleTypeScreen> {
 List<int> generateYearsList() {
   int currentYear = DateTime.now().year;
   List<int> years = [];
-  for (int i = currentYear; i >= currentYear - 6; i--) {
+  for (int i = currentYear; i >= currentYear - 5; i--) {
     years.add(i);
   }
   return years;

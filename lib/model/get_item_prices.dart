@@ -81,6 +81,7 @@ class Data {
       String? remainingWalletBalance,
       String? grossPrice,
       String? distance,
+         String? securityDeposit,
       int? duration,
          String? level,
       }){
@@ -102,6 +103,7 @@ class Data {
       _duration = duration;
         _level = level;
         _distance = distance;
+        _securityDeposit = securityDeposit;
 }
 
   Data.fromJson(dynamic json) {
@@ -128,6 +130,7 @@ class Data {
     _duration = json['duration'];
     _level = json['label'];
     _distance = json['distance'];
+    _securityDeposit = json['security_deposit'];
   }
   String? _discountType;
   List<Prices>? _prices;
@@ -145,6 +148,7 @@ class Data {
   String? _remainingWalletBalance;
   String? _grossPrice;
   String? _distance;
+  String? _securityDeposit;
     int? _duration;
       String? _level;
 Data copyWith({  
@@ -164,6 +168,7 @@ Data copyWith({
   String? remainingWalletBalance,
   String? grossPrice,
   String? distance,
+  String? securityDeposit,
     int? duration,
        String? level,
 
@@ -185,6 +190,7 @@ Data copyWith({
     duration: duration ?? _duration,
      level: level ?? _level,
   distance: distance ?? _distance,
+    securityDeposit: securityDeposit ?? _securityDeposit,
 );
   String? get discountType => _discountType;
   List<Prices>? get prices => _prices;
@@ -202,6 +208,7 @@ Data copyWith({
   String? get remainingWalletBalance => _remainingWalletBalance;
   String? get grossPrice => _grossPrice;
   String? get distance => _distance;
+    String? get securityDeposit => _securityDeposit;
     int? get duration => _duration;
        String? get level => _level;
 
@@ -225,6 +232,7 @@ Data copyWith({
     map['remaining_wallet_balance'] = _remainingWalletBalance;
     map['gross_price'] = _grossPrice;
         map['duration'] = _duration;
+        map['security_deposit'] = _securityDeposit;
         map['distance'] = _distance;
             map['label'] = _level;
     return map;
@@ -245,7 +253,6 @@ class Prices {
     _price = price;
     _status = status;
 }
-
   Prices.fromJson(dynamic json) {
     _date = json['date'];
     _price = json['price'];

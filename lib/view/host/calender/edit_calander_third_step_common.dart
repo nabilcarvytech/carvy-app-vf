@@ -401,12 +401,11 @@ class _EditCalenderOnThirdStepCommonState
                 monthViewSettings: DateRangePickerMonthViewSettings(
                   viewHeaderStyle: DateRangePickerViewHeaderStyle(
                     backgroundColor: darkbox.withOpacity(
-                        0.1), // Change background color of the header
+                        0.1),
                     textStyle: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                         fontSize: 12),
-                    // Change text style of the day headers
                   ),
                 ),
                 backgroundColor: Colors.white,
@@ -415,28 +414,21 @@ class _EditCalenderOnThirdStepCommonState
                 navigationMode: DateRangePickerNavigationMode.scroll,
                 enableMultiView: true,
                 allowViewNavigation: false,
-                // enablePastDates: true,
                 minDate: DateTime.now(),
                 view: DateRangePickerView.month,
                 selectionMode: DateRangePickerSelectionMode.range,
                 onSelectionChanged: (DateRangePickerSelectionChangedArgs args) {
                   PickerDateRange? selectedRange = args.value;
-
                   if (selectedRange != null) {
                     selectedDates = [selectedRange];
-
                     DateTime startDate =
                         selectedRange.startDate ?? DateTime.now();
-
                     DateTime endDate = selectedRange.endDate ?? DateTime.now();
                     Duration totalRange = endDate.difference(startDate);
-
                     List<DateTime> allDates = [];
-
                     for (int i = 0; i <= totalRange.inDays; i++) {
                       allDates.add(startDate.add(Duration(days: i)));
                     }
-
                     if (allDates.isNotEmpty) {
                       setState(() {
                         isDateSelected = true;
@@ -447,7 +439,6 @@ class _EditCalenderOnThirdStepCommonState
                       });
                     }
                   } else {}
-
                   if (selectedDates.isNotEmpty) {
                     selectedAvailableRange = selectedDates
                         .map((date) => {
@@ -461,7 +452,6 @@ class _EditCalenderOnThirdStepCommonState
                             })
                         .toList();
                   }
-
                   if (selectedDates.isNotEmpty) {
                     selectedNotAvailableRange = selectedDates
                         .map((date) => {
@@ -478,10 +468,9 @@ class _EditCalenderOnThirdStepCommonState
                 },
                 cellBuilder: (BuildContext context,
                     DateRangePickerCellDetails cellDetails) {
-                  Color cellColor = whiteColor; // Default value
-                  Color textColor = blackColor; // Default value
+                  Color cellColor = whiteColor; 
+                  Color textColor = blackColor; 
                   String cellPrice = '';
-
                   bool isNotAvailableDate = false;
                   bool isBookedDate = false;
                   bool isAvailableDate = false;
@@ -501,7 +490,6 @@ class _EditCalenderOnThirdStepCommonState
                     textColor = whiteColor;
                     cellPrice = '$currency $bookedPrice';
                   } else {
-                    // Check if the date is available
                     isAvailableDate = availableDates.any((range) {
                       return range.startDate != null &&
                           range.endDate != null &&
@@ -532,7 +520,6 @@ class _EditCalenderOnThirdStepCommonState
                         cellPrice = "$currency $dataForDate";
                       }
                     } else {
-                      // Check if the date is not available
                       isNotAvailableDate = notAvailableDates.any((range) {
                         return range.startDate != null &&
                             range.endDate != null &&

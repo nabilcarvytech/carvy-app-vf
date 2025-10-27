@@ -681,14 +681,12 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                                             cellDetails.date.isAtSameMomentAs(
                                                 range.endDate!));
                                   });
-
                                   if (isSelectedDate) {
                                     cellColor = orangeColor;
                                     textColor = whiteColor;
                                     cellPrice = '';
                                   }
                                 }
-
                                 return Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Container(

@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 import 'dart:developer' as developer;
+
 bool printHeaders = false;
 
 Future<dynamic> httpGet(String path, Map<String, dynamic> data) async {
@@ -36,6 +37,7 @@ Future<dynamic> httpGet(String path, Map<String, dynamic> data) async {
       'x-auth-token': token,
       'Authorization': "Bearer $bearerToken",
     };
+    print("Bearer Token: $bearerToken");
     data['token'] = token;
     data['module_id'] = '2';
     data['default_currency_code'] =
@@ -121,6 +123,7 @@ Future<dynamic> httpPost(path, data) async {
       'Content-Type': 'application/json',
       "Authorization": "Bearer $bearerToken",
     };
+    print("Bearer Token: $bearerToken");
     data['token'] = token;
     data['module_id'] = "2";
     data['default_currency_code'] =
@@ -159,7 +162,7 @@ Future<dynamic> httpPost(path, data) async {
         var retryResult = await http.post(
           Uri.parse(url),
           headers: headers,
-          body: jsonEncode(data), 
+          body: jsonEncode(data),
         );
 
         responseData =

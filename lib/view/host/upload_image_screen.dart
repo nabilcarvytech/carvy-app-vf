@@ -516,7 +516,7 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
                     color: notifires.getGrey3Whitecolor.withOpacity(0.1),
                     spreadRadius: 3,
                     blurRadius: 5,
-                    offset: const Offset(0, 0), // changes position of shadow
+                    offset: const Offset(0, 0),
                   ),
                 ],
               ),
@@ -579,7 +579,7 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
           addItemsHostController.galleryImageList.length > 4
               ? []
               : [
-                  if (!webPlateForm) // For non-web platforms
+                  if (!webPlateForm) 
                     PopupMenuItem(
                       onTap: () async {
                         selectMultipleImageWithSource(
@@ -645,7 +645,7 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
                     color: notifires.getGrey3Whitecolor.withOpacity(0.1),
                     spreadRadius: 3,
                     blurRadius: 5,
-                    offset: const Offset(0, 0), // changes position of shadow
+                    offset: const Offset(0, 0), 
                   ),
                 ],
               ),

@@ -73,12 +73,10 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
       await getData();
     });
   }
-
   getData() async {
     var response = await httpPost(Config.myItems, {"offset": "$offset"});
     if (response != null && response['status'] == 200) {
       myItemsModels = MyItemsModel.fromJson(response);
-
       if (myItemsModels!.data != null) {
         if (myItemsModels!.data!.hoststatus == "0") {
           hostblocked(context);
@@ -92,7 +90,6 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
           return;
         }
         checkItemPiblicationLimit = response["data"]["checkLimit"];
-
         list.addAll(myItemsModels!.data!.items!);
         offset = myItemsModels!.data!.offset!;
       }
