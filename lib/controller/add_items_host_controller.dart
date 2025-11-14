@@ -804,7 +804,6 @@ class AddItemsHostController extends GetxController implements GetxService {
       CameraUpdate.zoomIn(),
     );
   }
-
   void zoomOut() {
     mapController?.animateCamera(
       CameraUpdate.zoomOut(),

@@ -11,7 +11,7 @@ const Map<String, String> ruRU = {
   "Service Charge": "Плата за обслуживание",
   "Long stay discount": "Скидка за длительное пребывание",
   "Taxes": "Налоги",
-  "Total Price(INR)": "Общая цена (INR)",
+  "Total Price(INR)": "Общая цена (MAD)",
   "Cancellation Policy": "Политика отмены",
   "Ground rules": "Основные правила",
   "Confirm and Pay": "Подтвердить и оплатить",

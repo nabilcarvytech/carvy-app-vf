@@ -49,7 +49,6 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
   }
 
   bool checkUpdate = false;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,7 +79,7 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
                       child: PhysicalModel(
                         color: Colors.transparent,
                         shadowColor: notifires.getGrey4Whitecolor,
-                        elevation: 5.0, // Adjust the elevation value as needed
+                        elevation: 5.0,
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
                           alignment: Alignment.center,
@@ -101,7 +100,6 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
         body: SingleChildScrollView(
           child: Column(
             children: [
-              // lineContainer(),
               const SizedBox(height: 15),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -195,11 +193,11 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
                                                               SingleChildScrollView(
                                                             child: ListBody(
                                                               children: <Widget>[
-                                                                const Icon(
+                                                                Icon(
                                                                   Icons.error,
                                                                   size: 75,
-                                                                  color: Colors
-                                                                      .red,
+                                                                  color:
+                                                                      redColor,
                                                                 ),
                                                                 const SizedBox(
                                                                     height: 5),
@@ -213,7 +211,6 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
                                                                         .copyWith(
                                                                             color:
                                                                                 notifires.getwhiteblackcolor)),
-                                                                // Text('Would you like to approve of this message?'),
                                                               ],
                                                             ),
                                                           ),
@@ -272,7 +269,6 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
                                     );
                                   },
                                 )),
-                    const SizedBox(height: 10),
                     item != null &&
                             item!.gallery!.isNotEmpty &&
                             item!.gallery!.length == 3
@@ -306,23 +302,65 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
                       style: regular3(context).copyWith(
                           color: notifires.getGrey2Whitecolor, fontSize: 14),
                     ),
-                    const SizedBox(
-                      height: 32,
+
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    //   children: [
+                    //     LabelNames(labelname: "Official Vehicle Documents".tr),
+                    //   ],
+                    // ),
+                    const SizedBox(height: 35),
+                    Container(
+                      margin: const EdgeInsets.symmetric(
+                         vertical: 10),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: themeColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: themeColor.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: themeColor,
+                            size: 28,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "A member of the Carvy team will contact you as soon as possible to validate your agency account.",
+                              style: regular2(context).copyWith(
+                                color: Colors.black87,
+                                fontSize: 14,
+                                height: 1.4,
+                              ),
+                              textAlign: TextAlign.start,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        LabelNames(labelname: "Vehicle Document Image".tr),
-                        docFrontImagePopup(
-                          "Change".tr,
-                        ),
-                      ],
-                    ),
+
                     const SizedBox(height: 15),
-                    docFrontImagePopup(
-                      "",
-                    ),
-                    const SizedBox(height: 15),
+                    // Row(
+                    //   children: [
+                    //     Expanded(
+                    //       child: docFrontImagePopup(
+                    //         "Registration Card (Carte Grise)",
+                    //       ),
+                    //     ),
+                    //     const SizedBox(
+                    //       width: 20,
+                    //     ),
+                    //     Expanded(
+                    //       child: docFrontImagePopup(
+                    //         "Vehicle Authorization Document",
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
                   ],
                 ),
               ),
@@ -355,7 +393,7 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
   Widget frontImagePopup(text) {
     return PopupMenuButton<int>(
       itemBuilder: (context) => [
-        if (!webPlateForm) // Hide camera option on web
+        if (!webPlateForm)
           PopupMenuItem(
             onTap: () async {
               selectImageWithSource(
@@ -460,118 +498,240 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
     );
   }
 
-  Widget docFrontImagePopup(
-    text,
-  ) {
-    return PopupMenuButton<int>(
-      itemBuilder: (context) => [
-        if (!webPlateForm)
-          PopupMenuItem(
-            onTap: () async {
-              selectImageWithSourceDoc(
-                ImageSource.camera,
-              );
-            },
-            child: Text(
-              "Select with camera".tr,
-              style: regular02.copyWith(color: grey1),
-            ),
-          ),
-        PopupMenuItem(
-          onTap: () async {
-            if (webPlateForm) {
-              selectDoecImageForweb();
-            } else {
-              selectImageWithSourceDoc(
-                ImageSource.gallery,
-              );
-            }
-          },
-          child: Text(
-            "Select with Gallery".tr,
-            style: regular02.copyWith(color: grey1),
-          ),
-        ),
-      ],
-      offset: const Offset(1, 50),
-      child: text == "Change".tr
-          ? Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Text(
-                addItemsHostController.docementsImage != null ||
-                        (item != null && item!.frontImageDoc != null)
-                    ? "Change".tr
-                    : "",
-                style: normalAirBk.copyWith(
-                    fontSize: 16, color: getColorBasedOnActiveModuleid()),
-              ),
-            )
-          : Container(
-              height: 200,
-              decoration: BoxDecoration(
-                color: notifires.getboxcolor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: notifires.getGrey3Whitecolor.withOpacity(0.1),
-                    spreadRadius: 3,
-                    blurRadius: 5,
-                    offset: const Offset(0, 0),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: addItemsHostController.docementsImage != null ||
-                        (item != null && item!.frontImageDoc != null)
-                    ? SizedBox(
-                        width: Get.width,
-                        child: InkWell(
-                          onTap: () {},
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(15),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                if (item != null &&
-                                    item!.frontImageDoc != null &&
-                                    addItemsHostController.docementsImage ==
-                                        null)
-                                  const CircularProgressIndicator(),
-                                if (item != null &&
-                                    item!.frontImageDoc != null &&
-                                    addItemsHostController.docementsImage ==
-                                        null)
-                                  Image.network(
-                                    item!.frontImageDoc!.url!,
-                                    fit: BoxFit.contain,
-                                  ),
-                                if (addItemsHostController.docementsImage !=
-                                    null)
-                                  webPlateForm
-                                      ? Image.network(
-                                          addItemsHostController
-                                              .docementsImage!.path,
-                                          fit: BoxFit.contain,
-                                        )
-                                      : Image.file(
-                                          File(addItemsHostController
-                                              .docementsImage!.path),
-                                          fit: BoxFit.contain,
-                                        ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )
-                    : Icon(
-                        Icons.cloud_upload,
-                        color: getColorBasedOnActiveModuleid(),
-                        size: 45,
-                      ),
-              ),
-            ),
-    );
-  }
+  // Widget docFrontImagePopup(String text) {
+  //   return PopupMenuButton<int>(
+  //     itemBuilder: (context) => [
+  //       if (!webPlateForm)
+  //         PopupMenuItem(
+  //           onTap: () async {
+  //             selectImageWithSourceDoc(ImageSource.camera);
+  //           },
+  //           child: Text(
+  //             "Select with Camera".tr,
+  //             style: regular02.copyWith(color: grey1),
+  //           ),
+  //         ),
+  //       PopupMenuItem(
+  //         onTap: () async {
+  //           if (webPlateForm) {
+  //             selectDoecImageForweb();
+  //           } else {
+  //             selectImageWithSourceDoc(ImageSource.gallery);
+  //           }
+  //         },
+  //         child: Text(
+  //           "Select with Gallery".tr,
+  //           style: regular02.copyWith(color: grey1),
+  //         ),
+  //       ),
+  //     ],
+  //     offset: const Offset(1, 50),
+  //     child: Container(
+  //       height: 200,
+  //       decoration: BoxDecoration(
+  //         color: notifires.getboxcolor,
+  //         borderRadius: BorderRadius.circular(12),
+  //         boxShadow: [
+  //           BoxShadow(
+  //             color: notifires.getGrey3Whitecolor.withOpacity(0.1),
+  //             spreadRadius: 3,
+  //             blurRadius: 5,
+  //             offset: const Offset(0, 0),
+  //           ),
+  //         ],
+  //       ),
+  //       child: Center(
+  //         child: addItemsHostController.docementsImage != null ||
+  //                 (item != null && item!.frontImageDoc != null)
+  //             ? Stack(
+  //                 children: [
+  //                   ClipRRect(
+  //                     borderRadius: BorderRadius.circular(12),
+  //                     child: SizedBox(
+  //                       width: double.infinity,
+  //                       height: 200,
+  //                       child: addItemsHostController.docementsImage != null
+  //                           ? (webPlateForm
+  //                               ? Image.network(
+  //                                   addItemsHostController.docementsImage!.path,
+  //                                   fit: BoxFit.cover,
+  //                                 )
+  //                               : Image.file(
+  //                                   File(addItemsHostController
+  //                                       .docementsImage!.path),
+  //                                   fit: BoxFit.cover,
+  //                                 ))
+  //                           : (item!.frontImageDoc != null
+  //                               ? Image.network(
+  //                                   item!.frontImageDoc!.url!,
+  //                                   fit: BoxFit.cover,
+  //                                 )
+  //                               : const SizedBox()),
+  //                     ),
+  //                   ),
+  //                   Positioned(
+  //                     top: 8,
+  //                     right: 8,
+  //                     child: Container(
+  //                       decoration: BoxDecoration(
+  //                         color: themeColor,
+  //                         borderRadius: BorderRadius.circular(6),
+  //                       ),
+  //                       child: Padding(
+  //                         padding: const EdgeInsets.symmetric(
+  //                             horizontal: 8, vertical: 4),
+  //                         child: Text(
+  //                           "Change".tr,
+  //                           style: normalAirBk.copyWith(
+  //                             color: whiteColor,
+  //                             fontSize: 10,
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ],
+  //               )
+  //             : Column(
+  //                 mainAxisAlignment: MainAxisAlignment.center,
+  //                 children: [
+  //                   Icon(
+  //                     Icons.cloud_upload,
+  //                     color: getColorBasedOnActiveModuleid(),
+  //                     size: 45,
+  //                   ),
+  //                   const SizedBox(height: 15),
+  //                   Text(
+  //                     text,
+  //                     style: const TextStyle(fontSize: 10),
+  //                   ),
+  //                 ],
+  //               ),
+  //       ),
+  //     ),
+  //   );
+  // }
+
+  // Widget docFrontImagePopup(
+  //   text,
+  // ) {
+  //   return PopupMenuButton<int>(
+  //     itemBuilder: (context) => [
+  //       if (!webPlateForm)
+  //         PopupMenuItem(
+  //           onTap: () async {
+  //             selectImageWithSourceDoc(
+  //               ImageSource.camera,
+  //             );
+  //           },
+  //           child: Text(
+  //             "Select with camera".tr,
+  //             style: regular02.copyWith(color: grey1),
+  //           ),
+  //         ),
+  //       PopupMenuItem(
+  //         onTap: () async {
+  //           if (webPlateForm) {
+  //             selectDoecImageForweb();
+  //           } else {
+  //             selectImageWithSourceDoc(
+  //               ImageSource.gallery,
+  //             );
+  //           }
+  //         },
+  //         child: Text(
+  //           "Select with Gallery".tr,
+  //           style: regular02.copyWith(color: grey1),
+  //         ),
+  //       ),
+  //     ],
+  //     offset: const Offset(1, 50),
+  //     child: text == "Change".tr
+  //         ? Padding(
+  //             padding: const EdgeInsets.only(bottom: 8.0),
+  //             child: Text(
+  //               addItemsHostController.docementsImage != null ||
+  //                       (item != null && item!.frontImageDoc != null)
+  //                   ? "Change".tr
+  //                   : "",
+  //               style: normalAirBk.copyWith(
+  //                   fontSize: 16, color: getColorBasedOnActiveModuleid()),
+  //             ),
+  //           )
+  //         : Container(
+  //             height: 200,
+  //             decoration: BoxDecoration(
+  //               color: notifires.getboxcolor,
+  //               borderRadius: BorderRadius.circular(12),
+  //               boxShadow: [
+  //                 BoxShadow(
+  //                   color: notifires.getGrey3Whitecolor.withOpacity(0.1),
+  //                   spreadRadius: 3,
+  //                   blurRadius: 5,
+  //                   offset: const Offset(0, 0),
+  //                 ),
+  //               ],
+  //             ),
+  //             child: Center(
+  //               child: addItemsHostController.docementsImage != null ||
+  //                       (item != null && item!.frontImageDoc != null)
+  //                   ? SizedBox(
+  //                       width: Get.width,
+  //                       child: InkWell(
+  //                         onTap: () {},
+  //                         child: ClipRRect(
+  //                           borderRadius: BorderRadius.circular(15),
+  //                           child: Stack(
+  //                             alignment: Alignment.center,
+  //                             children: [
+  //                               if (item != null &&
+  //                                   item!.frontImageDoc != null &&
+  //                                   addItemsHostController.docementsImage ==
+  //                                       null)
+  //                                 const CircularProgressIndicator(),
+  //                               if (item != null &&
+  //                                   item!.frontImageDoc != null &&
+  //                                   addItemsHostController.docementsImage ==
+  //                                       null)
+  //                                 Image.network(
+  //                                   item!.frontImageDoc!.url!,
+  //                                   fit: BoxFit.contain,
+  //                                 ),
+  //                               if (addItemsHostController.docementsImage !=
+  //                                   null)
+  //                                 webPlateForm
+  //                                     ? Image.network(
+  //                                         addItemsHostController
+  //                                             .docementsImage!.path,
+  //                                         fit: BoxFit.contain,
+  //                                       )
+  //                                     : Image.file(
+  //                                         File(addItemsHostController
+  //                                             .docementsImage!.path),
+  //                                         fit: BoxFit.contain,
+  //                                       ),
+  //                             ],
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     )
+  //                   : Column(
+  //                     crossAxisAlignment: CrossAxisAlignment.center,
+  //                     mainAxisAlignment: MainAxisAlignment.center,
+  //                     children: [
+  //                       Icon(
+  //                           Icons.cloud_upload,
+  //                           color: getColorBasedOnActiveModuleid(),
+  //                           size: 45,
+  //                         ),
+  //                         SizedBox(height: 15,),
+  //                         Text(text,style: TextStyle(fontSize: 10),)
+  //                     ],
+  //                   ),
+  //             ),
+  //           ),
+  //   );
+  // }
 
   Widget galleryImagePopup(text, BuildContext context) {
     return PopupMenuButton<int>(
@@ -579,7 +739,7 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
           addItemsHostController.galleryImageList.length > 4
               ? []
               : [
-                  if (!webPlateForm) 
+                  if (!webPlateForm)
                     PopupMenuItem(
                       onTap: () async {
                         selectMultipleImageWithSource(
@@ -645,7 +805,7 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
                     color: notifires.getGrey3Whitecolor.withOpacity(0.1),
                     spreadRadius: 3,
                     blurRadius: 5,
-                    offset: const Offset(0, 0), 
+                    offset: const Offset(0, 0),
                   ),
                 ],
               ),

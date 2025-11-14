@@ -11,7 +11,7 @@ const Map<String, String> thTH = {
   "Service Charge": "ค่าบริการ",
   "Long stay discount": "ส่วนลดสำหรับการเข้าพักระยะยาว",
   "Taxes": "ภาษี",
-  "Total Price(INR)": "ราคารวม (INR)",
+  "Total Price(INR)": "ราคารวม (MAD)",
   "Cancellation Policy": "นโยบายการยกเลิก",
   "Ground rules": "กฎพื้นฐาน",
   "Confirm and Pay": "ยืนยันและชำระเงิน",
