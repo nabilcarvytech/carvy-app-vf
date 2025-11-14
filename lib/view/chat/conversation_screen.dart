@@ -434,121 +434,123 @@ class _ConversationScreenState extends State<ConversationScreen> {
                                 padding: const EdgeInsets.only(
                                     left: 5, bottom: 10, top: 10, right: 10),
                                 color: notifires.getbgcolor,
-                                child: Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: Container(
-                                        padding: const EdgeInsets.only(
-                                            left: 10, right: 0),
-                                        child: SingleChildScrollView(
-                                          child: TextField(
-                                            textInputAction:
-                                                TextInputAction.send,
-                                            controller:
-                                                textEditingControllermessage,
-                                            onSubmitted: (v) {
-                                              _submitMessage();
-                                            },
-                                            minLines: 1,
-                                            maxLines: 5,
-                                            cursorWidth: 1.2,
-                                            style: TextStyle(
-                                                height: 1,
-                                                color: notifires
-                                                    .getwhiteblackcolor),
-                                            decoration: InputDecoration(
-                                              hintText: "Message...".tr,
-                                              suffixIcon: SizedBox(
-                                                width: 65,
-                                                child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.end,
-                                                  children: [
-                                                    GestureDetector(
-                                                        onTap: () {
-                                                          uploadImageFromGallery(
-                                                              ImageSource
-                                                                  .gallery);
-                                                        },
-                                                        child: Icon(
-                                                          Icons.image,
-                                                          color: notifires
-                                                              .getGrey3Whitecolor,
-                                                        )),
-                                                    const SizedBox(
-                                                      width: 5,
-                                                    ),
-                                                    GestureDetector(
-                                                        onTap: () {
-                                                          uploadImageFromGallery(
-                                                              ImageSource
-                                                                  .camera);
-                                                        },
-                                                        child: Icon(
-                                                          Icons.camera_alt,
-                                                          color: notifires
-                                                              .getGrey3Whitecolor,
-                                                        )),
-                                                    const SizedBox(
-                                                      width: 10,
-                                                    ),
-                                                  ],
+                                child: SafeArea(
+                                  child: Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.only(
+                                              left: 10, right: 0),
+                                          child: SingleChildScrollView(
+                                            child: TextField(
+                                              textInputAction:
+                                                  TextInputAction.send,
+                                              controller:
+                                                  textEditingControllermessage,
+                                              onSubmitted: (v) {
+                                                _submitMessage();
+                                              },
+                                              minLines: 1,
+                                              maxLines: 5,
+                                              cursorWidth: 1.2,
+                                              style: TextStyle(
+                                                  height: 1,
+                                                  color: notifires
+                                                      .getwhiteblackcolor),
+                                              decoration: InputDecoration(
+                                                hintText: "Message...".tr,
+                                                suffixIcon: SizedBox(
+                                                  width: 65,
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment.end,
+                                                    children: [
+                                                      GestureDetector(
+                                                          onTap: () {
+                                                            uploadImageFromGallery(
+                                                                ImageSource
+                                                                    .gallery);
+                                                          },
+                                                          child: Icon(
+                                                            Icons.image,
+                                                            color: notifires
+                                                                .getGrey3Whitecolor,
+                                                          )),
+                                                      const SizedBox(
+                                                        width: 5,
+                                                      ),
+                                                      GestureDetector(
+                                                          onTap: () {
+                                                            uploadImageFromGallery(
+                                                                ImageSource
+                                                                    .camera);
+                                                          },
+                                                          child: Icon(
+                                                            Icons.camera_alt,
+                                                            color: notifires
+                                                                .getGrey3Whitecolor,
+                                                          )),
+                                                      const SizedBox(
+                                                        width: 10,
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
+                                                hintStyle: regular2(context),
+                                                border: InputBorder.none,
+                                                enabledBorder: OutlineInputBorder(
+                                                    borderSide: BorderSide(
+                                                        width: 1.4,
+                                                        color: notifires
+                                                            .getthemewhitecolor),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            Dimensions
+                                                                .radiusDefault)),
+                                                focusedBorder: OutlineInputBorder(
+                                                    borderSide: BorderSide(
+                                                        width: 1.4,
+                                                        color: notifires
+                                                            .getthemewhitecolor),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            Dimensions
+                                                                .radiusDefault)),
                                               ),
-                                              hintStyle: regular2(context),
-                                              border: InputBorder.none,
-                                              enabledBorder: OutlineInputBorder(
-                                                  borderSide: BorderSide(
-                                                      width: 1.4,
-                                                      color: notifires
-                                                          .getthemewhitecolor),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          Dimensions
-                                                              .radiusDefault)),
-                                              focusedBorder: OutlineInputBorder(
-                                                  borderSide: BorderSide(
-                                                      width: 1.4,
-                                                      color: notifires
-                                                          .getthemewhitecolor),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          Dimensions
-                                                              .radiusDefault)),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(
-                                      width: 10,
-                                    ),
-                                    InkWell(
-                                      onTap: () async {
-                                        if (files != null) {
-                                          sendImage(files!);
-                                          return;
-                                        }
-                                        _submitMessage();
-                                      },
-                                      child: SizedBox(
-                                        height: 50,
-                                        width: 50,
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                            color: themeColor,
-                                          ),
-                                          child: const Icon(
-                                            Icons.send,
-                                            color: Colors.white,
-                                            size: 30,
+                                      const SizedBox(
+                                        width: 10,
+                                      ),
+                                      InkWell(
+                                        onTap: () async {
+                                          if (files != null) {
+                                            sendImage(files!);
+                                            return;
+                                          }
+                                          _submitMessage();
+                                        },
+                                        child: SizedBox(
+                                          height: 50,
+                                          width: 50,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              color: themeColor,
+                                            ),
+                                            child: const Icon(
+                                              Icons.send,
+                                              color: Colors.white,
+                                              size: 30,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),

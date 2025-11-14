@@ -108,103 +108,105 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
           child: Scaffold(
             bottomNavigationBar: bookingController.getItemPrices == null
                 ? SizedBox()
-                : Container(
-                    height: 100,
-                    width: Get.size.width,
-                    color: notifires.getbgcolor,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(
-                            height: 10,
-                          ),
-                          Obx(() => bookingController.isPaymentSuccess.value ==
-                                  true
-                              ? Row(
-                                  children: [
-                                    Expanded(
-                                      child: CustomsButtons(
-                                          onPressed: () {
-                                            generalController
-                                                .currentIndex.value = 2;
-                                            Get.offAll(() => const HomeMain(
-                                                  initialIndex: 2,
-                                                ));
-                                          },
-                                          // text: "Pay now".tr,
-                                          text: "See Bookings".tr,
-                                          backgroundColor:
-                                              getColorBasedOnActiveModuleid()),
-                                    ),
-                                    const SizedBox(
-                                      width: 15,
-                                    ),
-                                    Expanded(
-                                      child: CustomsButtons(
-                                          onPressed: () {},
-                                          // text: "Pay now".tr,
-                                          text: "Chat".tr,
-                                          backgroundColor:
-                                              getColorBasedOnActiveModuleid()),
-                                    )
-                                  ],
-                                )
-                              : CustomsButtons(
-                                  onPressed: () {
-                                    KycController kycController = Get.find();
-                                    kycController
-                                        .kycStatus(
-                                            kycController.activeStatus.value,
-                                            context)
-                                        .then((isValid) {
-                                      if (!isValid) return;
-                                      if (loginModel!.data!.firstName != null) {
-                                        if (loginModel!.data!.firstName == "") {
-                                          profileUpdate(context);
-                                          return;
+                : SafeArea(
+                  child: Container(
+                      height: 100,
+                      width: Get.size.width,
+                      color: notifires.getbgcolor,
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(
+                              height: 10,
+                            ),
+                            Obx(() => bookingController.isPaymentSuccess.value ==
+                                    true
+                                ? Row(
+                                    children: [
+                                      Expanded(
+                                        child: CustomsButtons(
+                                            onPressed: () {
+                                              generalController
+                                                  .currentIndex.value = 2;
+                                              Get.offAll(() => const HomeMain(
+                                                    initialIndex: 2,
+                                                  ));
+                                            },
+                                            // text: "Pay now".tr,
+                                            text: "See Bookings".tr,
+                                            backgroundColor:
+                                                getColorBasedOnActiveModuleid()),
+                                      ),
+                                      const SizedBox(
+                                        width: 15,
+                                      ),
+                                      Expanded(
+                                        child: CustomsButtons(
+                                            onPressed: () {},
+                                            // text: "Pay now".tr,
+                                            text: "Chat".tr,
+                                            backgroundColor:
+                                                getColorBasedOnActiveModuleid()),
+                                      )
+                                    ],
+                                  )
+                                : CustomsButtons(
+                                    onPressed: () {
+                                      KycController kycController = Get.find();
+                                      kycController
+                                          .kycStatus(
+                                              kycController.activeStatus.value,
+                                              context)
+                                          .then((isValid) {
+                                        if (!isValid) return;
+                                        if (loginModel!.data!.firstName != null) {
+                                          if (loginModel!.data!.firstName == "") {
+                                            profileUpdate(context);
+                                            return;
+                                          }
+                                        } else if ((loginModel!.data!.lastName !=
+                                            null)) {
+                                          if (loginModel!.data!.lastName == "") {
+                                            profileUpdate(context);
+                                            return;
+                                          }
                                         }
-                                      } else if ((loginModel!.data!.lastName !=
-                                          null)) {
-                                        if (loginModel!.data!.lastName == "") {
-                                          profileUpdate(context);
-                                          return;
-                                        }
-                                      }
-                                      bookingController.bookingMainFunction(
-                                        widget.idFeatured,
-                                        int.parse(bookingController
-                                            .getItemPrices!.data!.totalNights!),
-                                        bookingController.getItemPrices!.data!
-                                                .pricePerNight ??
-                                            "",
-                                        '', // bookingForSomeOne - empty string
-                                        widget.itemDetails!.hostId ?? "",
-                                        '', // numberofguest - empty string
-                                        widget.isAddDoorStepPrice ?? false,
-                                        widget.itemType ?? "",
-                                        widget.frontImage ?? "",
-                                        widget.itemDetails,
-                                        widget.address ?? "",
-                                        widget.rating ?? "",
-                                        widget.title ?? "",
-                                        bookingController.commonMetaData(),
-                                      );
-                                    });
-                                  },
-                                  text: generalDataModel
-                                              ?.data?.metaData?.onlinePayment
-                                              .toString() ==
-                                          "Inactive"
-                                      ? "Confirm"
-                                      : "Pay now".tr,
-                                  backgroundColor:
-                                      getColorBasedOnActiveModuleid()))
-                        ],
+                                        bookingController.bookingMainFunction(
+                                          widget.idFeatured,
+                                          int.parse(bookingController
+                                              .getItemPrices!.data!.totalNights!),
+                                          bookingController.getItemPrices!.data!
+                                                  .pricePerNight ??
+                                              "",
+                                          '', // bookingForSomeOne - empty string
+                                          widget.itemDetails!.hostId ?? "",
+                                          '', // numberofguest - empty string
+                                          widget.isAddDoorStepPrice ?? false,
+                                          widget.itemType ?? "",
+                                          widget.frontImage ?? "",
+                                          widget.itemDetails,
+                                          widget.address ?? "",
+                                          widget.rating ?? "",
+                                          widget.title ?? "",
+                                          bookingController.commonMetaData(),
+                                        );
+                                      });
+                                    },
+                                    text: generalDataModel
+                                                ?.data?.metaData?.onlinePayment
+                                                .toString() ==
+                                            "Inactive"
+                                        ? "Confirm"
+                                        : "Pay now".tr,
+                                    backgroundColor:
+                                        getColorBasedOnActiveModuleid()))
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                ),
             backgroundColor: notifires.getbgcolor,
             appBar: AppBar(
               backgroundColor: notifires.getbgcolor,

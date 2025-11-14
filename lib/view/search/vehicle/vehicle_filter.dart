@@ -133,32 +133,34 @@ class _VehicleFilterState extends State<VehicleFilter> {
           bottomNavigationBar: Obx(
             () => filterController.isLoadingVehicle.value
                 ? const SizedBox()
-                : Container(
-                    padding: const EdgeInsets.only(
-                        left: 25, right: 25, bottom: 10, top: 10),
-                    height: 70,
-                    child: CustomsButtons(
-                      onPressed: () {
-                        if (widget.mode == true) {
-                          filterController.submitMethod(context);
-                          return;
-                        }
-                        if (widget.forHome == true) {
+                : SafeArea(
+                  child: Container(
+                      padding: const EdgeInsets.only(
+                          left: 25, right: 25, bottom: 10, top: 10),
+                      height: 70,
+                      child: CustomsButtons(
+                        onPressed: () {
+                          if (widget.mode == true) {
+                            filterController.submitMethod(context);
+                            return;
+                          }
+                          if (widget.forHome == true) {
+                            Navigator.pop(context);
+                            return;
+                          }
+                          if (widget.forsearch == true) {
+                            widget.onMapRefresh!();
+                            Navigator.pop(context);
+                            return;
+                          }
+                          widget.onRefresh!();
                           Navigator.pop(context);
-                          return;
-                        }
-                        if (widget.forsearch == true) {
-                          widget.onMapRefresh!();
-                          Navigator.pop(context);
-                          return;
-                        }
-                        widget.onRefresh!();
-                        Navigator.pop(context);
-                      },
-                      text: widget.mode == true ? 'Filters'.tr : "Apply".tr,
-                      backgroundColor: getColorBasedOnActiveModuleid(),
+                        },
+                        text: widget.mode == true ? 'Filters'.tr : "Apply".tr,
+                        backgroundColor: getColorBasedOnActiveModuleid(),
+                      ),
                     ),
-                  ),
+                ),
           ),
         ),
       ),

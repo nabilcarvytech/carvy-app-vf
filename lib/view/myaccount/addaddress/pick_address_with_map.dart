@@ -157,6 +157,7 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     return Scaffold(
+      backgroundColor: notifires.getbgcolor,
       appBar: CustomAppBars(
         backgroundColor: notifires.getbgcolor,
         title: 'Map'.tr,
@@ -170,60 +171,62 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
           }
         },
       ),
-      bottomSheet: Container(
-        color: notifires.getbgcolor,
-        child: Padding(
-          padding: const EdgeInsets.all(18.0),
-          child: SizedBox(
-            height: 140,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          maxLines: 2,
-                          addAddressController.fullAddressController.text,
-                          style: boldstyle(context)
-                              .copyWith(fontWeight: FontWeight.bold),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          color: notifires.getbgcolor,
+          child: Padding(
+            padding: const EdgeInsets.all(18.0),
+            child: SizedBox(
+              height: 140,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            maxLines: 2,
+                            addAddressController.fullAddressController.text,
+                            style: boldstyle(context)
+                                .copyWith(fontWeight: FontWeight.bold),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: SizedBox(
-                    height: 50,
-                    width: Get.width,
-                    child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (builder) => const UserAddress()));
-                        },
-                        style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.only(
-                                left: 5, right: 5, top: 10, bottom: 10),
-                            backgroundColor: getColorBasedOnActiveModuleid(),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12))),
-                        child: Text(
-                          "Pick Address".tr,
-                          style: heading2(context).copyWith(color: whiteColor),
-                          overflow: TextOverflow
-                              .ellipsis, // Handle text overflow with ellipsis
-                          maxLines: 1, // Ensure text is on a single line
-                        )),
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: SizedBox(
+                      height: 50,
+                      width: Get.width,
+                      child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (builder) => const UserAddress()));
+                          },
+                          style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.only(
+                                  left: 5, right: 5, top: 10, bottom: 10),
+                              backgroundColor: getColorBasedOnActiveModuleid(),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12))),
+                          child: Text(
+                            "Pick Address".tr,
+                            style:
+                                heading2(context).copyWith(color: whiteColor),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          )),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
