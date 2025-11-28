@@ -6,14 +6,12 @@ class HomeDataModel {
   String? message;
   Data? data;
   String? error;
-
   HomeDataModel({
     this.status,
     this.message,
     this.data,
     this.error,
   });
-
   factory HomeDataModel.fromJson(Map<String, dynamic> json) {
     return HomeDataModel(
       status: json['status'],
@@ -23,7 +21,6 @@ class HomeDataModel {
     );
   }
 }
-
 class Data {
   List<ItemType>? itemTypes;
   List<ItemsData>? nearbyItems;
@@ -42,7 +39,6 @@ class Data {
     this.locations,
     this.makes,
   });
-
   factory Data.fromJson(Map<String, dynamic> json) {
     return Data(
       itemTypes: (json['itemTypes'] as List?)
@@ -76,7 +72,6 @@ class ItemType {
   String? description;
   String? status;
   String? image;
-
   ItemType({
     this.id,
     this.name,
@@ -84,7 +79,6 @@ class ItemType {
     this.status,
     this.image,
   });
-
   factory ItemType.fromJson(Map<String, dynamic> json) {
     return ItemType(
       id: json['id'],
@@ -118,7 +112,6 @@ class ItemsData {
   bool? isInWishlist;
   String? itemType;
   String? distance;
-
   ItemsData({
     this.id,
     this.name,
@@ -143,7 +136,6 @@ class ItemsData {
   set wishlistSetter(bool value) {
     isInWishlist = value;
   }
-
   factory ItemsData.fromJson(Map<String, dynamic> json) {
     return ItemsData(
       id: json['id'],
@@ -181,6 +173,12 @@ class ItemInfo {
   dynamic transmission;
   dynamic odometer;
   dynamic description;
+  dynamic platNumber;
+  dynamic minRentalDays;
+  dynamic insuranceCoverage;
+  dynamic ageRistriction;
+  dynamic smokingStatus;
+  dynamic internationalTravel;
   dynamic isVerified;
   dynamic isFeatured;
   dynamic bookingPoliciesId;
@@ -197,7 +195,6 @@ class ItemInfo {
   dynamic hostEmail;
   dynamic fuelType;
   dynamic seatCapicity;
-
   dynamic hostPhone;
   dynamic hostPlayerId;
   dynamic hostProfileImage;
@@ -216,6 +213,12 @@ class ItemInfo {
     this.transmission,
     this.odometer,
     this.description,
+    this.platNumber,
+    this.internationalTravel,
+    this.smokingStatus,
+    this.insuranceCoverage,
+    this.ageRistriction,
+    this.minRentalDays,
     this.isVerified,
     this.isFeatured,
     this.seatCapicity,
@@ -252,6 +255,12 @@ class ItemInfo {
       transmission: json['transmission'],
       odometer: json['odometer'],
       description: json['description'],
+      platNumber: json['license_plate'],
+      smokingStatus: json['smoking_status'],
+      insuranceCoverage: json['insurance_coverage'],
+      internationalTravel: json['international_travel_status'],
+      ageRistriction: json['min_age'],
+      minRentalDays: json['min_rental_days'],
       isVerified: json['is_verified'],
       isFeatured: json['is_featured'],
       fuelType: json['fuel_type'],
@@ -262,7 +271,6 @@ class ItemInfo {
       monthlyDiscount: json['monthly_discount'],
       monthlyDiscountType: json['monthly_discount_type'],
       cancellationReasonTitle: json['cancellation_reason_title'],
-      // cancellationReasonDescription: List<String>.from(json['cancellation_reason_description'] ?? []),
       cancellationReasonDescription:
           (json['cancellation_reason_description'] is List)
               ? List<String>.from(json['cancellation_reason_description'] ?? [])

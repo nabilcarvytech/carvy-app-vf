@@ -109,7 +109,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
             bottomNavigationBar: bookingController.getItemPrices == null
                 ? SizedBox()
                 : SafeArea(
-                  child: Container(
+                    child: Container(
                       height: 100,
                       width: Get.size.width,
                       color: notifires.getbgcolor,
@@ -121,7 +121,8 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                             const SizedBox(
                               height: 10,
                             ),
-                            Obx(() => bookingController.isPaymentSuccess.value ==
+                            Obx(() => bookingController
+                                        .isPaymentSuccess.value ==
                                     true
                                 ? Row(
                                     children: [
@@ -145,7 +146,6 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                       Expanded(
                                         child: CustomsButtons(
                                             onPressed: () {},
-                                            // text: "Pay now".tr,
                                             text: "Chat".tr,
                                             backgroundColor:
                                                 getColorBasedOnActiveModuleid()),
@@ -161,14 +161,18 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                               context)
                                           .then((isValid) {
                                         if (!isValid) return;
-                                        if (loginModel!.data!.firstName != null) {
-                                          if (loginModel!.data!.firstName == "") {
+                                        if (loginModel!.data!.firstName !=
+                                            null) {
+                                          if (loginModel!.data!.firstName ==
+                                              "") {
                                             profileUpdate(context);
                                             return;
                                           }
-                                        } else if ((loginModel!.data!.lastName !=
+                                        } else if ((loginModel!
+                                                .data!.lastName !=
                                             null)) {
-                                          if (loginModel!.data!.lastName == "") {
+                                          if (loginModel!.data!.lastName ==
+                                              "") {
                                             profileUpdate(context);
                                             return;
                                           }
@@ -176,13 +180,15 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                         bookingController.bookingMainFunction(
                                           widget.idFeatured,
                                           int.parse(bookingController
-                                              .getItemPrices!.data!.totalNights!),
+                                              .getItemPrices!
+                                              .data!
+                                              .totalNights!),
                                           bookingController.getItemPrices!.data!
                                                   .pricePerNight ??
                                               "",
-                                          '', // bookingForSomeOne - empty string
+                                          '',
                                           widget.itemDetails!.hostId ?? "",
-                                          '', // numberofguest - empty string
+                                          '',
                                           widget.isAddDoorStepPrice ?? false,
                                           widget.itemType ?? "",
                                           widget.frontImage ?? "",
@@ -206,7 +212,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                         ),
                       ),
                     ),
-                ),
+                  ),
             backgroundColor: notifires.getbgcolor,
             appBar: AppBar(
               backgroundColor: notifires.getbgcolor,
@@ -1312,11 +1318,16 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             const SizedBox(
                                               height: 2,
                                             ),
-                                             bookingController.getItemPrices!.data!.securityDeposit!.isEmpty  ||
-                                                    bookingController.getItemPrices!
-                                                        .data!.securityDeposit ==
+                                            bookingController
+                                                        .getItemPrices!
+                                                        .data!
+                                                        .securityDeposit!
+                                                        .isEmpty ||
+                                                    bookingController
+                                                            .getItemPrices!
+                                                            .data!
+                                                            .securityDeposit ==
                                                         "0"
-                                                    
                                                 ? const SizedBox()
                                                 : Row(
                                                     children: [
@@ -1326,7 +1337,8 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                                 .start,
                                                         children: [
                                                           Text(
-                                                            "Security Deposit".tr,
+                                                            "Security Deposit"
+                                                                .tr,
                                                             style: regular2(
                                                                     context)
                                                                 .copyWith(
@@ -1348,7 +1360,9 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                       )
                                                     ],
                                                   ),
-                                                const  SizedBox(height: 2,),
+                                            const SizedBox(
+                                              height: 2,
+                                            ),
                                             bookingController.getItemPrices!
                                                         .data!.tax ==
                                                     "0"
@@ -1607,12 +1621,94 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                 ),
                               ),
                             ),
+                            SizedBox(
+                              height: 20,
+                            ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 20.0),
+                              child: Container(
+                                width: double.maxFinite,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: notifires.getboxcolor,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 0),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.info_outline,
+                                            color: themeColor, size: 18),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          "Note",
+                                          style: TextStyle(
+                                            color: blackColor,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    noteItem(
+                                      label: "Smoking Allowed",
+                                      value:
+                                          widget.itemDetails!.smokingStatus ==
+                                              '1',
+                                    ),
+                                    const SizedBox(height: 8),
+                                    noteItem(
+                                      label: "International Travel Allowed",
+                                      value: widget.itemDetails!
+                                              .internationalTravel ==
+                                          '1',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget noteItem({required String label, required bool value}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        Text(
+          value ? "Yes" : "No",
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -330,7 +330,7 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              "A member of the Carvy team will contact you as soon as possible to validate your agency account.",
+                              "A member of the Carvy team will contact you as soon as possible to validate your car.",
                               style: regular2(context).copyWith(
                                 color: Colors.black87,
                                 fontSize: 14,

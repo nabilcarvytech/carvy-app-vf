@@ -226,7 +226,8 @@ class _RequestTobecomeHopstState extends State<RequestTobecomeHopst> {
                             options: const [
                               "SARL",
                               "SARL AU",
-                              "Individual", "Branch Office",
+                              "Individual",
+                              "Branch Office",
                               "Joint-stock Company",
                               "Others"
                             ],
@@ -353,15 +354,47 @@ class _RequestTobecomeHopstState extends State<RequestTobecomeHopst> {
                                 );
                               }),
                           const SizedBox(height: 20),
-                          CustomDropdown(
-                            options: const ["Passport", "Driver License"],
-                            onSelected: (value) {
-                              authController.selectIdentityType =
-                                  value.toString();
-                            },
-                            checkmarkColor: acentColor,
-                            identityTyoe: true,
+                          Container(
+                            margin: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: themeColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: themeColor.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: themeColor,
+                                  size: 28,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    "A member of the Carvy team will contact you as soon as possible to validate your agency account.",
+                                    style: regular2(context).copyWith(
+                                      color: Colors.black87,
+                                      fontSize: 14,
+                                      height: 1.4,
+                                    ),
+                                    textAlign: TextAlign.start,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          // CustomDropdown(
+                          //   options: const ["Passport", "Driver License"],
+                          //   onSelected: (value) {
+                          //     authController.selectIdentityType =
+                          //         value.toString();
+                          //   },
+                          //   checkmarkColor: acentColor,
+                          //   identityTyoe: true,
+                          // ),
                           const SizedBox(height: 20),
                           Container(
                             height: 60,
@@ -621,11 +654,11 @@ class _RequestTobecomeHopstState extends State<RequestTobecomeHopst> {
                                       "Please Enter the full address".tr);
                                   return;
                                 }
-                                if (authController.selectIdentityType == "") {
-                                  showErrorToastMessage(
-                                      "Please select Identity Type".tr);
-                                  return;
-                                }
+                                // if (authController.selectIdentityType == "") {
+                                //   showErrorToastMessage(
+                                //       "Please select Identity Type".tr);
+                                //   return;
+                                // }
                                 if (webPlateForm) {
                                   if (authController.identityimageforWeb ==
                                       null) {

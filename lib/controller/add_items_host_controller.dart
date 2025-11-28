@@ -179,6 +179,14 @@ class AddItemsHostController extends GetxController implements GetxService {
   TextEditingController textEditingControllerEditMinAge =
       TextEditingController();
   TextEditingController textEditingControllerMinAge = TextEditingController();
+
+  TextEditingController part1Controller = TextEditingController();
+  TextEditingController part1ControllerEdit = TextEditingController();
+  TextEditingController part2Controller = TextEditingController();
+  TextEditingController part2ControllerEdit = TextEditingController();
+  TextEditingController part3Controller = TextEditingController();
+  TextEditingController part3ControllerEdit = TextEditingController();
+
   String? insuranceCoverage;
   bool isSmokingAllowed = false;
   bool isInternationalTravelAllowed = false;
@@ -535,9 +543,18 @@ class AddItemsHostController extends GetxController implements GetxService {
               itemInfoDescription["fuel_type"].toString();
         }
         if (itemInfoData["license_plate"] != null) {
-          textEditingControllerEditLicensePlate.text =
-              itemInfoData["license_plate"].toString();
+          String plate = itemInfoData["license_plate"].toString();
+          List<String> parts = plate.split('-');
+          if (parts.length >= 3) {
+            part1ControllerEdit.text = parts[0];
+            part2ControllerEdit.text = parts[1];
+            part3ControllerEdit.text = parts[2];
+          }
         }
+        // if (itemInfoData["license_plate"] != null) {
+        //   textEditingControllerEditLicensePlate.text =
+        //       itemInfoData["license_plate"].toString();
+        // }
         if (itemInfoData["min_rental_days"] != null) {
           textEditingControllerEditMinDays.text =
               itemInfoData["min_rental_days"].toString();
@@ -588,9 +605,10 @@ class AddItemsHostController extends GetxController implements GetxService {
       "service_type": serviceType ?? "",
       "fuel_type_id": selectedFueltypeid.value,
       "number_of_seats": seatcapicity.text,
-      "license_plate": textEditingControllerLicensePlate.text.isNotEmpty
-          ? textEditingControllerLicensePlate.text
-          : textEditingControllerEditLicensePlate.text,
+      "license_plate": combinedPlateNumber(),
+      // "license_plate": textEditingControllerLicensePlate.text.isNotEmpty
+      //     ? textEditingControllerLicensePlate.text
+      //     : textEditingControllerEditLicensePlate.text,
       "min_rental_days": textEditingControllerMinDays.text.isNotEmpty
           ? textEditingControllerMinDays.text
           : textEditingControllerEditMinDays.text,
@@ -654,6 +672,12 @@ class AddItemsHostController extends GetxController implements GetxService {
     seatcapicity.clear();
   }
 
+  String combinedPlateNumber() {
+    return "${part1ControllerEdit.text.isNotEmpty ? part1ControllerEdit.text : part1Controller.text}"
+        "-${part2ControllerEdit.text.isNotEmpty ? part2ControllerEdit.text : part2Controller.text}"
+        "-${part3ControllerEdit.text.isNotEmpty ? part3ControllerEdit.text : part3Controller.text}";
+  }
+
   FetchItemId? fetchItemId;
   dynamic itemHostId;
   Future addItems() async {
@@ -702,6 +726,7 @@ class AddItemsHostController extends GetxController implements GetxService {
       closeLoading();
     }
   }
+
   bool selectLocation = false;
   Future updateMethod() async {
     showLoading();
@@ -804,6 +829,7 @@ class AddItemsHostController extends GetxController implements GetxService {
       CameraUpdate.zoomIn(),
     );
   }
+
   void zoomOut() {
     mapController?.animateCamera(
       CameraUpdate.zoomOut(),
@@ -1049,13 +1075,19 @@ class AddItemsHostController extends GetxController implements GetxService {
     String title = titleController!.text;
     String area = areaController?.text ?? "455";
     String description = descriptionController!.text;
-    String licensePlate = mode == ScreenMode.edit
-        ? textEditingControllerEditLicensePlate.text
-        : textEditingControllerLicensePlate.text;
+    String licensePlate1 = mode == ScreenMode.edit
+        ? part1ControllerEdit.text
+        : part1Controller.text;
+    String licensePlate2 = mode == ScreenMode.edit
+        ? part2ControllerEdit.text
+        : part2Controller.text;
+    String licensePlate3 = mode == ScreenMode.edit
+        ? part3ControllerEdit.text
+        : part3Controller.text;
     String minRentalDays = mode == ScreenMode.edit
         ? textEditingControllerEditMinDays.text
         : textEditingControllerMinDays.text;
-    if (licensePlate.isEmpty) {
+    if (licensePlate1.isEmpty || licensePlate2.isEmpty || licensePlate3.isEmpty) {
       showErrorToastMessage("Please enter the License Plate Number".tr);
       return;
     }

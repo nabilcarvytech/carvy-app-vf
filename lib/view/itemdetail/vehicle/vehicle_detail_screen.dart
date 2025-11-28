@@ -339,19 +339,37 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                             if (widget.itemInfo?.fuelType != null)
                               if (widget.itemInfo?.fuelType != null)
                                 carItemBox(
-                                  icon: Icons
-                                      .local_gas_station, // Appropriate icon for fuel
+                                  icon: Icons.local_gas_station,
                                   title: 'Fuel Type'.tr,
                                   desc:
                                       '${widget.itemInfo?.fuelType == "" ? "Petrol" : "${widget.itemInfo?.fuelType}"}',
                                 ),
                             if (widget.itemInfo?.seatCapicity != null)
                               carItemBox(
-                                icon: Icons
-                                    .event_seat, // Appropriate icon for seating
-                                title: 'Seats'.tr, // Corrected grammar
+                                icon: Icons.event_seat,
+                                title: 'Seats'.tr,
                                 desc: '${widget.itemInfo?.seatCapicity}',
                               ),
+                            carItemBox(
+                              icon: Icons.credit_card,
+                              title: 'Plate Number'.tr,
+                              desc: '${widget.itemInfo?.platNumber ?? "0"}',
+                            ),
+                              carItemBox(
+                              icon: Icons.event,
+                              title: 'Minimum Rental Days'.tr,
+                              desc: '${widget.itemInfo?.minRentalDays ?? "0"}',
+                            ),
+                                 carItemBox(
+                              icon: Icons.person_2,
+                              title: 'Minimum Age'.tr,
+                              desc: '${widget.itemInfo?.ageRistriction ?? "0"}',
+                            ),
+                                 carItemBox(
+                              icon: Icons.verified_user,
+                              title: 'Insurance Coverage'.tr,
+                              desc: '${widget.itemInfo?.insuranceCoverage ?? "0"}',
+                            ),
                           ],
                         ),
 
@@ -1058,7 +1076,6 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                       setState(() {
                                         widget.isWishList = false;
                                         showWishList = -1;
-                                        // Update other relevant state variables here if needed
                                       });
                                     }
                                   }
@@ -1300,8 +1317,6 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                                     ),
                                                   );
                                                 }
-
-                        
 
                                                 debugPrint(
                                                   '✅ Checkout Time -> Start: $startTime | End: $endTime',

@@ -895,7 +895,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         child: Stack(
                           children: [
                             SizedBox(
-                              height: 380,
+                              height: 370,
                               child: SfDateRangePicker(
                                 startRangeSelectionColor: Colors.transparent,
                                 endRangeSelectionColor: Colors.transparent,
@@ -1140,45 +1140,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                                     .toList(),
                                               ),
                                             );
-                                          }),
-                                          // Obx(() {
-                                          //   final endSlots =
-                                          //       getSlotsEndTime();
-                                          //   final endIndex =
-                                          //       endSlots.isNotEmpty
-                                          //           ? endSlots.length - 1
-                                          //           : 0;
-
-                                          //   return SizedBox(
-                                          //     height: 120,
-                                          //     child: CupertinoPicker(
-                                          //       scrollController:
-                                          //           FixedExtentScrollController(
-                                          //         initialItem: endIndex,
-                                          //       ),
-                                          //       itemExtent: 40,
-                                          //       onSelectedItemChanged:
-                                          //           (index) {
-                                          //         _searchController
-                                          //                 .endTimeSearch
-                                          //                 .value =
-                                          //             endSlots[index];
-                                          //       },
-                                          //       children: endSlots
-                                          //           .map((time) => Center(
-                                          //                 child: Text(
-                                          //                   time,
-                                          //                   style: TextStyle(
-                                          //                     fontSize: 16,
-                                          //                     color: notifires
-                                          //                         .getwhiteblackcolor,
-                                          //                   ),
-                                          //                 ),
-                                          //               ))
-                                          //           .toList(),
-                                          //     ),
-                                          //   );
-                                          // }),
+                                          }),                               
                                         ],
                                       ),
                                     ),

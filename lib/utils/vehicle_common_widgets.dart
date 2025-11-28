@@ -907,7 +907,7 @@ Container carbox({
           color: notifires.getGrey3Whitecolor.withOpacity(0.1),
           spreadRadius: 3,
           blurRadius: 5,
-          offset: const Offset(0, 0), // changes position of shadow
+          offset: const Offset(0, 0),
         ),
       ],
     ),

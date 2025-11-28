@@ -25,8 +25,8 @@ class AddAddressController extends GetxController implements GetxService {
   TextEditingController countryController = TextEditingController();
   TextEditingController postalCodeController = TextEditingController();
   RxString doorSteplatitude =
-      "28.5830".obs; 
-  RxString doorSteplongitude = "77.3130".obs;
+      "34.020882".obs; 
+  RxString doorSteplongitude = "-6.841650".obs;
   String? selectedLat, selectedLong;
   var markers = <Marker>{}.obs;
   RxString fulladdress = "".obs;
@@ -258,24 +258,19 @@ class AddAddressController extends GetxController implements GetxService {
   Future<void> getDoorStepAddressp(bool? sholoading) async {
     try {
       var localData = GetStorage().read("customerAddress");
-
       if (sholoading == true) {
         showLoading();
       }
-
       if (localData == null) {
         var response = await httpPost(Config.getDoorStepAddress, {});
-
         if (sholoading == true) {
           closeLoading();
         }
-
         if (response != null && response["status"] == 200) {
           if (response["data"] != null) {
             addressResponse = AddressResponse.fromJson(response);
             GetStorage().write("customerAddress", response);
             setAddressData();
-
             if (sholoading == true) {
               showToastMessage("${response["message"]}");
             }
@@ -291,13 +286,11 @@ class AddAddressController extends GetxController implements GetxService {
         if (sholoading == true) {
           closeLoading();
         }
-
         addressResponse = AddressResponse.fromJson(localData);
         setAddressData();
       }
     } catch (e) {
       print("Exception: $e");
-
       if (sholoading == true) {
         closeLoading();
         showErrorToastMessage("Something went wrong. Please try again.");
@@ -326,9 +319,9 @@ class AddAddressController extends GetxController implements GetxService {
         postalCodeController.text =
             doorStepAddress?.postalCode?.toString() ?? '';
         doorSteplatitude.value =
-            doorStepAddress?.doorstepLatitude.toString() ?? "28.5830";
+            doorStepAddress?.doorstepLatitude.toString() ?? "34.020882";
         doorSteplongitude.value =
-            doorStepAddress?.doorstepLongitude.toString() ?? "77.3130";
+            doorStepAddress?.doorstepLongitude.toString() ?? "-6.841650";
         fulladdress.value =
             "${houseFloorNumberController.text.isNotEmpty ? houseFloorNumberController.text : ""} "
             "${buildingBlockNumberController.text.isNotEmpty ? buildingBlockNumberController.text : ""} "
@@ -349,8 +342,8 @@ class AddAddressController extends GetxController implements GetxService {
     stateController.clear();
     countryController.clear();
     postalCodeController.clear();
-    doorSteplatitude.value = "28.5830";
-    doorSteplongitude.value = "77.3130";
+    doorSteplatitude.value = "34.020882";
+    doorSteplongitude.value = "-6.841650";
     fulladdress.value = "";
   }
 }

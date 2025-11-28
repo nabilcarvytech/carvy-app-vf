@@ -153,9 +153,9 @@ class _VehcileDescriptionScreenState extends State<VehcileDescriptionScreen> {
     super.initState();
     if (widget.mode == ScreenMode.edit) {
       _initializeEditValues();
-    }else{
-       addItemsHostController.isSmokingAllowed = false;
-    addItemsHostController.isInternationalTravelAllowed = false;
+    } else {
+      addItemsHostController.isSmokingAllowed = false;
+      addItemsHostController.isInternationalTravelAllowed = false;
     }
   }
 
@@ -225,20 +225,37 @@ class _VehcileDescriptionScreenState extends State<VehcileDescriptionScreen> {
                     const SizedBox(height: 15),
                     LabelNames(labelname: 'License Plate Number'.tr),
                     const SizedBox(height: 10),
-                    TextFieldRefs(
-                      textInputAction: TextInputAction.done,
-                      maxlength: 20,
-                      txt: 'Enter License Plate'.tr,
-                      textEditingControllerCommon:
-                          widget.mode == ScreenMode.edit
-                              ? addItemsHostController
-                                  .textEditingControllerEditLicensePlate
-                              : addItemsHostController
-                                  .textEditingControllerLicensePlate,
-                      inputType: TextInputType.text,
-                      inputAlignment: TextAlign.left,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        plateBox(
+                            controller: widget.mode == ScreenMode.edit
+                                ? addItemsHostController.part1ControllerEdit
+                                : addItemsHostController.part1Controller),
+                        plateBox(
+                            controller: widget.mode == ScreenMode.edit
+                                ? addItemsHostController.part2ControllerEdit
+                                : addItemsHostController.part2Controller),
+                        plateBox(
+                            controller: widget.mode == ScreenMode.edit
+                                ? addItemsHostController.part3ControllerEdit
+                                : addItemsHostController.part3Controller),
+                      ],
                     ),
-                    const SizedBox(height: 15),
+                    // TextFieldRefs(
+                    //   textInputAction: TextInputAction.done,
+                    //   maxlength: 20,
+                    //   txt: 'Enter License Plate'.tr,
+                    //   textEditingControllerCommon:
+                    //       widget.mode == ScreenMode.edit
+                    //           ? addItemsHostController
+                    //               .textEditingControllerEditLicensePlate
+                    //           : addItemsHostController
+                    //               .textEditingControllerLicensePlate,
+                    //   inputType: TextInputType.text,
+                    //   inputAlignment: TextAlign.left,
+                    // ),
+                    SizedBox(height: 15),
                     LabelNames(labelname: 'Minimum Rental Days'.tr),
                     const SizedBox(height: 10),
                     TextFieldRefs(
@@ -364,7 +381,7 @@ class _VehcileDescriptionScreenState extends State<VehcileDescriptionScreen> {
                         ),
                         Text('No'.tr),
                       ],
-                    ),            
+                    ),
                     const SizedBox(height: 15),
                     LabelNames(labelname: 'International Travel Allowed'.tr),
                     const SizedBox(height: 10),
@@ -400,7 +417,7 @@ class _VehcileDescriptionScreenState extends State<VehcileDescriptionScreen> {
                         ),
                         Text('No'.tr),
                       ],
-                    ),       
+                    ),
                     const SizedBox(height: 80),
                   ],
                 ),
@@ -434,6 +451,40 @@ class _VehcileDescriptionScreenState extends State<VehcileDescriptionScreen> {
             Get.back();
           }
         },
+      ),
+    );
+  }
+
+  Widget plateBox({required TextEditingController controller}) {
+    return Expanded(
+      child: Container(
+        height: 55,
+        margin: EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: grey5),
+        ),
+        child: Center(
+          child: TextField(
+            controller: controller,
+            textAlign: TextAlign.center,
+            maxLength: 10,
+            style: const TextStyle(
+              fontSize: 16,
+            ),
+            keyboardType: TextInputType.text,
+            decoration: InputDecoration(
+              counterText: "",
+              border: InputBorder.none,
+              hintText: "---",
+              hintStyle: TextStyle(
+                color: Colors.grey.shade500,
+                letterSpacing: 3,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
