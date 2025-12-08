@@ -6,12 +6,14 @@ import 'package:provider/provider.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/web_router.dart';
+import 'package:carvy/helper/get_data_read.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/view/splash/splash_screen.dart';
 import 'package:carvy/work_space.dart';
 import '../../customwidget/custom_active_module_id_widget.dart';
 import '../host/bottom_bar_host.dart';
 import '../onBoarding/vehicle/vehicle_on_boarding_screen.dart';
+import 'language_selection_screen.dart';
 
 class InitialScreen extends StatefulWidget {
   const InitialScreen({super.key});
@@ -34,13 +36,36 @@ class _InitialScreenState extends State<InitialScreen> {
 
   Future<void> setScreen() async {
     final duration = Duration(
-      seconds: GetStorage().read('Firstuser') == null ? 3 : 2,
+      seconds: getData.read('Firstuser') == null ? 3 : 2,
     );
 
     Timer(duration, () {
+      // Vérifier si la langue a été choisie
+      var lanValue = getData.read("lanValue");
+      bool languageSelected = lanValue != null &&
+          lanValue is int &&
+          lanValue >= 0 &&
+          lanValue < locale.length;
+
+      if (!languageSelected) {
+        // Rediriger vers la sélection de langue si elle n'a pas été choisie
+        if (webPlateForm) {
+          Get.offNamed(WebRoutes.languageSelectionScreen);
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const LanguageSelectionScreen(),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Si la langue est choisie, continuer avec le flux normal
       if (webPlateForm) {
-        if (GetStorage().read('Firstuser') != true ||
-            GetStorage().read('Firstuser') != true) {
+        if (getData.read('Firstuser') != true ||
+            getData.read('Firstuser') != true) {
           Get.offNamed(WebRoutes.vehicleOnboardingScreen);
         } else {
           isHostMode.value == true
@@ -48,12 +73,12 @@ class _InitialScreenState extends State<InitialScreen> {
               : Get.offNamed(WebRoutes.homeMain);
         }
       } else {
-        if (GetStorage().read('Firstuser') != true) {
+        if (getData.read('Firstuser') != true) {
           Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                   builder: (context) => const VehicleOnBoardingScreen()));
-        } else if (GetStorage().read('Firstuser') != true) {
+        } else if (getData.read('Firstuser') != true) {
           Navigator.pushReplacement(
               context,
               MaterialPageRoute(

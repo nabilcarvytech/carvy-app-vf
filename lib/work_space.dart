@@ -41,6 +41,9 @@ AddAddressController addAddressController = Get.find();
 String currency = "";
 String? paymentStatus = "";
 Locale? globallanguage;
+// ValueNotifier pour forcer la reconstruction de l'application quand la langue change
+final ValueNotifier<Locale> localeNotifier =
+    ValueNotifier<Locale>(const Locale('en', 'US'));
 dynamic maxPriceRange;
 dynamic minPricerange;
 dynamic showerrorWhenloginwithOtherDevice = "";
@@ -277,11 +280,37 @@ Future clearAllController() async {
   showHideBecomeHost = "";
   bool defaultDarkMode = false;
   loginModel = null;
+
+  // Sauvegarder la langue avant d'effacer
+  var savedLanValue = GetStorage().read("lanValue");
+  var savedLCode = GetStorage().read("lCode");
+
   GetStorage().write("getDarkValue", defaultDarkMode);
   notifires.setIsDark = defaultDarkMode;
   token = "";
   GetStorage().erase();
-  Get.updateLocale(const Locale('en', 'US'));
+
+  // Restaurer la langue après l'effacement
+  if (savedLanValue != null) {
+    GetStorage().write("lanValue", savedLanValue);
+  }
+  if (savedLCode != null) {
+    GetStorage().write("lCode", savedLCode);
+  }
+
+  // Mettre à jour la locale si elle était sauvegardée, sinon utiliser anglais
+  if (savedLanValue != null &&
+      savedLanValue is int &&
+      savedLanValue >= 0 &&
+      savedLanValue < locale.length) {
+    Locale savedLocale = locale[savedLanValue]['locale'] as Locale;
+    globallanguage = savedLocale;
+    Get.updateLocale(savedLocale);
+    localeNotifier.value = savedLocale;
+  } else {
+    Get.updateLocale(const Locale('en', 'US'));
+  }
+
   isHostMode.value = false;
   GetStorage().write("lType", "en_US");
   activeModuleId.value = 2;

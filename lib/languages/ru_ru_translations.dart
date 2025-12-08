@@ -17,6 +17,8 @@ const Map<String, String> ruRU = {
   "Confirm and Pay": "Подтвердить и оплатить",
   "Setting": "Настройки",
   "Popular locations": "Популярные места",
+  "Popular Regions": "Популярные регионы",
+  "See More": "Показать больше",
   "See All": "Посмотреть все",
   "Our Recommendation": "Наши рекомендации",
   "Most viewed": "Самые просматриваемые",
@@ -138,6 +140,23 @@ const Map<String, String> ruRU = {
   "Message": "Сообщение",
   "Show Less": "Показать меньше",
   "Show More": "Показать больше",
+  "Search brand...": "Поиск бренда...",
+  "selected": "выбрано",
+  "No brands found": "Бренды не найдены",
+  "See all": "Показать все",
+  "brands": "бренды",
+  "Select brands": "Выбрать бренды",
+  "Validate": "Подтвердить",
+  "Clear": "Очистить",
+  "Date": "Дата",
+  "Time": "Время",
+  "Where do you want to go?": "Куда вы хотите поехать?",
+  "No locations found": "Места не найдены",
+  "Select dates": "Выбрать даты",
+  "Select time": "Выбрать время",
+  "Pick-up time": "Время получения",
+  "Drop-off time": "Время возврата",
+  "Minimum rental: 1 hour": "Минимальная аренда: 1 час",
   "clear": "Очистить",
   "Something Went Wrong": "Что-то пошло не так",
   "Select Date": "Выберите дату",
@@ -217,6 +236,11 @@ const Map<String, String> ruRU = {
   "Year": "Год",
   "Transmission": "Трансмиссия",
   "Odometer": "Одометр",
+  "Seats": "Места",
+  "Plate Number": "Номерной знак",
+  "Minimum Rental Days": "Минимальные дни аренды",
+  "Minimum Age": "Минимальный возраст",
+  "Insurance Coverage": "Страховое покрытие",
   "About the car": "О машине",
   "Car features": "Особенности автомобиля",
   "You will be here": "Вы будете здесь",
@@ -448,7 +472,6 @@ const Map<String, String> ruRU = {
   "Select an option": "Выберите вариант",
   "Booked": "Забронировано",
   "Not available": "Недоступно",
-  "selected": "выбрано",
   "Past Dates": "Прошлые даты",
   "Edit": "Редактировать",
   "List is empty": "Список пуст",
@@ -657,7 +680,6 @@ const Map<String, String> ruRU = {
   "Your Current Balance": "Ваш текущий баланс",
   "debit": "дебет",
   "Filter": "Фильтр",
-  "Clear": "Очистить",
   "Filters": "Фильтры",
   "Where": "Где",
   "Price range": "Диапазон цен",
@@ -721,7 +743,6 @@ const Map<String, String> ruRU = {
   "Select Time": "Выберите время",
   "Select Start date": "Выберите дату начала",
   "Select Start time": "Выберите время начала",
-  "Select time": "Выберите время",
   "Subscribe to our news letter to get latest Update":
       "Подпишитесь на нашу рассылку, чтобы получать последние обновления",
   "/day": "/день",
@@ -1069,7 +1090,6 @@ const Map<String, String> ruRU = {
   "Please Select Dates": "Пожалуйста, выберите даты",
   "Location not found": "Местоположение не найдено",
   "See Less": "Показать меньше",
-  "See More": "Показать больше",
   "When": "Когда",
   "Data not found!": "Данные не найдены!",
   "Please Select the dates": "Пожалуйста, выберите даты",
@@ -1090,12 +1110,11 @@ const Map<String, String> ruRU = {
       "От скутеров до внедорожников, найдите идеальное транспортное средство для любого случая. Быстрое бронирование. Плавные поездки. Гибкие варианты",
   "Drive or Earn with": "Водите или зарабатывайте с",
   "Tap here": "Нажмите здесь",
-  "Popular Regions": "Популярные регионы",
   "Select your dates": "Выберите даты",
   "Selected Date Range": "Выбранный диапазон дат",
   "Tap to select dates": "Нажмите, чтобы выбрать даты",
   "By": "По",
-  "Seats Tap to view": "Места Нажмите для просмотра",
+  "SeatsTap to view": "МестаНажмите для просмотра",
   "Vehicle Rules": "Правила использования транспорта",
   "Something went wrong. Please try again.":
       "Что-то пошло не так. Пожалуйста, попробуйте снова.",
@@ -1108,6 +1127,8 @@ const Map<String, String> ruRU = {
   "Please fill your KYC Form.": "Пожалуйста, заполните форму KYC.",
   "KYC": "KYC",
   "Driver license": "Водительское удостоверение",
+  "First driver license": "Водительское удостоверение первого водителя",
+  "Second driver license": "Водительское удостоверение второго водителя",
   "Primary reference mob no": "Основной контактный номер",
   "Other Identity (Optional)": "Другая идентификация (необязательно)",
   "Secondary reference mob no (Optional)":
@@ -1124,8 +1145,8 @@ const Map<String, String> ruRU = {
       "Пожалуйста, добавьте основной контактный номер",
   "Under Review": "На рассмотрении",
   "Booking Overlap Detected": "Обнаружено пересечение бронирований",
-  "The selected time slots are booked. Please choose another time. The next available slot is shown below. Reciept":
-      "Выбранные временные интервалы заняты. Пожалуйста, выберите другое время. Следующее доступное время показано ниже. Квитанция",
+  "The selected time slots are booked. Please choose another time. The next available slot is shown below.Reciept":
+      "Выбранные временные интервалы заняты. Пожалуйста, выберите другое время. Следующее доступное время показано ниже.Квитанция",
   "No messages yet": "Сообщений пока нет",
   "Your conversations will appear here": "Ваши переписки появятся здесь",
   "Recharge": "Пополнить",
@@ -1155,8 +1176,8 @@ const Map<String, String> ruRU = {
   "Do you want to deliver this vehicle?":
       "Вы хотите доставить этот автомобиль?",
   "Vehicle Delivery Confirmation": "Подтверждение доставки автомобиля",
-  "Before proceeding with the vehicle delivery, you are required to sign the booking’s Terms & Conditions.\n\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:\nVehicle usage Condition of the vehicle Vehicle usage\nResponsibilities and liabilities Signing the Terms & Conditions helps establish a clear agreement, ensuring a smooth and fair transaction. Cancel":
-      "Перед доставкой автомобиля вы должны подписать условия бронирования.\n\nЭтот шаг обеспечивает полную прозрачность между поставщиком и клиентом, защищая обе стороны от любых споров, связанных с:\nИспользованием автомобиля Состоянием автомобиля Обязанностями и ответственностью Подписание условий помогает установить чёткое соглашение, обеспечивая справедливую сделку. Отмена",
+  "Before proceeding with the vehicle delivery, you are required to sign the booking’s Terms & Conditions.\n\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:\nVehicle usageCondition of the vehicleVehicle usage\nResponsibilities and liabilitiesSigning the Terms & Conditions helps establish a clear agreement, ensuring a smooth and fair transaction.Cancel":
+      "Перед доставкой автомобиля вы должны подписать условия бронирования.\n\nЭтот шаг обеспечивает полную прозрачность между поставщиком и клиентом, защищая обе стороны от любых споров, связанных с:\nИспользованием автомобиляСостоянием автомобиляОбязанностями и ответственностьюПодписание условий помогает установить чёткое соглашение, обеспечивая справедливую сделку.Отмена",
   "Sign T&C": "Подписать Условия",
   "Booking Agreement": "Договор бронирования",
   "Please Sign the terms and Conditions": "Пожалуйста, подпишите условия",
@@ -1206,5 +1227,22 @@ const Map<String, String> ruRU = {
   "The selected time slots are booked. Please choose another time. The next available slot is shown below._ru":
       "Выбранные временные слоты заняты. Пожалуйста, выберите другое время. Следующее доступное время показано ниже.",
   "Add Doorstep Price_ru": "Добавить цену на доставку до двери",
-  "Doorstep price_ru": "Цена доставки до двери"
+  "Doorstep price_ru": "Цена доставки до двери",
+  "Highest Ranked": "С высшим рейтингом",
+  "Cheapest Price": "Самая низкая цена",
+  "Nearest Location": "Ближайшее местоположение",
+  "It is forbidden to lend, rent, or sublease the car to a third party.":
+      "Запрещается одалживать, сдавать в аренду или передавать автомобиль третьим лицам.",
+  "The vehicle must be returned with the same fuel level as at pickup.":
+      "Автомобиль должен быть возвращён с тем же уровнем топлива, что и при получении.",
+  "Smoking and eating inside the car are not allowed.":
+      "Курение и приём пищи в салоне автомобиля запрещены.",
+  "The vehicle must be returned on the agreed date, time, and location.":
+      "Автомобиль должен быть возвращён в согласованную дату, время и место.",
+  "15% deduction will apply if canceled at least 48 hours before the rental start time":
+      "Удержание 15% применяется при отмене не менее чем за 48 часов до начала аренды",
+  "80% deduction will apply if canceled within 12 hours of the rental start time.":
+      "Удержание 80% применяется при отмене в течение 12 часов до начала аренды.",
+  "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
+      "Удержание 50% применяется при отмене за 12-24 часа до начала аренды."
 };

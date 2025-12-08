@@ -43,7 +43,8 @@ class _VehicleFilterState extends State<VehicleFilter> {
   List<dynamic> years = [];
   List<dynamic> generateYearsList() {
     dynamic currentYear = DateTime.now().year;
-    for (int i = currentYear; i >= currentYear - 25; i--) {
+    // Afficher seulement les 6 dernières années
+    for (int i = currentYear; i >= currentYear - 5; i--) {
       years.add(i);
     }
     return years;
@@ -134,7 +135,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
             () => filterController.isLoadingVehicle.value
                 ? const SizedBox()
                 : SafeArea(
-                  child: Container(
+                    child: Container(
                       padding: const EdgeInsets.only(
                           left: 25, right: 25, bottom: 10, top: 10),
                       height: 70,
@@ -160,7 +161,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                         backgroundColor: getColorBasedOnActiveModuleid(),
                       ),
                     ),
-                ),
+                  ),
           ),
         ),
       ),
@@ -274,30 +275,11 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                   "Make Type".tr,
                                   style: heading2Grey1(context),
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 5),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      InitialValueCheckBox(
-                                        ismaketypr: true,
-                                        initialValue: filterController
-                                                .makeTypeModel?.data?.makes
-                                                ?.map((itemType) => itemType.id)
-                                                .toList() ??
-                                            [],
-                                        options: filterController
-                                                .makeTypeModel?.data?.makes
-                                                ?.map((itemType) =>
-                                                    itemType.makeName)
-                                                .toList() ??
-                                            [],
-                                        searchHintText: "Search Make type..",
-                                      ),
-                                    ],
+                                // NOUVEAU: Widget BrandMultiSelect avec recherche
+                                if (filterController.makeTypeModel?.data?.makes != null)
+                                  BrandMultiSelect(
+                                    makes: filterController.makeTypeModel!.data!.makes!,
                                   ),
-                                ),
                                 const SizedBox(
                                   height: 5,
                                 ),
@@ -397,6 +379,69 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                         initialValue: years,
                                         options: years,
                                       ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(
+                                  height: 5,
+                                ),
+                                buildDividervehicle(),
+                                const SizedBox(
+                                  height: 15,
+                                ),
+                                // NOUVEAU: Filtre type de carburant
+                                Text(
+                                  "Fuel Type".tr,
+                                  style: heading2Grey1(context),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 5),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (filterController
+                                              .fuelTypeModelFilter !=
+                                          null)
+                                        MyCustomCheckBoxFuelType(
+                                          fuelTypes: filterController
+                                              .fuelTypeModelFilter!.fuelTypes,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(
+                                  height: 5,
+                                ),
+                                buildDividervehicle(),
+                                const SizedBox(
+                                  height: 15,
+                                ),
+                                // NOUVEAU: Filtre transmission
+                                Text(
+                                  "Transmission".tr,
+                                  style: heading2Grey1(context),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 5),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (filterController
+                                                  .transmissionModelFilter !=
+                                              null &&
+                                          filterController
+                                                  .transmissionModelFilter!
+                                                  .data !=
+                                              null)
+                                        MyCustomCheckBoxTransmission(
+                                          transmissions: filterController
+                                                  .transmissionModelFilter!
+                                                  .data!
+                                                  .options ??
+                                              [],
+                                        ),
                                     ],
                                   ),
                                 ),

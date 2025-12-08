@@ -9,6 +9,7 @@ import '../customwidget/custom_active_module_id_widget.dart';
 import '../work_space.dart';
 
 GeneralDataModel? generalDataModel;
+
 class GeneralController extends GetxController implements GetxService {
   late TabController tabController;
   RxInt currentIndex = 0.obs;
@@ -76,8 +77,8 @@ class GeneralController extends GetxController implements GetxService {
       profileController.defaultCountryReset.value =
           generalDataModel!.data!.metaData!.defultCountryShortNsme!;
     } else {
-      profileController.defaultCountry.value = 'IN';
-      profileController.defaultCountryReset.value = 'IN';
+      profileController.defaultCountry.value = 'MA';
+      profileController.defaultCountryReset.value = 'MA';
     }
     if (generalDataModel?.data?.metaData?.defultPhoneCountry != null) {
       profileController.selectedCountry.value =
@@ -85,8 +86,8 @@ class GeneralController extends GetxController implements GetxService {
       profileController.selectedCountryReset.value =
           generalDataModel!.data!.metaData!.defultPhoneCountry!;
     } else {
-      profileController.selectedCountry.value = '+91';
-      profileController.selectedCountryReset.value = '+91';
+      profileController.selectedCountry.value = '+212';
+      profileController.selectedCountryReset.value = '+212';
     }
     if (isHostMode.value == true) {
       currency = generalDataModel?.data?.metaData?.generalDefaultCurrency ?? "";

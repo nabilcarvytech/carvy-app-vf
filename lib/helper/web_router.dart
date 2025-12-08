@@ -34,6 +34,7 @@ import 'package:carvy/view/onBoarding/vehicle/vehicle_on_boarding_screen.dart';
 import 'package:carvy/view/payments/wallet_screen.dart';
 import 'package:carvy/view/search/after_search.dart';
 import 'package:carvy/view/splash/initial_screen.dart';
+import 'package:carvy/view/splash/language_selection_screen.dart';
 import '../view/auth/reset_password_screen.dart';
 import '../view/itemdetail/vehicle/vehicle_detail_screen.dart';
 import '../view/myaccount/publicProfile/public_profile_screen.dart';
@@ -102,10 +103,14 @@ class WebRoutes {
   static String staticPages = "/staticPages";
   static String changeCurrency = "/changeCurrency";
   static String hostSearch = "/hostSearch";
+  static String languageSelectionScreen = "/languageSelectionScreen";
 }
 
 final getPagesforweb = [
   GetPage(name: WebRoutes.initial, page: () => const InitialScreen()),
+  GetPage(
+      name: WebRoutes.languageSelectionScreen,
+      page: () => const LanguageSelectionScreen()),
   GetPage(name: WebRoutes.signUpScreen, page: () => const SignUp()),
   GetPage(
       name: WebRoutes.homeMain, page: () => const HomeMain(initialIndex: 0)),

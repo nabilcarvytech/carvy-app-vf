@@ -17,6 +17,7 @@ const Map<String, String> enUs = {
   "Confirm and Pay": "Confirm and Pay",
   "Setting": "Settings",
   "Popular locations": "Popular pickup locations",
+  "Popular Regions": "Popular Regions",
   "See All": "See All",
   "Our Recommendation": "Our Recommendations",
   "Most viewed": "Most Viewed",
@@ -118,8 +119,7 @@ const Map<String, String> enUs = {
   "Very Flexible": "Very Flexible",
   "Avilability": "Availability",
   "Check": "Check",
-  "Explore the World by Trevelling carvy":
-      "Explore Morocco with Carvy",
+  "Explore the World by Trevelling carvy": "Explore Morocco with Carvy",
   "Where do you go?": "Search vehicles by location.",
   "No data found": "No data found",
   "Recommended Properties": "Recommended Vehicles",
@@ -138,6 +138,23 @@ const Map<String, String> enUs = {
   "Message": "Message",
   "Show Less": "Show Less",
   "Show More": "Show More",
+  "Search brand...": "Search brand...",
+  "selected": "selected",
+  "No brands found": "No brands found",
+  "See all": "See all",
+  "brands": "brands",
+  "Select brands": "Select brands",
+  "Validate": "Validate",
+  "Clear": "Clear",
+  "Date": "Date",
+  "Time": "Time",
+  "Where do you want to go?": "Where do you want to go?",
+  "No locations found": "No locations found",
+  "Select dates": "Select dates",
+  "Select time": "Select time",
+  "Pick-up time": "Pick-up time",
+  "Drop-off time": "Drop-off time",
+  "Minimum rental: 1 hour": "Minimum rental: 1 hour",
   "clear": "Clear",
   "Something Went Wrong": "Something Went Wrong",
   "Select Date": "Select Date",
@@ -215,6 +232,11 @@ const Map<String, String> enUs = {
   "Year": "Year",
   "Transmission": "Transmission",
   "Odometer": "Odometer",
+  "Seats": "Seats",
+  "Plate Number": "Plate Number",
+  "Minimum Rental Days": "Minimum Rental Days",
+  "Minimum Age": "Minimum Age",
+  "Insurance Coverage": "Insurance Coverage",
   "About the car": "About the Vehicle",
   "Car features": "Vehicle Features",
   "You will be here": "Pick-up Location",
@@ -342,8 +364,7 @@ const Map<String, String> enUs = {
   "Per/day Price": "Price per Day (MAD)",
   "Enter price": "Enter Price",
   " DONE ": " DONE ",
-  "What kind of Boat are you \nlistings":
-      "What kind of Boat are you listing?",
+  "What kind of Boat are you \nlistings": "What kind of Boat are you listing?",
   "Choose Boat type": "Choose Boat Type",
   "Cabins": "Cabins",
   "Enter Your Cabin": "Enter Your Cabin",
@@ -448,7 +469,6 @@ const Map<String, String> enUs = {
   "Select an option": "Select an option",
   "Booked": "Booked",
   "Not available": "Not available",
-  "selected": "selected",
   "Past Dates": "Past Dates",
   "Edit": "Edit",
   "List is empty": "List is empty",
@@ -568,8 +588,7 @@ const Map<String, String> enUs = {
   "Make money by renting by out your \nproperty and letting people take them \nout on trips.":
       "Earn money by renting out your property \nand letting people take trips across Morocco.",
   " /night": " /day",
-  "Do you want to delete your property?":
-      "Do you want to delete your listing?",
+  "Do you want to delete your property?": "Do you want to delete your listing?",
   "Become a User": "Become a User",
   "Become a Host": "Become a Host",
   "Upload your place photos": "Upload your Vehicle Photos",
@@ -658,7 +677,6 @@ const Map<String, String> enUs = {
   "Your Current Balance": "Your Current Balance (MAD)",
   "debit": "Debit",
   "Filter": "Filter",
-  "Clear": "Clear",
   "Filters": "Filters",
   "Where": "Where",
   "Price range": "Price Range (MAD)",
@@ -673,6 +691,12 @@ const Map<String, String> enUs = {
   "Car Features": "Car Features",
   "Search location": "Search Location",
   "Welcome to carvy": "Welcome to Carvy",
+  "Welcome to Carvy": "Welcome to Carvy",
+  "Book cars and bikes easily for any journey. Quick rides or long trips, we've got you covered":
+      "Book cars and bikes easily for any journey. Quick rides or long trips, we've got you covered",
+  "Find Your Car and Bike Today": "Find Your Car and Bike Today",
+  "Effortlessly rent cars and bikes for any trip. Choose from a variety of vehicles for your journey.":
+      "Effortlessly rent cars and bikes for any trip. Choose from a variety of vehicles for your journey.",
   "Wishlist": "Wishlist",
   "Please add": "Please add",
   "carvy Boat Booking: Explore the Waters":
@@ -681,8 +705,7 @@ const Map<String, String> enUs = {
       "Bookable: Easily Reserve Any Product on Carvy",
   "carvy: Convenient Parking Reservations":
       "Carvy: Convenient Parking Reservations",
-  "Explore the World by Travelling carvy":
-      "Explore Morocco with Carvy",
+  "Explore the World by Travelling carvy": "Explore Morocco with Carvy",
   "Space Booking: Reserve Your Meeting Rooms and More":
       "Space Booking: Reserve Your Meeting Rooms and More",
   "carvy: Easy and Convenient Vehicle Booking Services":
@@ -703,7 +726,8 @@ const Map<String, String> enUs = {
   "Trips": "Trips",
   "Explorer": "Explorer",
   "Login Alert!": "Login Alert!",
-  "You are not Login yet Please Login": "You are not logged in yet. Please log in.",
+  "You are not Login yet Please Login":
+      "You are not logged in yet. Please log in.",
   "Enter Your Number": "Enter Your Number",
   "Please enter valid Password": "Please enter a valid password",
   "Password must have:": "Password must have:",
@@ -713,7 +737,8 @@ const Map<String, String> enUs = {
   "At least 1 special character": "At least 1 special character",
   "Minimum 8 characters": "Minimum 8 characters",
   "The property name field is required": "The property name field is required",
-  "The Area field must be a valid number": "The area field must be a valid number",
+  "The Area field must be a valid number":
+      "The area field must be a valid number",
   "The description field is required": "The description field is required",
   "Do you want to Delete your Account?": "Do you want to delete your account?",
   "User not exist": "User does not exist",
@@ -722,7 +747,6 @@ const Map<String, String> enUs = {
   "Select Time": "Select Time",
   "Select Start date": "Select Start Date",
   "Select Start time": "Select Start Time",
-  "Select time": "Select Time",
   "Subscribe to our news letter to get latest Update":
       "Subscribe to our newsletter to get the latest updates",
   "/day": "/day",
@@ -1006,4 +1030,23 @@ const Map<String, String> enUs = {
   "IBAN Name is Empty": "IBAN is empty",
   "Type": "Type",
   "Reservation code": "Reservation Code",
+  "Highest Ranked": "Highest Ranked",
+  "Cheapest Price": "Cheapest Price",
+  "Nearest Location": "Nearest Location",
+  "It is forbidden to lend, rent, or sublease the car to a third party.":
+      "It is forbidden to lend, rent, or sublease the car to a third party.",
+  "The vehicle must be returned with the same fuel level as at pickup.":
+      "The vehicle must be returned with the same fuel level as at pickup.",
+  "Smoking and eating inside the car are not allowed.":
+      "Smoking and eating inside the car are not allowed.",
+  "The vehicle must be returned on the agreed date, time, and location.":
+      "The vehicle must be returned on the agreed date, time, and location.",
+  "15% deduction will apply if canceled at least 48 hours before the rental start time":
+      "15% deduction will apply if canceled at least 48 hours before the rental start time",
+  "80% deduction will apply if canceled within 12 hours of the rental start time.":
+      "80% deduction will apply if canceled within 12 hours of the rental start time.",
+  "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
+      "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.",
+  "First driver license": "First driver license",
+  "Second driver license": "Second driver license"
 };

@@ -1,0 +1,85 @@
+I/flutter (17681): Read lanValue from storage: null (type: Null)
+I/flutter (17681): Locale list length: 4
+I/flutter (17681): Selected locale: en_US
+I/flutter (17681): Get.locale set to: en_US
+I/flutter (17681): GetMaterialApp will use locale: en_US
+I/flutter (17681): _MyApp: Reading locale from storage, lanValue: null
+I/flutter (17681): _MyApp: Locale list length: 4
+I/flutter (17681): _MyApp: No valid locale in storage, using initial: en_US
+I/flutter (17681): _MyApp build: Using locale en_US
+I/flutter (17681): _MyApp build: Get.locale is en_US
+I/flutter (17681): buildMobileApp called with locale: en_US
+I/flutter (17681): Get.locale before buildMobileApp: en_US
+I/flutter (17681): Get.locale after sync: en_US
+I/flutter (17681): Locale key format: en_US
+I/flutter (17681): Will use locale: en_US
+I/flutter (17681): Available translation keys: (en_US, ar_AR, es_ES, fr_FR)
+I/flutter (17681): Current locale key format: en_US
+I/flutter (17681): Test translation "User not exist": User not exist
+I/flutter (17681): Get.locale: en_US
+I/flutter (17681): Get.locale?.languageCode: en
+I/flutter (17681): Get.locale?.countryCode: US
+I/flutter (17681): PostFrame: GetX locale updated to: en_US
+I/flutter (17681): PostFrame: Get.locale languageCode: en
+I/flutter (17681): PostFrame: Get.locale countryCode: US
+I/flutter (17681): _MyApp: Reading locale from storage, lanValue: null
+I/flutter (17681): _MyApp: Locale list length: 4
+I/flutter (17681): _MyApp: No valid locale in storage, using initial: en_US
+I/flutter (17681): _MyApp build: Using locale en_US
+I/flutter (17681): _MyApp build: Get.locale is en_US
+I/flutter (17681): buildMobileApp called with locale: en_US
+I/flutter (17681): Get.locale before buildMobileApp: en_US
+I/flutter (17681): Get.locale after sync: en_US
+I/flutter (17681): Locale key format: en_US
+I/flutter (17681): Will use locale: en_US
+I/flutter (17681): Available translation keys: (en_US, ar_AR, es_ES, fr_FR)
+I/flutter (17681): Current locale key format: en_US
+I/flutter (17681): Test translation "User not exist": User does not exist
+I/flutter (17681): Get.locale: en_US
+I/flutter (17681): Get.locale?.languageCode: en
+I/flutter (17681): Get.locale?.countryCode: US
+E/flutter (17681): #6      GetNavigation.updateLocale (package:get/get_navigation/src/extension_navigation.dart:1038:11)
+I/flutter (17681): Locale list length: 4
+I/flutter (17681): Locale name: Arabic
+I/flutter (17681): Selected locale: ar_AR
+I/flutter (17681): Saving lanValue: 3
+I/flutter (17681): Verified saved lanValue: 3 (should be 3)
+I/flutter (17681): Updating GetX locale...
+I/flutter (17681): GetX locale updated to: ar_AR
+I/flutter (17681):   - lanValue in storage: 3
+I/flutter (17681):   - Get.locale: ar_AR
+I/flutter (17681): _MyApp: Reading locale from storage, lanValue: 3
+I/flutter (17681): _MyApp: Locale list length: 4
+I/flutter (17681): _MyApp: Found locale in storage: ar_AR (index: 3)
+I/flutter (17681): _MyApp: Locale name: Arabic
+I/flutter (17681): _MyApp build: Using locale ar_AR
+I/flutter (17681): _MyApp build: Get.locale is ar_AR
+I/flutter (17681): buildMobileApp called with locale: ar_AR
+I/flutter (17681): Get.locale before buildMobileApp: ar_AR
+I/flutter (17681): Get.locale after sync: ar_AR
+I/flutter (17681): Locale key format: ar_AR
+I/flutter (17681): Will use locale: ar_AR
+I/flutter (17681): Available translation keys: (en_US, ar_AR, es_ES, fr_FR)
+I/flutter (17681): Current locale key format: ar_AR
+I/flutter (17681): Test translation "User not exist": Ïº+ä+àÏ¦Ï¬Ï«Ï»+à Ï¦+èÏ¦ +à+êÏ¼+êÏ»
+I/flutter (17681): Get.locale: ar_AR
+I/flutter (17681): Get.locale?.languageCode: ar
+I/flutter (17681): Get.locale?.countryCode: AR
+E/flutter (17681): #6      GetNavigation.updateLocale (package:get/get_navigation/src/extension_navigation.dart:1038:11)
+I/flutter (17681): _MyApp: Reading locale from storage, lanValue: null
+I/flutter (17681): _MyApp: Locale list length: 4
+I/flutter (17681): _MyApp: No valid locale in storage, using initial: en_US
+I/flutter (17681): _MyApp build: Using locale en_US
+I/flutter (17681): _MyApp build: Get.locale is en_US
+I/flutter (17681): buildMobileApp called with locale: en_US
+I/flutter (17681): Get.locale before buildMobileApp: en_US
+I/flutter (17681): Get.locale after sync: en_US
+I/flutter (17681): Locale key format: en_US
+I/flutter (17681): Will use locale: en_US
+I/flutter (17681): Available translation keys: (en_US, ar_AR, es_ES, fr_FR)
+I/flutter (17681): Current locale key format: en_US
+I/flutter (17681): Test translation "User not exist": User does not exist
+I/flutter (17681): Get.locale: en_US
+I/flutter (17681): Get.locale?.languageCode: en
+I/flutter (17681): Get.locale?.countryCode: US
+E/flutter (17681): #6      GetNavigation.updateLocale (package:get/get_navigation/src/extension_navigation.dart:1038:11)

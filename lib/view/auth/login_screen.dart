@@ -17,6 +17,7 @@ import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'dart:io';
 import 'package:carvy/work_space.dart';
+import 'package:carvy/helper/get_data_read.dart';
 
 class LoginScreen extends StatefulWidget implements PreferredSizeWidget {
   const LoginScreen({super.key});
@@ -97,9 +98,53 @@ class _LoginScreenState extends State<LoginScreen> {
                                       borderRadius: BorderRadius.circular(
                                           Dimensions.radiusExtraLarge)),
                                   child: ElevatedButton(
-                                      onPressed: () {
+                                      onPressed: () async {
+                                        // Sauvegarder la langue avant d'effacer
+                                        var savedLanValue =
+                                            getData.read("lanValue");
+                                        var savedLCode = getData.read("lCode");
+
+                                        debugPrint(
+                                            '=== Login Skip: Saving language ===');
+                                        debugPrint(
+                                            'savedLanValue: $savedLanValue');
+                                        debugPrint('savedLCode: $savedLCode');
+
                                         token = "";
                                         GetStorage().erase();
+
+                                        debugPrint(
+                                            'Storage erased, restoring language...');
+
+                                        // Restaurer la langue après l'effacement - CRITIQUE: utiliser await
+                                        if (savedLanValue != null) {
+                                          await getData.write(
+                                              "lanValue", savedLanValue);
+                                          debugPrint(
+                                              'Restored lanValue: ${getData.read("lanValue")}');
+                                        }
+                                        if (savedLCode != null) {
+                                          await getData.write(
+                                              "lCode", savedLCode);
+                                          debugPrint(
+                                              'Restored lCode: ${getData.read("lCode")}');
+                                        }
+
+                                        // Mettre à jour la locale si elle était sauvegardée
+                                        if (savedLanValue != null &&
+                                            savedLanValue is int &&
+                                            savedLanValue >= 0 &&
+                                            savedLanValue < locale.length) {
+                                          Locale savedLocale =
+                                              locale[savedLanValue]['locale']
+                                                  as Locale;
+                                          globallanguage = savedLocale;
+                                          Get.updateLocale(savedLocale);
+                                          localeNotifier.value = savedLocale;
+                                          debugPrint(
+                                              'Restored locale: ${savedLocale.languageCode}_${savedLocale.countryCode}');
+                                        }
+
                                         filterController.clearFilter();
                                         Get.toNamed(WebRoutes.homeMain);
                                         generalController.currentIndex.value =

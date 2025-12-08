@@ -28,6 +28,7 @@ import 'common_widget.dart';
 import 'package:google_places_flutter/google_places_flutter.dart';
 import 'package:google_places_flutter/model/prediction.dart';
 import 'package:carvy/api/config.dart';
+import 'package:carvy/customwidget/search_wizard.dart';
 
 Widget vehicleTypeWidget(
   List<ItemTypes> list,
@@ -1114,7 +1115,7 @@ Widget customDatePickerForFilter(BuildContext context) {
   SearchControllerHome controllerHome = Get.find();
   return GestureDetector(
     onTap: () {
-      searchPlaces(context);
+      openSearchWizard(context);
     },
     child: Container(
         height: 50,
@@ -1696,7 +1697,7 @@ Widget customSearchContainer(
                   child: InkWell(
                     onTap: () {
                       filterController.datePopup.value = false;
-                      searchPlaces(context);
+                      openSearchWizard(context, onSearch: onSearch);
                     },
                     child: Container(
                       decoration: BoxDecoration(

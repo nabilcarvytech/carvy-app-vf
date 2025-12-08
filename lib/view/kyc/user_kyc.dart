@@ -72,10 +72,22 @@ class _UserKycState extends State<UserKyc> {
                 padding: const EdgeInsets.all(15.0),
                 child: ListView(
                   children: [
-                    Text(
-                      "Driver license".tr,
-                      style: heading2Grey1(context)
-                          .copyWith(color: blackColor, fontSize: 15),
+                    Row(
+                      children: [
+                        Text(
+                          "First driver license".tr,
+                          style: heading2Grey1(context)
+                              .copyWith(color: blackColor, fontSize: 15),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          "*",
+                          style: heading2Grey1(context).copyWith(
+                              color: Colors.red,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
                     SizedBox(
                       height: 5,
@@ -155,7 +167,7 @@ class _UserKycState extends State<UserKyc> {
                     SizedBox(
                       height: 15,
                     ),
-                    Text("Other Identity (Optional)".tr,
+                    Text("Second driver license".tr,
                         style: heading2Grey1(context)
                             .copyWith(color: blackColor, fontSize: 15)),
                     SizedBox(

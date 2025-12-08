@@ -22,6 +22,8 @@ import '../helper/http_service.dart';
 import '../model/amenities_model.dart';
 import '../model/make_type_model.dart';
 import '../model/item_type_model.dart';
+import '../model/fuel_type_model.dart';
+import '../model/transmission_model.dart'; // NOUVEAU: Import du modèle Transmission
 import '../view/search/after_search.dart';
 import '../work_space.dart';
 import 'package:uuid/uuid.dart';
@@ -420,6 +422,9 @@ class SearchControllerHome extends GetxController implements GetxService {
   List<dynamic> featuresvalues = [];
   List<dynamic> odometerValues = [];
   List<dynamic> selectedModelYear = [];
+  List<dynamic> selectedFuelTypes = []; // Types de carburant sélectionnés
+  List<dynamic> selectedTransmissions =
+      []; // NOUVEAU: Transmissions sélectionnées
   List<dynamic> fitvalue = [];
   List<dynamic> colorvalue = [];
   List<dynamic> sizevalue = [];
@@ -434,6 +439,9 @@ class SearchControllerHome extends GetxController implements GetxService {
   Odometer? odometerModelVehicle;
   ItemTypeModel? vehicleTypeModel;
   CarMakes? makeTypeModel;
+  FuelTypeModel? fuelTypeModelFilter; // Modèle pour les types de carburant
+  Transmission?
+      transmissionModelFilter; // NOUVEAU: Modèle pour les transmissions
 
   ItemTypeModel? typeAfterSearchModel;
   void disposeFunctionFilter() {
@@ -445,6 +453,8 @@ class SearchControllerHome extends GetxController implements GetxService {
     getAminitiesvehicle();
     getMakeApi();
     getOdometersvehicle();
+    getFuelTypesForFilter();
+    getTransmissionsForFilter(); // NOUVEAU: Charger les transmissions
     update();
   }
 
@@ -486,6 +496,46 @@ class SearchControllerHome extends GetxController implements GetxService {
     }
   }
 
+  // NOUVEAU: Récupérer les types de carburant pour le filtre
+  Future getFuelTypesForFilter() async {
+    isLoadingVehicle.value = true;
+    var fuelTypesCache = GetStorage().read("fuelTypesFilter");
+    if (fuelTypesCache == null) {
+      httpGet(Config.fuelType, {}).then((response) {
+        GetStorage().write("fuelTypesFilter", response);
+        if (response != null) {
+          fuelTypeModelFilter = FuelTypeModel.fromJson(response);
+          isLoadingVehicle.value = false;
+          update();
+        }
+      });
+    } else {
+      fuelTypeModelFilter = FuelTypeModel.fromJson(fuelTypesCache);
+      isLoadingVehicle.value = false;
+      update();
+    }
+  }
+
+  // NOUVEAU: Récupérer les transmissions pour le filtre
+  Future getTransmissionsForFilter() async {
+    isLoadingVehicle.value = true;
+    var transmissionCache = GetStorage().read("transmissionFilter");
+    if (transmissionCache == null) {
+      httpGet(Config.odometermannual, {}).then((response) {
+        GetStorage().write("transmissionFilter", response);
+        if (response != null) {
+          transmissionModelFilter = Transmission.fromJson(response);
+          isLoadingVehicle.value = false;
+          update();
+        }
+      });
+    } else {
+      transmissionModelFilter = Transmission.fromJson(transmissionCache);
+      isLoadingVehicle.value = false;
+      update();
+    }
+  }
+
   Future getMakeApi() async {
     showLoading();
     isLoadingVehiclemake.value = true;
@@ -520,6 +570,8 @@ class SearchControllerHome extends GetxController implements GetxService {
     fitvalue.clear();
     collectionvalue.clear();
     selectedModelYear.clear();
+    selectedFuelTypes.clear();
+    selectedTransmissions.clear(); // NOUVEAU: Nettoyer les transmissions
     odometerValues.clear();
     sizevalue.clear();
     searchFilterList.clear();
@@ -571,19 +623,33 @@ class SearchControllerHome extends GetxController implements GetxService {
   }
 
   Future submitMethod(BuildContext context, [bool? apply]) async {
+    print("📍 submitMethod appelé - apply: $apply");
+    print(
+        "   - homeSearchLocation: '${generalScopeController.homeSearchLocation.value}'");
+    print(
+        "   - textEditingControllerCity: '${generalScopeController.textEditingControllerCity.text}'");
+    print("   - startDate: '${startDate.value}'");
+    print("   - endDates: '${endDates.value}'");
+    print("   - slatsearch: '$slatsearch'");
+    print("   - sLongSearch: '$sLongSearch'");
+
     if (apply != true) {
       if (generalScopeController.textEditingControllerCity.text.isEmpty ||
           generalScopeController.homeSearchLocation.value == "" ||
           generalScopeController.textEditingControllerCity.text == "") {
         generalScopeController.textEditingControllerCity.text = "All Locations";
-        generalScopeController.homeSearchLocation.value == "All Locations";
+        generalScopeController.homeSearchLocation.value =
+            "All Locations"; // BUG FIX: était == au lieu de =
       }
       if (generalScopeController.homeSearchLocation.value == "All Locations") {
+        print("❌ BLOQUÉ: All Locations - Please Select location");
         showErrorToastMessage("Please Select location".tr);
         return;
       }
 
-      if (startDate.value == "" && startDate.value == "") {
+      if (startDate.value == "" || endDates.value == "") {
+        // BUG FIX: était && startDate au lieu de || endDates
+        print("❌ BLOQUÉ: Dates vides - Please Select Dates");
         showErrorToastMessage("Please Select Dates".tr);
         return;
       }
@@ -659,6 +725,26 @@ class SearchControllerHome extends GetxController implements GetxService {
 
   var isLoadingAfterSearchtype = false.obs;
 
+  // Helper function pour normaliser les valeurs de transmission
+  // Convertit "manuelle", "Manual", "automatique", etc. vers "manual" ou "automatic"
+  String _normalizeTransmission(String transmission) {
+    String normalized = transmission.toLowerCase().trim();
+
+    // Mapping des valeurs possibles vers le format backend
+    if (normalized.contains('manual') ||
+        normalized.contains('manuelle') ||
+        normalized == 'm') {
+      return 'manual';
+    } else if (normalized.contains('automatic') ||
+        normalized.contains('automatique') ||
+        normalized == 'a') {
+      return 'automatic';
+    }
+
+    // Si aucune correspondance, retourner en minuscule
+    return normalized;
+  }
+
   Future<Map<String, dynamic>> searchItems(
     String title,
     String itemsType,
@@ -711,15 +797,36 @@ class SearchControllerHome extends GetxController implements GetxService {
           desildetoSendparametersBasedOnPage.value == true ? "1" : "0",
       "sort": selectredeShortByvalue.value == "Nearest Location"
           ? "nearest_location"
-          : selectredeShortByvalue.value == "Most Viewed"
-              ? "most_viewed"
+          : selectredeShortByvalue.value == "Highest Ranked"
+              ? "highest_rated"
               : "cheapest_price",
       "meta": meta,
       "odometer": odometerValues.toString(),
       "start_time": startTimeForBackend,
       "end_time": endTimeForBackend,
       "modelYear": selectedModelYear.toString(),
+      // Envoyer fuel_type comme array de numbers [1,2,3]
+      "fuel_type":
+          selectedFuelTypes.isNotEmpty ? selectedFuelTypes.toList() : [],
+      // Envoyer transmission comme array de strings ["manual","automatic"]
+      // Normaliser les valeurs pour correspondre au format backend
+      "transmission": selectedTransmissions.isNotEmpty
+          ? selectedTransmissions
+              .map((t) => _normalizeTransmission(t.toString()))
+              .toList()
+          : [],
     };
+
+    // DEBUG: Afficher les valeurs des filtres
+    print("🔍 DEBUG FILTRES:");
+    print("   - slatsearch: '$slatsearch'");
+    print("   - sLongSearch: '$sLongSearch'");
+    print("   - setCity: '$setCity'");
+    print("   - fuel_type: ${selectedFuelTypes.toList()}");
+    print("   - transmission (raw): ${selectedTransmissions.toList()}");
+    print(
+        "   - transmission (normalized): ${selectedTransmissions.isNotEmpty ? selectedTransmissions.map((t) => _normalizeTransmission(t.toString())).toList() : []}");
+    print("   - Map envoyée: $map");
 
     return await httpPost(Config.itemSearch, map);
   }
@@ -737,6 +844,8 @@ class SearchControllerHome extends GetxController implements GetxService {
       centralLat = "";
       featuresvalues.clear();
       selectedModelYear.clear();
+      selectedFuelTypes.clear();
+      selectedTransmissions.clear(); // NOUVEAU: Nettoyer les transmissions
       odometerValues.clear();
       centralLng = "";
       Map<String, dynamic> search = recentSearches[index];
@@ -793,6 +902,7 @@ class SearchControllerHome extends GetxController implements GetxService {
   void datanotFoundUi() {
     dataNotFound = "Vehicle Not Available".tr;
   }
+
   routeBasedOnmoduleId(BuildContext context, VoidCallback onRefresh) async {
     showPopUpScreen(
         context,

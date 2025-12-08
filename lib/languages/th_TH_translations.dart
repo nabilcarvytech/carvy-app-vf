@@ -17,6 +17,8 @@ const Map<String, String> thTH = {
   "Confirm and Pay": "ยืนยันและชำระเงิน",
   "Setting": "การตั้งค่า",
   "Popular locations": "สถานที่ยอดนิยม",
+  "Popular Regions": "ภูมิภาคยอดนิยม",
+  "See More": "ดูเพิ่มเติม",
   "See All": "ดูทั้งหมด",
   "Our Recommendation": "คำแนะนำของเรา",
   "Most viewed": "ที่มียอดวิวมากที่สุด",
@@ -136,6 +138,23 @@ const Map<String, String> thTH = {
   "Message": "ข้อความ",
   "Show Less": "แสดงน้อยลง",
   "Show More": "แสดงเพิ่มเติม",
+  "Search brand...": "ค้นหาแบรนด์...",
+  "selected": "เลือกแล้ว",
+  "No brands found": "ไม่พบแบรนด์",
+  "See all": "ดูทั้งหมด",
+  "brands": "แบรนด์",
+  "Select brands": "เลือกแบรนด์",
+  "Validate": "ยืนยัน",
+  "Clear": "ล้าง",
+  "Date": "วันที่",
+  "Time": "เวลา",
+  "Where do you want to go?": "คุณต้องการไปที่ไหน?",
+  "No locations found": "ไม่พบสถานที่",
+  "Select dates": "เลือกวันที่",
+  "Select time": "เลือกเวลา",
+  "Pick-up time": "เวลารับรถ",
+  "Drop-off time": "เวลาคืนรถ",
+  "Minimum rental: 1 hour": "เช่าขั้นต่ำ: 1 ชั่วโมง",
   "clear": "ล้าง",
   "Something Went Wrong": "เกิดข้อผิดพลาด",
   "Select Date": "เลือกวันที่",
@@ -213,6 +232,11 @@ const Map<String, String> thTH = {
   "Year": "ปี",
   "Transmission": "ระบบเกียร์",
   "Odometer": "เลขไมล์",
+  "Seats": "ที่นั่ง",
+  "Plate Number": "หมายเลขทะเบียน",
+  "Minimum Rental Days": "วันเช่าขั้นต่ำ",
+  "Minimum Age": "อายุขั้นต่ำ",
+  "Insurance Coverage": "ความคุ้มครองประกัน",
   "About the car": "เกี่ยวกับรถ",
   "Car features": "คุณสมบัติของรถ",
   "You will be here": "คุณจะอยู่ที่นี่",
@@ -443,7 +467,6 @@ const Map<String, String> thTH = {
   "Select an option": "เลือกตัวเลือก",
   "Booked": "จองแล้ว",
   "Not available": "ไม่พร้อมใช้งาน",
-  "selected": "เลือกแล้ว",
   "Past Dates": "วันที่ผ่านมา",
   "Edit": "แก้ไข",
   "List is empty": "รายการว่างเปล่า",
@@ -651,7 +674,6 @@ const Map<String, String> thTH = {
   "Your Current Balance": "ยอดคงเหลือปัจจุบันของคุณ",
   "debit": "เดบิต",
   "Filter": "ตัวกรอง",
-  "Clear": "ล้าง",
   "Filters": "ตัวกรอง",
   "Where": "ที่ไหน",
   "Price range": "ช่วงราคา",
@@ -714,7 +736,6 @@ const Map<String, String> thTH = {
   "Select Time": "เลือกเวลา",
   "Select Start date": "เลือกวันที่เริ่มต้น",
   "Select Start time": "เลือกเวลาเริ่มต้น",
-  "Select time": "เลือกเวลา",
   "Subscribe to our news letter to get latest Update":
       "สมัครรับจดหมายข่าวของเราเพื่อรับการอัปเดตล่าสุด",
   "/day": "/วัน",
@@ -1041,7 +1062,6 @@ const Map<String, String> thTH = {
   "Please Select Dates": "กรุณาเลือกวันที่",
   "Location not found": "ไม่พบสถานที่",
   "See Less": "ดูน้อยลง",
-  "See More": "ดูเพิ่มเติม",
   "When": "เมื่อไหร่",
   "Data not found!": "ไม่พบข้อมูล!",
   "Please Select the dates": "กรุณาเลือกวันที่",
@@ -1062,12 +1082,11 @@ const Map<String, String> thTH = {
       "จากสกู๊ตเตอร์ถึง SUV ค้นหายานพาหนะที่สมบูรณ์แบบสำหรับทุกโอกาส การจองที่รวดเร็ว การขับขี่ที่ราบรื่น ตัวเลือกที่ยืดหยุ่น",
   "Drive or Earn with": "ขับหรือหาเงินด้วย",
   "Tap here": "แตะที่นี่",
-  "Popular Regions": "ภูมิภาคยอดนิยม",
   "Select your dates": "เลือกวันที่ของคุณ",
   "Selected Date Range": "ช่วงวันที่ที่เลือก",
   "Tap to select dates": "แตะเพื่อเลือกวันที่",
   "By": "โดย",
-  "Seats Tap to view": "ที่นั่ง แตะเพื่อดู",
+  "SeatsTap to view": "ที่นั่งแตะเพื่อดู",
   "Vehicle Rules": "กฎการใช้ยานพาหนะ",
   "Something went wrong. Please try again.":
       "มีบางอย่างผิดพลาด กรุณาลองอีกครั้ง",
@@ -1080,6 +1099,8 @@ const Map<String, String> thTH = {
   "Please fill your KYC Form.": "กรุณากรอกแบบฟอร์ม KYC ของคุณ",
   "KYC": "KYC",
   "Driver license": "ใบขับขี่",
+  "First driver license": "ใบขับขี่ของผู้ขับขี่คนแรก",
+  "Second driver license": "ใบขับขี่ของผู้ขับขี่คนที่สอง",
   "Primary reference mob no": "หมายเลขโทรศัพท์อ้างอิงหลัก",
   "Other Identity (Optional)": "เอกสารระบุตัวตนอื่น (ไม่บังคับ)",
   "Secondary reference mob no (Optional)":
@@ -1094,8 +1115,8 @@ const Map<String, String> thTH = {
   "Please add Primary Reference MoB No": "กรุณาเพิ่มหมายเลขโทรศัพท์อ้างอิงหลัก",
   "Under Review": "กำลังตรวจสอบ",
   "Booking Overlap Detected": "ตรวจพบบุ๊กกิ้งซ้อนกัน",
-  "The selected time slots are booked. Please choose another time. The next available slot is shown below. Reciept":
-      "ช่วงเวลาที่เลือกถูกจองแล้ว กรุณาเลือกเวลาอื่น ช่วงเวลาถัดไปที่ว่างจะแสดงด้านล่าง ใบเสร็จ",
+  "The selected time slots are booked. Please choose another time. The next available slot is shown below.Reciept":
+      "ช่วงเวลาที่เลือกถูกจองแล้ว กรุณาเลือกเวลาอื่น ช่วงเวลาถัดไปที่ว่างจะแสดงด้านล่างใบเสร็จ",
   "No messages yet": "ยังไม่มีข้อความ",
   "Your conversations will appear here": "การสนทนาของคุณจะแสดงที่นี่",
   "Recharge": "เติมเงิน",
@@ -1124,8 +1145,8 @@ const Map<String, String> thTH = {
   "Payment Method\"": "วิธีการชำระเงิน",
   "Do you want to deliver this vehicle?": "คุณต้องการส่งมอบยานพาหนะนี้หรือไม่?",
   "Vehicle Delivery Confirmation": "การยืนยันการส่งมอบยานพาหนะ",
-  "Before proceeding with the vehicle delivery, you are required to sign the booking’s Terms & Conditions.\n\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:\nVehicle usage Condition of the vehicle Vehicle usage\nResponsibilities and liabilities Signing the Terms & Conditions helps establish a clear agreement, ensuring a smooth and fair transaction. Cancel":
-      "ก่อนดำเนินการส่งมอบยานพาหนะ คุณจำเป็นต้องเซ็นข้อกำหนดและเงื่อนไขการจอง\n\nขั้นตอนนี้ช่วยสร้างความโปร่งใสระหว่างผู้ขายและลูกค้า ปกป้องทั้งสองฝ่ายจากข้อพิพาทที่เกี่ยวข้องกับ:\nการใช้งานยานพาหนะ สภาพของยานพาหนะ ความรับผิดชอบและข้อผูกพัน การลงนามในข้อกำหนดและเงื่อนไขจะช่วยสร้างข้อตกลงที่ชัดเจน ทำให้การทำธุรกรรมราบรื่นและเป็นธรรม ยกเลิก",
+  "Before proceeding with the vehicle delivery, you are required to sign the booking’s Terms & Conditions.\n\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:\nVehicle usageCondition of the vehicleVehicle usage\nResponsibilities and liabilitiesSigning the Terms & Conditions helps establish a clear agreement, ensuring a smooth and fair transaction.Cancel":
+      "ก่อนดำเนินการส่งมอบยานพาหนะ คุณจำเป็นต้องเซ็นข้อกำหนดและเงื่อนไขการจอง\n\nขั้นตอนนี้ช่วยสร้างความโปร่งใสระหว่างผู้ขายและลูกค้า ปกป้องทั้งสองฝ่ายจากข้อพิพาทที่เกี่ยวข้องกับ:\nการใช้งานยานพาหนะสภาพของยานพาหนะความรับผิดชอบและข้อผูกพันการลงนามในข้อกำหนดและเงื่อนไขจะช่วยสร้างข้อตกลงที่ชัดเจน ทำให้การทำธุรกรรมราบรื่นและเป็นธรรมยกเลิก",
   "Sign T&C": "เซ็นข้อกำหนดและเงื่อนไข",
   "Booking Agreement": "สัญญาการจอง",
   "Please Sign the terms and Conditions": "กรุณาเซ็นข้อกำหนดและเงื่อนไข",
@@ -1171,4 +1192,21 @@ const Map<String, String> thTH = {
   "Are you sure you want to clear this booking section?":
       "คุณแน่ใจหรือไม่ว่าต้องการล้างส่วนการจองนี้?",
   "Clear Booking Section": "ล้างส่วนการจอง",
+  "Highest Ranked": "อันดับสูงสุด",
+  "Cheapest Price": "ราคาถูกที่สุด",
+  "Nearest Location": "สถานที่ใกล้ที่สุด",
+  "It is forbidden to lend, rent, or sublease the car to a third party.":
+      "ห้ามให้ยืม เช่า หรือเช่าช่วงรถยนต์แก่บุคคลที่สาม",
+  "The vehicle must be returned with the same fuel level as at pickup.":
+      "ต้องคืนรถพร้อมระดับน้ำมันเท่ากับตอนรับรถ",
+  "Smoking and eating inside the car are not allowed.":
+      "ห้ามสูบบุหรี่และรับประทานอาหารภายในรถ",
+  "The vehicle must be returned on the agreed date, time, and location.":
+      "ต้องคืนรถตามวันที่ เวลา และสถานที่ที่ตกลงไว้",
+  "15% deduction will apply if canceled at least 48 hours before the rental start time":
+      "จะหัก 15% หากยกเลิกล่วงหน้าอย่างน้อย 48 ชั่วโมงก่อนเวลาเริ่มเช่า",
+  "80% deduction will apply if canceled within 12 hours of the rental start time.":
+      "จะหัก 80% หากยกเลิกภายใน 12 ชั่วโมงก่อนเวลาเริ่มเช่า",
+  "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
+      "จะหัก 50% หากยกเลิกระหว่าง 12 ถึง 24 ชั่วโมงก่อนเวลาเริ่มเช่า"
 };

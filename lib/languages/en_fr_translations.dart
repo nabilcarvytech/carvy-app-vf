@@ -1,5 +1,5 @@
 const Map<String, String> frFR = {
-   "Request to book": "Demande de réservation",
+  "Request to book": "Demande de réservation",
   "/night": "/jour",
   "Your Trip": "Votre voyage",
   "Check-in": "Prise en charge",
@@ -17,6 +17,7 @@ const Map<String, String> frFR = {
   "Confirm and Pay": "Confirmer et payer",
   "Setting": "Paramètres",
   "Popular locations": "Lieux de prise en charge populaires",
+  "Popular Regions": "Régions populaires",
   "See All": "Voir tout",
   "Our Recommendation": "Nos recommandations",
   "Most viewed": "Les plus consultés",
@@ -34,7 +35,6 @@ const Map<String, String> frFR = {
   "Add Review here": "Ajoutez votre avis ici",
   "Maybe Later": "Plus tard",
   "Submit": "Envoyer",
-
   "Create Ticket": "Créer un ticket",
   "Title": "Titre",
   "Description": "Description",
@@ -47,7 +47,6 @@ const Map<String, String> frFR = {
   "Reply": "Répondre",
   "Active": "Actif",
   "Reply Ticket": "Répondre au ticket",
-
   "Change Password": "Changer le mot de passe",
   "Old Password": "Ancien mot de passe",
   "Enter your old password": "Saisissez votre ancien mot de passe",
@@ -56,14 +55,12 @@ const Map<String, String> frFR = {
   "Confirm": "Confirmer",
   "Password did not match": "Les mots de passe ne correspondent pas",
   "Enter your confirm password": "Confirmez votre mot de passe",
-
   "Reset Password": "Réinitialiser le mot de passe",
   "Enter the email address associated with your account,and we'll email you a link to reset your password.":
       "Saisissez l’adresse e-mail associée à votre compte et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
   "Email": "E-mail",
   "Send reset link": "Envoyer le lien de réinitialisation",
   "Please enter valid email": "Veuillez saisir une adresse e-mail valide",
-
   "Update Personal Info": "Mettre à jour les informations personnelles",
   "full Name": "Nom complet",
   "Name can not be empty": "Le nom ne peut pas être vide",
@@ -73,9 +70,9 @@ const Map<String, String> frFR = {
   "Please enter Date of Birth": "Veuillez saisir votre date de naissance",
   "Update": "Mettre à jour",
   "Skip": "Ignorer",
-
   "Let's sign you in.": "Connectez-vous.",
-  "Welcome back. You've been missed!": "Heureux de vous revoir, vous nous avez manqué !",
+  "Welcome back. You've been missed!":
+      "Heureux de vous revoir, vous nous avez manqué !",
   "Password": "Mot de passe",
   "Enter your password": "Saisissez votre mot de passe",
   "Forget Password?": "Mot de passe oublié ?",
@@ -83,15 +80,12 @@ const Map<String, String> frFR = {
   "or continue with": "ou continuer avec",
   "Don't have an account?": "Vous n’avez pas de compte ?",
   "Sign Up": "Créer un compte",
-
   "Verification Code": "Code de vérification",
   "Didn't receive code?": "Vous n’avez pas reçu le code ?",
   "Resend New Code": "Renvoyer un nouveau code",
   "Verify": "Vérifier",
-
   "Change Phone Number": "Changer le numéro de téléphone",
   "Phone Number": "Numéro de téléphone",
-
   "Get Started!": "Commencer !",
   "Create an account to continue.": "Créez un compte pour continuer.",
   "Full Name": "Nom complet",
@@ -103,7 +97,6 @@ const Map<String, String> frFR = {
   "Terms and Condition": "Conditions générales",
   "Continue": "Continuer",
   "Already have an account?": "Vous avez déjà un compte ?",
-
   "Update Profile": "Mettre à jour le profil",
   "Booking Summary": "Récapitulatif de la réservation",
   "Your booking": "Votre réservation",
@@ -121,16 +114,13 @@ const Map<String, String> frFR = {
   "End date": "Date de fin",
   "Start time": "Heure de début",
   "End time": "Heure de fin",
-
   "About the space": "À propos du véhicule",
   "who's allowed in your space?": "Qui est autorisé à conduire ?",
   "Operating Hours": "Heures d’ouverture",
   "Very Flexible": "Très flexible",
   "Avilability": "Disponibilité",
   "Check": "Vérifier",
-
-  "Explore the World by Trevelling carvy":
-      "Découvrez le Maroc avec Carvy",
+  "Explore the World by Trevelling carvy": "Découvrez le Maroc avec Carvy",
   "Where do you go?": "Recherchez des véhicules par lieu.",
   "No data found": "Aucune donnée trouvée",
   "Recommended Properties": "Véhicules recommandés",
@@ -140,7 +130,6 @@ const Map<String, String> frFR = {
   "About the place": "À propos de l’annonce",
   "Property Features": "Caractéristiques du véhicule",
   "Read more": "En savoir plus",
-
   "You Will be here": "Lieu de prise en charge",
   "Map is not available": "Carte non disponible",
   "House Rules": "Règles de location",
@@ -150,8 +139,25 @@ const Map<String, String> frFR = {
   "Message": "Message",
   "Show Less": "Afficher moins",
   "Show More": "Afficher plus",
+  "Search brand...": "Rechercher une marque...",
+  "selected": "sélectionnée(s)",
+  "No brands found": "Aucune marque trouvée",
+  "See all": "Voir toutes les",
+  "brands": "marques",
+  "Select brands": "Sélectionner les marques",
+  "Validate": "Valider",
+  "Clear": "Effacer",
+  "Date": "Date",
+  "Time": "Heure",
+  "Where do you want to go?": "Où voulez-vous aller ?",
+  "No locations found": "Aucun emplacement trouvé",
+  "Select dates": "Sélectionner les dates",
+  "Select time": "Sélectionner l'heure",
+  "Pick-up time": "Heure de prise en charge",
+  "Drop-off time": "Heure de retour",
+  "Minimum rental: 1 hour": "Location minimum : 1 heure",
   "clear": "Effacer",
-   "Something Went Wrong": "Une erreur s’est produite",
+  "Something Went Wrong": "Une erreur s’est produite",
   "Select Date": "Sélectionner une date",
   "Check in": "Prise en charge",
   "Check out": "Retour",
@@ -159,9 +165,11 @@ const Map<String, String> frFR = {
   "Allowed Max": "Nombre maximal autorisé",
   "Note to Owner (optional)": "Note à l’agence (optionnelle)",
   "Select date to continue": "Sélectionnez une date pour continuer",
-  "Select Start  time to continue": "Sélectionnez l’heure de début pour continuer",
+  "Select Start  time to continue":
+      "Sélectionnez l’heure de début pour continuer",
   "Select  End time to continue": "Sélectionnez l’heure de fin pour continuer",
-  "End time must be after Start time": "L’heure de fin doit être postérieure à l’heure de début",
+  "End time must be after Start time":
+      "L’heure de fin doit être postérieure à l’heure de début",
   "Review Summary": "Résumé des avis",
   "beds": "sièges",
   " / night": " / jour",
@@ -178,7 +186,8 @@ const Map<String, String> frFR = {
   "Pay now": "Payer maintenant",
   "Property type:": "Type de véhicule : ",
   "Person Allow": "Passagers autorisés",
-  "Do you want to cancel this booking?": "Souhaitez-vous annuler cette réservation ?",
+  "Do you want to cancel this booking?":
+      "Souhaitez-vous annuler cette réservation ?",
   "booking id": "ID de réservation",
   "cancellation reason": "Raison de l’annulation",
   "Owner": "Agence",
@@ -187,7 +196,8 @@ const Map<String, String> frFR = {
   "E Receipt": "Reçu électronique",
   "Review by you": "Votre avis",
   "You Are not Logged in": "Vous n’êtes pas connecté",
-  "Login to access all functionality": "Connectez-vous pour accéder à toutes les fonctionnalités",
+  "Login to access all functionality":
+      "Connectez-vous pour accéder à toutes les fonctionnalités",
   "Do you want to exit?": "Souhaitez-vous quitter ?",
   "You are not Login yet": "Vous n’êtes pas encore connecté",
   "Use menu Button to Change Booking type":
@@ -227,6 +237,11 @@ const Map<String, String> frFR = {
   "Year": "Année",
   "Transmission": "Transmission",
   "Odometer": "Kilométrage",
+  "Seats": "Places",
+  "Plate Number": "Numéro de plaque",
+  "Minimum Rental Days": "Jours de location minimum",
+  "Minimum Age": "Âge minimum",
+  "Insurance Coverage": "Couverture d'assurance",
   "About the car": "À propos du véhicule",
   "Car features": "Caractéristiques du véhicule",
   "You will be here": "Lieu de prise en charge",
@@ -285,7 +300,7 @@ const Map<String, String> frFR = {
   "Start Time": "Heure de début",
   "End Time": "Heure de fin",
   "from Success": "depuis Succès",
-    "Payment Successful": "Paiement réussi",
+  "Payment Successful": "Paiement réussi",
   "Payment Failed": "Échec du paiement",
   "You will redirected automatically in":
       "Vous serez redirigé automatiquement dans",
@@ -348,14 +363,13 @@ const Map<String, String> frFR = {
   "Enter Description": "Saisir la description",
   "Next": "Suivant",
   "Back": "Retour",
-   "Do you offer any stand out \namenities?":
+  "Do you offer any stand out \namenities?":
       "Proposez-vous des équipements exceptionnels ?",
   "what will be expected price": "Quel sera le prix attendu ?",
   "Per/day Price": "Prix par jour (MAD)",
   "Enter price": "Saisir le prix",
   " DONE ": " TERMINÉ ",
-  "What kind of Boat are you \nlistings":
-      "Quel type de bateau proposez-vous ?",
+  "What kind of Boat are you \nlistings": "Quel type de bateau proposez-vous ?",
   "Choose Boat type": "Choisissez le type de bateau",
   "Cabins": "Cabines",
   "Enter Your Cabin": "Saisir le nombre de cabines",
@@ -373,7 +387,8 @@ const Map<String, String> frFR = {
   "What kind of Boat are you listings?": "Quel type de bateau proposez-vous ?",
   "What will be expected price": "Quel sera le prix attendu ?",
   "Where's your place located?": "Où se trouve votre bateau ?",
-  "What features does your Boat offer?": "Quelles sont les caractéristiques de votre bateau ?",
+  "What features does your Boat offer?":
+      "Quelles sont les caractéristiques de votre bateau ?",
   "Rules and Policies": "Règles et politiques",
   "Boat type": "Type de bateau",
   "Boat Features:": "Caractéristiques du bateau :",
@@ -432,7 +447,8 @@ const Map<String, String> frFR = {
   "Parking Extrance": "Entrée du parking",
   "Enter Parking extrance": "Saisir l’entrée du parking",
   "Price/Time interval": "Prix / Intervalle de temps (MAD)",
-  "Additional Price/Time interval": "Prix supplémentaire / Intervalle de temps (MAD)",
+  "Additional Price/Time interval":
+      "Prix supplémentaire / Intervalle de temps (MAD)",
   "Enter additional price ": "Saisir le prix supplémentaire",
   "Price per Day": "Prix par jour (MAD)",
   "Enter price per day": "Saisir le prix par jour",
@@ -460,12 +476,10 @@ const Map<String, String> frFR = {
   "Select an option": "Sélectionner une option",
   "Booked": "Réservé",
   "Not available": "Non disponible",
-  "selected": "sélectionné",
   "Past Dates": "Dates passées",
   "Edit": "Modifier",
   "List is empty": "La liste est vide",
-  "What kind of place are you \nlistings?":
-      "Quel type de lieu proposez-vous ?",
+  "What kind of place are you \nlistings?": "Quel type de lieu proposez-vous ?",
   "What kind of place do you host?": "Quel type de lieu accueillez-vous ?",
   "Choose Property type": "Choisir le type de bien",
   "Total Rooms": "Nombre total de pièces",
@@ -514,7 +528,7 @@ const Map<String, String> frFR = {
   "Working Hours": "Heures d’ouverture",
   "The Price field must not be empty": "Le champ prix ne doit pas être vide",
   "Amenities": "Équipements",
-    "Space Policies": "Politiques de l’espace",
+  "Space Policies": "Politiques de l’espace",
   "Add Space Detail ": "Ajouter les détails de l’espace ",
   "Do you offer any standout amenities?":
       "Proposez-vous des équipements exceptionnels ?",
@@ -641,13 +655,14 @@ const Map<String, String> frFR = {
   "Tickets": "Tickets",
   "Give us feedback": "Donnez-nous votre avis",
   "Logout": "Déconnexion",
-  "Are you sure You Want to Logout? ": "Êtes-vous sûr de vouloir vous déconnecter ?",
+  "Are you sure You Want to Logout? ":
+      "Êtes-vous sûr de vouloir vous déconnecter ?",
   "Version 1.0": "Version 1.0",
   "Edit Profile Info": "Modifier les informations du profil",
   "First Name": "Prénom",
   "Mobile Phone": "Téléphone mobile",
   "Date of birth": "Date de naissance",
-   "Language": "Langue",
+  "Language": "Langue",
   "Live Country": "Pays de résidence",
   "Select Country": "Sélectionner un pays",
   "Background Image": "Image d’arrière-plan",
@@ -670,7 +685,6 @@ const Map<String, String> frFR = {
   "Your Current Balance": "Votre solde actuel (MAD)",
   "debit": "Débit",
   "Filter": "Filtrer",
-  "Clear": "Effacer",
   "Filters": "Filtres",
   "Where": "Où",
   "Price range": "Plage de prix (MAD)",
@@ -685,6 +699,10 @@ const Map<String, String> frFR = {
   "Car Features": "Caractéristiques de la voiture",
   "Search location": "Rechercher un lieu",
   "Welcome to carvy": "Bienvenue sur Carvy",
+  "Welcome to Carvy": "Bienvenue sur Carvy",
+  "Book cars and bikes easily for any journey. Quick rides or long trips, we've got you covered": "Réservez facilement des voitures et des motos pour tous vos trajets. Trajets rapides ou longs voyages, nous sommes là pour vous.",
+  "Find Your Car and Bike Today": "Trouvez votre voiture et votre moto aujourd'hui",
+  "Effortlessly rent cars and bikes for any trip. Choose from a variety of vehicles for your journey.": "Louez sans effort des voitures et des motos pour tous vos trajets. Choisissez parmi une variété de véhicules pour votre voyage.",
   "Wishlist": "Liste de souhaits",
   "Please add": "Veuillez ajouter",
   "carvy Boat Booking: Explore the Waters":
@@ -693,8 +711,7 @@ const Map<String, String> frFR = {
       "Bookable : Réservez facilement tout produit sur Carvy",
   "carvy: Convenient Parking Reservations":
       "Carvy : Réservation de parkings simplifiée",
-  "Explore the World by Travelling carvy":
-      "Explorez le Maroc avec Carvy",
+  "Explore the World by Travelling carvy": "Explorez le Maroc avec Carvy",
   "Space Booking: Reserve Your Meeting Rooms and More":
       "Réservation d’espaces : réservez vos salles et plus encore",
   "carvy: Easy and Convenient Vehicle Booking Services":
@@ -715,7 +732,8 @@ const Map<String, String> frFR = {
   "Trips": "Voyages",
   "Explorer": "Explorer",
   "Login Alert!": "Alerte de connexion !",
-  "You are not Login yet Please Login": "Vous n’êtes pas encore connecté. Veuillez vous connecter.",
+  "You are not Login yet Please Login":
+      "Vous n’êtes pas encore connecté. Veuillez vous connecter.",
   "Enter Your Number": "Saisissez votre numéro",
   "Please enter valid Password": "Veuillez saisir un mot de passe valide",
   "Password must have:": "Le mot de passe doit contenir :",
@@ -725,16 +743,17 @@ const Map<String, String> frFR = {
   "At least 1 special character": "Au moins 1 caractère spécial",
   "Minimum 8 characters": "Au minimum 8 caractères",
   "The property name field is required": "Le champ nom du bien est obligatoire",
-  "The Area field must be a valid number": "Le champ superficie doit être un nombre valide",
+  "The Area field must be a valid number":
+      "Le champ superficie doit être un nombre valide",
   "The description field is required": "Le champ description est obligatoire",
-  "Do you want to Delete your Account?": "Souhaitez-vous supprimer votre compte ?",
+  "Do you want to Delete your Account?":
+      "Souhaitez-vous supprimer votre compte ?",
   "User not exist": "L’utilisateur n’existe pas",
   "Do you want to Sign Up": "Souhaitez-vous vous inscrire ?",
   "Map": "Carte",
   "Select Time": "Sélectionner une heure",
   "Select Start date": "Sélectionner la date de début",
   "Select Start time": "Sélectionner l’heure de début",
-  "Select time": "Sélectionner l’heure",
   "Subscribe to our news letter to get latest Update":
       "Abonnez-vous à notre newsletter pour recevoir les dernières mises à jour",
   "/day": "/jour",
@@ -765,7 +784,8 @@ const Map<String, String> frFR = {
   "4 Wheel": "4 roues",
   "Truck": "Camion",
   "All": "Tous",
-  "Booking not available at this date": "Réservation non disponible à cette date",
+  "Booking not available at this date":
+      "Réservation non disponible à cette date",
   "Please connect to admin": "Veuillez contacter l’administrateur",
   "carvy": "Carvy",
   "Reload": "Recharger",
@@ -808,7 +828,7 @@ const Map<String, String> frFR = {
   "Space Not Available": "Espace non disponible",
   " /days": " /jour",
   " /hour": " /heure",
-    "Exit": "Quitter",
+  "Exit": "Quitter",
   "Profile updated successfully": "Profil mis à jour avec succès",
   "images": "Images",
   "coupon code": "Code promo",
@@ -896,7 +916,8 @@ const Map<String, String> frFR = {
   "Summer Sell": "Vente d’été",
   "Up to 45% Off": "Jusqu’à 45 % de réduction",
   "Best Seller": "Meilleure vente",
-  "Easy and convenient way of car": "Une manière simple et pratique de louer une voiture",
+  "Easy and convenient way of car":
+      "Une manière simple et pratique de louer une voiture",
   "Booking in": "Réservation à",
   "Space Near You": "Espaces près de vous",
   "End Date": "Date de fin",
@@ -923,7 +944,8 @@ const Map<String, String> frFR = {
   "Edit Parking Detail": "Modifier les détails du parking",
   "back": "Retour",
   "Service Type": "Type de service",
-  "Beds, bathrooms, amenities and more": "Lits, salles de bain, équipements et plus",
+  "Beds, bathrooms, amenities and more":
+      "Lits, salles de bain, équipements et plus",
   "What kind of Vehicle are you listings?":
       "Quel type de véhicule proposez-vous ?",
   "What features does your vehicle offer?":
@@ -947,7 +969,8 @@ const Map<String, String> frFR = {
   "Go Back": "Retour",
   "Try again": "Réessayer",
   "View": "Voir",
-  "Tap on map to change the location": "Appuyez sur la carte pour changer l’emplacement",
+  "Tap on map to change the location":
+      "Appuyez sur la carte pour changer l’emplacement",
   "Service type": "Type de service",
   "Selected": "Sélectionné",
   "Please select a reason": "Veuillez sélectionner une raison",
@@ -980,15 +1003,19 @@ const Map<String, String> frFR = {
       "Accès à la galerie refusé. Veuillez aller dans les paramètres et autoriser l’accès à la galerie.",
   "Camera permission denied. Please go to settings and allow the Camera.":
       "Accès à la caméra refusé. Veuillez aller dans les paramètres et autoriser l’accès à la caméra.",
-  "By submitting the form, you agree": "En soumettant le formulaire, vous acceptez",
-  "Please select Nationality/Residency": "Veuillez sélectionner la nationalité/résidence",
+  "By submitting the form, you agree":
+      "En soumettant le formulaire, vous acceptez",
+  "Please select Nationality/Residency":
+      "Veuillez sélectionner la nationalité/résidence",
   "Please Enter the full address": "Veuillez saisir l’adresse complète",
   "Please Add the Images": "Veuillez ajouter les images",
   "Send Request": "Envoyer la demande",
   "Terms of Service for Users & Privacy Policy":
       "Conditions d’utilisation et politique de confidentialité",
-  "Terms of Service & Privacy Policy": "Conditions d’utilisation et politique de confidentialité",
-  "Terms of Service for Vehicle Owner": "Conditions d’utilisation pour les propriétaires de véhicules",
+  "Terms of Service & Privacy Policy":
+      "Conditions d’utilisation et politique de confidentialité",
+  "Terms of Service for Vehicle Owner":
+      "Conditions d’utilisation pour les propriétaires de véhicules",
   "MotorBike": "Moto",
   "Become a Lend": "Devenir prêteur",
   "Around Current Location": "Autour de votre position actuelle",
@@ -1024,36 +1051,51 @@ const Map<String, String> frFR = {
   "Add Address Details": "Ajouter les détails de l'adresse",
   "No Ongoing Booking Available": "Aucune réservation en cours disponible",
   "Popular Region": "Région populaire",
-  "Lead your vehicle to make some extra cash": "Prêtez votre véhicule pour gagner un peu d'argent supplémentaire",
+  "Lead your vehicle to make some extra cash":
+      "Prêtez votre véhicule pour gagner un peu d'argent supplémentaire",
   "Ongoing": "En cours",
-  "Please Complete the Verification process": "Veuillez compléter le processus de vérification",
+  "Please Complete the Verification process":
+      "Veuillez compléter le processus de vérification",
   "Fill valid mobile number": "Entrez un numéro de mobile valide",
-  "Please select Terms and Condition": "Veuillez sélectionner les conditions générales",
+  "Please select Terms and Condition":
+      "Veuillez sélectionner les conditions générales",
   "Please fill the Otp": "Veuillez entrer l'OTP",
   "Error: Null result received": "Erreur : Résultat nul reçu",
-  "Please enable location services to show the nearest vehicles around you..": "Veuillez activer les services de localisation pour afficher les véhicules les plus proches de vous..",
-  "Failed to get current location.": "Impossible d'obtenir l'emplacement actuel.",
-  "Please enter the house number and floor number.": "Veuillez entrer le numéro de la maison et le numéro d'étage.",
-  "Please select the address from the map.": "Veuillez sélectionner l'adresse sur la carte.",
-  "Error: Invalid Google API key. Please check your configuration.": "Erreur : Clé API Google invalide. Veuillez vérifier votre configuration.",
+  "Please enable location services to show the nearest vehicles around you..":
+      "Veuillez activer les services de localisation pour afficher les véhicules les plus proches de vous..",
+  "Failed to get current location.":
+      "Impossible d'obtenir l'emplacement actuel.",
+  "Please enter the house number and floor number.":
+      "Veuillez entrer le numéro de la maison et le numéro d'étage.",
+  "Please select the address from the map.":
+      "Veuillez sélectionner l'adresse sur la carte.",
+  "Error: Invalid Google API key. Please check your configuration.":
+      "Erreur : Clé API Google invalide. Veuillez vérifier votre configuration.",
   "The Price field must be a Number": "Le champ de prix doit être un nombre",
   "The Price should not be Zero": "Le prix ne doit pas être zéro",
-  "Weekly Discount cannot exceed 90%": "La réduction hebdomadaire ne peut pas dépasser 90 %",
-  "Monthly Discount cannot exceed 90%": "La réduction mensuelle ne peut pas dépasser 90 %",
+  "Weekly Discount cannot exceed 90%":
+      "La réduction hebdomadaire ne peut pas dépasser 90 %",
+  "Monthly Discount cannot exceed 90%":
+      "La réduction mensuelle ne peut pas dépasser 90 %",
   "Enter the address field": "Entrez le champ de l'adresse",
   "Please Select Location": "Veuillez sélectionner l'emplacement",
   "Please Select Vehicle type": "Veuillez sélectionner le type de véhicule",
   "Please Select Model": "Veuillez sélectionner le modèle",
   "Please Select Make": "Veuillez sélectionner la marque",
-  "Please Select Transmission option": "Veuillez sélectionner l'option de transmission",
-  "Please Select Odometer option": "Veuillez sélectionner l'option de kilométrage",
+  "Please Select Transmission option":
+      "Veuillez sélectionner l'option de transmission",
+  "Please Select Odometer option":
+      "Veuillez sélectionner l'option de kilométrage",
   "Please select the fuel type": "Veuillez sélectionner le type de carburant",
   "Please Enter the number of seats": "Veuillez entrer le nombre de sièges",
   "Token does not match": "Le jeton ne correspond pas",
-  "Please login again": "Veuillez vous reconnecter",  
-  "You cannot book the vehicle between 23:01 and 23:59.": "Vous ne pouvez pas réserver le véhicule entre 23:01 et 23:59.",
-  "An error occurred while checking availability.": "Une erreur s'est produite lors de la vérification de la disponibilité.",
-  "Please Select location and Dates": "Veuillez sélectionner l'emplacement et les dates",
+  "Please login again": "Veuillez vous reconnecter",
+  "You cannot book the vehicle between 23:01 and 23:59.":
+      "Vous ne pouvez pas réserver le véhicule entre 23:01 et 23:59.",
+  "An error occurred while checking availability.":
+      "Une erreur s'est produite lors de la vérification de la disponibilité.",
+  "Please Select location and Dates":
+      "Veuillez sélectionner l'emplacement et les dates",
   "Please Select Dates": "Veuillez sélectionner les dates",
   "Location not found": "Emplacement non trouvé",
   "See Less": "Voir moins",
@@ -1074,39 +1116,48 @@ const Map<String, String> frFR = {
   "All Locations": "Tous les emplacements",
   "World": "Monde",
   "Search location...": "Rechercher un emplacement...",
-  "From scooters to SUVs, find the perfect vehicle for every occasion. Fast booking. Smooth rides. Flexible options": 
+  "From scooters to SUVs, find the perfect vehicle for every occasion. Fast booking. Smooth rides. Flexible options":
       "Des scooters aux SUV, trouvez le véhicule parfait pour chaque occasion. Réservation rapide. Conduite fluide. Options flexibles",
   "Drive or Earn with": "Conduisez ou gagnez avec",
   "Tap here": "Touchez ici",
-  "Popular Regions": "Régions populaires",
   "Select your dates": "Sélectionnez vos dates",
   "Selected Date Range": "Plage de dates sélectionnée",
   "Tap to select dates": "Touchez pour sélectionner les dates",
   "By": "Par",
-  "Seats Tap to view": "Sièges Touchez pour voir",
+  "SeatsTap to view": "SiègesTouchez pour voir",
   "Vehicle Rules": "Règles du véhicule",
-  "Something went wrong. Please try again.": "Quelque chose s'est mal passé. Veuillez réessayer.",
+  "Something went wrong. Please try again.":
+      "Quelque chose s'est mal passé. Veuillez réessayer.",
   "Dates": "Dates",
   "Select Dates": "Sélectionner les dates",
-  "Your KYC request is under review. Please wait for the admin to approve.": "Votre demande KYC est en cours d'examen. Veuillez attendre l'approbation de l'administrateur.",
+  "Your KYC request is under review. Please wait for the admin to approve.":
+      "Votre demande KYC est en cours d'examen. Veuillez attendre l'approbation de l'administrateur.",
   "Your request is rejected.": "Votre demande est rejetée.",
   "Apply Again.tr": "Postuler à nouveau",
   "Please fill your KYC Form.": "Veuillez remplir votre formulaire KYC.",
   "PayOut": "Payer",
   "KYC": "KYC",
   "Driver license": "Permis de conduire",
+  "First driver license": "Permis du premier conducteur",
+  "Second driver license": "Permis du deuxième conducteur",
   "Primary reference mob no": "Numéro de référence principal",
   "Other Identity (Optional)": "Autre identité (facultatif)",
-  "Secondary reference mob no (Optional)": "Numéro de référence secondaire (facultatif)",
-  "Please select Driver license Front Image": "Veuillez sélectionner l'image avant du permis de conduire",
-  "Please select Driver license Back Image": "Veuillez sélectionner l'image arrière du permis de conduire",
-  "Please select Other Identity Back Image": "Veuillez sélectionner l'image arrière de l'autre identité",
-  "Please select Other Identity Front Image": "Veuillez sélectionner l'image avant de l'autre identité",
-  "Please add Primary Reference MoB No": "Veuillez ajouter le numéro de référence principal",
+  "Secondary reference mob no (Optional)":
+      "Numéro de référence secondaire (facultatif)",
+  "Please select Driver license Front Image":
+      "Veuillez sélectionner l'image avant du permis de conduire",
+  "Please select Driver license Back Image":
+      "Veuillez sélectionner l'image arrière du permis de conduire",
+  "Please select Other Identity Back Image":
+      "Veuillez sélectionner l'image arrière de l'autre identité",
+  "Please select Other Identity Front Image":
+      "Veuillez sélectionner l'image avant de l'autre identité",
+  "Please add Primary Reference MoB No":
+      "Veuillez ajouter le numéro de référence principal",
   "Under Review": "En cours d'examen",
   "Booking Overlap Detected": "Chevauchement de réservation détecté",
-  "The selected time slots are booked. Please choose another time. The next available slot is shown below. Reciept": 
-      "Les créneaux horaires sélectionnés sont réservés. Veuillez choisir un autre horaire. Le prochain créneau disponible est affiché ci-dessous. Reçu",
+  "The selected time slots are booked. Please choose another time. The next available slot is shown below.Reciept":
+      "Les créneaux horaires sélectionnés sont réservés. Veuillez choisir un autre horaire. Le prochain créneau disponible est affiché ci-dessous.Reçu",
   "No messages yet": "Aucun message pour l'instant",
   "Your conversations will appear here": "Vos conversations apparaîtront ici",
   "Recharge": "Recharger",
@@ -1123,7 +1174,8 @@ const Map<String, String> frFR = {
   "This Week": "Cette semaine",
   "Total Booking": "Réservations totales",
   "Total Earning": "Gains totaux",
-  "Please uncheck the doorstep price or enter the doorstep price.": "Veuillez décocher le prix à domicile ou entrer le prix à domicile.",
+  "Please uncheck the doorstep price or enter the doorstep price.":
+      "Veuillez décocher le prix à domicile ou entrer le prix à domicile.",
   "Select Region first": "Sélectionnez d'abord la région",
   "Please select the amenities": "Veuillez sélectionner les commodités",
   "Vehicle Document Image": "Image du document du véhicule",
@@ -1134,11 +1186,12 @@ const Map<String, String> frFR = {
   "Payment Method\"": "Métode de paiement",
   "Do you want to deliver this vehicle?": "Voulez-vous livrer ce véhicule ?",
   "Vehicle Delivery Confirmation": "Confirmation de livraison du véhicule",
-  "Before proceeding with the vehicle delivery, you are required to sign the booking’s Terms & Conditions.\\n\\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:\nVehicle usage Condition of the vehicle Vehicle usage\nResponsibilities and liabilities Signing the Terms & Conditions helps establish a clear agreement, ensuring a smooth and fair transaction. Cancel": 
-      "Avant de procéder à la livraison du véhicule, vous devez signer les termes et conditions de la réservation.\\n\\nCette étape garantit une transparence totale entre le fournisseur et le client, protégeant les deux parties contre tout litige lié à :\nL'utilisation du véhicule L'état du véhicule L'utilisation du véhicule\nLes responsabilités et obligations La signature des termes et conditions aide à établir un accord clair, garantissant une transaction fluide et équitable. Annuler",
+  "Before proceeding with the vehicle delivery, you are required to sign the booking’s Terms & Conditions.\\n\\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:\nVehicle usageCondition of the vehicleVehicle usage\nResponsibilities and liabilitiesSigning the Terms & Conditions helps establish a clear agreement, ensuring a smooth and fair transaction.Cancel":
+      "Avant de procéder à la livraison du véhicule, vous devez signer les termes et conditions de la réservation.\\n\\nCette étape garantit une transparence totale entre le fournisseur et le client, protégeant les deux parties contre tout litige lié à :\nL'utilisation du véhiculeL'état du véhiculeL'utilisation du véhicule\nLes responsabilités et obligationsLa signature des termes et conditions aide à établir un accord clair, garantissant une transaction fluide et équitable.Annuler",
   "Sign T&C": "Signer les T&C",
   "Booking Agreement": "Accord de réservation",
-  "Please Sign the terms and Conditions": "Veuillez signer les termes et conditions",
+  "Please Sign the terms and Conditions":
+      "Veuillez signer les termes et conditions",
   "Generate PDF": "Générer un PDF",
   "Do you want to deliver this vehicle?'": "Voulez-vous livrer ce véhicule ?",
   "Live": "En direct",
@@ -1148,13 +1201,15 @@ const Map<String, String> frFR = {
   "No data available": "Aucune donnée disponible",
   "Recent Transactions": "Transactions récentes",
   "Total Bookings": "Réservations totales",
-  "Please select a payment method.": "Veuillez sélectionner un mode de paiement.",
+  "Please select a payment method.":
+      "Veuillez sélectionner un mode de paiement.",
   "Choose Payment Method": "Choisir le mode de paiement",
   "InvalidNumber": "Numéro invalide",
   "Payment Method": "Mode de paiement",
   "Pickup OTP?": "OTP de récupération ?",
   "Interior Image Required'": "Image intérieure requise",
-  "Enter the pickup OTP given by the vendor\"": "Entrez l'OTP de récupération fourni par le fournisseur",
+  "Enter the pickup OTP given by the vendor\"":
+      "Entrez l'OTP de récupération fourni par le fournisseur",
   "Please fill the OTP": "Veuillez entrer l'OTP",
   "Please add the images": "Veuillez ajouter les images",
   "min length of image is 2": "La longueur minimale des images est de 2",
@@ -1162,16 +1217,36 @@ const Map<String, String> frFR = {
   "Car Interior & Exterior": "Intérieur et extérieur de la voiture",
   "Car Interior & Exteriors": "Intérieur et extérieur de la voiture",
   "Add Photos": "Ajouter des photos",
-  "Enter the Dropoff OTP given by the vendor": "Entrez l'OTP de restitution fourni par le fournisseur",
+  "Enter the Dropoff OTP given by the vendor":
+      "Entrez l'OTP de restitution fourni par le fournisseur",
   "Payment Options": "Options de paiement",
   "Select a Payment Method": "Sélectionnez un mode de paiement",
-  "Choose one option to add your payment method": "Choisissez une option pour ajouter votre mode de paiement",
+  "Choose one option to add your payment method":
+      "Choisissez une option pour ajouter votre mode de paiement",
   "Payment Details": "Détails du paiement",
-  "Are you sure you want to clear this booking section?": "Êtes-vous sûr de vouloir effacer cette section de réservation ?",
+  "Are you sure you want to clear this booking section?":
+      "Êtes-vous sûr de vouloir effacer cette section de réservation ?",
   "Clear Booking Section": "Effacer la section de réservation",
   "Choose Another Time": "Choisir un autre horaire",
-  "The selected time slots are booked. Please choose another time. The next available slot is shown below.": 
+  "The selected time slots are booked. Please choose another time. The next available slot is shown below.":
       "Les créneaux horaires sélectionnés sont réservés. Veuillez choisir un autre horaire. Le prochain créneau disponible est affiché ci-dessous.",
   "Add Doorstep Price": "Ajouter un prix à domicile",
-  "Doorstep price": "Prix à domicile"
+  "Doorstep price": "Prix à domicile",
+  "Highest Ranked": "Mieux notés",
+  "Cheapest Price": "Prix le plus bas",
+  "Nearest Location": "Emplacement le plus proche",
+  "It is forbidden to lend, rent, or sublease the car to a third party.":
+      "Il est interdit de prêter, louer ou sous-louer la voiture à un tiers.",
+  "The vehicle must be returned with the same fuel level as at pickup.":
+      "Le véhicule doit être restitué avec le même niveau de carburant qu'à la prise en charge.",
+  "Smoking and eating inside the car are not allowed.":
+      "Il est interdit de fumer et de manger à l'intérieur de la voiture.",
+  "The vehicle must be returned on the agreed date, time, and location.":
+      "Le véhicule doit être restitué à la date, l'heure et le lieu convenus.",
+  "15% deduction will apply if canceled at least 48 hours before the rental start time":
+      "Une déduction de 15% sera appliquée si l'annulation est faite au moins 48 heures avant le début de la location",
+  "80% deduction will apply if canceled within 12 hours of the rental start time.":
+      "Une déduction de 80% sera appliquée si l'annulation est faite dans les 12 heures précédant le début de la location.",
+  "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
+      "Une déduction de 50% sera appliquée si l'annulation est faite entre 12 et 24 heures avant le début de la location."
 };

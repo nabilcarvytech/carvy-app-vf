@@ -16,22 +16,23 @@ class VehicleOnBoardingScreen extends StatefulWidget {
 }
 
 class _VehicleOnBoardingScreenState extends State<VehicleOnBoardingScreen> {
-  List content = [
+  late PageController pageController;
+  int currentIndex = 0;
+
+  List get content => [
     {
       "image": "assets/images/car-photo.png",
-      "title": "Welcome to $appName",
+      "title": "Welcome to Carvy".tr,
       "description":
-          "Book cars and bikes easily for any journey. Quick rides or long trips, we've got you covered"
+          "Book cars and bikes easily for any journey. Quick rides or long trips, we've got you covered".tr
     },
     {
       "image": "assets/images/bike-photo.png",
-      "title": "Find Your Car and Bike Today",
+      "title": "Find Your Car and Bike Today".tr,
       "description":
-          "Effortlessly rent cars and bikes for any trip. Choose from a variety of vehicles for your journey."
+          "Effortlessly rent cars and bikes for any trip. Choose from a variety of vehicles for your journey.".tr
     }
   ];
-  late PageController pageController;
-  int currentIndex = 0;
   @override
   void initState() {
     super.initState();
@@ -46,7 +47,11 @@ class _VehicleOnBoardingScreenState extends State<VehicleOnBoardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // Utiliser ValueListenableBuilder pour reconstruire automatiquement lors du changement de langue
+    return ValueListenableBuilder<Locale>(
+      valueListenable: localeNotifier,
+      builder: (context, locale, child) {
+        return Scaffold(
       backgroundColor: whiteColor,
       body: Stack(
         children: [
@@ -121,7 +126,7 @@ class _VehicleOnBoardingScreenState extends State<VehicleOnBoardingScreen> {
                 Padding(
                   padding: const EdgeInsets.all(18),
                   child: CustomsButtons(
-                      text: "Next",
+                      text: "Next".tr,
                       backgroundColor: vehicalThemColor,
                       onPressed: () {
                         setState(() {
@@ -190,7 +195,7 @@ class _VehicleOnBoardingScreenState extends State<VehicleOnBoardingScreen> {
                     }
                   },
                   child: Text(
-                    "Skip",
+                    "Skip".tr,
                     style: heading2Grey1(context),
                   ),
                 ),
@@ -202,6 +207,8 @@ class _VehicleOnBoardingScreenState extends State<VehicleOnBoardingScreen> {
           ),
         ],
       ),
+    );
+      },
     );
   }
 }

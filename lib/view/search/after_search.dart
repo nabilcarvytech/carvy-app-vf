@@ -20,6 +20,7 @@ import '../../customwidget/data_not_found.dart';
 import '../../customwidget/project_color.dart';
 import '../../utils/common_widget.dart';
 import '../../work_space.dart';
+import '../../customwidget/search_wizard.dart';
 
 class AfterSearch extends StatefulWidget {
   final dynamic checkIn, checkout, guest, cityName, slat, slong, mode;
@@ -325,7 +326,9 @@ class _AfterSearchState extends State<AfterSearch> {
                           child: InkWell(
                             onTap: () {
                               filterController.aftersearch = true;
-                              searchPlaces(context);
+                              openSearchWizard(context, onSearch: () {
+                                onRefresh();
+                              });
                             },
                             child: Container(
                               height: 50,
@@ -514,7 +517,7 @@ class _AfterSearchState extends State<AfterSearch> {
                               options: const [
                                 "Cheapest Price",
                                 "Nearest Location",
-                                "Most Viewed",
+                                "Highest Ranked",
                               ],
                               selectedOption:
                                   filterController.selectredeShortByvalue.value,
@@ -601,7 +604,12 @@ class _AfterSearchState extends State<AfterSearch> {
                                       .selectedtypesvalues.isNotEmpty ||
                                   filterController.featuresvalues.isNotEmpty ||
                                   filterController.odometerValues.isNotEmpty ||
-                                  filterController.selectedModelYear.isNotEmpty
+                                  filterController
+                                      .selectedModelYear.isNotEmpty ||
+                                  filterController
+                                      .selectedFuelTypes.isNotEmpty ||
+                                  filterController.selectedTransmissions
+                                      .isNotEmpty // NOUVEAU: Badge pour transmission
                               ? Positioned(
                                   top: 0,
                                   right: 0,
@@ -660,11 +668,9 @@ class _AfterSearchState extends State<AfterSearch> {
 
   void _openBottomSheet(BuildContext context) {
     final TextEditingController searchController = TextEditingController();
-    final RxList<String> filteredLocations = RxList<String>(
-      homeController.homeDataModel!.data!.locations!
-          .map((location) => location.cityName!)
-          .toList(),
-    );
+    // Garder la liste complète des objets Location pour accéder aux coordonnées
+    final allLocations = homeController.homeDataModel!.data!.locations!;
+    final RxList<Location> filteredLocations = RxList<Location>(allLocations);
 
     showModalBottomSheet(
       useSafeArea: true,
@@ -721,11 +727,12 @@ class _AfterSearchState extends State<AfterSearch> {
                     fillColor: notifires.getbgcolor,
                     filled: true),
                 onChanged: (value) {
-                  filteredLocations.value = homeController
-                      .homeDataModel!.data!.locations!
-                      .map((location) => location.cityName!)
-                      .where((cityName) =>
-                          cityName.toLowerCase().contains(value.toLowerCase()))
+                  filteredLocations.value = allLocations
+                      .where((location) =>
+                          location.cityName != null &&
+                          location.cityName!
+                              .toLowerCase()
+                              .contains(value.toLowerCase()))
                       .toList();
                 },
               ),
@@ -735,12 +742,13 @@ class _AfterSearchState extends State<AfterSearch> {
                   () => ListView.separated(
                     itemCount: filteredLocations.length,
                     itemBuilder: (context, index) {
-                      final option = filteredLocations[index];
+                      final location = filteredLocations[index];
+                      final cityName = location.cityName ?? '';
                       return SizedBox(
                         height: 40,
                         child: ListTile(
                           title: Text(
-                            option,
+                            cityName,
                             style: regular3(context).copyWith(
                               color: notifires.getGrey1Whitecolor,
                               fontSize: 13,
@@ -749,17 +757,45 @@ class _AfterSearchState extends State<AfterSearch> {
                           ),
                           trailing:
                               generalScopeController.homeSearchLocation.value ==
-                                      option
+                                      cityName
                                   ? Icon(Icons.check,
                                       color: getColorBasedOnActiveModuleid())
                                   : null,
                           onTap: () {
+                            // Nettoyer les coordonnées (retirer ° N, ° W, ° S, ° E)
+                            String cleanLat = (location.latitude ?? '')
+                                .replaceAll(RegExp(r'[°\s]'), '')
+                                .replaceAll('N', '')
+                                .replaceAll('S', '')
+                                .trim();
+                            String cleanLng = (location.longitude ?? '')
+                                .replaceAll(RegExp(r'[°\s]'), '')
+                                .replaceAll('E', '')
+                                .replaceAll('W', '')
+                                .trim();
+
+                            print("🏙️ VILLE SÉLECTIONNÉE:");
+                            print("   - cityName: '$cityName'");
+                            print(
+                                "   - lat: '${location.latitude}' -> '$cleanLat'");
+                            print(
+                                "   - lng: '${location.longitude}' -> '$cleanLng'");
+
+                            // Mettre à jour le nom de la ville
                             generalScopeController.homeSearchLocation.value =
-                                option;
+                                cityName;
                             generalScopeController
-                                .textEditingControllerCity.text = option;
+                                .textEditingControllerCity.text = cityName;
+
+                            // Mettre à jour les coordonnées NETTOYÉES
+                            slatsearch = cleanLat;
+                            sLongSearch = cleanLng;
+
+                            // Mettre à jour setCity dans le SearchController
+                            filterController.setCity = cityName;
+
                             Navigator.pop(context);
-                            filterController.submitMethod(context);
+                            onRefresh();
                           },
                         ),
                       );

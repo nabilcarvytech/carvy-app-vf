@@ -27,6 +27,7 @@ import '../../../utils/vehicle_common_widgets.dart';
 import '../../../work_space.dart';
 import '../../chat/conversation_screen.dart';
 import '../../myaccount/publicProfile/public_profile_screen.dart';
+import 'package:carvy/customwidget/search_wizard.dart';
 
 class VehicleDetailSScreen extends StatefulWidget {
   final dynamic id;
@@ -115,7 +116,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                 label: 'Date Range Selector',
                 child: GestureDetector(
                   onTap: () {
-                    searchPlaces(context);
+                    openSearchWizard(context);
                   },
                   child: Container(
                     padding: const EdgeInsets.all(6.0),
@@ -355,20 +356,21 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                               title: 'Plate Number'.tr,
                               desc: '${widget.itemInfo?.platNumber ?? "0"}',
                             ),
-                              carItemBox(
+                            carItemBox(
                               icon: Icons.event,
                               title: 'Minimum Rental Days'.tr,
                               desc: '${widget.itemInfo?.minRentalDays ?? "0"}',
                             ),
-                                 carItemBox(
+                            carItemBox(
                               icon: Icons.person_2,
                               title: 'Minimum Age'.tr,
                               desc: '${widget.itemInfo?.ageRistriction ?? "0"}',
                             ),
-                                 carItemBox(
+                            carItemBox(
                               icon: Icons.verified_user,
                               title: 'Insurance Coverage'.tr,
-                              desc: '${widget.itemInfo?.insuranceCoverage ?? "0"}',
+                              desc:
+                                  '${widget.itemInfo?.insuranceCoverage ?? "0"}',
                             ),
                           ],
                         ),

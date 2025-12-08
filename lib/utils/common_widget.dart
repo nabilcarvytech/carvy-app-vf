@@ -67,8 +67,7 @@ Widget commonlyUserlogo() {
         width: 100,
         height: 100,
         decoration: BoxDecoration(color: getColorBasedOnActiveModuleid()),
-        child:
-            Image.asset('assets/images/app-logo-car.jpg', fit: BoxFit.fill)),
+        child: Image.asset('assets/images/app-logo-car.jpg', fit: BoxFit.fill)),
   );
 }
 
@@ -3105,9 +3104,6 @@ bottomSheetReviewed(rating, text) {
   );
 }
 
-
-
-
 Widget myNetworkImage(String? image, [bool? shoeIcononError]) {
   if (image != null && Uri.tryParse(image) != null) {
     return Image.network(
@@ -3832,6 +3828,28 @@ featuresBottomSheet(BuildContext context, {final String? title, dynamic list}) {
   );
 }
 
+// Helper function to map backend text to translation keys
+String _getCancellationPolicyTranslation(String text) {
+  // Normalize the text (remove extra spaces, handle variations)
+  String normalized = text.trim().toLowerCase();
+
+  // Map to translation keys based on content
+  if (normalized.contains('15%') && normalized.contains('48 hours')) {
+    return "15% deduction will apply if canceled at least 48 hours before the rental start time"
+        .tr;
+  } else if (normalized.contains('80%') && normalized.contains('12 hours')) {
+    return "80% deduction will apply if canceled within 12 hours of the rental start time."
+        .tr;
+  } else if (normalized.contains('50%') &&
+      (normalized.contains('12') && normalized.contains('24'))) {
+    return "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time."
+        .tr;
+  }
+
+  // If no match, try direct translation
+  return text.tr;
+}
+
 rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
   showModalBottomSheet(
     enableDrag: true,
@@ -3884,7 +3902,9 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
                         children: [
                           Padding(
                             padding: const EdgeInsets.only(left: 10),
-                            child: featuresbox(txt: '$x'.tr, image: "$x"),
+                            child: featuresbox(
+                                txt: _getCancellationPolicyTranslation('$x'),
+                                image: "$x"),
                           ),
                           const SizedBox(height: 10),
                         ],
@@ -3906,7 +3926,8 @@ Widget rules(list) {
       for (var x in list)
         Column(
           children: [
-            featuresbox(txt: '$x'.tr, image: "$x"),
+            featuresbox(
+                txt: _getCancellationPolicyTranslation('$x'), image: "$x"),
             const SizedBox(height: 10),
           ],
         ),
@@ -4728,6 +4749,66 @@ void showOpenAppSettingsDialog(BuildContext context, String message) {
 }
 
 Widget customOnboardingWidget(String image, String title, String description) {
+  // Fonction pour créer un widget de texte avec les couleurs pour Carvy
+  Widget buildTitleWithColors(String titleText) {
+    // Couleurs pour Carvy
+    const Color carColor = Color(0xFF27489E); // Bleu pour "car"
+    const Color vyColor = Color(0xFFF78F2C); // Orange pour "vy"
+    
+    final baseStyle = heading01.copyWith(color: notifires.getGrey1Whitecolor);
+    
+    // Vérifier si le titre contient "Carvy" (insensible à la casse)
+    final lowerTitle = titleText.toLowerCase();
+    if (lowerTitle.contains('carvy')) {
+      // Trouver l'index de "carvy" (insensible à la casse)
+      final index = lowerTitle.indexOf('carvy');
+      final beforeText = titleText.substring(0, index);
+      final carvyText = titleText.substring(index, index + 5); // "Carvy" ou "carvy"
+      final afterText = titleText.substring(index + 5);
+      
+      // Déterminer la casse de "Car" et "vy"
+      final carPart = carvyText.substring(0, 3); // "Car" ou "car"
+      final vyPart = carvyText.substring(3, 5); // "vy"
+      
+      return RichText(
+        textAlign: TextAlign.center,
+        text: TextSpan(
+          children: [
+            // Texte avant Carvy
+            if (beforeText.isNotEmpty)
+              TextSpan(
+                text: beforeText,
+                style: baseStyle,
+              ),
+            // "Car" en bleu
+            TextSpan(
+              text: carPart,
+              style: baseStyle.copyWith(color: carColor),
+            ),
+            // "vy" en orange
+            TextSpan(
+              text: vyPart,
+              style: baseStyle.copyWith(color: vyColor),
+            ),
+            // Texte après Carvy
+            if (afterText.isNotEmpty)
+              TextSpan(
+                text: afterText,
+                style: baseStyle,
+              ),
+          ],
+        ),
+      );
+    } else {
+      // Si pas de Carvy, utiliser le texte normal
+      return Text(
+        titleText,
+        style: baseStyle,
+        textAlign: TextAlign.center,
+      );
+    }
+  }
+  
   return Column(
     children: [
       Padding(
@@ -4737,11 +4818,7 @@ Widget customOnboardingWidget(String image, String title, String description) {
       const SizedBox(
         height: 20,
       ),
-      Text(
-        title,
-        style: heading01.copyWith(color: notifires.getGrey1Whitecolor),
-        textAlign: TextAlign.center,
-      ),
+      buildTitleWithColors(title),
       const SizedBox(
         height: 15,
       ),

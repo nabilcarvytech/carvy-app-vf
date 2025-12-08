@@ -496,9 +496,27 @@ class _SearchScreenState extends State<SearchScreen> {
                                             onTap: () {
                                               if (location.latitude != null &&
                                                   location.longitude != null) {
-                                                slatsearch = location.latitude;
-                                                sLongSearch =
-                                                    location.longitude;
+                                                // Nettoyer les coordonnées (retirer ° N, ° W, etc.)
+                                                String cleanLat = location
+                                                    .latitude!
+                                                    .replaceAll(
+                                                        RegExp(r'[°\s]'), '')
+                                                    .replaceAll('N', '')
+                                                    .replaceAll('S', '')
+                                                    .trim();
+                                                String cleanLng = location
+                                                    .longitude!
+                                                    .replaceAll(
+                                                        RegExp(r'[°\s]'), '')
+                                                    .replaceAll('E', '')
+                                                    .replaceAll('W', '')
+                                                    .trim();
+
+                                                slatsearch = cleanLat;
+                                                sLongSearch = cleanLng;
+                                                // Mettre à jour setCity pour le filtre API
+                                                _searchController.setCity =
+                                                    location.cityName ?? '';
                                                 generalScopeController
                                                     .homeSearchLocation
                                                     .value = location.cityName!;
@@ -1075,7 +1093,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                                 children: startSlots
                                                     .map((time) => Center(
                                                           child: Text(
-                                                            time, 
+                                                            time,
                                                             style: TextStyle(
                                                               fontSize: 16,
                                                               color: notifires
@@ -1087,7 +1105,6 @@ class _SearchScreenState extends State<SearchScreen> {
                                               ),
                                             );
                                           }),
-                                    
                                         ],
                                       ),
                                     ),
@@ -1140,7 +1157,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                                     .toList(),
                                               ),
                                             );
-                                          }),                               
+                                          }),
                                         ],
                                       ),
                                     ),
@@ -1151,7 +1168,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           ],
                         ),
                       ),
-                    ),          
+                    ),
                     const SizedBox(height: 16),
                     const SizedBox(height: 8),
                   ],
@@ -1159,21 +1176,21 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
-          bottomNavigationBar:       SafeArea(
+          bottomNavigationBar: SafeArea(
             child: Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: CustomsButtons(
-                          backgroundColor: getColorBasedOnActiveModuleid(),
-                          text: "Search".tr,
-                          onPressed: () {
-                            if (handleSearchFordetail == true) {
-                              Get.back();
-                              return;
-                            }
-                            search();
-                          },
-                        ),
-                      ),
+              padding: const EdgeInsets.all(10.0),
+              child: CustomsButtons(
+                backgroundColor: getColorBasedOnActiveModuleid(),
+                text: "Search".tr,
+                onPressed: () {
+                  if (handleSearchFordetail == true) {
+                    Get.back();
+                    return;
+                  }
+                  search();
+                },
+              ),
+            ),
           ),
         ),
       ),

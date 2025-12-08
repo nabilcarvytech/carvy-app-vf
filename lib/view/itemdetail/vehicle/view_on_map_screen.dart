@@ -24,6 +24,7 @@ import '../../host/common_widget_host.dart';
 import '../../search/vehicle/vehicle_filter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:carvy/customwidget/search_wizard.dart';
 
 class ViewOnMapScreen extends StatefulWidget {
   final String? title;
@@ -444,7 +445,7 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
                         child: InkWell(
                       onTap: () {
                         searchControllerHome.hitApiOnMap = true;
-                        searchPlaces(context);
+                        openSearchWizard(context);
                       },
                       child: Container(
                         height: 46,

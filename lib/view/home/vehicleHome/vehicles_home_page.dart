@@ -9,6 +9,7 @@ import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/helper/web_router.dart';
+import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:carvy/view/home/location_screen.dart';
 import 'package:carvy/view/home/top_categories.dart';
 import 'package:carvy/view/search/after_search.dart';
@@ -21,12 +22,6 @@ import '../../../utils/common_widget.dart';
 import '../../../utils/theme_style.dart';
 import '../../../utils/vehicle_common_widgets.dart';
 import '../../../work_space.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:pull_to_refresh/pull_to_refresh.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:get_storage/get_storage.dart';
 
 class VehicleHomePage extends StatefulWidget {
   const VehicleHomePage({super.key});
@@ -112,13 +107,13 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     } catch (e) {
       print("Refresh error: $e");
       refreshController.refreshFailed();
-      return; 
+      return;
     } finally {
       if (mounted) {
         setState(() => handlescroll = false);
-        refreshController.refreshCompleted(); 
+        refreshController.refreshCompleted();
         if (scrollController.hasClients) {
-          scrollController.jumpTo(0); 
+          scrollController.jumpTo(0);
         }
       }
     }
@@ -798,7 +793,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             Expanded(
               flex: 9,
               child: Text(
-                "${'Most viewed'.tr} ::",
+                "${'Highest Ranked'.tr} ::",
                 style: heading2Grey1(context)
                     .copyWith(overflow: TextOverflow.ellipsis),
               ),
@@ -807,7 +802,8 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             InkWell(
               onTap: () {
                 filterController.clearFilter();
-                filterController.selectredeShortByvalue.value = "Most Viewed";
+                filterController.selectredeShortByvalue.value =
+                    "Highest Ranked";
                 filterController.setDefaultDates(
                   startDateCustomDate:
                       generalScopeController.startDateCustomDate,
@@ -983,11 +979,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
 
   void _openBottomSheet(BuildContext context) {
     final TextEditingController searchController = TextEditingController();
-    final RxList<String> filteredLocations = RxList<String>(
-      homeController.homeDataModel!.data!.locations!
-          .map((location) => location.cityName!)
-          .toList(),
-    );
+    // Garder la liste complète des objets Location pour accéder aux coordonnées
+    final allLocations = homeController.homeDataModel!.data!.locations!;
+    final RxList<Location> filteredLocations = RxList<Location>(allLocations);
 
     showModalBottomSheet(
       useSafeArea: true,
@@ -1044,11 +1038,12 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                     fillColor: notifires.getbgcolor,
                     filled: true),
                 onChanged: (value) {
-                  filteredLocations.value = homeController
-                      .homeDataModel!.data!.locations!
-                      .map((location) => location.cityName!)
-                      .where((cityName) =>
-                          cityName.toLowerCase().contains(value.toLowerCase()))
+                  filteredLocations.value = allLocations
+                      .where((location) =>
+                          location.cityName != null &&
+                          location.cityName!
+                              .toLowerCase()
+                              .contains(value.toLowerCase()))
                       .toList();
                 },
               ),
@@ -1058,12 +1053,13 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                   () => ListView.separated(
                     itemCount: filteredLocations.length,
                     itemBuilder: (context, index) {
-                      final option = filteredLocations[index];
+                      final location = filteredLocations[index];
+                      final cityName = location.cityName ?? '';
                       return SizedBox(
                         height: 40,
                         child: ListTile(
                           title: Text(
-                            option,
+                            cityName,
                             style: regular3(context).copyWith(
                               color: notifires.getGrey1Whitecolor,
                               fontSize: 13,
@@ -1072,15 +1068,43 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                           ),
                           trailing:
                               generalScopeController.homeSearchLocation.value ==
-                                      option
+                                      cityName
                                   ? Icon(Icons.check,
                                       color: getColorBasedOnActiveModuleid())
                                   : null,
                           onTap: () {
+                            // Nettoyer les coordonnées (retirer ° N, ° W, ° S, ° E)
+                            String cleanLat = (location.latitude ?? '')
+                                .replaceAll(RegExp(r'[°\s]'), '')
+                                .replaceAll('N', '')
+                                .replaceAll('S', '')
+                                .trim();
+                            String cleanLng = (location.longitude ?? '')
+                                .replaceAll(RegExp(r'[°\s]'), '')
+                                .replaceAll('E', '')
+                                .replaceAll('W', '')
+                                .trim();
+
+                            print("🏙️ VILLE SÉLECTIONNÉE (HOME):");
+                            print("   - cityName: '$cityName'");
+                            print(
+                                "   - lat: '${location.latitude}' -> '$cleanLat'");
+                            print(
+                                "   - lng: '${location.longitude}' -> '$cleanLng'");
+
+                            // Mettre à jour le nom de la ville
                             generalScopeController.homeSearchLocation.value =
-                                option;
+                                cityName;
                             generalScopeController
-                                .textEditingControllerCity.text = option;
+                                .textEditingControllerCity.text = cityName;
+
+                            // Mettre à jour les coordonnées NETTOYÉES
+                            slatsearch = cleanLat;
+                            sLongSearch = cleanLng;
+
+                            // Mettre à jour setCity dans le SearchController
+                            filterController.setCity = cityName;
+
                             Navigator.pop(context);
                             filterController.submitMethod(context);
                           },

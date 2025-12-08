@@ -58,10 +58,10 @@ class KycController extends GetxController implements GetxService {
   void clearAllValues() {
     referenceMobileNo1.clear();
     referenceMobileNo2.clear();
-    defaultCountryCodePrimary = "+91";
-    countryShortNamePrimary = "IN";
-    defaultCountryCodeSecondary = "+91";
-    countryShortNameSecondary = "IN";
+    defaultCountryCodePrimary = "+212"; // Maroc par défaut
+    countryShortNamePrimary = "MA"; // Code ISO Maroc
+    defaultCountryCodeSecondary = "+212"; // Maroc par défaut
+    countryShortNameSecondary = "MA"; // Code ISO Maroc
     activeStatus.value = "";
     base64frontAddharFront = "";
     base64addharBack = "";
@@ -120,22 +120,22 @@ class KycController extends GetxController implements GetxService {
               referenceMobileNo1.text = referenceData.referencePrimaryMobileNo;
               defaultCountryCodePrimary =
                   referenceData.referencePrimaryCountryCode == ""
-                      ? "+91"
+                      ? "+212" // Maroc par défaut
                       : referenceData.referencePrimaryCountryCode;
               countryShortNamePrimary =
                   referenceData.referencePrimaryCountryShortCode == ""
-                      ? "IN"
+                      ? "MA" // Code ISO Maroc
                       : referenceData.referencePrimaryCountryShortCode;
 
               referenceMobileNo2.text =
                   referenceData.referenceSecondaryMobileNo;
               defaultCountryCodeSecondary =
                   referenceData.referenceSecondaryCountryCode == ""
-                      ? "+91"
+                      ? "+212" // Maroc par défaut
                       : referenceData.referenceSecondaryCountryCode;
               countryShortNameSecondary =
                   referenceData.referenceSecondaryCountryShortCode == ""
-                      ? "IN"
+                      ? "MA" // Code ISO Maroc
                       : referenceData.referenceSecondaryCountryShortCode;
             }
             activeStatus.value = userKycModel?.data?.kycStatus ?? "";
@@ -168,21 +168,21 @@ class KycController extends GetxController implements GetxService {
             referenceMobileNo1.text = referenceData.referencePrimaryMobileNo;
             defaultCountryCodePrimary =
                 referenceData.referencePrimaryCountryCode == ""
-                    ? "+91"
+                    ? "+212" // Maroc par défaut
                     : referenceData.referencePrimaryCountryCode;
             countryShortNamePrimary =
                 referenceData.referencePrimaryCountryShortCode == ""
-                    ? "IN"
+                    ? "MA" // Code ISO Maroc
                     : referenceData.referencePrimaryCountryShortCode;
 
             referenceMobileNo2.text = referenceData.referenceSecondaryMobileNo;
             defaultCountryCodeSecondary =
                 referenceData.referenceSecondaryCountryCode == ""
-                    ? "+91"
+                    ? "+212" // Maroc par défaut
                     : referenceData.referenceSecondaryCountryCode;
             countryShortNameSecondary =
                 referenceData.referenceSecondaryCountryShortCode == ""
-                    ? "IN"
+                    ? "MA" // Code ISO Maroc
                     : referenceData.referenceSecondaryCountryShortCode;
           }
           activeStatus.value = userKycModel?.data?.kycStatus ?? "";

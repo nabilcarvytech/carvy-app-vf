@@ -17,6 +17,7 @@ const Map<String, String> arAR = {
   "Confirm and Pay": "تأكيد والدفع",
   "Setting": "الإعدادات",
   "Popular locations": "أماكن الاستلام الشائعة",
+  "Popular Regions": "المناطق الشائعة",
   "See All": "عرض الكل",
   "Our Recommendation": "توصياتنا",
   "Most viewed": "الأكثر مشاهدة",
@@ -136,6 +137,23 @@ const Map<String, String> arAR = {
   "Message": "رسالة",
   "Show Less": "عرض أقل",
   "Show More": "عرض المزيد",
+  "Search brand...": "البحث عن علامة تجارية...",
+  "selected": "محدد",
+  "No brands found": "لم يتم العثور على علامات تجارية",
+  "See all": "عرض جميع",
+  "brands": "العلامات التجارية",
+  "Select brands": "اختيار العلامات التجارية",
+  "Validate": "تأكيد",
+  "Clear": "مسح",
+  "Date": "التاريخ",
+  "Time": "الوقت",
+  "Where do you want to go?": "إلى أين تريد الذهاب؟",
+  "No locations found": "لم يتم العثور على مواقع",
+  "Select dates": "اختر التواريخ",
+  "Select time": "اختر الوقت",
+  "Pick-up time": "وقت الاستلام",
+  "Drop-off time": "وقت الإرجاع",
+  "Minimum rental: 1 hour": "الحد الأدنى للإيجار: ساعة واحدة",
   "clear": "مسح",
   "Something Went Wrong": "حدث خطأ ما",
   "Select Date": "اختر التاريخ",
@@ -214,6 +232,11 @@ const Map<String, String> arAR = {
   "Year": "السنة",
   "Transmission": "ناقل الحركة",
   "Odometer": "عداد المسافة",
+  "Seats": "المقاعد",
+  "Plate Number": "رقم اللوحة",
+  "Minimum Rental Days": "أيام الإيجار الأدنى",
+  "Minimum Age": "الحد الأدنى للعمر",
+  "Insurance Coverage": "التغطية التأمينية",
   "About the car": "حول السيارة",
   "Car features": "مواصفات السيارة",
   "You will be here": "موقع الاستلام",
@@ -441,7 +464,6 @@ const Map<String, String> arAR = {
   "Select an option": "اختر خيارًا",
   "Booked": "محجوز",
   "Not available": "غير متاح",
-  "selected": "محدد",
   "Past Dates": "تواريخ سابقة",
   "Edit": "تعديل",
   "List is empty": "القائمة فارغة",
@@ -644,7 +666,6 @@ const Map<String, String> arAR = {
   "Your Current Balance": "رصيدك الحالي (MAD)",
   "debit": "مدين",
   "Filter": "تصفية",
-  "Clear": "مسح",
   "Filters": "عوامل التصفية",
   "Where": "أين",
   "Price range": "نطاق السعر (MAD)",
@@ -658,7 +679,11 @@ const Map<String, String> arAR = {
   "Make Type": "نوع الماركة",
   "Car Features": "مواصفات السيارة",
   "Search location": "ابحث عن موقع",
-  "Welcome to carvy": "مرحبًا بك في كارفي",
+  "Welcome to carvy": "مرحبًا بك في Carvy",
+  "Welcome to Carvy": "مرحبًا بك في Carvy",
+  "Book cars and bikes easily for any journey. Quick rides or long trips, we've got you covered": "احجز السيارات والدراجات النارية بسهولة لأي رحلة. رحلات سريعة أو طويلة، نحن هنا من أجلك.",
+  "Find Your Car and Bike Today": "اعثر على سيارتك ودراجتك النارية اليوم",
+  "Effortlessly rent cars and bikes for any trip. Choose from a variety of vehicles for your journey.": "استأجر السيارات والدراجات النارية بسهولة لأي رحلة. اختر من بين مجموعة متنوعة من المركبات لرحلتك.",
   "Wishlist": "قائمة المفضلات",
   "Please add": "يرجى الإضافة",
   "carvy Boat Booking: Explore the Waters": "حجوزات قوارب كارفي: استكشف المياه",
@@ -707,7 +732,6 @@ const Map<String, String> arAR = {
   "Select Time": "اختر الوقت",
   "Select Start date": "اختر تاريخ البدء",
   "Select Start time": "اختر وقت البدء",
-  "Select time": "اختر الوقت",
   "Subscribe to our news letter to get latest Update":
       "اشترك في النشرة البريدية للحصول على أحدث التحديثات",
   "/day": "/يوم",
@@ -1048,12 +1072,11 @@ const Map<String, String> arAR = {
       "من السكوترات إلى سيارات الدفع الرباعي، اعثر على المركبة المثالية لكل مناسبة. حجز سريع. رحلات سلسة. خيارات مرنة",
   "Drive or Earn with": "قد أو اكسب مع",
   "Tap here": "اضغط هنا",
-  "Popular Regions": "المناطق الشائعة",
   "Select your dates": "اختر تواريخك",
   "Selected Date Range": "النطاق الزمني المحدد",
   "Tap to select dates": "اضغط لاختيار التواريخ",
   "By": "بواسطة",
-  "Tap to view": "المقاعد اضغط للعرض",
+  "Tap to view": "المقاعداضغط للعرض",
   "Vehicle Rules": "قواعد المركبة",
   "Something went wrong. Please try again.":
       "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
@@ -1066,6 +1089,8 @@ const Map<String, String> arAR = {
   "Please fill your KYC Form.": "يرجى ملء نموذج KYC الخاص بك.",
   "KYC": "التحقق KYC",
   "Driver license": "رخصة القيادة",
+  "First driver license": "رخصة السائق الأول",
+  "Second driver license": "رخصة السائق الثاني",
   "Primary reference mob no": "الرقم المرجعي الأساسي",
   "Other Identity (Optional)": "هوية أخرى (اختياري)",
   "Secondary reference mob no (Optional)": "الرقم المرجعي الثانوي (اختياري)",
@@ -1080,8 +1105,8 @@ const Map<String, String> arAR = {
   "Please add Primary Reference MoB No": "يرجى إضافة الرقم المرجعي الأساسي",
   "Under Review": "قيد المراجعة",
   "Booking Overlap Detected": "تم اكتشاف تداخل في الحجز",
-  "The selected time slots are booked. Please choose another time. The next available slot is shown below. Reciept":
-      "الفترات الزمنية المحددة محجوزة. يرجى اختيار وقت آخر. يظهر أدناه الوقت المتاح التالي. الإيصال",
+  "The selected time slots are booked. Please choose another time. The next available slot is shown below.Reciept":
+      "الفترات الزمنية المحددة محجوزة. يرجى اختيار وقت آخر. يظهر أدناه الوقت المتاح التالي.الإيصال",
   "No messages yet": "لا توجد رسائل بعد",
   "Your conversations will appear here": "ستظهر محادثاتك هنا",
   "Recharge": "إعادة شحن",
@@ -1110,8 +1135,8 @@ const Map<String, String> arAR = {
   "Payment Method\"": "طريقة الدفع",
   "Do you want to deliver this vehicle?": "هل تريد تسليم هذه المركبة؟",
   "Vehicle Delivery Confirmation": "تأكيد تسليم المركبة",
-  "Before proceeding with the vehicle delivery, you are required to sign the booking’s Terms & Conditions.\\n\\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:\nVehicle usage Condition of the vehicle Vehicle usage\nResponsibilities and liabilities Signing the Terms & Conditions helps establish a clear agreement, ensuring a smooth and fair transaction. Cancel":
-      "قبل المتابعة في تسليم المركبة، يجب عليك توقيع الشروط والأحكام الخاصة بالحجز.\\n\\nتضمن هذه الخطوة الشفافية الكاملة بين البائع والعميل، وتحمي كلا الطرفين من أي نزاعات متعلقة بـ:\nاستخدام المركبة حالة المركبة استخدام المركبة\nالمسؤوليات والالتزامات يساعد توقيع الشروط والأحكام على إنشاء اتفاق واضح، مما يضمن معاملة عادلة وسلسة. إلغاء",
+  "Before proceeding with the vehicle delivery, you are required to sign the booking’s Terms & Conditions.\\n\\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:\nVehicle usageCondition of the vehicleVehicle usage\nResponsibilities and liabilitiesSigning the Terms & Conditions helps establish a clear agreement, ensuring a smooth and fair transaction.Cancel":
+      "قبل المتابعة في تسليم المركبة، يجب عليك توقيع الشروط والأحكام الخاصة بالحجز.\\n\\nتضمن هذه الخطوة الشفافية الكاملة بين البائع والعميل، وتحمي كلا الطرفين من أي نزاعات متعلقة بـ:\nاستخدام المركبةحالة المركبةاستخدام المركبة\nالمسؤوليات والالتزاماتيساعد توقيع الشروط والأحكام على إنشاء اتفاق واضح، مما يضمن معاملة عادلة وسلسة.إلغاء",
   "Sign T&C": "توقيع الشروط والأحكام",
   "Booking Agreement": "اتفاقية الحجز",
   "Please Sign the terms and Conditions": "يرجى توقيع الشروط والأحكام",
@@ -1161,4 +1186,21 @@ const Map<String, String> arAR = {
       "الفترات الزمنية المحددة محجوزة. يرجى اختيار وقت آخر. يظهر الوقت المتاح التالي أدناه.",
   "Add Doorstep Price_ar": "أضف سعر التوصيل للمنزل",
   "Doorstep price_ar": "سعر التوصيل للمنزل",
+  "Highest Ranked": "الأعلى تقييماً",
+  "Cheapest Price": "أقل سعر",
+  "Nearest Location": "أقرب موقع",
+  "It is forbidden to lend, rent, or sublease the car to a third party.":
+      "يُمنع إعارة أو تأجير أو التنازل عن السيارة لطرف ثالث.",
+  "The vehicle must be returned with the same fuel level as at pickup.":
+      "يجب إعادة السيارة بنفس مستوى الوقود عند الاستلام.",
+  "Smoking and eating inside the car are not allowed.":
+      "يُمنع التدخين والأكل داخل السيارة.",
+  "The vehicle must be returned on the agreed date, time, and location.":
+      "يجب إعادة السيارة في التاريخ والوقت والمكان المتفق عليه.",
+  "15% deduction will apply if canceled at least 48 hours before the rental start time":
+      "سيتم خصم 15% إذا تم الإلغاء قبل 48 ساعة على الأقل من وقت بدء الإيجار",
+  "80% deduction will apply if canceled within 12 hours of the rental start time.":
+      "سيتم خصم 80% إذا تم الإلغاء خلال 12 ساعة من وقت بدء الإيجار.",
+  "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
+      "سيتم خصم 50% إذا تم الإلغاء بين 12 و 24 ساعة قبل وقت بدء الإيجار."
 };
