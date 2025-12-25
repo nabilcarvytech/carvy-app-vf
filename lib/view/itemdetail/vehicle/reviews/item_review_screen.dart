@@ -31,8 +31,67 @@ class _YourReviewState extends State<YourReview> {
   }
 
   getData() async {
-    var response = await httpPost(
-        Config.getItemReviews, {"item_id": widget.id, "offset": '$offset'});
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(
+    //     Config.getItemReviews, {"item_id": widget.id, "offset": '$offset'});
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static item reviews data
+    var response = {
+      "status": 200,
+      "message": "Item reviews retrieved successfully",
+      "error": "",
+      "data": {
+        "reviews": [
+          {
+            "id": 1,
+            "booking_id": "101",
+            "item_id": widget.id ?? "101",
+            "item_name": "Toyota Camry 2023",
+            "guest_id": "1",
+            "guest_name": "John Doe",
+            "guest_image": "https://example.com/profile1.jpg",
+            "rating": "5",
+            "message":
+                "Excellent vehicle! Very clean and comfortable. Highly recommend!",
+            "created_at": "2025-01-10T10:00:00.000Z",
+            "updated_at": "2025-01-10T10:00:00.000Z"
+          },
+          {
+            "id": 2,
+            "booking_id": "102",
+            "item_id": widget.id ?? "101",
+            "item_name": "Toyota Camry 2023",
+            "guest_id": "2",
+            "guest_name": "Jane Smith",
+            "guest_image": "https://example.com/profile2.jpg",
+            "rating": "4",
+            "message":
+                "Great experience overall. The car was in perfect condition.",
+            "created_at": "2025-01-08T14:30:00.000Z",
+            "updated_at": "2025-01-08T14:30:00.000Z"
+          },
+          {
+            "id": 3,
+            "booking_id": "103",
+            "item_id": widget.id ?? "101",
+            "item_name": "Toyota Camry 2023",
+            "guest_id": "3",
+            "guest_name": "Mike Johnson",
+            "guest_image": "https://example.com/profile3.jpg",
+            "rating": "5",
+            "message":
+                "Perfect for a weekend trip. Smooth ride and great fuel economy.",
+            "created_at": "2025-01-05T09:15:00.000Z",
+            "updated_at": "2025-01-05T09:15:00.000Z"
+          }
+        ],
+        "offset": offset + 3
+      }
+    };
+    // ========== END MOCK DATA ==========
     if (response != null) {
       itemReviewsModel = ItemReviewsModel.fromJson(response);
       list.addAll(itemReviewsModel!.data!.reviews!);

@@ -186,7 +186,7 @@ class Data {
 
 class ItemTypes {
   ItemTypes({
-    num? id,
+    String? id,
     String? name,
     String? description,
     dynamic status,
@@ -200,20 +200,21 @@ class ItemTypes {
   }
 
   ItemTypes.fromJson(dynamic json) {
-    _id = json['id'];
+    // Support both "id" and MongoDB-style "_id" as Strings
+    _id = json['id']?.toString() ?? json['_id']?.toString();
     _name = json['name'];
     _description = json['description'];
     _status = json['status'];
     _image = json['image'];
   }
 
-  num? _id;
+  String? _id;
   String? _name;
   String? _description;
   dynamic _status;
   dynamic _image;
 
-  num? get id => _id;
+  String? get id => _id;
   String? get name => _name;
   String? get description => _description;
   dynamic get status => _status;

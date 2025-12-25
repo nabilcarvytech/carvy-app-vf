@@ -219,61 +219,129 @@ class AddItemsHostController extends GetxController implements GetxService {
   var isTransmission = true.obs;
   Future<void> getDataTransmission() async {
     isTransmission.value = true;
-    var typeString = GetStorage().read("transmission");
-    if (typeString == null) {
-      var response3 = await httpGet(Config.odometermannual, {});
-      if (response3 != null) {
-        transmission = Transmission.fromJson(response3);
-        listTransmission.assignAll(transmission!.data!.options!);
-        GetStorage().write("transmission", response3);
-        isTransmission.value = false;
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var typeString = GetStorage().read("transmission");
+    // if (typeString == null) {
+    //   var response3 = await httpGet(Config.odometermannual, {});
+    //   if (response3 != null) {
+    //     transmission = Transmission.fromJson(response3);
+    //     listTransmission.assignAll(transmission!.data!.options!);
+    //     GetStorage().write("transmission", response3);
+    //     isTransmission.value = false;
+    //   }
+    // } else {
+    //   transmission = Transmission.fromJson(typeString);
+    //   listTransmission.assignAll(transmission!.data!.options!);
+    //   isTransmission.value = false;
+    // }
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static transmission options (aligned with Transmission -> Options.option)
+    final mockResponse = {
+      "status": 200,
+      "message": "Transmissions retrieved successfully",
+      "error": "",
+      "data": {
+        "options": [
+          {"option": "Automatic"},
+          {"option": "Manual"}
+        ]
       }
-    } else {
-      transmission = Transmission.fromJson(typeString);
-      listTransmission.assignAll(transmission!.data!.options!);
-      isTransmission.value = false;
-    }
+    };
+
+    transmission = Transmission.fromJson(mockResponse);
+    listTransmission.assignAll(transmission!.data!.options!);
+    isTransmission.value = false;
     update();
   }
 
   var isOdometer = true.obs;
   Future<void> getDataOdometerList() async {
     isOdometer.value = true;
-    var typeString = GetStorage().read("odometer");
-    if (typeString == null) {
-      var response2 = await httpGet(Config.vechileOdometer, {});
-      if (response2 != null) {
-        odometer = Odometer.fromJson(response2);
-        listSpeedOdometer.assignAll(odometer!.data!.odometerList!);
-        GetStorage().write("odometer", response2);
-        isOdometer.value = false;
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var typeString = GetStorage().read("odometer");
+    // if (typeString == null) {
+    //   var response2 = await httpGet(Config.vechileOdometer, {});
+    //   if (response2 != null) {
+    //     odometer = Odometer.fromJson(response2);
+    //     listSpeedOdometer.assignAll(odometer!.data!.odometerList!);
+    //     GetStorage().write("odometer", response2);
+    //     isOdometer.value = false;
+    //   }
+    // } else {
+    //   odometer = Odometer.fromJson(typeString);
+    //   listSpeedOdometer.assignAll(odometer!.data!.odometerList!);
+    //   isOdometer.value = false;
+    // }
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static odometer list (aligned avec Odometer.Data.getodometer / Getodometer)
+    final mockResponse = {
+      "status": 200,
+      "message": "Odometer list retrieved successfully",
+      "error": "",
+      "data": {
+        "getodometer": [
+          {"id": 1, "odometer": "0 - 10,000 km"},
+          {"id": 2, "odometer": "10,001 - 50,000 km"},
+          {"id": 3, "odometer": "50,001 - 100,000 km"},
+          {"id": 4, "odometer": "100,001+ km"}
+        ]
       }
-    } else {
-      odometer = Odometer.fromJson(typeString);
-      listSpeedOdometer.assignAll(odometer!.data!.odometerList!);
-      isOdometer.value = false;
-    }
+    };
+
+    odometer = Odometer.fromJson(mockResponse);
+    listSpeedOdometer.assignAll(odometer!.data!.odometerList!);
+    isOdometer.value = false;
     update();
   }
 
   Future<void> getDatafuelType() async {
-    final storage = GetStorage();
-    final cachedData = storage.read("getFueltype");
-    if (cachedData == null) {
-      var response = await httpGet(Config.fuelType, {});
-      if (response != null) {
-        try {
-          fuelTypeModel = FuelTypeModel.fromJson(response);
-          fuelTypeList.assignAll(fuelTypeModel!.fuelTypes);
-          storage.write("getFueltype", response);
-        } catch (e) {}
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // final storage = GetStorage();
+    // final cachedData = storage.read("getFueltype");
+    // if (cachedData == null) {
+    //   var response = await httpGet(Config.fuelType, {});
+    //   if (response != null) {
+    //     try {
+    //       fuelTypeModel = FuelTypeModel.fromJson(response);
+    //       fuelTypeList.assignAll(fuelTypeModel!.fuelTypes);
+    //       storage.write("getFueltype", response);
+    //     } catch (e) {}
+    //   }
+    // } else {
+    //   try {
+    //     fuelTypeModel = FuelTypeModel.fromJson(cachedData);
+    //     fuelTypeList.assignAll(fuelTypeModel!.fuelTypes);
+    //   } catch (e) {}
+    // }
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static fuel types (aligned avec FuelTypeModel -> fuel_types[].fuel_type)
+    final mockResponse = {
+      "status": 200,
+      "message": "Fuel types retrieved successfully",
+      "error": "",
+      "data": {
+        "fuel_types": [
+          {"id": 1, "fuel_type": "Gasoline"},
+          {"id": 2, "fuel_type": "Diesel"},
+          {"id": 3, "fuel_type": "Electric"},
+          {"id": 4, "fuel_type": "Hybrid"}
+        ]
       }
-    } else {
-      try {
-        fuelTypeModel = FuelTypeModel.fromJson(cachedData);
-        fuelTypeList.assignAll(fuelTypeModel!.fuelTypes);
-      } catch (e) {}
-    }
+    };
+
+    fuelTypeModel = FuelTypeModel.fromJson(mockResponse);
+    fuelTypeList.assignAll(fuelTypeModel!.fuelTypes);
     update();
   }
 
@@ -293,14 +361,37 @@ class AddItemsHostController extends GetxController implements GetxService {
   var isloadingType = false.obs;
   Future<void> getDataItemType() async {
     isloadingType.value = true;
-    var response2 = await httpGet(Config.itemsType, {});
-    if (response2 != null) {
-      itemTypeModel = ItemTypeModel.fromJson(response2);
-      update();
-      isloadingType.value = false;
-      vehicleListItemType.assignAll(itemTypeModel!.data!.itemTypes!);
-      GetStorage().write("vehicleStr", response2);
-    }
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response2 = await httpGet(Config.itemsType, {});
+    // if (response2 != null) {
+    //   itemTypeModel = ItemTypeModel.fromJson(response2);
+    //   update();
+    //   isloadingType.value = false;
+    //   vehicleListItemType.assignAll(itemTypeModel!.data!.itemTypes!);
+    //   GetStorage().write("vehicleStr", response2);
+    // }
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static vehicle types
+    final mockResponse = {
+      "status": 200,
+      "message": "Vehicle types retrieved successfully",
+      "error": "",
+      "data": {
+        "itemTypes": [
+          {"id": 1, "name": "SUV", "description": "SUV vehicles", "status": "1"},
+          {"id": 2, "name": "Sedan", "description": "Sedan vehicles", "status": "1"},
+          {"id": 3, "name": "Hatchback", "description": "Hatchback vehicles", "status": "1"}
+        ]
+      }
+    };
+
+    itemTypeModel = ItemTypeModel.fromJson(mockResponse);
+    vehicleListItemType.assignAll(itemTypeModel!.data!.itemTypes!);
+    isloadingType.value = false;
     update();
   }
 
@@ -308,7 +399,67 @@ class AddItemsHostController extends GetxController implements GetxService {
   Future<void> getDataAmenties() async {
     isAmentiesloading.value = true;
     GetStorage().read("amenitiesVechicle");
-    var response = await httpGet(Config.amenities, {});
+    
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpGet(Config.amenities, {});
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static amenities data
+    Map<String, dynamic> mockResponse = {
+      "status": 200,
+      "message": "Amenities retrieved successfully",
+      "error": "",
+      "data": {
+        "amenities": [
+          {
+            "id": 1,
+            "name": "Airbags",
+            "image": "https://example.com/amenities/airbags.png"
+          },
+          {
+            "id": 2,
+            "name": "GPS",
+            "image": "https://example.com/amenities/gps.png"
+          },
+          {
+            "id": 3,
+            "name": "Air conditioning",
+            "image": "https://example.com/amenities/ac.png"
+          },
+          {
+            "id": 4,
+            "name": "Bluetooth",
+            "image": "https://example.com/amenities/bluetooth.png"
+          },
+          {
+            "id": 5,
+            "name": "Parking sensors",
+            "image": "https://example.com/amenities/parking-sensors.png"
+          },
+          {
+            "id": 6,
+            "name": "USB Port",
+            "image": "https://example.com/amenities/usb.png"
+          },
+          {
+            "id": 7,
+            "name": "Backup Camera",
+            "image": "https://example.com/amenities/camera.png"
+          },
+          {
+            "id": 8,
+            "name": "Sunroof",
+            "image": "https://example.com/amenities/sunroof.png"
+          }
+        ]
+      }
+    };
+    
+    var response = mockResponse;
+    // ========== END MOCK DATA ==========
+    
     if (response != null) {
       amenitiesModel = AmenitiesModel.fromJson(response);
       update();
@@ -325,18 +476,60 @@ class AddItemsHostController extends GetxController implements GetxService {
   var isMakeModelonTap = true.obs;
   Future<void> getVehicleDataMakeModel() async {
     isMakeModel.value = true;
-    var response = await httpGet(Config.getMakesModel, {});
-    if (response != null) {
-      getMakeModel = GetMakeModel.fromJson(response);
-      update();
-      if (getMakeModel!.data != null) {
-        listMakesType.assignAll(getMakeModel!.data!.makesTypes ?? []);
-        listModelType.clear();
-        for (var makeType in listMakesType) {
-          listModelType.addAll(makeType.models ?? []);
-        }
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpGet(Config.getMakesModel, {});
+    // if (response != null) {
+    //   getMakeModel = GetMakeModel.fromJson(response);
+    //   update();
+    //   if (getMakeModel!.data != null) {
+    //     listMakesType.assignAll(getMakeModel!.data!.makesTypes ?? []);
+    //     listModelType.clear();
+    //     for (var makeType in listMakesType) {
+    //       listModelType.addAll(makeType.models ?? []);
+    //     }
+    //   }
+    // }
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static makes and models (all types, aligned avec GetMakeModel -> data.makes)
+    final mockResponse = {
+      "status": 200,
+      "message": "Makes and models retrieved successfully",
+      "error": "",
+      "data": {
+        "makes": [
+          {
+            "id": 1,
+            "name": "Toyota",
+            "models": [
+              {"id": 11, "name": "Camry"},
+              {"id": 12, "name": "Corolla"}
+            ]
+          },
+          {
+            "id": 2,
+            "name": "BMW",
+            "models": [
+              {"id": 21, "name": "X5"},
+              {"id": 22, "name": "3 Series"}
+            ]
+          }
+        ]
+      }
+    };
+
+    getMakeModel = GetMakeModel.fromJson(mockResponse);
+    if (getMakeModel!.data != null) {
+      listMakesType.assignAll(getMakeModel!.data!.makesTypes ?? []);
+      listModelType.clear();
+      for (var makeType in listMakesType) {
+        listModelType.addAll(makeType.models ?? []);
       }
     }
+
     isMakeModel.value = false;
     update();
   }
@@ -344,20 +537,70 @@ class AddItemsHostController extends GetxController implements GetxService {
   Future<void> getVehicleDataMakeModelforOnTap(value) async {
     isMakeModelonTap.value = true;
     showLoading();
-    var response = await httpGet(
-        Config.getMakesModel, {"type_id": "${value == "" ? "" : value}"});
-    if (response != null) {
-      getMakeModel = GetMakeModel.fromJson(response);
-      update();
-      if (getMakeModel!.data != null) {
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpGet(
+    //     Config.getMakesModel, {"type_id": "${value == "" ? "" : value}"});
+    // if (response != null) {
+    //   getMakeModel = GetMakeModel.fromJson(response);
+    //   update();
+    //   if (getMakeModel!.data != null) {
+    //     listMakesType.assignAll(getMakeModel!.data!.makesTypes ?? []);
+    //     listModelType.clear();
+    //     closeLoading();
+    //     for (var makeType in listMakesType) {
+    //       listModelType.addAll(makeType.models ?? []);
+    //     }
+    //   }
+    // }
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Filter makes/models by item_type (value) – ici on mappe juste 1 -> Toyota, 2 -> BMW
+    int? typeId = int.tryParse(value.toString());
+
+    // Réutiliser le même mock que ci-dessus
+    final mockResponse = {
+      "status": 200,
+      "message": "Makes and models retrieved successfully",
+      "error": "",
+      "data": {
+        "makes": [
+          {
+            "id": 1,
+            "name": "Toyota",
+            "models": [
+              {"id": 11, "name": "Camry"},
+              {"id": 12, "name": "Corolla"}
+            ]
+          },
+          {
+            "id": 2,
+            "name": "BMW",
+            "models": [
+              {"id": 21, "name": "X5"},
+              {"id": 22, "name": "3 Series"}
+            ]
+          }
+        ]
+      }
+    };
+
+    getMakeModel = GetMakeModel.fromJson(mockResponse);
+    if (getMakeModel!.data != null) {
+      if (typeId != null) {
+        listMakesType.assignAll(
+            getMakeModel!.data!.makesTypes?.where((m) => m.id == typeId) ?? []);
+      } else {
         listMakesType.assignAll(getMakeModel!.data!.makesTypes ?? []);
-        listModelType.clear();
-        closeLoading();
-        for (var makeType in listMakesType) {
-          listModelType.addAll(makeType.models ?? []);
-        }
+      }
+      listModelType.clear();
+      for (var makeType in listMakesType) {
+        listModelType.addAll(makeType.models ?? []);
       }
     }
+
     isMakeModelonTap.value = false;
     closeLoading();
     update();
@@ -365,19 +608,67 @@ class AddItemsHostController extends GetxController implements GetxService {
 
   Future<void> getVehicleDataMakeModelforEditinitial(value) async {
     isMakeModel.value = true;
-    var response = await httpGet(
-        Config.getMakesModel, {"type_id": "${value == "" ? "" : value}"});
-    if (response != null) {
-      getMakeModel = GetMakeModel.fromJson(response);
-      update();
-      if (getMakeModel!.data != null) {
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpGet(
+    //     Config.getMakesModel, {"type_id": "${value == "" ? "" : value}"});
+    // if (response != null) {
+    //   getMakeModel = GetMakeModel.fromJson(response);
+    //   update();
+    //   if (getMakeModel!.data != null) {
+    //     listMakesType.assignAll(getMakeModel!.data!.makesTypes ?? []);
+    //     listModelType.clear();
+    //     for (var makeType in listMakesType) {
+    //       listModelType.addAll(makeType.models ?? []);
+    //     }
+    //   }
+    // }
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    int? typeId = int.tryParse(value.toString());
+
+    final mockResponse = {
+      "status": 200,
+      "message": "Makes and models retrieved successfully",
+      "error": "",
+      "data": {
+        "makes": [
+          {
+            "id": 1,
+            "name": "Toyota",
+            "models": [
+              {"id": 11, "name": "Camry"},
+              {"id": 12, "name": "Corolla"}
+            ]
+          },
+          {
+            "id": 2,
+            "name": "BMW",
+            "models": [
+              {"id": 21, "name": "X5"},
+              {"id": 22, "name": "3 Series"}
+            ]
+          }
+        ]
+      }
+    };
+
+    getMakeModel = GetMakeModel.fromJson(mockResponse);
+    if (getMakeModel!.data != null) {
+      if (typeId != null) {
+        listMakesType.assignAll(
+            getMakeModel!.data!.makesTypes?.where((m) => m.id == typeId) ?? []);
+      } else {
         listMakesType.assignAll(getMakeModel!.data!.makesTypes ?? []);
-        listModelType.clear();
-        for (var makeType in listMakesType) {
-          listModelType.addAll(makeType.models ?? []);
-        }
+      }
+      listModelType.clear();
+      for (var makeType in listMakesType) {
+        listModelType.addAll(makeType.models ?? []);
       }
     }
+
     isMakeModel.value = false;
     update();
   }
@@ -385,7 +676,71 @@ class AddItemsHostController extends GetxController implements GetxService {
   var isLoactionloading = true.obs;
   RxBool isload = true.obs;
   Future<void> getDataYourLocation() async {
-    var response = await httpGet(Config.yourLocation, {});
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpGet(Config.yourLocation, {});
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static locations data
+    Map<String, dynamic> mockResponse = {
+      "status": 200,
+      "message": "Locations retrieved successfully",
+      "error": "",
+      "data": {
+        "Locations": [
+          {
+            "id": 1,
+            "city_name": "Rabat",
+            "description": "Rabat, Morocco",
+            "latitude": "34.020882",
+            "longitude": "-6.841650",
+            "country_code": "MA",
+            "image": "https://example.com/locations/rabat.jpg"
+          },
+          {
+            "id": 2,
+            "city_name": "Casablanca",
+            "description": "Casablanca, Morocco",
+            "latitude": "33.573110",
+            "longitude": "-7.589843",
+            "country_code": "MA",
+            "image": "https://example.com/locations/casablanca.jpg"
+          },
+          {
+            "id": 3,
+            "city_name": "Marrakesh",
+            "description": "Marrakesh, Morocco",
+            "latitude": "31.629473",
+            "longitude": "-7.981084",
+            "country_code": "MA",
+            "image": "https://example.com/locations/marrakesh.jpg"
+          },
+          {
+            "id": 4,
+            "city_name": "Los Angeles",
+            "description": "Los Angeles, California, USA",
+            "latitude": "34.0522",
+            "longitude": "-118.2437",
+            "country_code": "US",
+            "image": "https://example.com/locations/la.jpg"
+          },
+          {
+            "id": 5,
+            "city_name": "San Francisco",
+            "description": "San Francisco, California, USA",
+            "latitude": "37.7749",
+            "longitude": "-122.4194",
+            "country_code": "US",
+            "image": "https://example.com/locations/sf.jpg"
+          }
+        ]
+      }
+    };
+    
+    var response = mockResponse;
+    // ========== END MOCK DATA ==========
+    
     if (response != null) {
       locationsHostModel = LocationsHostModel.fromJson(response);
       update();
@@ -399,7 +754,57 @@ class AddItemsHostController extends GetxController implements GetxService {
   var isPolicyloading = true.obs;
   Future<void> getCancellationPolicy() async {
     isPolicyloading.value = true;
-    var response4 = await httpGet(Config.getCancellationPolicies, {});
+    
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response4 = await httpGet(Config.getCancellationPolicies, {});
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static cancellation policies data
+    Map<String, dynamic> mockResponse = {
+      "status": 200,
+      "message": "Cancellation policies retrieved successfully",
+      "error": "",
+      "data": {
+        "cancellation_policies": [
+          {
+            "id": 1,
+            "name": "Normal Policy",
+            "description": "Standard cancellation policy with moderate refund terms",
+            "type": "normal",
+            "value": "50",
+            "status": "1",
+            "created_at": "2024-01-01T00:00:00.000Z",
+            "updated_at": "2024-01-01T00:00:00.000Z"
+          },
+          {
+            "id": 2,
+            "name": "Super Policy",
+            "description": "Premium cancellation policy with flexible refund terms",
+            "type": "super",
+            "value": "80",
+            "status": "1",
+            "created_at": "2024-01-01T00:00:00.000Z",
+            "updated_at": "2024-01-01T00:00:00.000Z"
+          },
+          {
+            "id": 3,
+            "name": "Flexible Policy",
+            "description": "Most flexible cancellation policy with full refund options",
+            "type": "flexible",
+            "value": "100",
+            "status": "1",
+            "created_at": "2024-01-01T00:00:00.000Z",
+            "updated_at": "2024-01-01T00:00:00.000Z"
+          }
+        ]
+      }
+    };
+    
+    var response4 = mockResponse;
+    // ========== END MOCK DATA ==========
+    
     if (response4 != null) {
       cancellationPoliciesModel = CancellationPoliciesModel.fromJson(response4);
       update();
@@ -414,7 +819,55 @@ class AddItemsHostController extends GetxController implements GetxService {
   var isRuleloading = true.obs;
   Future<void> getRules() async {
     isRuleloading.value = true;
-    var response4 = await httpGet(Config.getItemRules, {});
+    
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response4 = await httpGet(Config.getItemRules, {});
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static booking rules data
+    Map<String, dynamic> mockResponse = {
+      "status": 200,
+      "message": "Item rules retrieved successfully",
+      "error": "",
+      "data": {
+        "booking_rules": [
+          {
+            "id": 1,
+            "rule_name": "It is forbidden to lend, rent, or sublease the car to a third party.",
+            "status": "1",
+            "created_at": "2024-01-01T00:00:00.000Z",
+            "updated_at": "2024-01-01T00:00:00.000Z"
+          },
+          {
+            "id": 2,
+            "rule_name": "The vehicle must be returned with the same fuel level as at pickup.",
+            "status": "1",
+            "created_at": "2024-01-01T00:00:00.000Z",
+            "updated_at": "2024-01-01T00:00:00.000Z"
+          },
+          {
+            "id": 3,
+            "rule_name": "Smoking and eating inside the car are not allowed.",
+            "status": "1",
+            "created_at": "2024-01-01T00:00:00.000Z",
+            "updated_at": "2024-01-01T00:00:00.000Z"
+          },
+          {
+            "id": 4,
+            "rule_name": "The vehicle must be returned on the agreed date, time, and location.",
+            "status": "1",
+            "created_at": "2024-01-01T00:00:00.000Z",
+            "updated_at": "2024-01-01T00:00:00.000Z"
+          }
+        ]
+      }
+    };
+    
+    var response4 = mockResponse;
+    // ========== END MOCK DATA ==========
+    
     if (response4 != null) {
       addRulesModel = AddRulesModel.fromJson(response4);
       update();
@@ -702,26 +1155,42 @@ class AddItemsHostController extends GetxController implements GetxService {
         "country": textEditingControllerCountry.text.toString(),
         "state_region": textEditingControllerState.text.toString(),
         "city_name": textEditingControllerCity.text.toString(),
-        "booking_policies_id": '1',
+        "booking_policies_id": selectedRadio.toString(),
         "platitude": selectedLat.value,
         "plongitude": selectedLong.value,
         "metaData": vehicleHostMetaData(),
       };
-      var response = await httpPost(Config.insertItem, itemMap);
-      closeLoading();
-      if (response != null) {
-        if (response['status'] == 200) {
-          fetchItemId = FetchItemId.fromJson(response);
-          if (fetchItemId!.insertItemHost != null) {
-            itemHostId = fetchItemId!.insertItemHost!.id!;
-          }
-          GetStorage().remove("dashboardItemdata");
-          GetStorage().remove("dashboard");
-          Get.to(() => const UploadImageScreen(mode: ScreenMode.add));
-        } else {
-          showErrorToastMessage(response['error']);
+
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.insertItem, itemMap);
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 2));
+
+      // MOCK: Static success response for inserting a new host item
+      final Map<String, dynamic> mockResponse = {
+        "status": 200,
+        "message": "Vehicle saved successfully",
+        "error": "",
+        "data": {
+          "id": 1001,
+          "title": textEditingControllerTitle.text,
+          "description": textEditingControllerDesc.text,
+          "item_type_id": selectedVehicleType.toString().isEmpty
+              ? ""
+              : selectedVehicleType.toString()
         }
+      };
+
+      closeLoading();
+
+      fetchItemId = FetchItemId.fromJson(mockResponse);
+      if (fetchItemId!.insertItemHost != null) {
+        itemHostId = fetchItemId!.insertItemHost!.id!;
       }
+      GetStorage().remove("dashboardItemdata");
+      GetStorage().remove("dashboard");
+      Get.to(() => const UploadImageScreen(mode: ScreenMode.add));
     } catch (e) {
       closeLoading();
     }
@@ -754,28 +1223,46 @@ class AddItemsHostController extends GetxController implements GetxService {
         "country": textEditingControllerEditCountry.text.toString(),
         "state_region": textEditingControllerEditState.text.toString(),
         "city_name": textEditingControllerEditCity.text.toString(),
-        "booking_policies_id": '1',
+        "booking_policies_id": selectedRadio.toString(),
         "metaData": vehicleHostMetaData(),
       };
-      var response = await httpPost(Config.editItem, itemEditMap);
-      closeLoading();
-      if (response != null) {
-        if (response['status'] == 200) {
-          removeDashBoardData();
-          removeMyPostData();
-          showToastMessage(response['message']);
-          checkUpdateStep1 = true;
-          GetStorage().remove("dashboardItemdata");
-          GetStorage().remove("dashboard");
-          update();
-          selectLocation = false;
-          Get.to(() => const EditVehicleHomeScreen())?.then((value) {
-            item = null;
-          });
-        } else {
-          showErrorToastMessage(response['error']);
+
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.editItem, itemEditMap);
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 2));
+
+      // MOCK: Static success response for editing an existing host item
+      final Map<String, dynamic> mockResponse = {
+        "status": 200,
+        "message": "Vehicle saved successfully",
+        "error": "",
+        "data": {
+          "editItemHost": {
+            "id": item!.id,
+            "title": textEditingControllerEditTitle.text,
+            "price": textEditingControllerEditPrice.text,
+            "item_type_id": selectedVehicleType.toString().isEmpty
+                ? ""
+                : selectedVehicleType.toString()
+          }
         }
-      }
+      };
+
+      closeLoading();
+
+      removeDashBoardData();
+      removeMyPostData();
+      showToastMessage(mockResponse['message'] as String);
+      checkUpdateStep1 = true;
+      GetStorage().remove("dashboardItemdata");
+      GetStorage().remove("dashboard");
+      update();
+      selectLocation = false;
+      Get.to(() => const EditVehicleHomeScreen())?.then((value) {
+        item = null;
+      });
     } catch (e) {
       closeLoading();
     }
@@ -793,28 +1280,42 @@ class AddItemsHostController extends GetxController implements GetxService {
       "gallery_image_delete":
           listDeleteImages.isEmpty ? "" : listDeleteImages.toString(),
     };
-    var response = await httpPost(Config.addEditItemImage, map);
-    closeLoading();
-    if (response != null) {
-      if (response['status'] == 200) {
-        removeDashBoardData();
-        removeMyPostData();
-        showToastMessage(response['message']);
-        GetStorage().remove("dashboardItemdata");
-        GetStorage().remove("dashboard");
-        checkUpdateStep2 = true;
-        if (mode == ScreenMode.add) {
-          Get.to(() => const BottomHost(initialIndex: 0));
-        } else if (mode == ScreenMode.edit) {
-          Get.to(() => const EditVehicleHomeScreen())?.then((value) {
-            item = null;
-          });
-        }
-        galleryImageBase64List.clear();
-      } else {
-        showErrorToastMessage(response['error']);
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(Config.addEditItemImage, map);
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 2));
+
+    // MOCK: Static success response for uploading item images
+    final Map<String, dynamic> mockResponse = {
+      "status": 200,
+      "message": "Images saved successfully",
+      "error": "",
+      "data": {
+        "id": (item?.id ?? itemHostId).toString(),
+        "front_image_uploaded": (frontImageBase64 ?? "").isNotEmpty,
+        "documents_image_uploaded": (frontImageBase64fordoec ?? "").isNotEmpty,
+        "gallery_image_count": galleryImageBase64List.length
       }
+    };
+
+    closeLoading();
+
+    removeDashBoardData();
+    removeMyPostData();
+    showToastMessage(mockResponse['message'] as String);
+    GetStorage().remove("dashboardItemdata");
+    GetStorage().remove("dashboard");
+    checkUpdateStep2 = true;
+    if (mode == ScreenMode.add) {
+      Get.to(() => const BottomHost(initialIndex: 0));
+    } else if (mode == ScreenMode.edit) {
+      Get.to(() => const EditVehicleHomeScreen())?.then((value) {
+        item = null;
+      });
     }
+    galleryImageBase64List.clear();
   }
 
   void onMapCreated(GoogleMapController controller) {

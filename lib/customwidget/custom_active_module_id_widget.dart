@@ -59,11 +59,27 @@ void tobecomeHost(BuildContext context) async {
   }
   showLoading();
   try {
-    var responce = await httpPost(Config.getHostStatus, {});
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var responce = await httpPost(Config.getHostStatus, {});
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static host status data (approved so user sees host features)
+    var responce = {
+      "status": 200,
+      "message": "Host status retrieved successfully",
+      "error": "",
+      "data": {
+        "host_status": "1" // "1" = approved, "0" = not applied, "2" = pending
+      }
+    };
+    // ========== END MOCK DATA ==========
     if (responce != null && responce["status"] == 200) {
       if (responce["status"] == 200) {
         closeLoading();
-        var hostStatus = responce["data"]["host_status"];
+        final data = responce["data"] as Map<String, dynamic>?;
+        var hostStatus = data?["host_status"] ?? "0";
         if (hostStatus == "2") {
           showErrorToastMessage(
               "Your request to become a Lend is under review. Please wait for the admin to approve.");

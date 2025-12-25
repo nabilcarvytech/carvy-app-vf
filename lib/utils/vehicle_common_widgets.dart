@@ -38,16 +38,6 @@ Widget vehicleTypeWidget(
   HomeController homeController = Get.find();
   SearchControllerHome filterController = Get.find();
 
-  if (list.isNotEmpty && list[0].id != 0) {
-    list.insert(
-      0,
-      ItemTypes(
-        id: 0,
-        name: 'All',
-      ),
-    );
-  }
-
   return SizedBox(
     width: double.infinity,
     height: 80.0,
@@ -92,7 +82,8 @@ Widget vehicleTypeWidget(
                         SizedBox(
                           width: 5,
                         ),
-                        list[index].id == 0
+                        // Pour la catégorie "All", utiliser l'icône locale
+                        (list[index].name?.toLowerCase() == 'all')
                             ? Image.asset("assets/images/suv.png", height: 40)
                             : SizedBox(
                                 height: 40,
@@ -227,16 +218,25 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
       String? serviceType = '';
       ItemInfo? itemInfoData;
       if (list != null && list.length > index && list[index] != null) {
-        String? city = list[index]!.city;
-        String? jsonSliders = list[index]!.itemInfo;
+        final item = list[index]!;
+        String? jsonSliders = item.itemInfo;
         if (jsonSliders != null) {
           itemInfoData = ItemInfo.fromJson(json.decode(jsonSliders));
           Map<String, dynamic> itemInfo = jsonDecode(jsonSliders);
           serviceType = itemInfo["service_type"];
-        } else {}
+        }
 
-        if (city != null) {
-        } else {}
+        // Construire un texte de localisation propre (ville / adresse)
+        final locationParts = <String>[];
+        if ((item.address ?? '').trim().isNotEmpty) {
+          locationParts.add((item.address ?? '').trim());
+        }
+        if ((item.city ?? '').trim().isNotEmpty) {
+          locationParts.add((item.city ?? '').trim());
+        }
+        final String locationText = locationParts.isNotEmpty
+            ? locationParts.join(" • ")
+            : "Unknown Location".tr;
         return Padding(
           padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
           child: GestureDetector(
@@ -250,6 +250,7 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                             rating: list[index].itemRating,
                             title: list[index].name,
                             address: list[index].address,
+                            city: list[index].city,
                             latitute: list[index].latitude,
                             longtitute: list[index].longitude,
                             frontImage: list[index].image,
@@ -463,41 +464,52 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                                         width: 25,
                                         child: CircularProgressIndicator())
                                     : InkWell(
-                                        child: list[index].isInWishlist ==
-                                                    false ||
-                                                list[index].isInWishlist == null
+                                        child: list[index].isInWishlist == true
                                             ? SvgPicture.asset(
-                                                'assets/images/whitHeart.svg', // Update the asset path to the SVG file
+                                                'assets/images/redHeart.svg', // Update the asset path to the SVG file
                                                 height: 20,
                                               )
                                             : SvgPicture.asset(
-                                                'assets/images/redHeart.svg', // Update the asset path to the SVG file
+                                                'assets/images/whitHeart.svg', // Update the asset path to the SVG file
                                                 height: 20,
                                               ),
                                         onTap: () async {
                                           wishListLoadingHorizontal = index;
                                           setState(() {});
-                                          if (list[index].isInWishlist ==
-                                              false) {
-                                            var value = await wishListController
-                                                .addTowishlist(list[index].id);
-                                            if (value == true) {
-                                              var vvv = list[index];
-                                              vvv.wishlistSetter = true;
-                                              list[index] = vvv;
+
+                                          try {
+                                            bool success = false;
+                                            if (list[index].isInWishlist ==
+                                                true) {
+                                              success = await wishListController
+                                                  .removeToWishlist(
+                                                      list[index].id);
+                                              if (success) {
+                                                list[index].isInWishlist =
+                                                    false;
+                                              }
+                                            } else {
+                                              success = await wishListController
+                                                  .addTowishlist(
+                                                      list[index].id);
+                                              if (success) {
+                                                list[index].isInWishlist = true;
+                                              }
                                             }
-                                          } else {
-                                            var value = await wishListController
-                                                .removeToWishlist(
-                                                    list[index].id);
-                                            if (value == true) {
-                                              var vvv = list[index];
-                                              vvv.wishlistSetter = false;
-                                              list[index] = vvv;
+                                          } catch (e) {
+                                            print(
+                                                "❌ [Wishlist] Error toggling wishlist: $e");
+                                          } finally {
+                                            // CRITICAL: Always reset loading state, no matter what
+                                            wishListLoadingHorizontal = -1;
+                                            try {
+                                              setState(() {});
+                                            } catch (e) {
+                                              // Widget might be disposed, but we still reset the loading state
+                                              print(
+                                                  "⚠️ [Wishlist] setState failed (widget disposed): $e");
                                             }
                                           }
-                                          wishListLoadingHorizontal = -1;
-                                          setState(() {});
                                         },
                                       ),
                               ],
@@ -525,7 +537,7 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                       ),
                       Expanded(
                         child: Text(
-                          "${list.elementAt(index).address ?? ""},",
+                          locationText,
                           overflow: TextOverflow.ellipsis,
                           style: regular3(context).copyWith(
                             fontSize: 12,
@@ -956,6 +968,104 @@ Divider buildDividervehicle() {
   return Divider(
     height: 0,
     color: notifires.getgreywhite,
+  );
+}
+
+Widget CautionCard({
+  required String depositValue,
+  required String depositManager,
+  required BuildContext context,
+}) {
+  // Format deposit value with "DH" or "MAD"
+  String depositText = depositValue.isNotEmpty ? '$depositValue MAD' : '0 MAD';
+
+  // Format manager text
+  String managerText = '';
+  if (depositManager == 'CARVY') {
+    managerText = 'Gérée par Carvy'.tr;
+  } else if (depositManager == 'AGENCY') {
+    managerText = "Gérée par l'agence".tr;
+  } else if (depositManager.isNotEmpty) {
+    managerText = depositManager;
+  }
+
+  return Container(
+    margin: const EdgeInsets.symmetric(vertical: 16.0),
+    child: Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Colors.grey.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // First Row: Icon + Caution + Value + Info Icon + Important (all on one line)
+            Row(
+              children: [
+                Icon(
+                  Icons.security_outlined,
+                  color: getColorBasedOnActiveModuleid(),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Caution'.tr,
+                  style: TextStyle(
+                    color: Colors.grey[800],
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  depositText,
+                  style: TextStyle(
+                    color: getColorBasedOnActiveModuleid(),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Icon(
+                  Icons.info_outline,
+                  color: Colors.red,
+                  size: 16,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Important'.tr,
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            // Second Row: Manager text aligned with "Caution"
+            if (managerText.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(left: 36), // Compensate for shield icon (24) + spacing (12)
+                child: Text(
+                  managerText,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
   );
 }
 
@@ -1902,6 +2012,7 @@ Widget vehicalHorizontalViewNearYou(
                               rating: list[index].itemRating,
                               title: list[index].name,
                               address: list[index].address,
+                              city: list[index].city,
                               latitute: list[index].latitude,
                               longtitute: list[index].longitude,
                               frontImage: list[index].image,
@@ -2137,30 +2248,44 @@ Widget vehicalHorizontalViewNearYou(
                                           onTap: () async {
                                             wishListLoadingHorizontal = index;
                                             setState(() {});
-                                            if (list[index].isInWishlist ==
-                                                false) {
-                                              var value =
-                                                  await wishListController
-                                                      .addTowishlist(
-                                                          list[index].id);
-                                              if (value == true) {
-                                                var vvv = list[index];
-                                                vvv.wishlistSetter = true;
-                                                list[index] = vvv;
+
+                                            try {
+                                              if (list[index].isInWishlist ==
+                                                  false) {
+                                                var value =
+                                                    await wishListController
+                                                        .addTowishlist(
+                                                            list[index].id);
+                                                if (value == true) {
+                                                  var vvv = list[index];
+                                                  vvv.wishlistSetter = true;
+                                                  list[index] = vvv;
+                                                }
+                                              } else {
+                                                var value =
+                                                    await wishListController
+                                                        .removeToWishlist(
+                                                            list[index].id);
+                                                if (value == true) {
+                                                  var vvv = list[index];
+                                                  vvv.wishlistSetter = false;
+                                                  list[index] = vvv;
+                                                }
                                               }
-                                            } else {
-                                              var value =
-                                                  await wishListController
-                                                      .removeToWishlist(
-                                                          list[index].id);
-                                              if (value == true) {
-                                                var vvv = list[index];
-                                                vvv.wishlistSetter = false;
-                                                list[index] = vvv;
+                                            } catch (e) {
+                                              print(
+                                                  "❌ [Wishlist] Error toggling wishlist: $e");
+                                            } finally {
+                                              // CRITICAL: Always reset loading state, no matter what
+                                              wishListLoadingHorizontal = -1;
+                                              try {
+                                                setState(() {});
+                                              } catch (e) {
+                                                // Widget might be disposed, but we still reset the loading state
+                                                print(
+                                                    "⚠️ [Wishlist] setState failed (widget disposed): $e");
                                               }
                                             }
-                                            wishListLoadingHorizontal = -1;
-                                            setState(() {});
                                           },
                                         ),
                                 ],

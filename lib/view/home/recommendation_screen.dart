@@ -62,19 +62,155 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     try {
       isLoading = true;
       setState(() {});
+      
+      // ========== MOCK DATA - OLD API CALLS COMMENTED ==========
+      // if (widget.userId != null) {
+      //   response = await httpGet(Config.getUseritems,
+      //       {"userid": widget.userId, "offset": "$offset"});
+      // } else if (widget.title == "Recommended Vehicle") {
+      //   response = await httpPost(Config.featuredItems, {"offset": "$offset"});
+      // } else if (widget.title == "Vehicles Near You") {
+      //   response = await httpPost(Config.nearbyItems, {
+      //     "offset": "$offset",
+      //     "item_type": "${searchController.globalItemType.value}"
+      //   });
+      // } else {
+      //   response = await httpPost(Config.getItemsByLocation,
+      //       {"location_id": widget.locationId, "offset": "$offset"});
+      // }
+      
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // MOCK: Return static ItemModel data based on title
       if (widget.userId != null) {
-        response = await httpGet(Config.getUseritems,
-            {"userid": widget.userId, "offset": "$offset"});
+        response = {
+          "status": 200,
+          "message": "User items retrieved successfully",
+          "error": "",
+          "data": {
+            "items": [
+              {
+                "id": 501,
+                "name": "User Vehicle 1",
+                "item_rating": "4.6",
+                "mobile": "+1234567895",
+                "person_allowed": "5",
+                "address": "100 User Street",
+                "state_region": "California",
+                "city": "San Diego",
+                "zip_postal_code": "92101",
+                "price": "75.00",
+                "latitude": "32.7157",
+                "longitude": "-117.1611",
+                "status": "1",
+                "item_type_id": "1",
+                "image": "https://example.com/user1.jpg",
+                "item_info": null,
+                "is_in_wishlist": false,
+                "item_type": "Sedan",
+                "distance": null
+              }
+            ],
+            "offset": 0
+          }
+        };
       } else if (widget.title == "Recommended Vehicle") {
-        response = await httpPost(Config.featuredItems, {"offset": "$offset"});
+        response = {
+          "status": 200,
+          "message": "Featured items retrieved successfully",
+          "error": "",
+          "data": {
+            "items": [
+              {
+                "id": 201,
+                "name": "BMW 3 Series 2023",
+                "item_rating": "4.8",
+                "mobile": "+1234567892",
+                "person_allowed": "5",
+                "address": "789 Luxury Lane",
+                "state_region": "California",
+                "city": "Beverly Hills",
+                "zip_postal_code": "90210",
+                "price": "120.00",
+                "latitude": "34.0736",
+                "longitude": "-118.4004",
+                "status": "1",
+                "item_type_id": "1",
+                "image": "https://example.com/bmw3.jpg",
+                "item_info": null,
+                "is_in_wishlist": false,
+                "item_type": "Sedan",
+                "distance": null
+              }
+            ],
+            "offset": 0
+          }
+        };
       } else if (widget.title == "Vehicles Near You") {
-        response = await httpPost(Config.nearbyItems, {
-          "offset": "$offset",
-          "item_type": "${searchController.globalItemType.value}"
-        });
+        response = {
+          "status": 200,
+          "message": "Nearby items retrieved successfully",
+          "error": "",
+          "data": {
+            "items": [
+              {
+                "id": 101,
+                "name": "Toyota Camry 2023",
+                "item_rating": "4.5",
+                "mobile": "+1234567890",
+                "person_allowed": "5",
+                "address": "123 Main Street",
+                "state_region": "California",
+                "city": "Los Angeles",
+                "zip_postal_code": "90001",
+                "price": "50.00",
+                "latitude": "34.0522",
+                "longitude": "-118.2437",
+                "status": "1",
+                "item_type_id": "1",
+                "image": "https://example.com/camry.jpg",
+                "item_info": null,
+                "is_in_wishlist": false,
+                "item_type": "Sedan",
+                "distance": "2.5"
+              }
+            ],
+            "offset": 0
+          }
+        };
       } else {
-        response = await httpPost(Config.getItemsByLocation,
-            {"location_id": widget.locationId, "offset": "$offset"});
+        response = {
+          "status": 200,
+          "message": "Location items retrieved successfully",
+          "error": "",
+          "data": {
+            "items": [
+              {
+                "id": 601,
+                "name": "Location Vehicle 1",
+                "item_rating": "4.4",
+                "mobile": "+1234567896",
+                "person_allowed": "5",
+                "address": "200 Location Blvd",
+                "state_region": "California",
+                "city": "Sacramento",
+                "zip_postal_code": "95814",
+                "price": "60.00",
+                "latitude": "38.5816",
+                "longitude": "-121.4944",
+                "status": "1",
+                "item_type_id": "2",
+                "image": "https://example.com/location1.jpg",
+                "item_info": null,
+                "is_in_wishlist": false,
+                "item_type": "SUV",
+                "distance": null
+              }
+            ],
+            "offset": 0
+          }
+        };
       }
 
       if (response != null && response['status'] == 200) {

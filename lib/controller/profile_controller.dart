@@ -148,7 +148,57 @@ class ProfileController extends GetxController implements GetxService {
         "identity_image": identityBase64 ?? ""
       };
 
-      var response = await httpPost(Config.editProfile, postData);
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.editProfile, postData);
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static success response for editing profile
+      var response = {
+        "status": 200,
+        "message": "Profile updated successfully",
+        "error": "",
+        "data": {
+          "user": {
+            "id": loginModel?.data?.id ?? 1,
+            "first_name": postData["first_name"],
+            "middle": null,
+            "last_name": postData["last_name"],
+            "email": postData["email"],
+            "phone": postData["phone"],
+            "phone_country": postData["phone_country"],
+            "default_country": postData["default_country"],
+            "intro": postData["intro"],
+            "langauge": postData["langauge"],
+            "country": postData["country"],
+            "wallet": null,
+            "otp_value": "0",
+            "token": token,
+            "reset_token": null,
+            "verified": "1",
+            "phone_verify": "1",
+            "email_verify": "1",
+            "login_type": "email",
+            "birthdate": postData["birthdate"],
+            "social_id": null,
+            "status": "1",
+            "created_at": DateTime.now().toIso8601String(),
+            "updated_at": DateTime.now().toIso8601String(),
+            "deleted_at": null,
+            "package_id": null,
+            "fcm": null,
+            "device_id": null,
+            "identity_image": postData["identity_image"] != null &&
+                    postData["identity_image"]!.isNotEmpty
+                ? {"url": postData["identity_image"]}
+                : null,
+            "profile_image": null,
+            "media": []
+          }
+        }
+      };
+      // ========== END MOCK DATA ==========
       closeLoading();
       if (response != null) {
         if (response['status'] == 200) {
@@ -178,8 +228,24 @@ class ProfileController extends GetxController implements GetxService {
       BuildContext context, GlobalKey<FormState> formKey) async {
     if (formKey.currentState!.validate()) {
       showLoading();
-      var response = await httpPost(Config.checkEmail,
-          {"email": textEditingProfileControllerCheckEmail.text});
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.checkEmail,
+      //     {"email": textEditingProfileControllerCheckEmail.text});
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static success response for checking email
+      var response = {
+        "status": 200,
+        "message": "OTP sent to email successfully",
+        "error": "",
+        "data": {
+          "email": textEditingProfileControllerCheckEmail.text,
+          "otp": "123456"
+        }
+      };
+      // ========== END MOCK DATA ==========
       closeLoading();
       if (response != null) {
         CheckEmail checkEmail = CheckEmail.fromJson(response);
@@ -431,16 +497,34 @@ class ProfileController extends GetxController implements GetxService {
   uploadProfileMethod(image) async {
     globalScopeController.isUploadingImage.value = true;
     showLoading();
-    var response =
-        await httpPost(Config.uploadProfileImage, {"profile_image": image});
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response =
+    //     await httpPost(Config.uploadProfileImage, {"profile_image": image});
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static success response for uploading profile image
+    var response = {
+      "status": 200,
+      "message": "Profile image uploaded successfully",
+      "error": "",
+      "data": {
+        "profile_image": {"url": image, "thumbnail": image, "preview": image}
+      }
+    };
+    // ========== END MOCK DATA ==========
     globalScopeController.isUploadingImage.value = false;
     update();
     if (response != null) {
       if (response['status'] == 200) {
         closeLoading();
-        loginModel!.data!.profileImageSetter =
-            response['data']['profile_image_url'];
-        myImage.value = response['data']['profile_image_url'];
+        final data = response['data'] as Map<String, dynamic>?;
+        final profileImage = data?['profile_image'] as Map<String, dynamic>?;
+        final imageUrl =
+            profileImage?['url'] ?? data?['profile_image_url'] ?? "";
+        loginModel!.data!.profileImageSetter = imageUrl;
+        myImage.value = imageUrl;
         update();
         closeLoading();
         showToastMessage(response['message']);

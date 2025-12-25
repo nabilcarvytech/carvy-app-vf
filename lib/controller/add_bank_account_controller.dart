@@ -45,7 +45,26 @@ class AddBankAccount extends GetxController implements GetxService {
     paymentMethodModel = null;
     try {
       showLoading();
-      var res = await httpGet(Config.getPayoutType, {});
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var res = await httpGet(Config.getPayoutType, {});
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static payout types data
+      var res = {
+        "status": 200,
+        "message": "Payout types retrieved successfully",
+        "error": "",
+        "data": {
+          "payout_methods": [
+            {"id": 1, "name": "Bank Account"},
+            {"id": 2, "name": "PayPal"},
+            {"id": 3, "name": "Stripe"}
+          ]
+        }
+      };
+      // ========== END MOCK DATA ==========
       closeLoading();
       if (res != null && res["status"] == 200) {
         paymentMethodModel = PaymentMethodModel.fromJson(res);
@@ -62,9 +81,63 @@ class AddBankAccount extends GetxController implements GetxService {
   Future fetchPaymentType() async {
     isLoadingPayment.value = true;
     getPaymentTypeModel = null;
-    Future.delayed(Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 1));
     try {
-      var res = await httpPost(Config.getPayoutMethod, {});
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var res = await httpPost(Config.getPayoutMethod, {});
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static payout methods data
+      var res = {
+        "status": 200,
+        "message": "Payout methods retrieved successfully",
+        "error": "",
+        "data": {
+          "payout_methods": [
+            {
+              "id": 1,
+              "payout_method": "Bank Account",
+              "details": {
+                "id": 1,
+                "is_active": 0,
+                "account_name": null,
+                "bank_name": null,
+                "branch_name": null,
+                "account_number": null,
+                "iban": null,
+                "swift_code": null,
+                "email": null,
+                "note": null,
+                "user_id": null,
+                "created_at": null,
+                "updated_at": null
+              }
+            },
+            {
+              "id": 2,
+              "payout_method": "PayPal",
+              "details": {
+                "id": 2,
+                "is_active": 0,
+                "account_name": null,
+                "bank_name": null,
+                "branch_name": null,
+                "account_number": null,
+                "iban": null,
+                "swift_code": null,
+                "email": null,
+                "note": null,
+                "user_id": null,
+                "created_at": null,
+                "updated_at": null
+              }
+            }
+          ]
+        }
+      };
+      // ========== END MOCK DATA ==========
 
       if (res != null && res["status"] == 200) {
         getPaymentTypeModel = GetPaymentTypeModel.fromJson(res);
@@ -149,24 +222,52 @@ class AddBankAccount extends GetxController implements GetxService {
       };
 
       showLoading();
-      var response = await httpPost(Config.addPaymentMethod, map);
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.addPaymentMethod, map);
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static success response for adding payment method
+      var response = {
+        "status": 200,
+        "message": "Payment method updated successfully",
+        "error": "",
+        "data": {
+          "payout_methods": [
+            {
+              "id": parsedId,
+              "payout_method": type,
+              "details": {
+                "id": 1,
+                "is_active": 1,
+                "account_name": payoutMethodDetails["account_name"],
+                "bank_name": payoutMethodDetails["bank_name"],
+                "branch_name": payoutMethodDetails["branch_name"],
+                "account_number": payoutMethodDetails["account_number"],
+                "iban": payoutMethodDetails["iban"],
+                "swift_code": payoutMethodDetails["swift_code"],
+                "email": payoutMethodDetails["email"],
+                "note": payoutMethodDetails["note"],
+                "user_id": null,
+                "created_at": DateTime.now().toIso8601String(),
+                "updated_at": DateTime.now().toIso8601String()
+              }
+            }
+          ]
+        }
+      };
+      // ========== END MOCK DATA ==========
       closeLoading();
 
-      if (response is String) {
-        try {
-          response = jsonDecode(response);
-        } catch (e) {
-          showErrorToastMessage("Invalid API response format: $response");
-          return;
-        }
-      }
-
+      // Note: Mock response is already a Map, so we skip the String check
       if (response is Map<String, dynamic> && response["status"] != null) {
         final status = int.tryParse(response["status"].toString()) ?? -1;
         if (status == 200) {
-          if (response["data"] is Map<String, dynamic> &&
-              (response["data"]["payout_methods"] == null ||
-                  response["data"]["payout_methods"] is List)) {
+          final data = response["data"] as Map<String, dynamic>?;
+          if (data != null &&
+              (data["payout_methods"] == null ||
+                  data["payout_methods"] is List)) {
             await addbankAccountController.fetchPaymentType();
             Get.back();
             showToastMessage("Payment method updated successfully");

@@ -630,6 +630,7 @@ const Map<String, String> esES = {
   "Identity": "Identidad",
   "Identity not verified": "Identidad no verificada",
   "Verified Identity": "Identidad verificada",
+  "Verified Member": "Miembro Verificado",
   "No Review Available": "No hay reseñas disponibles",
   "View All Review": "Ver todas las reseñas",
   "View All Listing": "Ver todos los anuncios",

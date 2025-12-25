@@ -222,7 +222,7 @@ Future clearAllController() async {
   AuthController authController = Get.find();
   ProfileController profileController = Get.find();
   AddBankAccount addbankAccountController = Get.find();
-  filterController.globalItemType.value = 0;
+  filterController.globalItemType.value = '0';
   profileController.selectedCountry.value =
       profileController.selectedCountryReset.value;
   profileController.defaultCountry.value =

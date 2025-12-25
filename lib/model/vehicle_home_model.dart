@@ -1,4 +1,3 @@
-
 import 'make_type_model.dart';
 
 class HomeDataModel {
@@ -21,6 +20,7 @@ class HomeDataModel {
     );
   }
 }
+
 class Data {
   List<ItemType>? itemTypes;
   List<ItemsData>? nearbyItems;
@@ -59,15 +59,13 @@ class Data {
       locations: (json['locations'] as List?)
           ?.map((i) => Location.fromJson(i))
           .toList(),
-      makes: (json['makes'] as List?)
-          ?.map((i) => Makes.fromJson(i))
-          .toList(),
+      makes: (json['makes'] as List?)?.map((i) => Makes.fromJson(i)).toList(),
     );
   }
 }
 
 class ItemType {
-  int? id;
+  String? id;
   String? name;
   String? description;
   String? status;
@@ -81,7 +79,7 @@ class ItemType {
   });
   factory ItemType.fromJson(Map<String, dynamic> json) {
     return ItemType(
-      id: json['id'],
+      id: json['id']?.toString() ?? json['_id']?.toString(),
       name: json['name'],
       description: json['description'],
       status: json['status'],
@@ -90,10 +88,8 @@ class ItemType {
   }
 }
 
-
-
 class ItemsData {
-  int? id;
+  String? id;
   String? name;
   String? itemRating;
   String? mobile;
@@ -132,26 +128,61 @@ class ItemsData {
     this.isInWishlist,
     this.itemType,
     this.distance,
-   });
+  });
   set wishlistSetter(bool value) {
     isInWishlist = value;
   }
+
   factory ItemsData.fromJson(Map<String, dynamic> json) {
+    // DEBUG: suivre ce qui arrive pour la localisation côté home
+    print("🏠 [HOME] PARSING ITEM ${json['id'] ?? json['_id']}:");
+    print("   - Raw JSON city: '${json['city']}'");
+    print("   - Raw JSON address: '${json['address']}'");
+    print("   - Raw JSON vehicleLocation: '${json['vehicleLocation']}'");
+
+    final dynamic vehicleLocation = json['vehicleLocation'];
+    final dynamic legacyLocation = json['location'];
+
+    // Adresse / ville : racine en priorité, puis anciens schémas
+    final dynamic rawAddress = json['address'] ??
+        (vehicleLocation is Map ? vehicleLocation['address'] : null) ??
+        (legacyLocation is Map ? legacyLocation['address'] : null);
+
+    final dynamic rawCity = json['city'] ??
+        (vehicleLocation is Map ? vehicleLocation['cityName'] : null) ??
+        (legacyLocation is Map ? legacyLocation['city'] : null);
+
+    // Coordonnées
+    final dynamic rawLat = json['latitude'] ??
+        (vehicleLocation is Map ? vehicleLocation['latitude'] : null) ??
+        (legacyLocation is Map && legacyLocation['coordinates'] is List
+            ? (legacyLocation['coordinates'] as List).length > 1
+                ? (legacyLocation['coordinates'] as List)[1]
+                : null
+            : null);
+    final dynamic rawLng = json['longitude'] ??
+        (vehicleLocation is Map ? vehicleLocation['longitude'] : null) ??
+        (legacyLocation is Map && legacyLocation['coordinates'] is List
+            ? (legacyLocation['coordinates'] as List).isNotEmpty
+                ? (legacyLocation['coordinates'] as List)[0]
+                : null
+            : null);
+
     return ItemsData(
-      id: json['id'],
+      id: json['id']?.toString() ?? json['_id']?.toString(),
       name: json['name'],
       itemRating: json['item_rating'],
       mobile: json['mobile'],
       personAllowed: json['person_allowed'],
-      address: json['address'],
+      address: rawAddress?.toString(),
       stateRegion: json['state_region'],
-      city: json['city'],
+      city: rawCity?.toString(),
       zipPostalCode: json['zip_postal_code'],
       price: json['price'],
-      latitude: json['latitude'],
-      longitude: json['longitude'],
+      latitude: rawLat?.toString(),
+      longitude: rawLng?.toString(),
       status: json['status'],
-      itemTypeId: json['item_type_id'],
+      itemTypeId: json['item_type_id']?.toString(),
       image: json['image'],
       itemInfo: json['item_info'],
       isInWishlist: json['is_in_wishlist'],
@@ -277,7 +308,6 @@ class ItemInfo {
               : (json['cancellation_reason_description'] is String)
                   ? [json['cancellation_reason_description']]
                   : [],
-
       featuresData: (json['features_data'] as List<dynamic>?)
           ?.map((featureJson) => Feature.fromJson(featureJson))
           .toList(),
@@ -295,8 +325,9 @@ class ItemInfo {
     );
   }
 }
+
 class Feature {
-  int? id;
+  String? id;
   String? name;
   String? imageUrl;
 
@@ -308,16 +339,15 @@ class Feature {
 
   factory Feature.fromJson(Map<String, dynamic> json) {
     return Feature(
-      id: json['id'],
+      id: json['id']?.toString() ?? json['_id']?.toString(),
       name: json['name'],
       imageUrl: json['image_url'],
     );
   }
 }
 
-
 class Location {
-  int? id;
+  String? id;
   String? cityName;
   String? description;
   String? image;
@@ -337,7 +367,7 @@ class Location {
 
   factory Location.fromJson(Map<String, dynamic> json) {
     return Location(
-      id: json['id'],
+      id: json['id']?.toString() ?? json['_id']?.toString(),
       cityName: json['city_name'],
       description: json['description'],
       image: json['image'],
@@ -347,5 +377,3 @@ class Location {
     );
   }
 }
-
-

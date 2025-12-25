@@ -623,6 +623,7 @@ const Map<String, String> enUs = {
   "Identity": "Identity",
   "Identity not verified": "Identity not verified",
   "Verified Identity": "Verified Identity",
+  "Verified Member": "Verified Member",
   "No Review Available": "No Reviews Available",
   "View All Review": "View All Reviews",
   "View All Listing": "View All Listings",

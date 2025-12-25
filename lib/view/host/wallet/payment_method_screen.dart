@@ -175,9 +175,31 @@ class _PaymentMethodState extends State<PaymentMethod> {
       };
 
       showLoading();
-      var response = await httpPost(Config.addPaymentMethod, map);
+      
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.addPaymentMethod, map);
+      
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // MOCK: Static success response for adding payment method
+      Map<String, dynamic> mockResponse = {
+        "status": 200,
+        "message": "Bank account added successfully",
+        "error": "",
+        "data": {
+          "payout_methods": payoutMethodsList,
+          "active_payout_method_id": methodId
+        }
+      };
+      
+      // ========== END MOCK DATA ==========
+      
       closeLoading();
 
+      // Note: Mock response is already a Map, so we handle it directly
+      dynamic response = mockResponse;
+      
       if (response is String) {
         try {
           response = jsonDecode(response);
@@ -189,7 +211,7 @@ class _PaymentMethodState extends State<PaymentMethod> {
         }
       }
 
-      if (response is Map<String, dynamic> && response["status"] != null) {
+      if (response != null && response is Map<String, dynamic> && response["status"] != null) {
         if (response["status"] == 200) {
           if (response["data"] is Map<String, dynamic> &&
               (response["data"]["payout_methods"] == null ||

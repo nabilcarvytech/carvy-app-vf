@@ -65,12 +65,14 @@ class _VehcileRulesScreenState extends State<VehcileRulesScreen> {
                             color: notifires.getboxcolor,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Padding(
+                            child: Padding(
                             padding: const EdgeInsets.symmetric(
                                 vertical: 8, horizontal: 12),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
+                                RadioBtnHost(currentRule: currentRule),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
                                     currentRule.name.toString(),

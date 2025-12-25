@@ -6,6 +6,7 @@ import 'package:carvy/api/config.dart' show Config;
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/model/booking_model.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
+import 'package:carvy/view/host/orders/_mock_booking_helper.dart';
 
 import '../../../customwidget/data_not_found.dart';
 import '../../../customwidget/project_color.dart';
@@ -34,7 +35,16 @@ class _UpcomingOrdersState extends State<UpcomingOrders> {
   getData() async {
     try {
       Map<String, String> postData = {"type": "upcoming", "offset": '$offset'};
-      var result = await httpPost(Config.vendorbookingRecord, postData);
+      
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var result = await httpPost(Config.vendorbookingRecord, postData);
+      
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // MOCK: Static vendor booking data using helper
+      var result = generateMockVendorBooking(type: "upcoming", offset: offset);
+      // ========== END MOCK DATA ==========
 
       if (result != null) {
         bookingModel = BookingModel.fromJson(result);

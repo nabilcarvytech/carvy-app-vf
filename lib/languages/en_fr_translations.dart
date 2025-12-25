@@ -630,6 +630,7 @@ const Map<String, String> frFR = {
   "Identity": "Identité",
   "Identity not verified": "Identité non vérifiée",
   "Verified Identity": "Identité vérifiée",
+  "Verified Member": "Membre Vérifié",
   "No Review Available": "Aucun avis disponible",
   "View All Review": "Voir tous les avis",
   "View All Listing": "Voir toutes les annonces",

@@ -9,6 +9,7 @@ import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/booking_model.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
+import 'package:carvy/view/host/orders/_mock_booking_helper.dart';
 
 class LiveOrderds extends StatefulWidget {
   final bool fromPropBooking;
@@ -33,7 +34,16 @@ class _LiveOrderdsState extends State<LiveOrderds> {
   getData() async {
     try {
       Map<String, String> postData = {"type": "ongoing", "offset": '$offset'};
-      var result = await httpPost(Config.vendorbookingRecord, postData);
+      
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var result = await httpPost(Config.vendorbookingRecord, postData);
+      
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // MOCK: Static vendor booking data using helper
+      var result = generateMockVendorBooking(type: "ongoing", offset: offset);
+      // ========== END MOCK DATA ==========
 
       if (result != null) {
         bookingModel = BookingModel.fromJson(result);

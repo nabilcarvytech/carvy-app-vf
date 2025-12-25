@@ -620,6 +620,7 @@ const Map<String, String> thTH = {
   "Identity": "ตัวตน",
   "Identity not verified": "ตัวตนยังไม่ได้รับการยืนยัน",
   "Verified Identity": "ตัวตนที่ยืนยันแล้ว",
+  "Verified Member": "สมาชิกที่ยืนยันแล้ว",
   "No Review Available": "ไม่มีรีวิว",
   "View All Review": "ดูรีวิวทั้งหมด",
   "View All Listing": "ดูรายการทั้งหมด",

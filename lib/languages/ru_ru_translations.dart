@@ -626,6 +626,7 @@ const Map<String, String> ruRU = {
   "Identity": "Идентификация",
   "Identity not verified": "Идентификация не подтверждена",
   "Verified Identity": "Подтвержденная идентификация",
+  "Verified Member": "Проверенный участник",
   "No Review Available": "Нет отзывов",
   "View All Review": "Посмотреть все отзывы",
   "View All Listing": "Посмотреть все списки",

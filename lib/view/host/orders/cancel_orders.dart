@@ -6,6 +6,7 @@ import 'package:carvy/api/config.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
+import 'package:carvy/view/host/orders/_mock_booking_helper.dart';
 
 import '../../../customwidget/data_not_found.dart';
 import '../../../helper/http_service.dart';
@@ -32,7 +33,16 @@ class _CancelOrdersState extends State<CancelOrders> {
 
   getData() async {
     Map<String, String> postData = {"type": "Cancelled", "offset": '$offset'};
-    var result = await httpPost(Config.vendorbookingRecord, postData);
+    
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var result = await httpPost(Config.vendorbookingRecord, postData);
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static vendor booking data using helper
+    var result = generateMockVendorBooking(type: "Cancelled", offset: offset);
+    // ========== END MOCK DATA ==========
 
     if (result != null) {
       bookingModel = BookingModel.fromJson(result);

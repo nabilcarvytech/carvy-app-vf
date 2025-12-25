@@ -114,9 +114,27 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> getData() async {
     if (_isNavigating) return;
     try {
-      var response = await httpPost(Config.bookingpaymentsuccess, {
-        "booking_id": widget.bookingId,
-      });
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.bookingpaymentsuccess, {
+      //   "booking_id": widget.bookingId,
+      // });
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static success response for payment success
+      var response = {
+        "status": 200,
+        "message": "Payment verified successfully",
+        "error": "",
+        "data": {
+          "booking_id": widget.bookingId,
+          "payment_status": "success",
+          "bookingpayment": "success"
+        }
+      };
+      // ========== END MOCK DATA ==========
+
       if (response != null) {
         setState(() {});
       }
@@ -339,6 +357,37 @@ class _PaymentScreenState extends State<PaymentScreen> {
   void _handleNavigation(String url) {
     debugPrint("Navigated to: $url");
     if (_isNavigating) return;
+
+    // ========== MOCK HANDLING - TEMPORARY CODE FOR OFFLINE MODE ==========
+    // TODO: REMOVE THIS MOCK HANDLING AFTER NODE.JS BACKEND IMPLEMENTATION
+    // This code detects mock payment URLs (containing "cs_test_mock") and treats them as success
+    // In production with Node.js backend, Stripe will redirect to a real payment_success URL
+    // and this mock detection will not be needed.
+    if (url.contains("cs_test_mock")) {
+      debugPrint(
+          "⚠️ MOCK MODE: Detected mock payment URL, simulating payment success");
+      _stopTimer();
+      _isNavigating = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context)
+            .pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => BookingSuccessPage(
+              bookingId: widget.bookingId!,
+              initialStatus: "Paid",
+            ),
+          ),
+        )
+            .then((_) {
+          generalController.currentIndex.value = 2;
+          generalController.tabController.index = 2;
+          Get.offAll(() => const HomeMain(initialIndex: 2));
+        });
+        _isNavigating = false;
+      });
+      return; // Exit early, don't process other conditions
+    }
+    // ========== END MOCK HANDLING ==========
 
     if (url.contains("wallet_recharge_success") ||
         url.contains("wallet_recharge_fail")) {

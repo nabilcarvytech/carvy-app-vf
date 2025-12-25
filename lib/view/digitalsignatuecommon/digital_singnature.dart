@@ -169,7 +169,25 @@ class _DigitalSignatureState extends State<DigitalSignature> {
         'signature_image': base64Image,
       };
 
-      final response = await httpPost(Config.uploadSignature, payload);
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // final response = await httpPost(Config.uploadSignature, payload);
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static success response for uploading signature
+      final response = {
+        "success": 200,
+        "message": "Signature uploaded successfully",
+        "error": "",
+        "data": {
+          "booking_id": "${widget.bookings?.id}",
+          "signature_type": type,
+          "signature_url":
+              "https://example.com/signatures/${widget.bookings?.id}_$type.png"
+        }
+      };
+      // ========== END MOCK DATA ==========
 
       if (response == null || response['success'] != 200) {
         showErrorToastMessage(

@@ -913,51 +913,55 @@ class _SearchScreenState extends State<SearchScreen> {
                         child: Stack(
                           children: [
                             SizedBox(
-                              height: 370,
+                              height: 550,
                               child: SfDateRangePicker(
                                 startRangeSelectionColor: Colors.transparent,
                                 endRangeSelectionColor: Colors.transparent,
                                 rangeSelectionColor: Colors.transparent,
                                 selectionColor: Colors.transparent,
-                                enableMultiView: false,
+                                navigationDirection: DateRangePickerNavigationDirection.vertical,
+                                navigationMode: DateRangePickerNavigationMode.scroll,
+                                enableMultiView: true,
+                                backgroundColor: Colors.white,
                                 headerStyle: DateRangePickerHeaderStyle(
-                                  backgroundColor: notifires.getboxcolor,
-                                  textAlign: TextAlign.center,
+                                  backgroundColor: Colors.white,
+                                  textAlign: TextAlign.left,
                                   textStyle: TextStyle(
-                                    color: notifires.getwhiteblackcolor,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 monthCellStyle: DateRangePickerMonthCellStyle(
                                   todayTextStyle: TextStyle(
-                                    color: themeColor,
-                                    fontWeight: FontWeight.w700,
+                                    color: getColorBasedOnActiveModuleid(),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
                                   weekendTextStyle: TextStyle(
-                                    color: themeColor,
+                                    color: Colors.black87,
                                     fontWeight: FontWeight.w500,
+                                    fontSize: 16,
                                   ),
                                   textStyle: TextStyle(
-                                    color: notifires.getwhiteblackcolor,
-                                    fontSize: 14,
+                                    color: Colors.black87,
+                                    fontSize: 16,
                                   ),
                                 ),
                                 monthViewSettings:
                                     DateRangePickerMonthViewSettings(
                                   dayFormat: "EEE",
+                                  viewHeaderHeight: 50,
                                   viewHeaderStyle:
                                       DateRangePickerViewHeaderStyle(
-                                    backgroundColor:
-                                        notifires.getboxcolor.withOpacity(0.8),
+                                    backgroundColor: Colors.white,
                                     textStyle: TextStyle(
-                                      color: notifires.getwhiteblackcolor,
+                                      color: Colors.black87,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
-                                backgroundColor: notifires.getboxcolor,
                                 minDate: DateTime.now(),
                                 maxDate: DateTime.now()
                                     .add(const Duration(days: 180)),
@@ -983,51 +987,62 @@ class _SearchScreenState extends State<SearchScreen> {
                                   final range = _searchController
                                       .dateRangePickerControllerCustom
                                       .selectedRange;
-                                  bool isSelected = false;
+                                  bool isStartDate = false;
+                                  bool isEndDate = false;
+                                  bool isInRange = false;
+                                  
                                   if (range != null) {
                                     DateTime? start = range.startDate;
-                                    DateTime? end = range.endDate ?? start;
+                                    DateTime? end = range.endDate;
 
+                                    if (start != null) {
+                                      isStartDate = isSameDate(details.date, start);
+                                    }
+                                    if (end != null) {
+                                      isEndDate = isSameDate(details.date, end);
+                                    }
                                     if (start != null && end != null) {
-                                      if (isSameDate(details.date, start) ||
-                                          isSameDate(details.date, end) ||
-                                          (details.date.isAfter(start) &&
-                                              details.date.isBefore(end))) {
-                                        isSelected = true;
-                                      }
+                                      isInRange = details.date.isAfter(start) &&
+                                          details.date.isBefore(end);
                                     }
                                   }
+                                  
+                                  final bool isSelected = isStartDate || isEndDate || isInRange;
+                                  final primaryColor = getColorBasedOnActiveModuleid();
+                                  
                                   return Container(
+                                    height: 65,
                                     margin: const EdgeInsets.all(2),
                                     decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? getColorBasedOnActiveModuleid()
-                                          : isDisabled
-                                              ? Colors.transparent
+                                      color: (isStartDate || isEndDate)
+                                          ? primaryColor // Dark blue circle for start/end
+                                          : isInRange
+                                              ? primaryColor.withOpacity(0.15) // Very light blue for in-between
                                               : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: isDisabled
-                                            ? Colors.grey.shade300
-                                            : isSelected
-                                                ? Colors.transparent
-                                                : notifires.getGrey2Whitecolor
-                                                    .withOpacity(0.4),
-                                        width: isSelected ? 0 : 1,
-                                      ),
+                                      shape: BoxShape.circle, // Circular shape like Airbnb
+                                      border: isDisabled
+                                          ? Border.all(
+                                              color: Colors.grey.shade300,
+                                              width: 1,
+                                            )
+                                          : null,
                                     ),
                                     alignment: Alignment.center,
                                     child: Text(
                                       convertToLocaleDigits(
                                           "${details.date.day}"),
                                       style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: 16,
+                                        fontWeight: (isStartDate || isEndDate)
+                                            ? FontWeight.bold
+                                            : FontWeight.w600,
                                         color: isDisabled
                                             ? Colors.grey.shade400
-                                            : isSelected
-                                                ? Colors.white
-                                                : notifires.getwhiteblackcolor,
+                                            : (isStartDate || isEndDate)
+                                                ? Colors.white // White text for start/end
+                                                : isInRange
+                                                    ? primaryColor // Primary color for in-between
+                                                    : Colors.black87, // Black for normal days
                                       ),
                                     ),
                                   );

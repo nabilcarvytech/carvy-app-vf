@@ -35,6 +35,7 @@ class VehicleDetailSScreen extends StatefulWidget {
   ItemInfo? itemInfo;
   String? frontImage;
   String? address;
+  String? city;
   String? rating;
   String? itemType;
   String? title;
@@ -50,6 +51,7 @@ class VehicleDetailSScreen extends StatefulWidget {
     this.itemInfo,
     this.frontImage,
     this.address,
+    this.city,
     this.rating,
     this.itemType,
     this.title,
@@ -77,8 +79,15 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
   @override
   void initState() {
     super.initState();
+    print("🚗 VehicleDetailSScreen initState - widget.id: ${widget.id}");
+    print(
+        "🚗 VehicleDetailSScreen initState - widget.itemInfo: ${widget.itemInfo}");
+    print(
+        "🚗 VehicleDetailSScreen initState - widget.itemInfo?.hostId: ${widget.itemInfo?.hostId}");
     handleSearchFordetail = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      print(
+          "🚗 VehicleDetailSScreen postFrameCallback - Starting initialization");
       kycController.getUserKycData();
       if (handleDirectBooking == false) {
         filterController.setDefaultDates(
@@ -88,20 +97,68 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
           endDates: filterController.endDates,
         );
       }
-      publicProfileController
-          .getDataPublicProfile(widget.itemInfo!.hostId.toString());
+      // Load vehicle details data
+      print(
+          "🚗 VehicleDetailSScreen - Calling getdataVehicle with id: ${widget.id}");
+      vehicleDetailController.getdataVehicle(widget.id).then((_) {
+        print("🚗 VehicleDetailSScreen - getdataVehicle completed");
+        print(
+            "🚗 VehicleDetailSScreen - vehicleDetailModel: ${vehicleDetailController.vehicleDetailModel}");
+        print(
+            "🚗 VehicleDetailSScreen - vehicleDetailModel?.data: ${vehicleDetailController.vehicleDetailModel?.data}");
+        print(
+            "🚗 VehicleDetailSScreen - vehicleDetailModel?.data?.itemDetails: ${vehicleDetailController.vehicleDetailModel?.data?.itemDetails}");
+      }).catchError((error) {
+        print("❌ VehicleDetailSScreen - Error in getdataVehicle: $error");
+        print("❌ VehicleDetailSScreen - Error stack: ${error.stackTrace}");
+      });
+      // Only call publicProfileController if itemInfo and hostId are not null
+      print("🚗 VehicleDetailSScreen - Checking itemInfo and hostId");
+      if (widget.itemInfo != null && widget.itemInfo?.hostId != null) {
+        print(
+            "🚗 VehicleDetailSScreen - Calling getDataPublicProfile with hostId: ${widget.itemInfo!.hostId}");
+        publicProfileController
+            .getDataPublicProfile(widget.itemInfo!.hostId.toString());
+      } else {
+        print(
+            "⚠️ VehicleDetailSScreen - itemInfo or hostId is null, skipping getDataPublicProfile");
+        print("⚠️ VehicleDetailSScreen - widget.itemInfo: ${widget.itemInfo}");
+        print(
+            "⚠️ VehicleDetailSScreen - widget.itemInfo?.hostId: ${widget.itemInfo?.hostId}");
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    print("sdfsd. ${widget.itemInfo!.reviewData!}");
+    print("🔨 VehicleDetailSScreen build() - Starting build");
+    print(
+        "🔨 VehicleDetailSScreen build() - widget.itemInfo: ${widget.itemInfo}");
+    print(
+        "🔨 VehicleDetailSScreen build() - widget.itemInfo?.reviewData: ${widget.itemInfo?.reviewData}");
+    print(
+        "🔨 VehicleDetailSScreen build() - vehicleDetailModel: ${vehicleDetailController.vehicleDetailModel}");
+    print(
+        "🔨 VehicleDetailSScreen build() - vehicleDetailModel?.data: ${vehicleDetailController.vehicleDetailModel?.data}");
+    print(
+        "🔨 VehicleDetailSScreen build() - vehicleDetailModel?.data?.itemDetails: ${vehicleDetailController.vehicleDetailModel?.data?.itemDetails}");
+
+    // Safe null check for reviewData
+    if (widget.itemInfo != null && widget.itemInfo?.reviewData != null) {
+      print(
+          "✅ VehicleDetailSScreen build() - reviewData exists: ${widget.itemInfo!.reviewData}");
+    } else {
+      print(
+          "⚠️ VehicleDetailSScreen build() - reviewData is null or itemInfo is null");
+    }
+
     String? vehicleRating = vehicleDetailController
                 .vehicleDetailModel?.data?.itemDetails?.itemRating !=
             null
         ? vehicleDetailController
             .vehicleDetailModel!.data!.itemDetails!.itemRating
         : "0";
+    print("🔨 VehicleDetailSScreen build() - vehicleRating: $vehicleRating");
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     return Scaffold(
       appBar: AppBar(
@@ -218,8 +275,9 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                       children: <Widget>[
                         CustomImagesForDetails(
                           imagesList:
-                              widget.itemInfo!.galleryImageUrls!.isNotEmpty
-                                  ? widget.itemInfo!.galleryImageUrls!
+                              (widget.itemInfo?.galleryImageUrls?.isNotEmpty ??
+                                      false)
+                                  ? (widget.itemInfo!.galleryImageUrls ?? [])
                                   : [],
                           frontImage: widget.frontImage ?? '',
                         ),
@@ -278,7 +336,16 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                   Expanded(
                                     flex: 9,
                                     child: Text(
-                                      widget.address ?? "",
+                                      ([widget.address, widget.city]
+                                                  .where((s) =>
+                                                      s != null && s.isNotEmpty)
+                                                  .join(" • "))
+                                              .isNotEmpty
+                                          ? [widget.address, widget.city]
+                                              .where((s) =>
+                                                  s != null && s.isNotEmpty)
+                                              .join(" • ")
+                                          : "Unknown Location".tr,
                                       style: regular3(context).copyWith(
                                         fontSize: 12,
                                         overflow: TextOverflow.visible,
@@ -354,7 +421,8 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                             carItemBox(
                               icon: Icons.credit_card,
                               title: 'Plate Number'.tr,
-                              desc: '${widget.itemInfo?.platNumber ?? "0"}',
+                              desc:
+                                  maskLicensePlate(widget.itemInfo?.platNumber),
                             ),
                             carItemBox(
                               icon: Icons.event,
@@ -373,6 +441,24 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                   '${widget.itemInfo?.insuranceCoverage ?? "0"}',
                             ),
                           ],
+                        ),
+
+                        // Large Caution Card - Separate from grid
+                        GetBuilder<ItemDetailsController>(
+                          builder: (controller) {
+                            final depositValue = controller.vehicleDetailModel
+                                    ?.data?.itemDetails?.depositValue ??
+                                '';
+                            final depositManager = controller.vehicleDetailModel
+                                    ?.data?.itemDetails?.depositManager ??
+                                '';
+
+                            return CautionCard(
+                              depositValue: depositValue,
+                              depositManager: depositManager,
+                              context: context,
+                            );
+                          },
                         ),
 
                         const SizedBox(
@@ -405,8 +491,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                 ),
                               ]),
                         ),
-                        widget.itemInfo?.featuresData == null ||
-                                widget.itemInfo!.featuresData!.isEmpty
+                        (widget.itemInfo?.featuresData?.isEmpty ?? true)
                             ? const SizedBox()
                             : Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -420,8 +505,9 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                     const SizedBox(
                                       height: 7,
                                     ),
-                                    for (var x in widget.itemInfo!.featuresData!
-                                        .take(6))
+                                    for (var x
+                                        in (widget.itemInfo?.featuresData ?? [])
+                                            .take(6))
                                       Padding(
                                         padding: const EdgeInsets.only(
                                             left: 8, top: 5),
@@ -436,7 +522,9 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                           ],
                                         ),
                                       ),
-                                    if (widget.itemInfo!.featuresData!.length >
+                                    if ((widget.itemInfo?.featuresData
+                                                ?.length ??
+                                            0) >
                                         6)
                                       InkWell(
                                         onTap: () {
@@ -813,137 +901,163 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                         const SizedBox(
                           height: 20,
                         ),
-                        widget.itemInfo!.rules == null ||
-                                widget.itemInfo!.rules!.isEmpty
-                            ? const SizedBox()
-                            : Padding(
-                                padding:
-                                    const EdgeInsets.only(left: 12, right: 12),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    rulesbuttomSheet(
-                                      context,
-                                      title: 'Vehicle Rules'.tr,
-                                      list: widget.itemInfo?.rules ?? [],
-                                    );
-                                  },
-                                  child: Card(
-                                    color: notifires.getboxcolor,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                          top: 20, bottom: 20),
-                                      child: Row(
-                                        children: [
-                                          const SizedBox(
-                                            width: 20,
+                        // Vehicle Rules Section - Matching Cancellation Policy style
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12, right: 12),
+                          child: GetBuilder<ItemDetailsController>(
+                            builder: (controller) {
+                              // Get vehicle_rules from the controller
+                              final vehicleRules = controller.vehicleDetailModel
+                                      ?.data?.itemDetails?.vehicleRules ??
+                                  [];
+
+                              return GestureDetector(
+                                onTap: () {
+                                  rulesbuttomSheet(
+                                    context,
+                                    title: 'Vehicle Rules'.tr,
+                                    list: vehicleRules.isEmpty
+                                        ? [
+                                            "Aucune règle spécifique spécifiée par l'hôte."
+                                                .tr
+                                          ]
+                                        : vehicleRules,
+                                  );
+                                },
+                                child: Card(
+                                  color: notifires.getboxcolor,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                        top: 20, bottom: 20),
+                                    child: Row(
+                                      children: [
+                                        const SizedBox(
+                                          width: 20,
+                                        ),
+                                        SvgPicture.asset(
+                                          "assets/images/menurule.svg",
+                                          colorFilter: ColorFilter.mode(
+                                              getColorBasedOnActiveModuleid(),
+                                              BlendMode.srcIn),
+                                        ),
+                                        const SizedBox(
+                                          width: 10,
+                                        ),
+                                        Text(
+                                          "Règles du véhicule".tr,
+                                          style: regular3(context)
+                                              .copyWith(color: acentColor),
+                                        ),
+                                        const Spacer(),
+                                        InkWell(
+                                          onTap: () {
+                                            rulesbuttomSheet(
+                                              context,
+                                              title: 'Vehicle Rules'.tr,
+                                              list: vehicleRules.isEmpty
+                                                  ? [
+                                                      "Aucune règle spécifique spécifiée par l'hôte."
+                                                          .tr
+                                                    ]
+                                                  : vehicleRules,
+                                            );
+                                          },
+                                          child: Icon(
+                                            Icons.arrow_forward_ios,
+                                            color: grey3,
+                                            size: 14,
                                           ),
-                                          SvgPicture.asset(
-                                            "assets/images/menurule.svg",
-                                            colorFilter: ColorFilter.mode(
-                                                getColorBasedOnActiveModuleid(),
-                                                BlendMode.srcIn),
-                                          ),
-                                          const SizedBox(
-                                            width: 10,
-                                          ),
-                                          Text(
-                                            "Vehicle Rules".tr,
-                                            style: regular3(context)
-                                                .copyWith(color: acentColor),
-                                          ),
-                                          const Spacer(),
-                                          InkWell(
-                                            onTap: () {
-                                              rulesbuttomSheet(
-                                                context,
-                                                title: 'Vehicle Rules'.tr,
-                                                list: widget.itemInfo?.rules ??
-                                                    [],
-                                              );
-                                            },
-                                            child: Icon(
-                                              Icons.arrow_forward_ios,
-                                              color: grey3,
-                                              size: 14,
-                                            ),
-                                          ),
-                                          const SizedBox(
-                                            width: 20,
-                                          )
-                                        ],
-                                      ),
+                                        ),
+                                        const SizedBox(
+                                          width: 20,
+                                        )
+                                      ],
                                     ),
                                   ),
                                 ),
-                              ),
-                        widget.itemInfo!.rules == null ||
-                                widget.itemInfo!.rules!.isEmpty
-                            ? const SizedBox()
-                            : const SizedBox(
-                                height: 10,
-                              ),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12, right: 12),
-                          child: GestureDetector(
-                            onTap: () {
-                              rulesbuttomSheet(
-                                context,
-                                title:
-                                    "${widget.itemInfo!.cancellationReasonTitle}",
-                                list: widget.itemInfo
-                                        ?.cancellationReasonDescription ??
-                                    [],
                               );
                             },
-                            child: Card(
-                              color: notifires.getboxcolor,
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.only(top: 20, bottom: 20),
-                                child: Row(
-                                  children: [
-                                    const SizedBox(
-                                      width: 20,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12, right: 12),
+                          child: GetBuilder<ItemDetailsController>(
+                            builder: (controller) {
+                              // Get cancellation_rules from the controller (List<String> directement depuis le backend)
+                              final cancellationRules = controller
+                                      .vehicleDetailModel
+                                      ?.data
+                                      ?.itemDetails
+                                      ?.cancellationRules ??
+                                  [];
+
+                              return GestureDetector(
+                                onTap: () {
+                                  rulesbuttomSheet(
+                                    context,
+                                    title: "Politique d'annulation".tr,
+                                    list: cancellationRules.isNotEmpty
+                                        ? cancellationRules
+                                        : [
+                                            "Aucune politique spécifique définie."
+                                                .tr
+                                          ],
+                                  );
+                                },
+                                child: Card(
+                                  color: notifires.getboxcolor,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                        top: 20, bottom: 20),
+                                    child: Row(
+                                      children: [
+                                        const SizedBox(
+                                          width: 20,
+                                        ),
+                                        SvgPicture.asset(
+                                          "assets/images/hash.svg",
+                                          colorFilter: ColorFilter.mode(
+                                              getColorBasedOnActiveModuleid(),
+                                              BlendMode.srcIn),
+                                        ),
+                                        const SizedBox(
+                                          width: 10,
+                                        ),
+                                        Text(
+                                          "Cancellation Policy".tr,
+                                          style: regular3(context)
+                                              .copyWith(color: acentColor),
+                                        ),
+                                        const Spacer(),
+                                        InkWell(
+                                          onTap: () {
+                                            rulesbuttomSheet(
+                                              context,
+                                              title:
+                                                  "Politique d'annulation".tr,
+                                              list: cancellationRules.isNotEmpty
+                                                  ? cancellationRules
+                                                  : [
+                                                      "Aucune politique spécifique définie."
+                                                          .tr
+                                                    ],
+                                            );
+                                          },
+                                          child: Icon(
+                                            Icons.arrow_forward_ios,
+                                            color: grey3,
+                                            size: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(
+                                          width: 20,
+                                        )
+                                      ],
                                     ),
-                                    SvgPicture.asset(
-                                      "assets/images/hash.svg",
-                                      colorFilter: ColorFilter.mode(
-                                          getColorBasedOnActiveModuleid(),
-                                          BlendMode.srcIn),
-                                    ),
-                                    const SizedBox(
-                                      width: 10,
-                                    ),
-                                    Text(
-                                      "Cancellation Policy".tr,
-                                      style: regular3(context)
-                                          .copyWith(color: acentColor),
-                                    ),
-                                    const Spacer(),
-                                    InkWell(
-                                      onTap: () {
-                                        rulesbuttomSheet(
-                                          context,
-                                          title:
-                                              "${widget.itemInfo!.cancellationReasonTitle}",
-                                          list: widget.itemInfo
-                                                  ?.cancellationReasonDescription ??
-                                              [],
-                                        );
-                                      },
-                                      child: Icon(
-                                        Icons.arrow_forward_ios,
-                                        color: grey3,
-                                        size: 14,
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      width: 20,
-                                    )
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(
@@ -993,8 +1107,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                     ),
                             ),
                             title: Text(
-                              "${"Hosted by".tr} ${widget.itemInfo?.hostFirstName ?? ""} "
-                                  .tr,
+                              "${"Hosted by".tr} ${"Verified Member".tr}",
                               // 'Hosted by Marry',
                               style: heading3Grey1(context),
                             ),

@@ -23,23 +23,61 @@ class InitialScreen extends StatefulWidget {
 }
 
 class _InitialScreenState extends State<InitialScreen> {
-  KycController kycController = Get.find();
+  final KycController kycController = Get.find();
+
+  /// Pour éviter les doubles navigations en cas de timeout / data lente
+  bool _navigationDone = false;
+
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setScreen();
-      }
-    });
+    // Lancer le flux de splash dès que possible
+    _startSplashFlow();
   }
 
-  Future<void> setScreen() async {
-    final duration = Duration(
-      seconds: getData.read('Firstuser') == null ? 3 : 2,
-    );
+  /// Démarre le flux de navigation du splash avec une "Safety Timer"
+  Future<void> _startSplashFlow() async {
+    debugPrint('🚀 Splash: Navigation started');
 
-    Timer(duration, () {
+    try {
+      // Temps de splash "normal" basé sur Firstuser
+      final initialDelay = Duration(
+        seconds: getData.read('Firstuser') == null ? 3 : 2,
+      );
+
+      // Future représentant le travail de préparation (ici, simple délai)
+      Future<void> dataLoading = Future<void>.delayed(initialDelay);
+
+      // Timeout dur de 5 secondes : quoi qu'il arrive, on ne reste pas bloqué
+      const timeout = Duration(seconds: 5);
+
+      await Future.any([
+        dataLoading,
+        Future<void>.delayed(timeout),
+      ]);
+
+      if (!mounted || _navigationDone) {
+        return;
+      }
+
+      _navigationDone = true;
+      _navigateToNextScreen();
+
+      debugPrint('🏁 Splash: Navigation finished');
+    } catch (e, stackTrace) {
+      debugPrint('🔴 ERROR: Splash flow failed: $e');
+      debugPrint('🔴 STACKTRACE: $stackTrace');
+      // En cas d'erreur imprévue, tenter au moins d'aller vers l'écran de login / onboarding
+      if (mounted && !_navigationDone) {
+        _navigationDone = true;
+        _navigateToNextScreen();
+      }
+    }
+  }
+
+  /// Logique de décision de la prochaine page (langue / onboarding / home / host)
+  void _navigateToNextScreen() {
+    try {
       // Vérifier si la langue a été choisie
       var lanValue = getData.read("lanValue");
       bool languageSelected = lanValue != null &&
@@ -48,6 +86,7 @@ class _InitialScreenState extends State<InitialScreen> {
           lanValue < locale.length;
 
       if (!languageSelected) {
+        debugPrint('ℹ️ Splash: Language not selected, going to LanguageSelection');
         // Rediriger vers la sélection de langue si elle n'a pas été choisie
         if (webPlateForm) {
           Get.offNamed(WebRoutes.languageSelectionScreen);
@@ -62,42 +101,66 @@ class _InitialScreenState extends State<InitialScreen> {
         return;
       }
 
+      debugPrint('ℹ️ Splash: Language already selected, continuing normal flow');
+
       // Si la langue est choisie, continuer avec le flux normal
+      final bool isFirstUser = getData.read('Firstuser') != true;
+
       if (webPlateForm) {
-        if (getData.read('Firstuser') != true ||
-            getData.read('Firstuser') != true) {
+        if (isFirstUser) {
+          debugPrint('ℹ️ Splash: Web first user, going to VehicleOnBoardingScreen');
           Get.offNamed(WebRoutes.vehicleOnboardingScreen);
         } else {
-          isHostMode.value == true
-              ? Get.offNamed(WebRoutes.buttomHost)
-              : Get.offNamed(WebRoutes.homeMain);
+          if (isHostMode.value == true) {
+            debugPrint('ℹ️ Splash: Web host mode, going to BottomHost');
+            Get.offNamed(WebRoutes.buttomHost);
+          } else {
+            debugPrint('ℹ️ Splash: Web normal user, going to HomeMain');
+            Get.offNamed(WebRoutes.homeMain);
+          }
         }
       } else {
-        if (getData.read('Firstuser') != true) {
+        if (isFirstUser) {
+          debugPrint('ℹ️ Splash: Mobile first user, going to VehicleOnBoardingScreen');
           Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const VehicleOnBoardingScreen()));
-        } else if (getData.read('Firstuser') != true) {
-          Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const VehicleOnBoardingScreen()));
+            context,
+            MaterialPageRoute(
+              builder: (context) => const VehicleOnBoardingScreen(),
+            ),
+          );
         } else {
-          Navigator.pushReplacement(
+          if (isHostMode.value == true) {
+            debugPrint('ℹ️ Splash: Mobile host mode, going to BottomHost');
+            Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => isHostMode.value == true
-                      ? const BottomHost(initialIndex: 0)
-                      : const HomeMain(initialIndex: 0)));
+                builder: (context) => const BottomHost(initialIndex: 0),
+              ),
+            );
+          } else {
+            debugPrint('ℹ️ Splash: Mobile normal user, going to HomeMain');
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const HomeMain(initialIndex: 0),
+              ),
+            );
+          }
         }
       }
-    });
+    } catch (e, stackTrace) {
+      debugPrint('🔴 ERROR: _navigateToNextScreen failed: $e');
+      debugPrint('🔴 STACKTRACE: $stackTrace');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // IMPORTANT : aucune logique asynchrone / setState ici pour éviter les boucles
     notifires = Provider.of<ColorNotifires>(context, listen: true);
-    return Scaffold(backgroundColor: themeColor, body: const SplashScreen());
+    return Scaffold(
+      backgroundColor: themeColor,
+      body: const SplashScreen(),
+    );
   }
 }

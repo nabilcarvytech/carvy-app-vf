@@ -61,6 +61,8 @@ class _AfterSearchState extends State<AfterSearch> {
     filterController.offset = 0;
     itemModel = null;
     list = [];
+    // Nettoyer aussi la liste globale de filtres pour éviter les doublons
+    filterController.searchFilterList.clear();
     setState(() {});
     try {
       String price =
@@ -84,9 +86,21 @@ class _AfterSearchState extends State<AfterSearch> {
         filterController.maketypeFunction(),
       );
       itemModel = ItemModel.fromJson(result);
-      list.addAll(itemModel!.data!.items!);
-      filterController.searchFilterList.addAll(itemModel!.data!.items!);
-      filterController.offset = itemModel!.data!.offset!;
+      final initialItems = itemModel!.data?.items ?? [];
+      list.addAll(initialItems);
+      filterController.searchFilterList.addAll(initialItems);
+
+      // DEBUG: vérifier la taille exacte retournée par l'API
+      print("🔎 [SEARCH] Initial items count: ${initialItems.length}");
+
+      // Si le backend ne gère pas encore la pagination (moins que le limit),
+      // désactiver explicitement le chargement supplémentaire
+      const int pageLimit = 10;
+      if (initialItems.length < pageLimit) {
+        filterController.offset = -1;
+      } else {
+        filterController.offset = itemModel!.data!.offset ?? -1;
+      }
 
       setState(() {});
       refreshController.loadComplete();
@@ -124,13 +138,38 @@ class _AfterSearchState extends State<AfterSearch> {
       );
 
       var data = result['data'];
-      var items = data['items'] as List<dynamic>? ?? [];
-      var convertedItems = items.map((item) {
+      // Supporter data = { items: [...] } (ancien schéma) et data = [...] (nouveau)
+      List<dynamic> rawItems;
+      num? newOffset;
+      if (data is List) {
+        rawItems = data;
+        newOffset = -1;
+      } else {
+        rawItems = (data['items'] as List<dynamic>?) ?? [];
+        newOffset = data['offset'] ?? -1;
+      }
+
+      final convertedItems = rawItems.map((item) {
         return ItemsData.fromJson(item as Map<String, dynamic>);
       }).toList();
-      if (filterController.offset != -1) {
+
+      // DEBUG: pagination
+      print(
+          "🔎 [SEARCH] Pagination fetched ${convertedItems.length} items (prev total: ${list.length})");
+
+      const int pageLimit = 10;
+
+      if (filterController.offset != -1 && convertedItems.isNotEmpty) {
         list.addAll(convertedItems);
-        filterController.offset = data['offset'] ?? -1;
+        filterController.offset = newOffset ?? -1;
+      } else {
+        // Plus de données : couper la pagination
+        filterController.offset = -1;
+      }
+
+      // Si le backend renvoie moins que le limit, arrêter la pagination
+      if (convertedItems.length < pageLimit) {
+        filterController.offset = -1;
       }
 
       setState(() {});
@@ -643,7 +682,10 @@ class _AfterSearchState extends State<AfterSearch> {
                 controller: refreshController,
                 onRefresh: onRefresh,
                 onLoading: onLoading,
-                enablePullUp: filterController.offset == -1 ? false : true,
+                // N'activer le "load more" que s'il reste potentiellement des données
+                // ET que la première page a atteint le nombre maximal d'éléments.
+                enablePullUp:
+                    filterController.offset != -1 && list.length >= 10,
                 child: execption == true
                     ? buildNoDataWidget(
                         context,

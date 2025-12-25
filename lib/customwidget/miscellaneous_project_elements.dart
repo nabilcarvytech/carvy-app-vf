@@ -144,7 +144,19 @@ class DeleteConfirmationDialogState extends State<DeleteConfirmationDialogs> {
     });
     Navigator.pop(context);
 
-    var res = await httpPost(Config.deleteAccount, {});
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var res = await httpPost(Config.deleteAccount, {});
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static success response for deleting account
+    var res = {
+      "status": 200,
+      "message": "Account deleted successfully",
+      "error": ""
+    };
+    // ========== END MOCK DATA ==========
     if (res != null) {
       if (res['status'] == 200) {
         closeLoading();
@@ -1065,7 +1077,7 @@ class TimePickerPopup extends StatefulWidget {
   final List<String> timesList;
   final Function(String) onSelected;
   final Color checkmarkColor;
-  final String? initialValue; 
+  final String? initialValue;
   final bool format24Hour;
 
   const TimePickerPopup({
@@ -1232,7 +1244,7 @@ class TimePickerEndTime extends StatefulWidget {
   final List<String> timesList;
   final Function(String) onSelected;
   final Color checkmarkColor;
-  final String? initialValue; 
+  final String? initialValue;
   final bool format24Hour;
   // Added initialValue parameter
 

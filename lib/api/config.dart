@@ -3,8 +3,18 @@ class Config {
   static const String oneSiginalAppid = '849877b4-f438-495e-8ccd-62f016aaa09c';
   static const String oneSiginalApiKey =
       'os_v2_app_qsmhpnhuhbev5dgnmlybnkvatqcckvlx27yei5nl2dsodym3ogtcporczydtoahqxfhab6qixogr2o4qtl5p7vttac56wlbr2j43kqa';
-     static const String baseurl = 'https://admin.carvy.tech/api/v1/';
-  static const String baseurlForBearer = 'https://admin.carvy.tech/api/';
+  // ========== OLD LARAVEL BACKEND (COMMENTED) ==========
+  //static const String baseurl = 'https://admin.carvy.tech/api/v1/';
+  //static const String baseurlForBearer = 'https://admin.carvy.tech/api/';
+
+  // ========== NEW NODE.JS BACKEND (LOCAL DEVELOPMENT) ==========
+  //static const String baseurl = 'http://10.0.2.2:5000/api/v1/';
+  //static const String baseurlForBearer = 'http://10.0.2.2:5000/api/v1/';
+  static const String baseurl = 'https://carvy.tech/api/v1/';
+
+  // Apparemment tu utilises ça pour les tokens ou les images ?
+  static const String baseurlForBearer = 'https://carvy.tech/api/v1/';
+
   static const String secretKey = '49382716504938271650493827165049';
   static const String registerUser = 'userRegister';
   static const String socialLogin = 'social-login';
@@ -16,7 +26,7 @@ class Config {
   static const String otpVerification = 'otp-verification';
   static const String resendOtp = 'resend-otp';
   static const String resendToken = 'resend-token';
-  static const String homeDataApi = 'home-data';
+  static const String homeDataApi = 'vehicles/home-data';
   static const String getItemRules = 'get-item-rules';
   static const String getItemDetails = 'getItemDetails';
   static const String yourLocation = 'your-locations';

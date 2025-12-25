@@ -41,15 +41,22 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
     super.initState();
 
     if (widget.bookings!.itemData != null) {
-      if (widget.bookings!.itemData.startsWith("[") &&
-          widget.bookings!.itemData.endsWith("]")) {
-        var jsonString = widget.bookings!.itemData
-            .substring(1, widget.bookings!.itemData.length - 1);
+      try {
+        if (widget.bookings!.itemData.startsWith("[") &&
+            widget.bookings!.itemData.endsWith("]")) {
+          var jsonString = widget.bookings!.itemData
+              .substring(1, widget.bookings!.itemData.length - 1);
 
-        itemDetails = ItemDetails.fromJson(jsonDecode(jsonString));
-      } else {
-        itemDetails =
-            ItemDetails.fromJson(jsonDecode(widget.bookings!.itemData));
+          itemDetails = ItemDetails.fromJson(jsonDecode(jsonString));
+        } else {
+          itemDetails =
+              ItemDetails.fromJson(jsonDecode(widget.bookings!.itemData));
+        }
+      } catch (e) {
+        print("Error parsing itemData: $e");
+        print("itemData content: ${widget.bookings!.itemData}");
+        // Set itemDetails to null if parsing fails to avoid crashes
+        itemDetails = null;
       }
     }
     if (widget.bookings!.doorStepAddress != null &&
@@ -218,7 +225,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     widget.bookings!.module == "1"
-                        ? Text(itemDetails!.beds == "1" ? "bed" : "beds",
+                        ? Text(itemDetails?.beds == "1" ? "bed" : "beds",
                             style: heading3Grey1(context))
                         : Text(
                             bookingController.bookingDetailType.toString().tr,
@@ -232,7 +239,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     widget.bookings!.module == "1"
-                        ? Text("${itemDetails!.beds}", style: regular2(context))
+                        ? Text("${itemDetails?.beds ?? ""}", style: regular2(context))
                         : Text("${bookingController.vehicleType}",
                             style: regular2(context)),
                     widget.bookings!.module == "1"
@@ -258,7 +265,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     widget.bookings!.module == "1"
-                        ? Text("${itemDetails!.itemType}".tr,
+                        ? Text("${itemDetails?.itemType ?? ""}".tr,
                             style: regular2(context))
                         : Text("${bookingController.vehicleYear}",
                             style: regular2(context)),

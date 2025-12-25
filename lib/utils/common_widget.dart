@@ -238,17 +238,34 @@ Widget itemVerticalView(
       String? serviceType = "";
       ItemInfo? itemInfoData;
       if (list != null && list.length > index && list[index] != null) {
+        final item = list[index];
+        // DEBUG: vérifier que les items sont bien construits pour la liste
+        print("🔧 BUILDING ITEM: ${item.name} - ${item.price} - ${item.image}");
+
         if (activeModuleId.value == 1 ||
             activeModuleId.value == 2 ||
             activeModuleId.value == 3 ||
             activeModuleId.value == 5) {
-          String? jsonSliders = list[index].itemInfo;
+          String? jsonSliders = item.itemInfo;
           if (jsonSliders != null) {
             itemInfoData = ItemInfo.fromJson(json.decode(jsonSliders));
             Map<String, dynamic> itemInfo = jsonDecode(jsonSliders);
             serviceType = itemInfo["service_type"];
           }
         }
+
+        // Construire un texte de localisation propre (ville / adresse)
+        final locationParts = <String>[];
+        if ((item.address ?? '').trim().isNotEmpty) {
+          locationParts.add((item.address ?? '').trim());
+        }
+        if ((item.city ?? '').trim().isNotEmpty) {
+          locationParts.add((item.city ?? '').trim());
+        }
+        final String locationText = locationParts.isNotEmpty
+            ? locationParts.join(" • ")
+            : "Unknown Location".tr;
+
         return Padding(
           padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
           child: GestureDetector(
@@ -257,17 +274,18 @@ Widget itemVerticalView(
                   context,
                   MaterialPageRoute(
                       builder: (context) => VehicleDetailSScreen(
-                            id: list.elementAt(index).id,
+                            id: item.id,
                             itemInfo: itemInfoData,
-                            rating: list[index].itemRating,
-                            title: list[index].name,
-                            address: list[index].address,
-                            latitute: list[index].latitude,
-                            longtitute: list[index].longitude,
-                            frontImage: list[index].image,
-                            itemType: list[index].itemType,
-                            isWishList: list[index].isInWishlist,
-                            price: list[index].price,
+                            rating: item.itemRating,
+                            title: item.name,
+                            address: item.address,
+                            city: item.city,
+                            latitute: item.latitude,
+                            longtitute: item.longitude,
+                            frontImage: item.image,
+                            itemType: item.itemType,
+                            isWishList: item.isInWishlist,
+                            price: item.price,
                           )));
             },
             child: Container(
@@ -299,7 +317,7 @@ Widget itemVerticalView(
                       child: Stack(
                         children: [
                           Positioned.fill(
-                            child: myNetworkImageWithShimmer(list[index].image),
+                            child: myNetworkImageWithShimmer(item.image),
                           ),
                           Positioned.fill(
                             child: Align(
@@ -332,9 +350,9 @@ Widget itemVerticalView(
                                       width: 8,
                                     ),
                                     Text(
-                                      list[index].name!.length > 21
-                                          ? list[index].name!.substring(0, 20)
-                                          : list[index].name!,
+                                      (item.name ?? '').length > 21
+                                          ? (item.name ?? '').substring(0, 20)
+                                          : (item.name ?? ''),
                                       style: heading3Grey1(context).copyWith(
                                         color: whiteColor,
                                         overflow: TextOverflow.ellipsis,
@@ -357,8 +375,7 @@ Widget itemVerticalView(
                                           ),
                                           const SizedBox(width: 5),
                                           Text(
-                                            '${list[index].itemRating ?? ""}.0'
-                                                .tr,
+                                            '${item.itemRating ?? ""}.0'.tr,
                                             style: boldstyle(context).copyWith(
                                                 color: whiteColor, fontSize: 9),
                                           ),
@@ -375,17 +392,19 @@ Widget itemVerticalView(
                                     SizedBox(
                                       width: 10,
                                     ),
-                                    if (itemInfoData!.transmission != null &&
-                                        itemInfoData.transmission!.isNotEmpty)
+                                    if (itemInfoData != null &&
+                                        itemInfoData!.transmission != null &&
+                                        itemInfoData!.transmission!.isNotEmpty)
                                       Text(
-                                        itemInfoData.transmission!,
+                                        itemInfoData!.transmission!,
                                         style: regular3(context).copyWith(
                                           fontSize: 12,
                                           color: whiteColor,
                                         ),
                                       ),
-                                    if (itemInfoData.transmission != null &&
-                                        itemInfoData.transmission!.isNotEmpty)
+                                    if (itemInfoData != null &&
+                                        itemInfoData!.transmission != null &&
+                                        itemInfoData!.transmission!.isNotEmpty)
                                       Padding(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 4),
@@ -395,17 +414,19 @@ Widget itemVerticalView(
                                               color: whiteColor, fontSize: 12),
                                         ),
                                       ),
-                                    if (itemInfoData.makeType != null &&
-                                        itemInfoData.makeType!.isNotEmpty)
+                                    if (itemInfoData != null &&
+                                        itemInfoData!.makeType != null &&
+                                        itemInfoData!.makeType!.isNotEmpty)
                                       Text(
-                                        itemInfoData.makeType!,
+                                        itemInfoData!.makeType!,
                                         style: regular3(context).copyWith(
                                           fontSize: 12,
                                           color: whiteColor,
                                         ),
                                       ),
-                                    if (itemInfoData.makeType != null &&
-                                        itemInfoData.makeType!.isNotEmpty)
+                                    if (itemInfoData != null &&
+                                        itemInfoData!.makeType != null &&
+                                        itemInfoData!.makeType!.isNotEmpty)
                                       Padding(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 4),
@@ -415,9 +436,10 @@ Widget itemVerticalView(
                                               color: whiteColor, fontSize: 12),
                                         ),
                                       ),
-                                    if (itemInfoData.seatCapicity != null)
+                                    if (itemInfoData != null &&
+                                        itemInfoData!.seatCapicity != null)
                                       Text(
-                                        "${itemInfoData.seatCapicity} ${"Seats".tr}",
+                                        "${itemInfoData!.seatCapicity} ${"Seats".tr}",
                                         style: regular3(context).copyWith(
                                           fontSize: 12,
                                           color: whiteColor,
@@ -430,7 +452,7 @@ Widget itemVerticalView(
                                           width: 5,
                                         ),
                                         Text(
-                                          "$currency ${list.elementAt(index).price!.length > 8 ? list.elementAt(index).price!.substring(0, 7) : list.elementAt(index).price ?? ""}",
+                                          "$currency ${(item.price ?? '').length > 8 ? (item.price ?? '').substring(0, 7) : (item.price ?? "")}",
                                           style: boldstyle(context).copyWith(
                                               color:
                                                   getColorBasedOnActiveModuleid(),
@@ -471,41 +493,48 @@ Widget itemVerticalView(
                                         width: 25,
                                         child: CircularProgressIndicator())
                                     : InkWell(
-                                        child: list[index].isInWishlist ==
-                                                    false ||
-                                                list[index].isInWishlist == null
+                                        child: list[index].isInWishlist == true
                                             ? SvgPicture.asset(
-                                                'assets/images/whitHeart.svg',
+                                                'assets/images/redHeart.svg',
                                                 height: 20,
                                               )
                                             : SvgPicture.asset(
-                                                'assets/images/redHeart.svg',
+                                                'assets/images/whitHeart.svg',
                                                 height: 20,
                                               ),
                                         onTap: () async {
                                           wishListLoadingHorizontal = index;
                                           setState(() {});
-                                          if (list[index].isInWishlist ==
-                                              false) {
-                                            var value = await wishListController
-                                                .addTowishlist(list[index].id);
-                                            if (value == true) {
-                                              var vvv = list[index];
-                                              vvv.wishlistSetter = true;
-                                              list[index] = vvv;
+
+                                          try {
+                                            bool success = false;
+                                            if (list[index].isInWishlist ==
+                                                true) {
+                                              success = await wishListController
+                                                  .removeToWishlist(
+                                                      list[index].id);
+                                              if (success) {
+                                                list[index].isInWishlist = false;
+                                              }
+                                            } else {
+                                              success = await wishListController
+                                                  .addTowishlist(list[index].id);
+                                              if (success) {
+                                                list[index].isInWishlist = true;
+                                              }
                                             }
-                                          } else {
-                                            var value = await wishListController
-                                                .removeToWishlist(
-                                                    list[index].id);
-                                            if (value == true) {
-                                              var vvv = list[index];
-                                              vvv.wishlistSetter = false;
-                                              list[index] = vvv;
+                                          } catch (e) {
+                                            print("❌ [Wishlist] Error toggling wishlist: $e");
+                                          } finally {
+                                            // CRITICAL: Always reset loading state, no matter what
+                                            wishListLoadingHorizontal = -1;
+                                            try {
+                                              setState(() {});
+                                            } catch (e) {
+                                              // Widget might be disposed, but we still reset the loading state
+                                              print("⚠️ [Wishlist] setState failed (widget disposed): $e");
                                             }
                                           }
-                                          wishListLoadingHorizontal = -1;
-                                          setState(() {});
                                         },
                                       ),
                               ],
@@ -533,7 +562,7 @@ Widget itemVerticalView(
                       ),
                       Expanded(
                         child: Text(
-                          "${list.elementAt(index).address ?? ""},",
+                          locationText,
                           overflow: TextOverflow.ellipsis,
                           style: regular3(context).copyWith(
                             fontSize: 12,
@@ -542,7 +571,8 @@ Widget itemVerticalView(
                         ),
                       ),
                       Spacer(),
-                      if (itemInfoData.hostFirstName != null)
+                      if (itemInfoData != null &&
+                          itemInfoData!.hostFirstName != null)
                         Row(
                           children: [
                             Icon(
@@ -604,6 +634,18 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
             serviceType = itemInfo["service_type"];
           }
         }
+
+        // Texte de localisation propre pour la vue publique
+        final locationPartsPublic = <String>[];
+        if ((list[index].address ?? '').trim().isNotEmpty) {
+          locationPartsPublic.add((list[index].address ?? '').trim());
+        }
+        if ((list[index].city ?? '').trim().isNotEmpty) {
+          locationPartsPublic.add((list[index].city ?? '').trim());
+        }
+        final String locationTextPublic = locationPartsPublic.isNotEmpty
+            ? locationPartsPublic.join(" • ")
+            : "Unknown Location".tr;
         return Padding(
           padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
           child: GestureDetector(
@@ -617,6 +659,7 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
                     rating: list[index].itemRating,
                     title: list[index].name,
                     address: list[index].address,
+                    city: list[index].city,
                     latitute: list[index].latitude,
                     longtitute: list[index].longitude,
                     frontImage: list[index].image,
@@ -845,27 +888,39 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
                                         onTap: () async {
                                           wishListLoadingHorizontal = index;
                                           setState(() {});
-                                          if (list[index].isInWishlist ==
-                                              false) {
-                                            var value = await wishListController
-                                                .addTowishlist(list[index].id);
-                                            if (value == true) {
-                                              var vvv = list[index];
-                                              vvv.wishlistSetter = true;
-                                              list[index] = vvv;
+                                          
+                                          try {
+                                            if (list[index].isInWishlist ==
+                                                false) {
+                                              var value = await wishListController
+                                                  .addTowishlist(list[index].id);
+                                              if (value == true) {
+                                                var vvv = list[index];
+                                                vvv.wishlistSetter = true;
+                                                list[index] = vvv;
+                                              }
+                                            } else {
+                                              var value = await wishListController
+                                                  .removeToWishlist(
+                                                      list[index].id);
+                                              if (value == true) {
+                                                var vvv = list[index];
+                                                vvv.wishlistSetter = false;
+                                                list[index] = vvv;
+                                              }
                                             }
-                                          } else {
-                                            var value = await wishListController
-                                                .removeToWishlist(
-                                                    list[index].id);
-                                            if (value == true) {
-                                              var vvv = list[index];
-                                              vvv.wishlistSetter = false;
-                                              list[index] = vvv;
+                                          } catch (e) {
+                                            print("❌ [Wishlist] Error toggling wishlist: $e");
+                                          } finally {
+                                            // CRITICAL: Always reset loading state, no matter what
+                                            wishListLoadingHorizontal = -1;
+                                            try {
+                                              setState(() {});
+                                            } catch (e) {
+                                              // Widget might be disposed, but we still reset the loading state
+                                              print("⚠️ [Wishlist] setState failed (widget disposed): $e");
                                             }
                                           }
-                                          wishListLoadingHorizontal = -1;
-                                          setState(() {});
                                         },
                                       ),
                               ],
@@ -890,7 +945,7 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
                       ),
                       Expanded(
                         child: Text(
-                          "${list[index].address ?? ""},",
+                          locationTextPublic,
                           overflow: TextOverflow.ellipsis,
                           style: regular3(context).copyWith(
                             fontSize: 12,
@@ -948,145 +1003,239 @@ myBookingListWidget(
   innerMethod(context, index) async {
     if (btnText == "Cancel") {
       showLoading();
-      var response =
-          await httpGet(Config.getCancelReasons, {"userType": "user"});
-      closeLoading();
-      if (response != null) {
-        CancellationReasonModel model =
-            CancellationReasonModel.fromJson(response);
-        await showModalBottomSheet(
-          showDragHandle: true,
-          enableDrag: true,
-          context: context,
-          builder: (context) {
-            return CustomBottomSheet(model: model);
-          },
-        ).then((value) async {
-          if (value != null) {
-            showDialog<void>(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  backgroundColor: notifires.getbgcolor,
-                  content: SingleChildScrollView(
-                    child: ListBody(
-                      children: <Widget>[
-                        SizedBox(
-                            height: 100,
-                            child: Image.asset("assets/images/alert.png")),
-                        const SizedBox(
-                          height: 20,
-                        ),
-                        Icon(
-                          Icons.error,
-                          size: 32,
-                          color: getColorBasedOnActiveModuleid(),
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        list[index].status == "Confirmed" &&
-                                listType == 'UpComing'
-                            ? Text(
-                                'Your booking is confirmed. Do you still want to cancel it?'
-                                    .tr,
-                                textAlign: TextAlign.center,
-                                style: regular2(context),
-                              )
-                            : Text(
-                                'Do you want to cancel this booking?'.tr,
-                                textAlign: TextAlign.center,
-                                style: regular2(context),
-                              ),
-                      ],
-                    ),
-                  ),
-                  actions: <Widget>[
-                    Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                                child: InkWell(
-                                    onTap: () {
-                                      Navigator.pop(context);
-                                    },
-                                    child: Container(
-                                        margin: const EdgeInsets.only(
-                                            left: 8, right: 8),
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                            color: notifires.getBoxColor,
-                                            border: Border.all(
-                                                color: notifires.getBoxColor),
-                                            borderRadius:
-                                                BorderRadius.circular(10)),
-                                        child: Center(
-                                            child: Text(
-                                          "No".tr,
-                                          style: heading3Grey1(context),
-                                        ))))),
-                            Expanded(
-                                child: InkWell(
-                                    onTap: () async {
-                                      BookingController bookingController =
-                                          Get.find();
-                                      Navigator.pop(context);
-                                      showLoading();
-                                      var resp = await httpPost(
-                                          Config.cancelBookingByUser, {
-                                        "booking_id".tr: "${list[index].id}".tr,
-                                        "cancellation_reasion".tr: "$value".tr
-                                      });
-                                      closeLoading();
-                                      if (resp['status'] == 200) {
-                                        showToastMessage(resp['message']);
-                                        bookingController
-                                            .updateBookingStatusIfExists(
-                                          bookingId: list[index].id.toString(),
-                                          hostId: list[index].hostId.toString(),
-                                          userId: userId.toString(),
-                                          newStatus: "Cancelled",
-                                        );
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response =
+      //     await httpGet(Config.getCancelReasons, {"userType": "user"});
 
-                                        onItemCancelled(index);
-                                        setState(() {});
-                                      } else {
-                                        showErrorToastMessage(resp['error']);
-                                      }
-                                    },
-                                    child: Container(
-                                        margin: const EdgeInsets.only(
-                                            left: 8, right: 8),
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                            border: Border.all(
-                                                color:
-                                                    getColorBasedOnActiveModuleid()),
-                                            color:
-                                                getColorBasedOnActiveModuleid(),
-                                            borderRadius:
-                                                BorderRadius.circular(10)),
-                                        child: Center(
-                                            child: Text(
-                                          "Yes".tr,
-                                          style: heading3(context).copyWith(
-                                            color: Colors.white,
-                                          ),
-                                        ))))),
-                          ],
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        )
-                      ],
-                    )
-                  ],
-                );
-              },
-            );
-          }
-        });
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static cancellation reasons for users
+      var response = {
+        "status": 200,
+        "message": "Cancel reasons retrieved successfully",
+        "error": "",
+        "data": {
+          "reasons": [
+            {
+              "order_cancellation_id": 1,
+              "reason": "Change of plans",
+              "user_type": "user",
+              "status": "1",
+              "created_at": "2024-01-01T00:00:00.000Z",
+              "updated_at": "2024-01-01T00:00:00.000Z"
+            },
+            {
+              "order_cancellation_id": 2,
+              "reason": "Found a better option",
+              "user_type": "user",
+              "status": "1",
+              "created_at": "2024-01-01T00:00:00.000Z",
+              "updated_at": "2024-01-01T00:00:00.000Z"
+            },
+            {
+              "order_cancellation_id": 3,
+              "reason": "Unexpected circumstances",
+              "user_type": "user",
+              "status": "1",
+              "created_at": "2024-01-01T00:00:00.000Z",
+              "updated_at": "2024-01-01T00:00:00.000Z"
+            },
+            {
+              "order_cancellation_id": 4,
+              "reason": "Vehicle not as described",
+              "user_type": "user",
+              "status": "1",
+              "created_at": "2024-01-01T00:00:00.000Z",
+              "updated_at": "2024-01-01T00:00:00.000Z"
+            },
+            {
+              "order_cancellation_id": 5,
+              "reason": "Host unresponsive",
+              "user_type": "user",
+              "status": "1",
+              "created_at": "2024-01-01T00:00:00.000Z",
+              "updated_at": "2024-01-01T00:00:00.000Z"
+            }
+          ]
+        }
+      };
+      // ========== END MOCK DATA ==========
+      closeLoading();
+      if (response != null && response['status'] == 200) {
+        try {
+          CancellationReasonModel model =
+              CancellationReasonModel.fromJson(response);
+          await showModalBottomSheet(
+            showDragHandle: true,
+            enableDrag: true,
+            context: context,
+            builder: (context) {
+              return CustomBottomSheet(model: model);
+            },
+          ).then((value) async {
+            if (value != null) {
+              showDialog<void>(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    backgroundColor: notifires.getbgcolor,
+                    content: SingleChildScrollView(
+                      child: ListBody(
+                        children: <Widget>[
+                          SizedBox(
+                              height: 100,
+                              child: Image.asset("assets/images/alert.png")),
+                          const SizedBox(
+                            height: 20,
+                          ),
+                          Icon(
+                            Icons.error,
+                            size: 32,
+                            color: getColorBasedOnActiveModuleid(),
+                          ),
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          list[index].status == "Confirmed" &&
+                                  listType == 'UpComing'
+                              ? Text(
+                                  'Your booking is confirmed. Do you still want to cancel it?'
+                                      .tr,
+                                  textAlign: TextAlign.center,
+                                  style: regular2(context),
+                                )
+                              : Text(
+                                  'Do you want to cancel this booking?'.tr,
+                                  textAlign: TextAlign.center,
+                                  style: regular2(context),
+                                ),
+                        ],
+                      ),
+                    ),
+                    actions: <Widget>[
+                      Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                  child: InkWell(
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                      },
+                                      child: Container(
+                                          margin: const EdgeInsets.only(
+                                              left: 8, right: 8),
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                              color: notifires.getBoxColor,
+                                              border: Border.all(
+                                                  color: notifires.getBoxColor),
+                                              borderRadius:
+                                                  BorderRadius.circular(10)),
+                                          child: Center(
+                                              child: Text(
+                                            "No".tr,
+                                            style: heading3Grey1(context),
+                                          ))))),
+                              Expanded(
+                                  child: InkWell(
+                                      onTap: () async {
+                                        BookingController bookingController =
+                                            Get.find();
+                                        Navigator.pop(context);
+                                        showLoading();
+                                        // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                        // var resp = await httpPost(
+                                        //     Config.cancelBookingByUser, {
+                                        //   "booking_id".tr: "${list[index].id}".tr,
+                                        //   "cancellation_reasion".tr: "$value".tr
+                                        // });
+
+                                        // MOCK: Simulate network delay
+                                        await Future.delayed(
+                                            const Duration(seconds: 1));
+
+                                        // MOCK: Static success response for cancelling booking
+                                        var resp = {
+                                          "status": 200,
+                                          "message":
+                                              "Booking cancelled successfully",
+                                          "error": "",
+                                          "data": {
+                                            "booking_id": "${list[index].id}",
+                                            "cancellation_reason": "$value",
+                                            "status": "Cancelled"
+                                          }
+                                        };
+                                        // ========== END MOCK DATA ==========
+                                        closeLoading();
+                                        if (resp != null &&
+                                            resp['status'] == 200) {
+                                          showToastMessage(resp['message']);
+                                          bookingController
+                                              .updateBookingStatusIfExists(
+                                            bookingId:
+                                                list[index].id.toString(),
+                                            hostId: list[index]
+                                                    .hostId
+                                                    ?.toString() ??
+                                                "1001",
+                                            userId: userId.toString(),
+                                            newStatus: "Cancelled",
+                                          );
+
+                                          onItemCancelled(index);
+                                          setState(() {});
+                                        } else {
+                                          showErrorToastMessage(resp != null &&
+                                                  resp['error'] != null
+                                              ? resp['error']
+                                              : "Failed to cancel booking");
+                                        }
+                                      },
+                                      child: Container(
+                                          margin: const EdgeInsets.only(
+                                              left: 8, right: 8),
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                              border: Border.all(
+                                                  color:
+                                                      getColorBasedOnActiveModuleid()),
+                                              color:
+                                                  getColorBasedOnActiveModuleid(),
+                                              borderRadius:
+                                                  BorderRadius.circular(10)),
+                                          child: Center(
+                                              child: Text(
+                                            "Yes".tr,
+                                            style: heading3(context).copyWith(
+                                              color: Colors.white,
+                                            ),
+                                          ))))),
+                            ],
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          )
+                        ],
+                      )
+                    ],
+                  );
+                },
+              );
+            }
+          });
+        } catch (e) {
+          print("Error in cancel booking flow: $e");
+          showErrorToastMessage(
+              "Error loading cancellation reasons. Please try again.");
+        }
+      } else if (response != null && response['error'] != null) {
+        showErrorToastMessage(response['error']);
+      } else {
+        showErrorToastMessage(
+            "Failed to load cancellation reasons. Please try again.");
       }
     } else if (btnText == "Add Review") {
       if (list[index].reviewStatus != null && list[index].reviewStatus != "0") {
@@ -1944,11 +2093,39 @@ myBookingListWidget(
 
                                             try {
                                               showLoading();
-                                              var responce = await httpPost(
-                                                  Config.getItemDetails, {
-                                                "item_id":
-                                                    "${list[index].itemid}"
-                                              });
+                                              // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                              // var responce = await httpPost(
+                                              //     Config.getItemDetails, {
+                                              //   "item_id":
+                                              //       "${list[index].itemid}"
+                                              // });
+
+                                              // MOCK: Simulate network delay
+                                              await Future.delayed(
+                                                  const Duration(seconds: 1));
+
+                                              // MOCK: Static item details response (success)
+                                              var responce = {
+                                                "status": 200,
+                                                "message":
+                                                    "Item details retrieved successfully",
+                                                "error": "",
+                                                "data": {
+                                                  "ItemDetails": {
+                                                    "item_id": int.tryParse(
+                                                            "${list[index].itemid}") ??
+                                                        101,
+                                                    "title":
+                                                        "Toyota Camry 2023",
+                                                    "price": "50.00",
+                                                    "description":
+                                                        "Clean and comfortable sedan",
+                                                    "item_rating": "4.5",
+                                                    "status": "1"
+                                                  }
+                                                }
+                                              };
+                                              // ========== END MOCK DATA ==========
                                               if (responce != null &&
                                                   responce["status"] == 500) {
                                                 closeLoading();
@@ -2033,14 +2210,46 @@ myBookingListWidget(
 
                                                         try {
                                                           showLoading();
-                                                          var responce =
-                                                              await httpPost(
-                                                                  Config
-                                                                      .getItemDetails,
-                                                                  {
+                                                          // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                                          // var responce =
+                                                          //     await httpPost(
+                                                          //         Config
+                                                          //             .getItemDetails,
+                                                          //         {
+                                                          //       "item_id":
+                                                          //           "${list[index].itemid}"
+                                                          //     });
+
+                                                          // MOCK: Simulate network delay
+                                                          await Future.delayed(
+                                                              const Duration(
+                                                                  seconds: 1));
+
+                                                          // MOCK: Static item details response (success)
+                                                          var responce = {
+                                                            "status": 200,
+                                                            "message":
+                                                                "Item details retrieved successfully",
+                                                            "error": "",
+                                                            "data": {
+                                                              "ItemDetails": {
                                                                 "item_id":
-                                                                    "${list[index].itemid}"
-                                                              });
+                                                                    int.tryParse(
+                                                                            "${list[index].itemid}") ??
+                                                                        101,
+                                                                "title":
+                                                                    "Toyota Camry 2023",
+                                                                "price":
+                                                                    "50.00",
+                                                                "description":
+                                                                    "Clean and comfortable sedan",
+                                                                "item_rating":
+                                                                    "4.5",
+                                                                "status": "1"
+                                                              }
+                                                            }
+                                                          };
+                                                          // ========== END MOCK DATA ==========
                                                           if (responce !=
                                                                   null &&
                                                               responce[
@@ -2692,7 +2901,7 @@ myBookingListWidget(
 
                                                                                   bookingController.updateBookingStatusIfExists(
                                                                                     bookingId: list[index].id.toString(),
-                                                                                    hostId: list[index].hostId.toString(),
+                                                                                    hostId: list[index].hostId?.toString() ?? "1001",
                                                                                     userId: userId.toString(),
                                                                                     newStatus: "Completed",
                                                                                   );
@@ -4097,12 +4306,31 @@ bottomSheetReview(id, count, bool fromPropBooking, Bookings bookings,
                     return;
                   }
                   showLoading();
-                  var response = await httpPost(Config.giveReviewByUser, {
-                    "rating":
-                        "${generalScopeController.selectedRatingValue.value.toInt()}",
-                    "message": textEditingControllerReview.text,
-                    "booking_id": '$id'
-                  });
+                  // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                  // var response = await httpPost(Config.giveReviewByUser, {
+                  //   "rating":
+                  //       "${generalScopeController.selectedRatingValue.value.toInt()}",
+                  //   "message": textEditingControllerReview.text,
+                  //   "booking_id": '$id'
+                  // });
+
+                  // MOCK: Simulate network delay
+                  await Future.delayed(const Duration(seconds: 1));
+
+                  // MOCK: Static success response for review submission
+                  var response = {
+                    "status": 200,
+                    "message": "Review added successfully",
+                    "error": "",
+                    "data": {
+                      "booking_id": '$id',
+                      "rating":
+                          "${generalScopeController.selectedRatingValue.value.toInt()}",
+                      "message": textEditingControllerReview.text,
+                      "review_status": "1"
+                    }
+                  };
+                  // ========== END MOCK DATA ==========
                   closeLoading();
                   if (response != null) {
                     if (response['status'] == 200) {
@@ -4754,22 +4982,23 @@ Widget customOnboardingWidget(String image, String title, String description) {
     // Couleurs pour Carvy
     const Color carColor = Color(0xFF27489E); // Bleu pour "car"
     const Color vyColor = Color(0xFFF78F2C); // Orange pour "vy"
-    
+
     final baseStyle = heading01.copyWith(color: notifires.getGrey1Whitecolor);
-    
+
     // Vérifier si le titre contient "Carvy" (insensible à la casse)
     final lowerTitle = titleText.toLowerCase();
     if (lowerTitle.contains('carvy')) {
       // Trouver l'index de "carvy" (insensible à la casse)
       final index = lowerTitle.indexOf('carvy');
       final beforeText = titleText.substring(0, index);
-      final carvyText = titleText.substring(index, index + 5); // "Carvy" ou "carvy"
+      final carvyText =
+          titleText.substring(index, index + 5); // "Carvy" ou "carvy"
       final afterText = titleText.substring(index + 5);
-      
+
       // Déterminer la casse de "Car" et "vy"
       final carPart = carvyText.substring(0, 3); // "Car" ou "car"
       final vyPart = carvyText.substring(3, 5); // "vy"
-      
+
       return RichText(
         textAlign: TextAlign.center,
         text: TextSpan(
@@ -4808,7 +5037,7 @@ Widget customOnboardingWidget(String image, String title, String description) {
       );
     }
   }
-  
+
   return Column(
     children: [
       Padding(
@@ -5034,6 +5263,40 @@ addAddressAlert(BuildContext context) {
       );
     },
   );
+}
+
+/// Masks the license plate number, keeping only the city code (part after last hyphen)
+/// Example: "10000-0-00" -> "****-00", "12345-A-26" -> "****-26"
+String maskLicensePlate(String? plateNumber) {
+  if (plateNumber == null || plateNumber.isEmpty) {
+    return "0";
+  }
+  
+  // Find the last hyphen position
+  int lastHyphenIndex = plateNumber.lastIndexOf('-');
+  
+  // If no hyphen found, return all asterisks
+  if (lastHyphenIndex == -1) {
+    return '*' * plateNumber.length;
+  }
+  
+  // Extract the city code (part after last hyphen)
+  String cityCode = plateNumber.substring(lastHyphenIndex + 1);
+  
+  // Return masked version: asterisks + hyphen + city code
+  return '****-$cityCode';
+}
+
+/// Masks only the numbers in a Moroccan license plate with asterisks,
+/// keeping letters and hyphens visible.
+/// Example: "1-T-5683" -> "*-T-****", "24-A-12345" -> "**-A-*****"
+String maskLicensePlateNumbers(String? plateNumber) {
+  if (plateNumber == null || plateNumber.isEmpty) {
+    return "";
+  }
+  
+  // Replace all digits (0-9) with asterisks, keeping letters and hyphens
+  return plateNumber.replaceAll(RegExp(r'\d'), '*');
 }
 
 String truncatetext(dynamic data, int maxLength) {

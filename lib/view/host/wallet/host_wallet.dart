@@ -34,28 +34,108 @@ class _HostWalletState extends State<HostWallet> {
   }
 
   getData() async {
-    httpPost(Config.getVendorWallet, {}).then((response) {
-      if (response != null) {
-        vendorWallet = VendorWallet.fromJson(response);
-        setState(() {});
+    // ========== MOCK DATA - getVendorWallet API ==========
+    // httpPost(Config.getVendorWallet, {}).then((response) {
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static wallet balance data
+    Map<String, dynamic> mockWalletResponse = {
+      "status": 200,
+      "message": "Wallet balance retrieved successfully",
+      "error": "",
+      "data": {
+        "walletBalance": "1250.00",
+        "pendingToWithdrawl": "150.00",
+        "totalWithdrawled": "5000.00",
+        "totalEarning": "6400.00",
+        "refunded": "0.00",
+        "incoming_amount": "1250.00"
       }
-      refreshController.loadComplete();
-      refreshController.refreshCompleted();
-    });
+    };
+    
+    if (mockWalletResponse != null) {
+      vendorWallet = VendorWallet.fromJson(mockWalletResponse);
+      setState(() {});
+    }
+    refreshController.loadComplete();
+    refreshController.refreshCompleted();
+    // ========== END MOCK DATA ==========
 
-    httpPost(Config.getVendorWalletTransactions, {"offset": "$offset"})
-        .then((response) {
-      if (response != null) {
-        getVendorWalletTransactions =
-            GetVendorWalletTransactions.fromJson(response);
-        list.addAll(
-            getVendorWalletTransactions!.data!.walletTransactionsDetails!);
-        offset = getVendorWalletTransactions!.data!.offset!;
-        setState(() {});
+    // ========== MOCK DATA - getVendorWalletTransactions API ==========
+    // httpPost(Config.getVendorWalletTransactions, {"offset": "$offset"}).then((response) {
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static wallet transactions data
+    Map<String, dynamic> mockTransactionsResponse = {
+      "status": 200,
+      "message": "Wallet transactions retrieved successfully",
+      "error": "",
+      "data": {
+        "WalletTransactionsDetails": [
+          {
+            "id": 1,
+            "vendor_id": "1001",
+            "booking_id": "101",
+            "payout_id": "0",
+            "amount": "250.00",
+            "type": "credit",
+            "description": "Vendor commission for booking #101",
+            "created_at": DateTime.now().subtract(const Duration(days: 2)).toString().split('.')[0],
+            "updated_at": DateTime.now().subtract(const Duration(days: 2)).toString().split('.')[0]
+          },
+          {
+            "id": 2,
+            "vendor_id": "1001",
+            "booking_id": "102",
+            "payout_id": "0",
+            "amount": "300.00",
+            "type": "credit",
+            "description": "Vendor commission for booking #102",
+            "created_at": DateTime.now().subtract(const Duration(days: 5)).toString().split('.')[0],
+            "updated_at": DateTime.now().subtract(const Duration(days: 5)).toString().split('.')[0]
+          },
+          {
+            "id": 3,
+            "vendor_id": "1001",
+            "booking_id": "103",
+            "payout_id": "1",
+            "amount": "200.00",
+            "type": "debit",
+            "description": "Payout request #1",
+            "created_at": DateTime.now().subtract(const Duration(days: 7)).toString().split('.')[0],
+            "updated_at": DateTime.now().subtract(const Duration(days: 7)).toString().split('.')[0]
+          },
+          {
+            "id": 4,
+            "vendor_id": "1001",
+            "booking_id": "104",
+            "payout_id": "0",
+            "amount": "500.00",
+            "type": "credit",
+            "description": "Vendor commission for booking #104",
+            "created_at": DateTime.now().subtract(const Duration(days: 10)).toString().split('.')[0],
+            "updated_at": DateTime.now().subtract(const Duration(days: 10)).toString().split('.')[0]
+          }
+        ],
+        "offset": offset + 4
       }
-      refreshController.loadComplete();
-      refreshController.refreshCompleted();
-    });
+    };
+    
+    if (mockTransactionsResponse != null) {
+      getVendorWalletTransactions =
+          GetVendorWalletTransactions.fromJson(mockTransactionsResponse);
+      list.addAll(
+          getVendorWalletTransactions!.data!.walletTransactionsDetails!);
+      offset = getVendorWalletTransactions!.data!.offset!;
+      setState(() {});
+    }
+    refreshController.loadComplete();
+    refreshController.refreshCompleted();
+    // ========== END MOCK DATA ==========
   }
 
   onLoading() {

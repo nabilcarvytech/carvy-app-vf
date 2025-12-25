@@ -1,35 +1,40 @@
-
 class SocialLoginModel {
   SocialLoginModel({
-      num? status, 
-      String? message, 
-      Data? data, 
-      String? error,}){
+    num? status,
+    String? message,
+    Data? data,
+    String? error,
+  }) {
     _status = status;
     _message = message;
     _data = data;
     _error = error;
-}
+  }
 
   SocialLoginModel.fromJson(dynamic json) {
     _status = json['status'];
     _message = json['message'];
-    _data = json['data'] != null && json['data']!=[] ? Data.fromJson(json['data']) : null;
+    _data = json['data'] != null && json['data'] != []
+        ? Data.fromJson(json['data'])
+        : null;
     _error = json['error'];
   }
   num? _status;
   String? _message;
   Data? _data;
   String? _error;
-SocialLoginModel copyWith({  num? status,
-  String? message,
-  Data? data,
-  String? error,
-}) => SocialLoginModel(  status: status ?? _status,
-  message: message ?? _message,
-  data: data ?? _data,
-  error: error ?? _error,
-);
+  SocialLoginModel copyWith({
+    num? status,
+    String? message,
+    Data? data,
+    String? error,
+  }) =>
+      SocialLoginModel(
+        status: status ?? _status,
+        message: message ?? _message,
+        data: data ?? _data,
+        error: error ?? _error,
+      );
   num? get status => _status;
   String? get message => _message;
   Data? get data => _data;
@@ -45,7 +50,6 @@ SocialLoginModel copyWith({  num? status,
     map['error'] = _error;
     return map;
   }
-
 }
 
 /// id : 56
@@ -75,30 +79,31 @@ SocialLoginModel copyWith({  num? status,
 
 class Data {
   Data({
-      num? id, 
-      String? firstName, 
-      dynamic middle, 
-      String? lastName, 
-      String? email, 
-      dynamic phone, 
-      dynamic phoneCountry, 
-      dynamic defaultCountry, 
-      dynamic wallet, 
-      String? otpValue, 
-      String? token, 
-      String? resetToken, 
-      String? verified, 
-      dynamic loginType, 
-      dynamic birthdate, 
-      dynamic socialId, 
-      String? status, 
-      String? createdAt, 
-      String? updatedAt, 
-      dynamic packageId, 
-      dynamic fcm, 
-      dynamic deviceId, 
-      ProfileImage? profileImage, 
-      List<Media>? media,}){
+    String? id,
+    String? firstName,
+    dynamic middle,
+    String? lastName,
+    String? email,
+    dynamic phone,
+    dynamic phoneCountry,
+    dynamic defaultCountry,
+    dynamic wallet,
+    String? otpValue,
+    String? token,
+    String? resetToken,
+    String? verified,
+    dynamic loginType,
+    dynamic birthdate,
+    dynamic socialId,
+    String? status,
+    String? createdAt,
+    String? updatedAt,
+    dynamic packageId,
+    dynamic fcm,
+    dynamic deviceId,
+    ProfileImage? profileImage,
+    List<Media>? media,
+  }) {
     _id = id;
     _firstName = firstName;
     _middle = middle;
@@ -123,11 +128,10 @@ class Data {
     _deviceId = deviceId;
     _profileImage = profileImage;
     _media = media;
-}
+  }
 
   Data.fromJson(dynamic json) {
-
-    _id = json['id'];
+    _id = json['id']?.toString();
     _firstName = json['first_name'];
     _middle = json['middle'];
     _lastName = json['last_name'];
@@ -149,7 +153,9 @@ class Data {
     _packageId = json['package_id'];
     _fcm = json['fcm'];
     _deviceId = json['device_id'];
-    _profileImage = json['profile_image'] != null ? ProfileImage.fromJson(json['profile_image']) : null;
+    _profileImage = json['profile_image'] != null
+        ? ProfileImage.fromJson(json['profile_image'])
+        : null;
     if (json['media'] != null) {
       _media = [];
       json['media'].forEach((v) {
@@ -157,7 +163,7 @@ class Data {
       });
     }
   }
-  num? _id;
+  String? _id;
   String? _firstName;
   dynamic _middle;
   String? _lastName;
@@ -181,56 +187,59 @@ class Data {
   dynamic _deviceId;
   ProfileImage? _profileImage;
   List<Media>? _media;
-Data copyWith({  num? id,
-  String? firstName,
-  dynamic middle,
-  String? lastName,
-  String? email,
-  dynamic phone,
-  dynamic phoneCountry,
-  dynamic defaultCountry,
-  dynamic wallet,
-  String? otpValue,
-  String? token,
-  String? resetToken,
-  String? verified,
-  dynamic loginType,
-  dynamic birthdate,
-  dynamic socialId,
-  String? status,
-  String? createdAt,
-  String? updatedAt,
-  dynamic packageId,
-  dynamic fcm,
-  dynamic deviceId,
-  ProfileImage? profileImage,
-  List<Media>? media,
-}) => Data(  id: id ?? _id,
-  firstName: firstName ?? _firstName,
-  middle: middle ?? _middle,
-  lastName: lastName ?? _lastName,
-  email: email ?? _email,
-  phone: phone ?? _phone,
-  phoneCountry: phoneCountry ?? _phoneCountry,
-  defaultCountry: defaultCountry ?? _defaultCountry,
-  wallet: wallet ?? _wallet,
-  otpValue: otpValue ?? _otpValue,
-  token: token ?? _token,
-  resetToken: resetToken ?? _resetToken,
-  verified: verified ?? _verified,
-  loginType: loginType ?? _loginType,
-  birthdate: birthdate ?? _birthdate,
-  socialId: socialId ?? _socialId,
-  status: status ?? _status,
-  createdAt: createdAt ?? _createdAt,
-  updatedAt: updatedAt ?? _updatedAt,
-  packageId: packageId ?? _packageId,
-  fcm: fcm ?? _fcm,
-  deviceId: deviceId ?? _deviceId,
-  profileImage: profileImage ?? _profileImage,
-  media: media ?? _media,
-);
-  num? get id => _id;
+  Data copyWith({
+    String? id,
+    String? firstName,
+    dynamic middle,
+    String? lastName,
+    String? email,
+    dynamic phone,
+    dynamic phoneCountry,
+    dynamic defaultCountry,
+    dynamic wallet,
+    String? otpValue,
+    String? token,
+    String? resetToken,
+    String? verified,
+    dynamic loginType,
+    dynamic birthdate,
+    dynamic socialId,
+    String? status,
+    String? createdAt,
+    String? updatedAt,
+    dynamic packageId,
+    dynamic fcm,
+    dynamic deviceId,
+    ProfileImage? profileImage,
+    List<Media>? media,
+  }) =>
+      Data(
+        id: id ?? _id,
+        firstName: firstName ?? _firstName,
+        middle: middle ?? _middle,
+        lastName: lastName ?? _lastName,
+        email: email ?? _email,
+        phone: phone ?? _phone,
+        phoneCountry: phoneCountry ?? _phoneCountry,
+        defaultCountry: defaultCountry ?? _defaultCountry,
+        wallet: wallet ?? _wallet,
+        otpValue: otpValue ?? _otpValue,
+        token: token ?? _token,
+        resetToken: resetToken ?? _resetToken,
+        verified: verified ?? _verified,
+        loginType: loginType ?? _loginType,
+        birthdate: birthdate ?? _birthdate,
+        socialId: socialId ?? _socialId,
+        status: status ?? _status,
+        createdAt: createdAt ?? _createdAt,
+        updatedAt: updatedAt ?? _updatedAt,
+        packageId: packageId ?? _packageId,
+        fcm: fcm ?? _fcm,
+        deviceId: deviceId ?? _deviceId,
+        profileImage: profileImage ?? _profileImage,
+        media: media ?? _media,
+      );
+  String? get id => _id;
   String? get firstName => _firstName;
   dynamic get middle => _middle;
   String? get lastName => _lastName;
@@ -287,7 +296,6 @@ Data copyWith({  num? id,
     }
     return map;
   }
-
 }
 
 /// id : 57
@@ -316,29 +324,30 @@ Data copyWith({  num? id,
 
 class Media {
   Media({
-      num? id, 
-      String? modelType, 
-      String? modelId, 
-      String? uuid, 
-      String? collectionName, 
-      String? name, 
-      String? fileName, 
-      String? mimeType, 
-      String? disk, 
-      String? conversionsDisk, 
-      String? size, 
-      List<dynamic>? manipulations, 
-      List<dynamic>? customProperties, 
-      GeneratedConversions? generatedConversions, 
-      List<dynamic>? responsiveImages, 
-      String? orderColumn, 
-      String? createdAt, 
-      String? updatedAt, 
-      String? url, 
-      String? thumbnail, 
-      String? preview, 
-      String? originalUrl, 
-      String? previewUrl,}){
+    num? id,
+    String? modelType,
+    String? modelId,
+    String? uuid,
+    String? collectionName,
+    String? name,
+    String? fileName,
+    String? mimeType,
+    String? disk,
+    String? conversionsDisk,
+    String? size,
+    List<dynamic>? manipulations,
+    List<dynamic>? customProperties,
+    GeneratedConversions? generatedConversions,
+    List<dynamic>? responsiveImages,
+    String? orderColumn,
+    String? createdAt,
+    String? updatedAt,
+    String? url,
+    String? thumbnail,
+    String? preview,
+    String? originalUrl,
+    String? previewUrl,
+  }) {
     _id = id;
     _modelType = modelType;
     _modelId = modelId;
@@ -362,7 +371,7 @@ class Media {
     _preview = preview;
     _originalUrl = originalUrl;
     _previewUrl = previewUrl;
-}
+  }
 
   Media.fromJson(dynamic json) {
     _id = json['id'];
@@ -408,53 +417,56 @@ class Media {
   String? _preview;
   String? _originalUrl;
   String? _previewUrl;
-Media copyWith({  num? id,
-  String? modelType,
-  String? modelId,
-  String? uuid,
-  String? collectionName,
-  String? name,
-  String? fileName,
-  String? mimeType,
-  String? disk,
-  String? conversionsDisk,
-  String? size,
-  List<dynamic>? manipulations,
-  List<dynamic>? customProperties,
-  GeneratedConversions? generatedConversions,
-  List<dynamic>? responsiveImages,
-  String? orderColumn,
-  String? createdAt,
-  String? updatedAt,
-  String? url,
-  String? thumbnail,
-  String? preview,
-  String? originalUrl,
-  String? previewUrl,
-}) => Media(  id: id ?? _id,
-  modelType: modelType ?? _modelType,
-  modelId: modelId ?? _modelId,
-  uuid: uuid ?? _uuid,
-  collectionName: collectionName ?? _collectionName,
-  name: name ?? _name,
-  fileName: fileName ?? _fileName,
-  mimeType: mimeType ?? _mimeType,
-  disk: disk ?? _disk,
-  conversionsDisk: conversionsDisk ?? _conversionsDisk,
-  size: size ?? _size,
-  manipulations: manipulations ?? _manipulations,
-  customProperties: customProperties ?? _customProperties,
-  generatedConversions: generatedConversions ?? _generatedConversions,
-  responsiveImages: responsiveImages ?? _responsiveImages,
-  orderColumn: orderColumn ?? _orderColumn,
-  createdAt: createdAt ?? _createdAt,
-  updatedAt: updatedAt ?? _updatedAt,
-  url: url ?? _url,
-  thumbnail: thumbnail ?? _thumbnail,
-  preview: preview ?? _preview,
-  originalUrl: originalUrl ?? _originalUrl,
-  previewUrl: previewUrl ?? _previewUrl,
-);
+  Media copyWith({
+    num? id,
+    String? modelType,
+    String? modelId,
+    String? uuid,
+    String? collectionName,
+    String? name,
+    String? fileName,
+    String? mimeType,
+    String? disk,
+    String? conversionsDisk,
+    String? size,
+    List<dynamic>? manipulations,
+    List<dynamic>? customProperties,
+    GeneratedConversions? generatedConversions,
+    List<dynamic>? responsiveImages,
+    String? orderColumn,
+    String? createdAt,
+    String? updatedAt,
+    String? url,
+    String? thumbnail,
+    String? preview,
+    String? originalUrl,
+    String? previewUrl,
+  }) =>
+      Media(
+        id: id ?? _id,
+        modelType: modelType ?? _modelType,
+        modelId: modelId ?? _modelId,
+        uuid: uuid ?? _uuid,
+        collectionName: collectionName ?? _collectionName,
+        name: name ?? _name,
+        fileName: fileName ?? _fileName,
+        mimeType: mimeType ?? _mimeType,
+        disk: disk ?? _disk,
+        conversionsDisk: conversionsDisk ?? _conversionsDisk,
+        size: size ?? _size,
+        manipulations: manipulations ?? _manipulations,
+        customProperties: customProperties ?? _customProperties,
+        generatedConversions: generatedConversions ?? _generatedConversions,
+        responsiveImages: responsiveImages ?? _responsiveImages,
+        orderColumn: orderColumn ?? _orderColumn,
+        createdAt: createdAt ?? _createdAt,
+        updatedAt: updatedAt ?? _updatedAt,
+        url: url ?? _url,
+        thumbnail: thumbnail ?? _thumbnail,
+        preview: preview ?? _preview,
+        originalUrl: originalUrl ?? _originalUrl,
+        previewUrl: previewUrl ?? _previewUrl,
+      );
   num? get id => _id;
   String? get modelType => _modelType;
   String? get modelId => _modelId;
@@ -496,13 +508,15 @@ Media copyWith({  num? id,
       map['manipulations'] = _manipulations?.map((v) => v.toJson()).toList();
     }
     if (_customProperties != null) {
-      map['custom_properties'] = _customProperties?.map((v) => v.toJson()).toList();
+      map['custom_properties'] =
+          _customProperties?.map((v) => v.toJson()).toList();
     }
     if (_generatedConversions != null) {
       map['generated_conversions'] = _generatedConversions?.toJson();
     }
     if (_responsiveImages != null) {
-      map['responsive_images'] = _responsiveImages?.map((v) => v.toJson()).toList();
+      map['responsive_images'] =
+          _responsiveImages?.map((v) => v.toJson()).toList();
     }
     map['order_column'] = _orderColumn;
     map['created_at'] = _createdAt;
@@ -514,7 +528,6 @@ Media copyWith({  num? id,
     map['preview_url'] = _previewUrl;
     return map;
   }
-
 }
 
 /// thumb : true
@@ -522,11 +535,12 @@ Media copyWith({  num? id,
 
 class GeneratedConversions {
   GeneratedConversions({
-      bool? thumb, 
-      bool? preview,}){
+    bool? thumb,
+    bool? preview,
+  }) {
     _thumb = thumb;
     _preview = preview;
-}
+  }
 
   GeneratedConversions.fromJson(dynamic json) {
     _thumb = json['thumb'];
@@ -544,33 +558,34 @@ class GeneratedConversions {
     map['preview'] = _preview;
     return map;
   }
-
 }
+
 class ProfileImage {
   ProfileImage({
-      num? id, 
-      String? modelType, 
-      String? modelId, 
-      String? uuid, 
-      String? collectionName, 
-      String? name, 
-      String? fileName, 
-      String? mimeType, 
-      String? disk, 
-      String? conversionsDisk, 
-      String? size, 
-      List<dynamic>? manipulations, 
-      List<dynamic>? customProperties, 
-      GeneratedConversions? generatedConversions, 
-      List<dynamic>? responsiveImages, 
-      String? orderColumn, 
-      String? createdAt, 
-      String? updatedAt, 
-      String? url, 
-      String? thumbnail, 
-      String? preview, 
-      String? originalUrl, 
-      String? previewUrl,}){
+    num? id,
+    String? modelType,
+    String? modelId,
+    String? uuid,
+    String? collectionName,
+    String? name,
+    String? fileName,
+    String? mimeType,
+    String? disk,
+    String? conversionsDisk,
+    String? size,
+    List<dynamic>? manipulations,
+    List<dynamic>? customProperties,
+    GeneratedConversions? generatedConversions,
+    List<dynamic>? responsiveImages,
+    String? orderColumn,
+    String? createdAt,
+    String? updatedAt,
+    String? url,
+    String? thumbnail,
+    String? preview,
+    String? originalUrl,
+    String? previewUrl,
+  }) {
     _id = id;
     _modelType = modelType;
     _modelId = modelId;
@@ -594,7 +609,7 @@ class ProfileImage {
     _preview = preview;
     _originalUrl = originalUrl;
     _previewUrl = previewUrl;
-}
+  }
 
   ProfileImage.fromJson(dynamic json) {
     _id = json['id'];
@@ -683,13 +698,15 @@ class ProfileImage {
       map['manipulations'] = _manipulations?.map((v) => v.toJson()).toList();
     }
     if (_customProperties != null) {
-      map['custom_properties'] = _customProperties?.map((v) => v.toJson()).toList();
+      map['custom_properties'] =
+          _customProperties?.map((v) => v.toJson()).toList();
     }
     if (_generatedConversions != null) {
       map['generated_conversions'] = _generatedConversions?.toJson();
     }
     if (_responsiveImages != null) {
-      map['responsive_images'] = _responsiveImages?.map((v) => v.toJson()).toList();
+      map['responsive_images'] =
+          _responsiveImages?.map((v) => v.toJson()).toList();
     }
     map['order_column'] = _orderColumn;
     map['created_at'] = _createdAt;

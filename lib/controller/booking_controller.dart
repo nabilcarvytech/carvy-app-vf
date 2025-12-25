@@ -117,22 +117,45 @@ class BookingController extends GetxController implements GetxService {
         "end_time": endTimeForBackend,
       };
 
-      var result = await httpPost(Config.checkBookingAvailability, map);
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var result = await httpPost(Config.checkBookingAvailability, map);
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Return static response data
+      Map<String, dynamic> result = {
+        "status": 200,
+        "message": "Booking availability checked successfully",
+        "error": "",
+        "data": {
+          "next_start_time": "12:00 AM",
+          "next_end_time": "11:30 AM",
+          "availability": {
+            "next_start_time": "12:00 AM",
+            "next_end_time": "11:30 AM",
+            "is_available": true
+          },
+          "bookingOverlapDetails": []
+        }
+      };
 
       if (result['status'] == 200 || result['status'] == 422) {
-        final data = result["data"];
+        final data = result["data"] as Map<String, dynamic>?;
         if (data != null) {
           if (data["next_start_time"] != null) {
-            nextStartTime.value = convert12To24(data["next_start_time"]);
-            nextEndTime.value = convert12To24(data["next_end_time"]);
+            nextStartTime.value =
+                convert12To24(data["next_start_time"] as String);
+            nextEndTime.value = convert12To24(data["next_end_time"] as String);
           }
 
           if (data["availability"] != null) {
-            final availability = data["availability"];
+            final availability = data["availability"] as Map<String, dynamic>;
             if (availability["next_start_time"] != null) {
               nextStartTime.value =
-                  convert12To24(availability["next_start_time"]);
-              nextEndTime.value = convert12To24(availability["next_end_time"]);
+                  convert12To24(availability["next_start_time"] as String);
+              nextEndTime.value =
+                  convert12To24(availability["next_end_time"] as String);
             }
           }
         }
@@ -140,8 +163,10 @@ class BookingController extends GetxController implements GetxService {
       if (result['status'] == 422) {
         isDateAvailale.value = false;
         isDateChecking.value = false;
-        final bookingDetails = result["data"]?["bookingOverlapDetails"];
-        final nextTimeSlot = result["data"]?["next_start_time"];
+        final bookingDetails =
+            (result["data"] as Map<String, dynamic>?)?["bookingOverlapDetails"];
+        final nextTimeSlot =
+            (result["data"] as Map<String, dynamic>?)?["next_start_time"];
         if (bookingDetails is List && bookingDetails.isNotEmpty) {
           showBookingOverlapBottomSheet(bookingDetails, nextTimeSlot);
           isDateAvailale.value = true;
@@ -150,8 +175,9 @@ class BookingController extends GetxController implements GetxService {
         }
       } else if (result['status'] == 200) {
         isDateChecking.value = false;
-        checkDateResult = result["data"]['availability']['is_available'];
-        checkDateMsg = result["error"];
+        checkDateResult =
+            result["data"]['availability']['is_available'] as bool;
+        checkDateMsg = result["error"] as String;
         if (checkDateResult) {
           isDateAvailale.value = true;
         } else {
@@ -164,8 +190,8 @@ class BookingController extends GetxController implements GetxService {
       } else {
         error.value = true;
         isDateAvailale.value = false;
-        datednotAvalibleError.value = result["error"];
-        showErrorToastMessage(result["error"]);
+        datednotAvalibleError.value = result["error"] as String? ?? "";
+        showErrorToastMessage(result["error"] as String? ?? "");
       }
 
       update();
@@ -180,11 +206,37 @@ class BookingController extends GetxController implements GetxService {
   var isLoading = false.obs;
   bookDateApi({String? idFeatured}) async {
     isLoading.value = true;
-    var response = await httpPost(Config.itemBookingDate, {'id': idFeatured});
-    BookdDate result = BookdDate.fromJson(response);
-    isLoading.value = false;
-    update();
-    return result;
+    try {
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.itemBookingDate, {'id': idFeatured});
+      //
+      // BookdDate result = BookdDate.fromJson(response);
+      //
+      // return result;
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Return static BookdDate data
+      // NOTE: This simule les plages de dates déjà réservées pour un véhicule.
+      Map<String, dynamic> mockResponse = {
+        "status": 200,
+        "message": "Item booking dates retrieved successfully",
+        "error": "",
+        "data": {
+          "itemBookingDate": [
+            {"check_in": "2024-12-20", "check_out": "2024-12-22"},
+            {"check_in": "2024-12-28", "check_out": "2025-01-02"}
+          ]
+        }
+      };
+
+      BookdDate result = BookdDate.fromJson(mockResponse);
+      return result;
+    } finally {
+      isLoading.value = false;
+      update();
+    }
   }
 
   PageController pageControllerslider = PageController();
@@ -301,13 +353,71 @@ class BookingController extends GetxController implements GetxService {
       "end_time": endTimeForBackend,
       "doorStep_price": "$isAddDoorStepPrice",
     };
-    var response = await httpPost(Config.getItemPrices, map);
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(Config.getItemPrices, map);
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Calculate total nights from dates
+    int totalNights = 1;
+    if (startDate.value.isNotEmpty && endDate.value.isNotEmpty) {
+      try {
+        DateTime checkIn = DateTime.tryParse(startDate.value) ?? DateTime.now();
+        DateTime checkOut = DateTime.tryParse(endDate.value) ?? DateTime.now();
+        totalNights = checkOut.difference(checkIn).inDays;
+        if (totalNights < 1) totalNights = 1;
+      } catch (e) {
+        totalNights = 1;
+      }
+    }
+
+    // MOCK: Return static response data
+    Map<String, dynamic> response = {
+      "status": 200,
+      "message": "Item prices retrieved successfully",
+      "error": "",
+      "data": {
+        "discount_type": "",
+        "prices": [
+          {
+            "date": startDate.value.isNotEmpty ? startDate.value : "2024-12-16",
+            "price": "50.00",
+            "status": "Available"
+          },
+          {
+            "date": endDate.value.isNotEmpty ? endDate.value : "2024-12-17",
+            "price": "50.00",
+            "status": "Available"
+          }
+        ],
+        "price_before_discount": "${50.00 * totalNights}",
+        "price_per_day": "50.00",
+        "total_days": "$totalNights",
+        "discount_price": "0.00",
+        "coupon_discount": "0.00",
+        "price_after_discount": "${50.00 * totalNights}",
+        "service_charge": "10.00",
+        "cleaning_charge": "5.00",
+        "coupon_code": coupon ?? "",
+        "tax": "12.50",
+        "wallet_amount": wallet ?? "0.00",
+        "remaining_wallet_balance": "0.00",
+        "gross_price": "${(50.00 * totalNights) + 10.00 + 5.00 + 12.50}",
+        "duration": totalNights,
+        "security_deposit": "100.00",
+        "distance": "0",
+        "label": ""
+      }
+    };
+
     if (response != null) {
       if (response['status'] == 200) {
         getItemPrices = GetItemPrices.fromJson(response);
       } else {
         error.value = true;
-        showErrorToastMessage(response['error']);
+        showErrorToastMessage(response['error'] as String? ?? "");
         update();
       }
     }
@@ -316,15 +426,44 @@ class BookingController extends GetxController implements GetxService {
   getWalletData() async {
     error.value = false;
     update();
-    var resp = await httpPost(Config.getUserWallet, {});
-    if (resp != null) {
-      walletModel = WalletModel.fromJson(resp);
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var resp = await httpPost(Config.getUserWallet, {});
+    // if (resp != null) {
+    //   walletModel = WalletModel.fromJson(resp);
+    //   if (walletModel!.status == 200) {
+    //   } else {
+    //     error.value = true;
+    //     update();
+    //     showErrorToastMessage(walletModel!.error);
+    //   }
+    // }
+
+    try {
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Return static wallet data
+      Map<String, dynamic> mockResponse = {
+        "status": 200,
+        "message": "Wallet data retrieved successfully",
+        "error": "",
+        "data": {"wallet_balance": "150.00"}
+      };
+
+      walletModel = WalletModel.fromJson(mockResponse);
       if (walletModel!.status == 200) {
+        // rien à faire, juste exposer walletModel dans le contrôleur
       } else {
         error.value = true;
-        update();
-        showErrorToastMessage(walletModel!.error);
+        showErrorToastMessage(
+            walletModel!.error ?? "Failed to load wallet data");
       }
+    } catch (e) {
+      error.value = true;
+      showErrorToastMessage("Failed to load wallet data");
+    } finally {
+      update();
     }
   }
 
@@ -497,7 +636,32 @@ class BookingController extends GetxController implements GetxService {
       "meta": meta,
     };
 
-    var response = await httpPost(Config.bookItem, map);
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(Config.bookItem, map);
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Generate a mock booking ID
+    int mockBookingId = DateTime.now().millisecondsSinceEpoch;
+
+    // MOCK: Return static response data
+    // NOTE: The payment_url contains "cs_test_mock" which is detected by _handleNavigation()
+    // in payment_screen.dart to simulate payment success in offline mode.
+    // TODO: After Node.js backend implementation, this URL will be a real Stripe checkout URL
+    // that redirects to payment_success after actual payment processing.
+    Map<String, dynamic> response = {
+      "status": 200,
+      "message": "Booking created successfully",
+      "error": "",
+      "data": {
+        "booking_id": mockBookingId,
+        "payment_url":
+            "https://checkout.stripe.com/pay/cs_test_mock_${mockBookingId}",
+        "booking_status": "pending"
+      }
+    };
+
     if (response != null) {
       if (response['status'] == 200) {
       } else {
@@ -874,37 +1038,36 @@ class BookingController extends GetxController implements GetxService {
     }
   }
 
-void compareAndGenerateSlots(
-    DateTime selectedStartDate, String nextStartTime, String nextEndTime) {
-  DateTime parsedNextStartTime;
-  if (nextStartTime.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'))) {
-    DateFormat dateFormat24 = DateFormat('HH:mm');
-    parsedNextStartTime = dateFormat24.parse(nextStartTime);
-  } else {
-    DateFormat dateFormat12 = DateFormat('h:mm a');
-    parsedNextStartTime = dateFormat12.parse(nextStartTime);
-  }
+  void compareAndGenerateSlots(
+      DateTime selectedStartDate, String nextStartTime, String nextEndTime) {
+    DateTime parsedNextStartTime;
+    if (nextStartTime.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'))) {
+      DateFormat dateFormat24 = DateFormat('HH:mm');
+      parsedNextStartTime = dateFormat24.parse(nextStartTime);
+    } else {
+      DateFormat dateFormat12 = DateFormat('h:mm a');
+      parsedNextStartTime = dateFormat12.parse(nextStartTime);
+    }
 
-  DateTime nextStartTimeWithToday = DateTime(
-    DateTime.now().year,
-    DateTime.now().month,
-    DateTime.now().day,
-    parsedNextStartTime.hour,
-    parsedNextStartTime.minute,
-  );
-  DateTime currentTime = DateTime.now();
-   print("kljl${currentTime}");
-  if (currentTime.isAfter(nextStartTimeWithToday)) {
-    handleTimeSlotsOnCurrentDate.value = true;
-    curreentStatus.value = "CurrentDate";
-    generateTimeSlots(selectedStartDate);
-  } else {
-    curreentStatus.value = "CurrentDate";
-    filterTimeSlotsfunctionSameDate(nextStartTime, nextEndTime);
+    DateTime nextStartTimeWithToday = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+      parsedNextStartTime.hour,
+      parsedNextStartTime.minute,
+    );
+    DateTime currentTime = DateTime.now();
+    print("kljl${currentTime}");
+    if (currentTime.isAfter(nextStartTimeWithToday)) {
+      handleTimeSlotsOnCurrentDate.value = true;
+      curreentStatus.value = "CurrentDate";
+      generateTimeSlots(selectedStartDate);
+    } else {
+      curreentStatus.value = "CurrentDate";
+      filterTimeSlotsfunctionSameDate(nextStartTime, nextEndTime);
+    }
+    update();
   }
-  update();
-}
-
 
   void _showUnavailableDateError(DateTime now) {
     if (_lastAlertTime == null ||
@@ -1120,37 +1283,138 @@ void compareAndGenerateSlots(
   String? parkingType;
 
   void moduleBasedData({required Bookings bookings}) {
-    String? bookingMeta = bookings.bookingMeta;
-    String jsonItemData = bookings.itemData;
-    List<dynamic> decodedData = jsonDecode(jsonItemData);
-    if (bookingMeta != null) {
-      bookingMetaList = json.decode(bookingMeta);
+    try {
+      String? bookingMeta = bookings.bookingMeta;
+      String? jsonItemData = bookings.itemData;
+
+      // Validate itemData before parsing
+      if (jsonItemData == null ||
+          jsonItemData.isEmpty ||
+          jsonItemData.trim().isEmpty) {
+        print(
+            "⚠️ moduleBasedData: itemData is null or empty, skipping parsing");
+        // Set default values to prevent null errors
+        vehicleType = '';
+        vehicleModel = '';
+        vehicleMake = '';
+        vehicleYear = '';
+        vehicleTransmission = '';
+        vehicleOdometer = '';
+        address = "";
+        return;
+      }
+
+      List<dynamic> decodedData = jsonDecode(jsonItemData);
+
+      if (decodedData.isEmpty) {
+        print("⚠️ moduleBasedData: decodedData is empty");
+        vehicleType = '';
+        vehicleModel = '';
+        vehicleMake = '';
+        vehicleYear = '';
+        vehicleTransmission = '';
+        vehicleOdometer = '';
+        address = "";
+        return;
+      }
+
+      if (bookingMeta != null && bookingMeta.isNotEmpty) {
+        try {
+          bookingMetaList = json.decode(bookingMeta);
+        } catch (e) {
+          print("⚠️ moduleBasedData: Error parsing bookingMeta: $e");
+        }
+      }
+
+      bookingDateStart = "Trip Start";
+      bookingDateEnd = "Trip end";
+      bookingTypeDetail = "Vehicle Details";
+      bookingDetailMake = "Model";
+      bookingDetailType = "Type";
+      bookingType = "Year";
+
+      String itemInfoString = decodedData[0]['item_info'] ?? "";
+      if (itemInfoString.isNotEmpty) {
+        try {
+          Map<String, dynamic> itemInfoVehicle = jsonDecode(itemInfoString);
+          vehicleType = itemInfoVehicle['vehicleType'] ?? '';
+          vehicleModel = itemInfoVehicle['model'] ?? '';
+          vehicleMake = itemInfoVehicle['make_type'] ?? '';
+          vehicleYear = itemInfoVehicle['year'] ?? '';
+          vehicleTransmission = itemInfoVehicle['transmission'] ?? '';
+          vehicleOdometer = itemInfoVehicle['odometer'] ?? '';
+        } catch (e) {
+          print("⚠️ moduleBasedData: Error parsing item_info: $e");
+          vehicleType = '';
+          vehicleModel = '';
+          vehicleMake = '';
+          vehicleYear = '';
+          vehicleTransmission = '';
+          vehicleOdometer = '';
+        }
+      } else {
+        vehicleType = '';
+        vehicleModel = '';
+        vehicleMake = '';
+        vehicleYear = '';
+        vehicleTransmission = '';
+        vehicleOdometer = '';
+      }
+
+      address = decodedData[0]['address'] ?? "";
+    } catch (e, stackTrace) {
+      print("❌ moduleBasedData: Error parsing itemData: $e");
+      print("❌ StackTrace: $stackTrace");
+      // Set default values to prevent null errors in UI
+      vehicleType = '';
+      vehicleModel = '';
+      vehicleMake = '';
+      vehicleYear = '';
+      vehicleTransmission = '';
+      vehicleOdometer = '';
+      address = "";
     }
-    bookingDateStart = "Trip Start";
-    bookingDateEnd = "Trip end";
-    bookingDateStart = "Trip Start";
-    bookingDateEnd = "Trip end";
-    bookingTypeDetail = "Vehicle Details";
-    bookingDetailMake = "Model";
-    bookingDetailType = "Type";
-    bookingType = "Year";
-    String itemInfoString = decodedData[0]['item_info'] ?? "";
-    Map<String, dynamic> itemInfoVehicle = jsonDecode(itemInfoString);
-    vehicleType = itemInfoVehicle['vehicleType'] ?? '';
-    vehicleModel = itemInfoVehicle['model'] ?? '';
-    vehicleMake = itemInfoVehicle['make_type'] ?? '';
-    vehicleYear = itemInfoVehicle['year'] ?? '';
-    vehicleTransmission = itemInfoVehicle['transmission'] ?? '';
-    vehicleOdometer = itemInfoVehicle['odometer'] ?? '';
-    address = decodedData[0]['address'] ?? "";
   }
 
   CalendarItemId? calendarItemId;
   ItemDates? itemDates;
   Future<void> fetchDataCalendar(id) async {
     isLoading.value = true;
-    var response =
-        await httpGet(Config.getItemDates, {"item_id": id.toString()});
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpGet(Config.getItemDates, {"item_id": id.toString()});
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static calendar data
+    Map<String, dynamic> mockResponse = {
+      "status": 200,
+      "message": "Item dates retrieved successfully",
+      "error": "",
+      "data": {
+        "ItemDates": {
+          "price": "50.00",
+          "available_dates": [
+            {"date": "2024-12-18", "price": "50.00"},
+            {"date": "2024-12-19", "price": "50.00"},
+            {"date": "2024-12-23", "price": "55.00"}
+          ],
+          "not_available_dates": [
+            {"date": "2024-12-20", "price": "0.00"},
+            {"date": "2024-12-21", "price": "0.00"}
+          ],
+          "booked_dates": [
+            {"date": "2024-12-25", "price": "60.00"},
+            {"date": "2024-12-26", "price": "60.00"}
+          ]
+        }
+      }
+    };
+
+    var response = mockResponse;
+    // ========== END MOCK DATA ==========
+
     if (response != null) {
       calendarItemId = CalendarItemId.fromJson(response);
       if (calendarItemId != null && calendarItemId!.data != null) {
@@ -1191,11 +1455,28 @@ void compareAndGenerateSlots(
     showLoading();
     String result = "no";
     try {
-      var response = await httpPost(Config.updateItemReceivedStatus, {
-        "booking_id": bookingId,
-        "is_item_received": "1",
-        "pick_otp": otpController.text
-      });
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.updateItemReceivedStatus, {
+      //   "booking_id": bookingId,
+      //   "is_item_received": "1",
+      //   "pick_otp": otpController.text
+      // });
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static success response
+      Map<String, dynamic> mockResponse = {
+        "status": 200,
+        "message": "Item received status updated successfully",
+        "error": "",
+        "data": {
+          "booking_extension": {"is_item_received": "1"}
+        }
+      };
+
+      var response = mockResponse;
+      // ========== END MOCK DATA ==========
       closeLoading();
       if (response["status"] == 200) {
         String? isItemReceived =
@@ -1221,11 +1502,31 @@ void compareAndGenerateSlots(
     showLoading();
     String result = "error";
     try {
-      var response = await httpPost(Config.updateItemReturnedStatus, {
-        "booking_id": bookingId,
-        "is_item_returned": "1",
-        "drop_otp": dropOtpController.text,
-      });
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.updateItemReturnedStatus, {
+      //   "booking_id": bookingId,
+      //   "is_item_returned": "1",
+      //   "drop_otp": dropOtpController.text,
+      // });
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static success response
+      Map<String, dynamic> mockResponse = {
+        "status": 200,
+        "message": "Item returned status updated successfully",
+        "error": "",
+        "data": {
+          "booking_extension": {
+            "is_item_returned": "1",
+            "is_item_delivered": "0"
+          }
+        }
+      };
+
+      var response = mockResponse;
+      // ========== END MOCK DATA ==========
       closeLoading();
       if (response["status"] == 200) {
         var isItemDelivered =
@@ -1294,8 +1595,39 @@ void compareAndGenerateSlots(
     }
     signatureDataResponse = null;
     try {
-      var responce =
-          await httpGet(Config.getDigitalSingnature, {"booking_id": "${id}"});
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var responce = await httpGet(Config.getDigitalSingnature, {"booking_id": "${id}"});
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static signature data
+      Map<String, dynamic> mockResponse = {
+        "success": 200,
+        "message": "Digital signature data retrieved successfully",
+        "data": {
+          "booking_id": id.toString(),
+          "user_signed": 1,
+          "vendor_signed": 1,
+          "user_signature_url": {
+            "url": "https://example.com/signatures/user_signature.png",
+            "thumb": "https://example.com/signatures/user_signature_thumb.png",
+            "preview":
+                "https://example.com/signatures/user_signature_preview.png"
+          },
+          "vendor_signature_url": {
+            "url": "https://example.com/signatures/vendor_signature.png",
+            "thumb":
+                "https://example.com/signatures/vendor_signature_thumb.png",
+            "preview":
+                "https://example.com/signatures/vendor_signature_preview.png"
+          }
+        }
+      };
+
+      var responce = mockResponse;
+      // ========== END MOCK DATA ==========
+
       if (responce != null && responce["success"] == 200) {
         signatureDataResponse = SignatureDataResponse.fromJson(responce);
         if (showloading == true) {
@@ -1321,8 +1653,26 @@ void compareAndGenerateSlots(
       {required String bookingId}) async {
     var isItemDelivered;
     String result;
-    var response = await httpPost(Config.updateItemDeliveredStatus,
-        {"booking_id": bookingId, "is_item_delivered": "1"});
+
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(Config.updateItemDeliveredStatus,
+    //     {"booking_id": bookingId, "is_item_delivered": "1"});
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static success response
+    Map<String, dynamic> mockResponse = {
+      "status": 200,
+      "message": "Item delivered status updated successfully",
+      "error": "",
+      "data": {
+        "booking_extension": {"is_item_delivered": "1"}
+      }
+    };
+
+    var response = mockResponse;
+    // ========== END MOCK DATA ==========
     if (response["status"] == 200) {
       isItemDelivered =
           response["data"]["booking_extension"]["is_item_delivered"];

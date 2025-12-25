@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class ItemModel {
   num? _status;
   String? _message;
@@ -55,16 +57,45 @@ class Data {
     if (json['items'] != null) {
       _items = [];
 
-      if (json['items'] is List) {
-        json['items'].forEach((v) {
-          _items?.add(Items.fromJson(v));
-        });
-      } else if (json['items'] is Map<String, dynamic>) {
-        json['items'].forEach((key, value) {
-          _items?.add(Items.fromJson(value));
-        });
+      try {
+        final rawItems = json['items'];
+
+        if (rawItems is List) {
+          print("🔍 [SEARCH_PARSE] Found ${rawItems.length} items in raw list");
+          for (var item in rawItems) {
+            try {
+              _items!.add(Items.fromJson(item));
+            } catch (e, stack) {
+              print("❌ [SEARCH_PARSE] PARSING ERROR on item: $item");
+              print("❌ Error details: $e");
+              print("❌ Stack: $stack");
+            }
+          }
+        } else if (rawItems is Map<String, dynamic>) {
+          print(
+              "🔍 [SEARCH_PARSE] 'items' is a Map, iterating over its values");
+          rawItems.forEach((key, value) {
+            try {
+              _items!.add(Items.fromJson(value));
+            } catch (e, stack) {
+              print(
+                  "❌ [SEARCH_PARSE] PARSING ERROR on item key '$key': $value");
+              print("❌ Error details: $e");
+              print("❌ Stack: $stack");
+            }
+          });
+        } else {
+          print(
+              "❌ [SEARCH_PARSE] Unexpected 'items' type: ${rawItems.runtimeType}");
+        }
+
+        print("✅ [SEARCH_PARSE] Final List Size: ${_items?.length ?? 0}");
+      } catch (e, stack) {
+        print("❌ [SEARCH_PARSE] GLOBAL ERROR in Data.fromJson: $e");
+        print("❌ Stack: $stack");
       }
     }
+
     _offset = json['offset'];
   }
 
@@ -82,7 +113,7 @@ class Data {
 }
 
 class Items {
-  num? _id;
+  String? _id;
   String? _name;
   String? _itemRating;
   String? _mobile;
@@ -101,9 +132,13 @@ class Items {
   bool? _isInWishlist;
   String? _itemType;
   dynamic _distance;
+  // Champs dérivés à partir de item_info
+  String? _transmission;
+  String? _fuel;
+  String? _seats;
 
   Items({
-    num? id,
+    String? id,
     String? name,
     String? itemRating,
     String? mobile,
@@ -122,6 +157,9 @@ class Items {
     bool? isInWishlist,
     String? itemType,
     dynamic distance,
+    String? transmission,
+    String? fuel,
+    String? seats,
   }) {
     _id = id;
     _name = name;
@@ -142,31 +180,135 @@ class Items {
     _isInWishlist = isInWishlist;
     _itemType = itemType;
     _distance = distance;
+    _transmission = transmission;
+    _fuel = fuel;
+    _seats = seats;
   }
 
   Items.fromJson(dynamic json) {
-    _id = json['id'];
-    _name = json['name'];
-    _itemRating = json['item_rating'];
-    _mobile = json['mobile'];
-    _personAllowed = json['person_allowed'];
-    _address = json['address'];
-    _stateRegion = json['state_region'];
-    _city = json['city'];
-    _zipPostalCode = json['zip_postal_code'];
-    _price = json['price'];
-    _latitude = json['latitude'];
-    _longitude = json['longitude'];
-    _status = json['status'];
-    _itemTypeId = json['item_type_id'];
-    _image = json['image'];
-    _itemInfo = json['item_info'];
-    _isInWishlist = json['is_in_wishlist'];
-    _itemType = json['item_type'];
-    _distance = json['distance'];
+    // DEBUG: suivre exactement ce qui arrive depuis le backend pour la localisation
+    print("🔍 PARSING ITEM ${json['id']}:");
+    print("   - Raw JSON city: '${json['city']}'");
+    print("   - Raw JSON address: '${json['address']}'");
+    print("   - Raw JSON vehicleLocation: '${json['vehicleLocation']}'");
+
+    final dynamic vehicleLocation = json['vehicleLocation'];
+    final dynamic legacyLocation = json['location'];
+
+    // ID Mongo -> Toujours traité comme String
+    _id = json['id']?.toString();
+
+    // Nom / Titre du véhicule
+    // Ancien backend: "name", Nouveau: "title"
+    _name = (json['name'] ?? json['title'] ?? '').toString();
+
+    // Note moyenne
+    // Ancien: "item_rating" (string), Nouveau: "rating" (number)
+    if (json['item_rating'] != null) {
+      _itemRating = json['item_rating'].toString();
+    } else if (json['rating'] != null) {
+      _itemRating = json['rating'].toString();
+    } else {
+      _itemRating = '0';
+    }
+
+    _mobile = json['mobile']?.toString() ?? '';
+    _personAllowed = json['person_allowed']?.toString() ?? '';
+
+    // Adresse / ville : on lit d'abord les champs à la racine (nouvelle API),
+    // puis on retombe sur les anciennes structures si nécessaire.
+    final dynamic rawAddress = json['address'] ??
+        (vehicleLocation is Map ? vehicleLocation['address'] : null) ??
+        (legacyLocation is Map ? legacyLocation['address'] : null);
+    _address = rawAddress?.toString() ?? '';
+
+    _stateRegion = json['state_region']?.toString() ?? '';
+
+    final dynamic rawCity = json['city'] ??
+        (vehicleLocation is Map ? vehicleLocation['cityName'] : null) ??
+        (legacyLocation is Map ? legacyLocation['city'] : null);
+    _city = rawCity?.toString() ?? '';
+
+    _zipPostalCode = json['zip_postal_code']?.toString() ?? '';
+
+    // Prix
+    _price = json['price']?.toString() ?? '0';
+
+    // Coordonnées : racine d'abord, puis anciens formats
+    final dynamic rawLat = json['latitude'] ??
+        (vehicleLocation is Map ? vehicleLocation['latitude'] : null) ??
+        (legacyLocation is Map && legacyLocation['coordinates'] is List
+            ? (legacyLocation['coordinates'] as List).length > 1
+                ? (legacyLocation['coordinates'] as List)[1]
+                : null
+            : null);
+    final dynamic rawLng = json['longitude'] ??
+        (vehicleLocation is Map ? vehicleLocation['longitude'] : null) ??
+        (legacyLocation is Map && legacyLocation['coordinates'] is List
+            ? (legacyLocation['coordinates'] as List).isNotEmpty
+                ? (legacyLocation['coordinates'] as List)[0]
+                : null
+            : null);
+
+    _latitude = rawLat?.toString() ?? '';
+    _longitude = rawLng?.toString() ?? '';
+
+    _status = json['status']?.toString() ?? '';
+    _itemTypeId = json['item_type_id']?.toString() ?? '';
+
+    // Image principale
+    // Si vide ou null, utiliser un placeholder sûr
+    final rawImage = json['image']?.toString() ?? '';
+    if (rawImage.isEmpty) {
+      _image = "https://placehold.co/600x400/png";
+    } else {
+      _image = rawImage;
+    }
+
+    // Informations détaillées (item_info)
+    // Peut être soit une String JSON, soit un objet Map
+    final dynamic rawItemInfo = json['item_info'];
+    if (rawItemInfo is String) {
+      _itemInfo = rawItemInfo;
+      try {
+        final decoded = jsonDecode(rawItemInfo);
+        _transmission = decoded['transmission']?.toString();
+        _fuel = decoded['fuel_type']?.toString();
+        _seats = (decoded['number_of_seats'] ?? decoded['seats'])?.toString();
+      } catch (_) {
+        // En cas d'échec du décodage, garder _itemInfo tel quel
+      }
+    } else if (rawItemInfo is Map<String, dynamic>) {
+      // Extraire les specs à partir de l'objet
+      _transmission = rawItemInfo['transmission']?.toString();
+      _fuel = rawItemInfo['fuel_type']?.toString();
+      _seats =
+          (rawItemInfo['number_of_seats'] ?? rawItemInfo['seats'])?.toString();
+
+      // Convertir en JSON string pour compatibilité avec ItemInfo.fromJson()
+      try {
+        _itemInfo = jsonEncode(rawItemInfo);
+      } catch (_) {
+        _itemInfo = '{}';
+      }
+    } else {
+      _itemInfo = '{}';
+    }
+
+    // Wishlist / favoris
+    if (json.containsKey('is_in_wishlist')) {
+      _isInWishlist = json['is_in_wishlist'] == true;
+    } else if (json.containsKey('is_favorite')) {
+      _isInWishlist = json['is_favorite'] == true;
+    } else {
+      _isInWishlist = false;
+    }
+
+    _itemType = json['item_type']?.toString() ?? '';
+    _distance = json['distance']?.toString() ?? '0';
   }
 
-  num? get id => _id;
+  String? get id => _id;
   String? get name => _name;
   String? get itemRating => _itemRating;
   String? get mobile => _mobile;
@@ -185,8 +327,17 @@ class Items {
   bool? get isInWishlist => _isInWishlist;
   String? get itemType => _itemType;
   dynamic get distance => _distance;
+  String? get transmission => _transmission;
+  String? get fuel => _fuel;
+  String? get seats => _seats;
   set wishlistSetter(bool value) {
     _isInWishlist = value;
+  }
+
+  /// Setter pratique pour permettre `item.isInWishlist = true/false`
+  /// depuis les widgets, en gardant la compatibilité avec le backend.
+  set isInWishlist(bool? value) {
+    _isInWishlist = value ?? false;
   }
 
   Map<String, dynamic> toJson() {
@@ -210,6 +361,9 @@ class Items {
     map['is_in_wishlist'] = _isInWishlist;
     map['item_type'] = _itemType;
     map['distance'] = _distance;
+    map['transmission'] = _transmission;
+    map['fuel_type'] = _fuel;
+    map['number_of_seats'] = _seats;
     return map;
   }
 }

@@ -49,9 +49,15 @@ class _OtpScreenState extends State<OtpScreen> {
     startResendTimer();
   }
 
-  int _remainingTime = 15;
+  int _remainingTime = 60;
   bool _isResendEnabled = true;
   late Timer _timer;
+
+  String _formatTime(int seconds) {
+    int minutes = seconds ~/ 60;
+    int secs = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
 
   void startResendTimer() {
     setState(() {
@@ -69,6 +75,14 @@ class _OtpScreenState extends State<OtpScreen> {
         }
       });
     });
+  }
+
+  @override
+  void dispose() {
+    if (_timer.isActive) {
+      _timer.cancel();
+    }
+    super.dispose();
   }
 
   @override
@@ -157,7 +171,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                                           widget.changeMobiles);
                                                   startResendTimer();
                                                   setState(() {
-                                                    _remainingTime = 15;
+                                                    _remainingTime = 60;
                                                     _isResendEnabled = false;
                                                   });
                                                 },
@@ -183,7 +197,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                             color:
                                                 notifires.getGrey2Whitecolor),
                                       ),
-                                      Text('00:$_remainingTime',
+                                      Text(_formatTime(_remainingTime),
                                           style: regular2(context).copyWith(
                                             color: acentColor,
                                             fontSize: 16,

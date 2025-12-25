@@ -68,6 +68,15 @@ class AuthController extends GetxController implements GetxService {
   RxString newpassword = ''.obs;
 
   verifyOtp(map) async {
+    // DEBUG: Print the exact payload being sent
+    print("🔵 [FLUTTER_OTP] Sending OTP verification payload:");
+    print("🔵 [FLUTTER_OTP] Map keys: ${map.keys.toList()}");
+    print("🔵 [FLUTTER_OTP] Full payload: $map");
+    print("🔵 [FLUTTER_OTP] Phone: ${map['phone']}");
+    print("🔵 [FLUTTER_OTP] Phone Country: ${map['phone_country']}");
+    print("🔵 [FLUTTER_OTP] OTP Value: ${map['otp_value']}");
+    print("🔵 [FLUTTER_OTP] Endpoint: ${Config.otpVerification}");
+
     return await httpPost(Config.otpVerification, map);
   }
 
@@ -125,6 +134,13 @@ class AuthController extends GetxController implements GetxService {
           UserData userObj = UserData();
           userObj.saveLoginData("UserData", jsonEncode(json));
           token = loginModel.data!.token!;
+          // --- FIX: FLUSH GUEST TOKEN ---
+          // Clear the old Guest Bearer Token so http_service is forced to generate a new User Bearer Token.
+          GetStorage().remove("bearerToken");
+          bearerToken = ""; // Reset the global variable immediately
+          print(
+              "🧹 [Auth] Old Bearer Token flushed. Ready for User Token generation.");
+          // ------------------------------
           userId = loginModel.data!.id!;
           generalController.currentIndex.value = 0;
           update();
@@ -204,15 +220,45 @@ class AuthController extends GetxController implements GetxService {
           "last_name": textEditingSingUpControllerlastName.text,
           "birthdate": textEditingSingUpControllerDOB.text,
         });
+
+        // DEBUG: Log raw response from backend
+        print("DEBUG REGISTER RESPONSE: $data");
+
         Get.back();
         if (data != null) {
           LoginModel loginModel = LoginModel.fromJson(data);
+
+          // DEBUG: Log parsed model status
+          print("DEBUG: Parsed LoginModel status: ${loginModel.status}");
+          print("DEBUG: LoginModel data: ${loginModel.data?.toJson()}");
+
           if (loginModel.status == 200) {
+            print("DEBUG: Status is 200");
+
+            // DEBUG: Check verification status
+            print("DEBUG: Verified status: ${loginModel.data?.verified}");
+            print("DEBUG: OTP Value: ${loginModel.data?.otpValue}");
+            print("DEBUG: Token: ${loginModel.data?.token}");
+
+            if (loginModel.data?.verified == '0' ||
+                loginModel.data?.verified == null) {
+              print("DEBUG: User NOT verified, should go to OTP");
+            } else {
+              print(
+                  "DEBUG: User already verified (status: ${loginModel.data?.verified}), but still navigating to OTP screen");
+            }
             GetStorage().write('Remember', true);
             GetStorage().write('Firstuser', true);
 
             getFCMToken();
             token = loginModel.data!.token!;
+            // --- FIX: FLUSH GUEST TOKEN ---
+            // Clear the old Guest Bearer Token so http_service is forced to generate a new User Bearer Token.
+            GetStorage().remove("bearerToken");
+            bearerToken = ""; // Reset the global variable immediately
+            print(
+                "🧹 [Auth] Old Bearer Token flushed. Ready for User Token generation.");
+            // ------------------------------
             userId = loginModel.data!.id!;
             database.child(userId.toString()).set({
               "userId": userId.toString(),
@@ -220,6 +266,7 @@ class AuthController extends GetxController implements GetxService {
             });
 
             if (webPlateForm) {
+              print("DEBUG: Navigating to OTP Screen (Web Platform)");
               Get.toNamed(
                 WebRoutes.otpScreen,
                 arguments: {
@@ -230,6 +277,7 @@ class AuthController extends GetxController implements GetxService {
                 },
               );
             } else {
+              print("DEBUG: Navigating to OTP Screen (Mobile Platform)");
               Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
@@ -241,13 +289,20 @@ class AuthController extends GetxController implements GetxService {
                           )));
             }
           } else {
+            print(
+                "DEBUG: Status is NOT 200. Status: ${loginModel.status}, Error: ${loginModel.error}");
+            print(
+                "DEBUG: Navigating to Login/Home. Verified status is: ${loginModel.data?.verified}");
             showErrorToastMessage(loginModel.error);
           }
         } else {
+          print("DEBUG: Response data is NULL - Something went wrong");
           showErrorToastMessage("Something went wrong".tr);
         }
       }
     } catch (e) {
+      print("DEBUG: Exception caught in signUp: $e");
+      print("DEBUG: Stack trace: ${StackTrace.current}");
       Get.back();
     }
   }
@@ -609,111 +664,117 @@ class AuthController extends GetxController implements GetxService {
   }
 
   Future<void> googleLogin(BuildContext context) async {
+    // Use GoogleSignIn for native authentication (no FirebaseAuth needed)
+    // GoogleSignIn 7.1.1 uses a singleton pattern with instance
     final googleSignIn = GoogleSignIn.instance;
     showLoading();
     try {
-      await googleSignIn.initialize();
+      // Initialize GoogleSignIn (must be called once before other methods)
+      // On Android, clientId is auto-resolved via SHA-1
+      // serverClientId is used to get the tokens (Web Client ID)
+      await googleSignIn.initialize(
+        serverClientId: "165062133214-vjalpnirifhehf3vm91ashd5f0mm19g1.apps.googleusercontent.com",
+      );
+      
+      // Sign out any existing user first
       await googleSignIn.signOut();
 
-      final GoogleSignInAccount googleUser = await googleSignIn.authenticate(
-        scopeHint: ['email', 'profile'],
+      // Authenticate user natively on the device with scopes
+      final GoogleSignInAccount? googleUser = await googleSignIn.authenticate(
+        scopeHint: <String>['email', 'profile'],
       );
 
-      final authClient = googleSignIn.authorizationClient;
-      final authorization =
-          await authClient.authorizationForScopes(['email', 'profile']);
-      if (authorization == null) {
-        throw Exception('Failed to obtain authorization tokens');
+      if (googleUser == null) {
+        // User cancelled the sign-in
+        closeLoading();
+        return;
       }
 
+      // Extract user details directly from googleUser (no FirebaseAuth needed)
+      final String email = googleUser.email;
+      final String id = googleUser.id; // This is the crucial Social ID
+      final String displayName = googleUser.displayName ?? '';
+      final String profileImage = googleUser.photoUrl ?? '';
+
+      // Get authentication tokens (optional, for backend verification if needed)
+      // Note: authentication is a getter, not a Future, so no await needed
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
 
-      final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: authorization.accessToken,
-        idToken: googleAuth.idToken,
+      // Call the backend API with the exact JSON keys expected
+      final LoginModel socialLoginModel =
+          await globalScopeController.socialLogin(
+        displayName,
+        email,
+        id,
+        profileImage,
+        "google",
+        idToken ?? "",
+        "",
       );
 
-      try {
-        final UserCredential userCredential =
-            await FirebaseAuth.instance.signInWithCredential(credential);
-        final User? firebaseUser = userCredential.user;
+      GetStorage().write('Remember', true);
+      GetStorage().write('Firstuser', true);
+      final UserData userObj = UserData();
+      userObj.saveLoginData(
+          "UserData", jsonEncode(socialLoginModel.toJson()));
+      loginModel = LoginModel.fromJson(socialLoginModel.toJson());
+      await getFCMToken();
+      token = socialLoginModel.data!.token!;
+      // --- FIX: FLUSH GUEST TOKEN ---
+      // Clear the old Guest Bearer Token so http_service is forced to generate a new User Bearer Token.
+      GetStorage().remove("bearerToken");
+      bearerToken = ""; // Reset the global variable immediately
+      print(
+          "🧹 [Auth] Old Bearer Token flushed. Ready for User Token generation.");
+      // ------------------------------
+      userId = socialLoginModel.data!.id!;
+      database.child(userId.toString()).set({
+        "userId": userId.toString(),
+        "playerId": oneSiginalplayerid ?? "null",
+      });
 
-        if (firebaseUser != null) {
-          final LoginModel socialLoginModel =
-              await globalScopeController.socialLogin(
-            googleUser.displayName ?? '',
-            googleUser.email,
-            googleUser.id,
-            googleUser.photoUrl ?? '',
-            "google",
-            "",
-            "",
-          );
-
-          GetStorage().write('Remember', true);
-          GetStorage().write('Firstuser', true);
-          final UserData userObj = UserData();
-          userObj.saveLoginData(
-              "UserData", jsonEncode(socialLoginModel.toJson()));
-          loginModel = LoginModel.fromJson(socialLoginModel.toJson());
-          await getFCMToken();
-          token = socialLoginModel.data!.token!;
-          userId = socialLoginModel.data!.id!;
-          database.child(userId.toString()).set({
-            "userId": userId.toString(),
-            "playerId": oneSiginalplayerid ?? "null",
-          });
-
-          shouldLogout = false;
-          closeLoading();
-          if (socialLoginModel.data!.phone == null) {
-            clearSocialUpdateData();
-            if (webPlateForm) {
-              Get.toNamed(WebRoutes.googleUpdateScreen);
-            } else {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const GoogleUpdate()),
-              );
-            }
-            return;
-          }
-          if (handlelogin == true) {
-            Get.back();
-            await generalController.fetchGeneralSettings();
-            filterController.setDefaultDates(
-              startDateCustomDate: generalScopeController.startDateCustomDate,
-              endDateCustomDate: generalScopeController.endDateCustomDate,
-              startDate: filterController.startDate,
-              endDates: filterController.endDates,
-            );
-
-            handlelogin = false;
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const HomeMain(initialIndex: 0)),
-            );
-          }
-
-          generalController.currentIndex.value = 0;
-          update();
+      shouldLogout = false;
+      closeLoading();
+      if (socialLoginModel.data!.phone == null) {
+        clearSocialUpdateData();
+        if (webPlateForm) {
+          Get.toNamed(WebRoutes.googleUpdateScreen);
         } else {
-          closeLoading();
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const GoogleUpdate()),
+          );
         }
-      } on FirebaseAuthException catch (e) {
-        closeLoading();
-      } catch (e) {
-        closeLoading();
+        return;
       }
+      if (handlelogin == true) {
+        Get.back();
+        await generalController.fetchGeneralSettings();
+        filterController.setDefaultDates(
+          startDateCustomDate: generalScopeController.startDateCustomDate,
+          endDateCustomDate: generalScopeController.endDateCustomDate,
+          startDate: filterController.startDate,
+          endDates: filterController.endDates,
+        );
+
+        handlelogin = false;
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) => const HomeMain(initialIndex: 0)),
+        );
+      }
+
+      generalController.currentIndex.value = 0;
+      update();
     } on GoogleSignInException catch (e) {
       closeLoading();
+      showErrorToastMessage("Erreur lors de la connexion Google: $e");
     } catch (e) {
       closeLoading();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An unexpected error occurred')),
-      );
+      showErrorToastMessage("Une erreur inattendue s'est produite: $e");
     }
   }
 
@@ -750,6 +811,13 @@ class AuthController extends GetxController implements GetxService {
       loginModel = LoginModel.fromJson(socialLoginModel.toJson());
       getFCMToken();
       token = socialLoginModel.data!.token!;
+      // --- FIX: FLUSH GUEST TOKEN ---
+      // Clear the old Guest Bearer Token so http_service is forced to generate a new User Bearer Token.
+      GetStorage().remove("bearerToken");
+      bearerToken = ""; // Reset the global variable immediately
+      print(
+          "🧹 [Auth] Old Bearer Token flushed. Ready for User Token generation.");
+      // ------------------------------
       userId = socialLoginModel.data!.id!;
       database.child(userId.toString()).set({
         "userId": userId.toString(),

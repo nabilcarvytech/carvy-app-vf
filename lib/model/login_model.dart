@@ -42,7 +42,7 @@ class LoginModel {
 }
 class Data {
   Data({
-    num? id,
+    String? id,
     String? firstName,
     dynamic middle,
     String? lastName,
@@ -109,7 +109,7 @@ class Data {
   }
 
   Data.fromJson(dynamic json) {
-    _id = json['id'];
+    _id = json['id']?.toString();
     _firstName = json['first_name'];
     _middle = json['middle'];
     _lastName = json['last_name'];
@@ -142,7 +142,7 @@ class Data {
     _firebaseAuth = json['firebase_auth'];
   }
 
-  num? _id;
+  String? _id;
   String? _firstName;
   dynamic _middle;
   String? _lastName;
@@ -174,7 +174,7 @@ class Data {
   dynamic _pushNotification;
   dynamic _firebaseAuth;
 
-  num? get id => _id;
+  String? get id => _id;
   String? get firstName => _firstName;
   dynamic get middle => _middle;
   String? get lastName => _lastName;

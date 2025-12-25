@@ -69,7 +69,105 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
 
   itemDataApi() async {
     try {
-      var response = await httpPost(Config.myItems, {"offset": "$offset"});
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.myItems, {"offset": "$offset"});
+      
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // MOCK: Static my-items data
+      Map<String, dynamic> mockMyItemsResponse = {
+        "status": 200,
+        "message": "My items retrieved successfully",
+        "error": "",
+        "data": {
+          "host_status": "1",
+          "checkLimit": 10,
+          "offset": offset + 2,
+          "limit": "10",
+          "items": [
+            {
+              "id": 101,
+              "title": "Toyota Camry 2023",
+              "description": "Clean and comfortable sedan perfect for city driving",
+              "item_rating": "4.5",
+              "mobile": "+1234567890",
+              "status": "1",
+              "person_allowed": "5",
+              "price": "50.00",
+              "address": "123 Main Street, Los Angeles",
+              "state_region": "California",
+              "zip_postal_code": "90001",
+              "city_name": "Los Angeles",
+              "country": "USA",
+              "latitude": "34.0522",
+              "longitude": "-118.2437",
+              "weekly_discount": "10",
+              "weekly_discount_type": "percent",
+              "monthly_discount": "15",
+              "monthly_discount_type": "percent",
+              "item_type_id": "1",
+              "features_id": "[1,2,3]",
+              "place_id": "ChIJE9on3F3HwoAR9AhGJW_fL-I",
+              "booking_policies_id": 1,
+              "item_type": "Sedan",
+              "front_image": {
+                "id": 1,
+                "model_type": "Item",
+                "model_id": "101",
+                "uuid": "abc123",
+                "collection_name": "front_image",
+                "name": "camry-front",
+                "file_name": "camry-front.jpg",
+                "mime_type": "image/jpeg",
+                "disk": "public",
+                "conversions_disk": "public",
+                "size": "500000",
+                "order_column": "1",
+                "created_at": "2024-01-01T00:00:00.000Z",
+                "updated_at": "2024-01-01T00:00:00.000Z",
+                "url": "https://example.com/host-camry-front.jpg",
+                "thumbnail": "https://example.com/host-camry-front-thumb.jpg",
+                "preview": "https://example.com/host-camry-front-preview.jpg",
+                "original_url": "https://example.com/host-camry-front-original.jpg",
+                "preview_url": "https://example.com/host-camry-front-preview.jpg"
+              },
+              "front_image_doc": null,
+              "gallery": [
+                {
+                  "id": 1,
+                  "model_type": "Item",
+                  "model_id": "101",
+                  "uuid": "gallery1",
+                  "collection_name": "gallery",
+                  "name": "camry-gallery-1",
+                  "file_name": "camry-gallery-1.jpg",
+                  "mime_type": "image/jpeg",
+                  "disk": "public",
+                  "conversions_disk": "public",
+                  "size": "400000",
+                  "order_column": "1",
+                  "created_at": "2024-01-01T00:00:00.000Z",
+                  "updated_at": "2024-01-01T00:00:00.000Z",
+                  "url": "https://example.com/host-camry-gallery-1.jpg",
+                  "thumbnail": "https://example.com/host-camry-gallery-1-thumb.jpg",
+                  "preview": "https://example.com/host-camry-gallery-1-preview.jpg",
+                  "original_url": "https://example.com/host-camry-gallery-1-original.jpg",
+                  "preview_url": "https://example.com/host-camry-gallery-1-preview.jpg"
+                }
+              ],
+              "available_dates": null,
+              "not_available_dates": null,
+              "booked_dates": null,
+              "item_info": "{\"host_id\":\"1\",\"service_type\":\"booking\",\"review_data\":[],\"features_data\":[],\"gallery_image_urls\":[]}",
+              "metaData": "{}"
+            }
+          ]
+        }
+      };
+      
+      var response = mockMyItemsResponse;
+      // ========== END MOCK DATA ==========
 
       if (response != null) {
         myItemsModelHost = MyItemsModel.fromJson(response);
@@ -82,10 +180,45 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
             lastItems = list.last;
             lastItemId = lastItems!.id!;
 
-            var response = await httpGet(
-              Config.getItemDates,
-              {"item_id": (initialitems?.id ?? lastItemId).toString()},
-            );
+            // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+            // var response = await httpGet(
+            //   Config.getItemDates,
+            //   {"item_id": (initialitems?.id ?? lastItemId).toString()},
+            // );
+            
+            // MOCK: Simulate network delay
+            await Future.delayed(const Duration(seconds: 1));
+            
+            // MOCK: Static calendar dates data
+            Map<String, dynamic> mockGetItemDatesResponse = {
+              "status": 200,
+              "message": "Item dates retrieved successfully",
+              "error": "",
+              "data": {
+                "ItemDates": {
+                  "price": "50.00",
+                  "available_dates": [
+                    {"date": "2025-12-20", "price": "50.00"},
+                    {"date": "2025-12-21", "price": "50.00"},
+                    {"date": "2025-12-22", "price": "55.00"},
+                    {"date": "2025-12-23", "price": "55.00"},
+                    {"date": "2025-12-24", "price": "60.00"}
+                  ],
+                  "not_available_dates": [
+                    {"date": "2025-12-25"},
+                    {"date": "2025-12-26"},
+                    {"date": "2025-12-27"}
+                  ],
+                  "booked_dates": [
+                    {"date": "2025-12-28", "price": "60.00"},
+                    {"date": "2025-12-29", "price": "60.00"}
+                  ]
+                }
+              }
+            };
+            
+            var response = mockGetItemDatesResponse;
+            // ========== END MOCK DATA ==========
 
             if (response != null) {
               calendarItemId = CalendarItemId.fromJson(response);
@@ -250,7 +383,26 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
       "id": (initialitems?.id ?? lastItemId).toString(),
     };
 
-    var response = await httpPost(Config.addEditCalender, map);
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(Config.addEditCalender, map);
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 2));
+    
+    // MOCK: Static success response for calendar update
+    Map<String, dynamic> mockResponse = {
+      "status": 200,
+      "message": "Calendar updated successfully",
+      "error": "",
+      "data": {
+        "id": (initialitems?.id ?? lastItemId).toString(),
+        "updated": true
+      }
+    };
+    
+    var response = mockResponse;
+    // ========== END MOCK DATA ==========
+    
     closeLoading();
     if (response != null) {
       if (response['status'] == 200) {

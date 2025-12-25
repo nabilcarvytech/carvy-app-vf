@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:carvy/controller/booking_controller.dart';
@@ -21,35 +22,189 @@ class ItemDetailsController extends GetxController implements GetxService {
   var isLoadingVehicleNotFound = true.obs;
   List vehicleimageList = [];
   Future getdataVehicle(id) async {
+    // ========== INITIALIZATION ==========
+    debugPrint("🔍 getdataVehicle() - Called with id: $id");
     itemInfoDetails.clear();
     vehicleimageList.clear();
     isLoadingVehicle.value = true;
     isLoadingVehicleNotFound.value = false;
     update();
-    var response = await httpPost(Config.getItemDetails, {"item_id": "$id"});
-    if (response != null && response['status'] == 200) {
-      vehicleDetailModel = ItemDetailsModel.fromJson(response);
-      vehicleimageList.addAll(
-          vehicleDetailModel!.data!.itemDetails!.galleryImageUrls ?? []);
-      if (vehicleDetailModel!.data!.itemDetails!.frontImageUrl != null) {
-        vehicleimageList.insert(
-            0, vehicleDetailModel!.data!.itemDetails!.frontImageUrl!);
-      } else {
-        vehicleimageList.insert(0, "");
-      }
-      isLoadingVehicle.value = false;
 
-      update();
+    try {
+      // ========== API CALL ==========
+      // 1. Log URL complète utilisée AVANT l'appel
+      final fullUrl = "${Config.baseurl}${Config.getItemDetails}";
+      debugPrint("🚀 APPEL VERS : ${Config.baseurl}${Config.getItemDetails}");
+      debugPrint("🔍 [DEBUG] URL complète: $fullUrl");
+      debugPrint("🔍 [DEBUG] Request Body: ${json.encode({"item_id": "$id"})}");
+      
+      // 2. Log de connexion avant l'appel API
+      debugPrint("🚀 [FLUTTER] Tentative de connexion vers : ${Config.baseurl}${Config.getItemDetails}");
+      debugPrint("🚀 [FLUTTER] Base URL configurée : ${Config.baseurl}");
+      debugPrint("🚀 [FLUTTER] Endpoint : ${Config.getItemDetails}");
+      
+      // 3. Appel API réel (PAS de données mockées, PAS de données de secours)
+      var response = await httpPost(Config.getItemDetails, {"item_id": "$id"});
+      
+      // 3. Log réponse brute complète (JSON Body)
+      debugPrint("📦 [DEBUG] JSON Body: ${json.encode(response)}");
+      debugPrint("🔍 [DEBUG] Response status: ${response['status']}");
+      
+      // ========== SUCCESS HANDLING (Status 200) ==========
+      if (response['status'] == 200) {
+        debugPrint("✅ getdataVehicle() - Response status is 200, parsing ItemDetailsModel");
+        
+        try {
+          // Parse la réponse JSON de l'API (pas de données hardcodées)
+          vehicleDetailModel = ItemDetailsModel.fromJson(response);
+          debugPrint("✅ getdataVehicle() - ItemDetailsModel parsed successfully");
+          
+          // Log cancellation_reason depuis la réponse brute pour vérification
+          if (response['data'] != null && response['data']['ItemDetails'] != null) {
+            final rawCancellationReason = response['data']['ItemDetails']['cancellation_reason'];
+            debugPrint("🔍 [DEBUG] cancellation_reason from raw JSON: $rawCancellationReason");
+            debugPrint("🔍 [DEBUG] cancellation_reason type: ${rawCancellationReason.runtimeType}");
+            debugPrint("🔍 [DEBUG] cancellation_reason is null? ${rawCancellationReason == null}");
+            debugPrint("🔍 [DEBUG] cancellation_reason is empty string? ${rawCancellationReason == ''}");
+            
+            // ========== DEBUG VEHICLE RULES ==========
+            final rawVehicleRules = response['data']['ItemDetails']['vehicle_rules'];
+            debugPrint("🔍 [DEBUG RULES] Raw vehicle_rules from API: $rawVehicleRules");
+            debugPrint("🔍 [DEBUG RULES] vehicle_rules type: ${rawVehicleRules.runtimeType}");
+            debugPrint("🔍 [DEBUG RULES] vehicle_rules is null? ${rawVehicleRules == null}");
+            
+            if (rawVehicleRules != null) {
+              if (rawVehicleRules is List) {
+                debugPrint("🔍 [DEBUG RULES] vehicle_rules is a List with ${rawVehicleRules.length} items");
+                if (rawVehicleRules.isNotEmpty) {
+                  debugPrint("🔍 [DEBUG RULES] First rule: ${rawVehicleRules[0]}");
+                  debugPrint("🔍 [DEBUG RULES] First rule type: ${rawVehicleRules[0].runtimeType}");
+                  if (rawVehicleRules[0] is Map) {
+                    debugPrint("🔍 [DEBUG RULES] First rule keys: ${(rawVehicleRules[0] as Map).keys.toList()}");
+                  }
+                } else {
+                  debugPrint("⚠️ [DEBUG RULES] vehicle_rules array is EMPTY!");
+                }
+              } else {
+                debugPrint("⚠️ [DEBUG RULES] vehicle_rules is NOT a List! Type: ${rawVehicleRules.runtimeType}");
+              }
+            } else {
+              debugPrint("⚠️ [DEBUG RULES] vehicle_rules is NULL or missing in API response!");
+            }
+            // ========== END DEBUG VEHICLE RULES ==========
+          }
+          
+          // Vérification et log de cancellationReason après parsing
+          final parsedCancellationReason = vehicleDetailModel?.data?.itemDetails?.cancellationReason;
+          debugPrint("🧐 [DEBUG] Parsed cancellationReason: $parsedCancellationReason");
+          debugPrint("🧐 [DEBUG] Parsed cancellationReason type: ${parsedCancellationReason.runtimeType}");
+          debugPrint("🧐 [DEBUG] Est-ce null? ${parsedCancellationReason == null}");
+          
+          if (parsedCancellationReason != null) {
+            debugPrint("🧐 [DEBUG] Est-ce une chaîne vide? ${parsedCancellationReason.toString().isEmpty}");
+            debugPrint("🧐 [DEBUG] String representation: '${parsedCancellationReason.toString()}'");
+            debugPrint("🧐 [DEBUG] String length: ${parsedCancellationReason.toString().length}");
+          } else {
+            debugPrint("🧐 [DEBUG] ⚠️ cancellationReason est NULL ou manquant dans la réponse API");
+          }
 
-      String? itemInfo = vehicleDetailModel?.data?.itemDetails?.itemInfo;
-      if (itemInfo != null) {
-        itemInfoDetails = json.decode(itemInfo);
+              // Traitement des données parsées (uniquement depuis l'API)
+              if (vehicleDetailModel?.data?.itemDetails != null) {
+                final itemDetails = vehicleDetailModel!.data!.itemDetails!;
+
+                // ========== DEBUG PARSED VEHICLE RULES ==========
+                final parsedVehicleRules = itemDetails.vehicleRules;
+                debugPrint("🧐 [DEBUG RULES] Parsed vehicleRules: $parsedVehicleRules");
+                debugPrint("🧐 [DEBUG RULES] Parsed vehicleRules type: ${parsedVehicleRules.runtimeType}");
+                debugPrint("🧐 [DEBUG RULES] Parsed vehicleRules is null? ${parsedVehicleRules == null}");
+                if (parsedVehicleRules != null) {
+                  debugPrint("🧐 [DEBUG RULES] Parsed vehicleRules length: ${parsedVehicleRules.length}");
+                  if (parsedVehicleRules.isNotEmpty) {
+                    debugPrint("🧐 [DEBUG RULES] First parsed rule: '${parsedVehicleRules[0]}'");
+                  } else {
+                    debugPrint("⚠️ [DEBUG RULES] Parsed vehicleRules array is EMPTY!");
+                  }
+                } else {
+                  debugPrint("⚠️ [DEBUG RULES] Parsed vehicleRules is NULL!");
+                }
+                // ========== END DEBUG PARSED VEHICLE RULES ==========
+
+                // Récupération des images de la galerie
+                vehicleimageList.addAll(itemDetails.galleryImageUrls ?? []);
+
+                // Ajout de l'image principale en premier
+                if (itemDetails.frontImageUrl != null && itemDetails.frontImageUrl!.isNotEmpty) {
+                  vehicleimageList.insert(0, itemDetails.frontImageUrl!);
+                }
+
+                // Décodage de itemInfo (JSON stringifié)
+                String? itemInfo = itemDetails.itemInfo;
+                if (itemInfo != null && itemInfo.isNotEmpty) {
+                  try {
+                    itemInfoDetails = json.decode(itemInfo);
+                    debugPrint("✅ getdataVehicle() - itemInfo decoded successfully");
+                  } catch (e) {
+                    debugPrint("❌ getdataVehicle() - Error decoding itemInfo JSON: $e");
+                  }
+                }
+              }
+
+          isLoadingVehicle.value = false;
+          isLoadingVehicleNotFound.value = false;
+          update();
+          debugPrint("✅ getdataVehicle() - Successfully loaded vehicle details from API");
+          
+        } catch (e, stackTrace) {
+          // Erreur de parsing - Afficher l'erreur mais NE PAS charger de données de secours
+          debugPrint("❌ getdataVehicle() - ERROR parsing ItemDetailsModel: $e");
+          debugPrint("❌ getdataVehicle() - Stack trace: $stackTrace");
+          debugPrint("❌ ERREUR PARSING : $e");
+          isLoadingVehicleNotFound.value = true;
+          isLoadingVehicle.value = false;
+          update();
+          // Get.snackbar remplacé par log console pour éviter "No Overlay widget found"
+          // Get.snackbar(
+          //   "Erreur".tr,
+          //   "Une erreur est survenue lors du chargement des détails du véhicule".tr,
+          //   snackPosition: SnackPosition.BOTTOM,
+          // );
+        }
+      } 
+      // ========== ERROR HANDLING (Status != 200) ==========
+      else {
+        // Erreur API - Afficher l'erreur mais NE PAS charger de données de secours
+        debugPrint("❌ getdataVehicle() - Response status is not 200: ${response['status']}");
+        debugPrint("❌ getdataVehicle() - Error message: ${response['message'] ?? 'Unknown error'}");
+        debugPrint("❌ ERREUR API - Status: ${response['status']}, Message: ${response['message'] ?? 'Unknown error'}");
+        isLoadingVehicleNotFound.value = true;
+        isLoadingVehicle.value = false;
+        update();
+        // Get.snackbar remplacé par log console pour éviter "No Overlay widget found"
+        // Get.snackbar(
+        //   "Erreur".tr,
+        //   response['message']?.toString() ?? "Impossible de charger les détails du véhicule".tr,
+        //   snackPosition: SnackPosition.BOTTOM,
+        // );
       }
-    } else {
+    } catch (e, stackTrace) {
+      // Exception lors de l'appel API - NE PAS charger de données de secours
+      debugPrint("❌ ERREUR CONNEXION : $e");
+      debugPrint("❌ [FLUTTER] Erreur de connexion : $e");
+      debugPrint("❌ getdataVehicle() - Exception during API call: $e");
+      debugPrint("❌ getdataVehicle() - Stack trace: $stackTrace");
+      debugPrint("❌ [FLUTTER] URL tentée : ${Config.baseurl}${Config.getItemDetails}");
       isLoadingVehicleNotFound.value = true;
       isLoadingVehicle.value = false;
       update();
+      // Get.snackbar remplacé par log console pour éviter "No Overlay widget found"
+      // Get.snackbar(
+      //   "Erreur".tr,
+      //   "Impossible de se connecter au serveur".tr,
+      //   snackPosition: SnackPosition.BOTTOM,
+      // );
     }
+    
+    debugPrint("🔍 getdataVehicle() - Function completed");
   }
 
   late GoogleMapController vehicleMapController;

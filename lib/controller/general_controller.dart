@@ -32,7 +32,55 @@ class GeneralController extends GetxController implements GetxService {
 
     if (datastorelocally == null) {
       try {
-        var response = await httpGet(Config.getgeneralSettings, {});
+        // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+        // var response = await httpGet(Config.getgeneralSettings, {});
+
+        // MOCK: Simulate network delay
+        await Future.delayed(const Duration(seconds: 1));
+
+        // MOCK: Static general settings data
+        var response = {
+          "status": 200,
+          "message": "General settings retrieved successfully",
+          "error": "",
+          "data": {
+            "metaData": {
+              "general_name": "Carvy",
+              "general_email": "support@carvy.com",
+              "general_head_code": "",
+              "general_default_currency": "MAD",
+              "general_default_language": "en",
+              "general_logo": "https://example.com/logo.png",
+              "general_favicon": "https://example.com/favicon.png",
+              "personalization_row_per_page": "10",
+              "personalization_min_search_price": "0",
+              "personalization_max_search_price": "1000",
+              "personalization_date_separator": "/",
+              "personalization_date_format": "dd/mm/yyyy",
+              "personalization_time_zone": "UTC",
+              "personalization_money_format": "symbol",
+              "general_minimum_price": "10",
+              "general_maximum_price": "500",
+              "feesetup_guest_service_charge": "5",
+              "feesetup_iva_tax": "10",
+              "feesetup_accomodation_tax": "0",
+              "onlinepayment": "1",
+              "general_default_phone_country": "+212",
+              "general_default_country_code": "MA",
+              "app_item_type": "1",
+              "app_popular_region": "1",
+              "app_near_you": "1",
+              "app_make": "1",
+              "app_most_viewed": "1",
+              "app_become_lend": "1",
+              "app_show_distance": "1",
+              "app_user_digital_signature": "1",
+              "app_booking_vehicle_images": "1",
+              "app_user_kyc": "1"
+            }
+          }
+        };
+        // ========== END MOCK DATA ==========
         if (response != null && response['status'] == 200) {
           GetStorage().write("generalSettings", response);
           generalDataModel = GeneralDataModel.fromJson(response);

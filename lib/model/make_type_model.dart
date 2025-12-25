@@ -9,7 +9,9 @@ class CarMakes {
   CarMakes.fromJson(Map<String, dynamic> json) {
     status = json['status'];
     message = json['message'];
-    data = json['data'] != null && json['data'] is Map<String, dynamic> ? Data.fromJson(json['data']) : null;
+    data = json['data'] != null && json['data'] is Map<String, dynamic>
+        ? Data.fromJson(json['data'])
+        : null;
     error = json['error'];
   }
 
@@ -49,7 +51,7 @@ class Data {
 }
 
 class Makes {
-  int? id;
+  String? id;
   String? makeName;
   String? description;
   String? status;
@@ -74,7 +76,7 @@ class Makes {
   });
 
   Makes.fromJson(Map<String, dynamic> json) {
-    id = json['id'];
+    id = json['id']?.toString() ?? json['_id']?.toString();
     makeName = json['name'];
     description = json['description'];
     status = json['status'];

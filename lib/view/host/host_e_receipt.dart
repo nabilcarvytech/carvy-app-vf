@@ -114,9 +114,57 @@ class _HostErecieptState extends State<HostEreciept> {
                                         backgroundColor: redColor,
                                         onPressed: () async {
                                           showLoading();
-                                          var response = await httpGet(
-                                              Config.getCancelReasons,
-                                              {"userType": "host"});
+                                          // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                          // var response = await httpGet(
+                                          //     Config.getCancelReasons,
+                                          //     {"userType": "host"});
+                                          
+                                          // MOCK: Simulate network delay
+                                          await Future.delayed(const Duration(seconds: 1));
+                                          
+                                          // MOCK: Static cancellation reasons for Host
+                                          var response = {
+                                            "status": 200,
+                                            "message": "Cancel reasons retrieved successfully",
+                                            "error": "",
+                                            "data": {
+                                              "reasons": [
+                                                {
+                                                  "order_cancellation_id": 1,
+                                                  "reason": "Vehicle unavailable",
+                                                  "user_type": "host",
+                                                  "status": "1",
+                                                  "created_at": "2024-01-01 10:00:00",
+                                                  "updated_at": "2024-01-01 10:00:00"
+                                                },
+                                                {
+                                                  "order_cancellation_id": 2,
+                                                  "reason": "Guest behavior suspicion",
+                                                  "user_type": "host",
+                                                  "status": "1",
+                                                  "created_at": "2024-01-01 10:00:00",
+                                                  "updated_at": "2024-01-01 10:00:00"
+                                                },
+                                                {
+                                                  "order_cancellation_id": 3,
+                                                  "reason": "Unexpected maintenance",
+                                                  "user_type": "host",
+                                                  "status": "1",
+                                                  "created_at": "2024-01-01 10:00:00",
+                                                  "updated_at": "2024-01-01 10:00:00"
+                                                },
+                                                {
+                                                  "order_cancellation_id": 4,
+                                                  "reason": "Double booking error",
+                                                  "user_type": "host",
+                                                  "status": "1",
+                                                  "created_at": "2024-01-01 10:00:00",
+                                                  "updated_at": "2024-01-01 10:00:00"
+                                                }
+                                              ]
+                                            }
+                                          };
+                                          // ========== END MOCK DATA ==========
                                           closeLoading();
                                           if (response != null) {
                                             CancellationReasonModel model =
@@ -183,12 +231,29 @@ class _HostErecieptState extends State<HostEreciept> {
                                                                         onTap: () async {
                                                                           // Navigator.pop(context);
                                                                           showLoading();
-                                                                          var resp = await httpPost(
-                                                                              Config.cancelBookingByHost,
-                                                                              {
-                                                                                "booking_id": "${widget.bookings.id}",
-                                                                                "cancellation_reasion": "$value"
-                                                                              });
+                                                                          // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                                                          // var resp = await httpPost(
+                                                                          //     Config.cancelBookingByHost,
+                                                                          //     {
+                                                                          //       "booking_id": "${widget.bookings.id}",
+                                                                          //       "cancellation_reasion": "$value"
+                                                                          // });
+                                                                          
+                                                                          // MOCK: Simulate network delay
+                                                                          await Future.delayed(const Duration(seconds: 1));
+                                                                          
+                                                                          // MOCK: Static success response for cancelling a booking by Host
+                                                                          var resp = {
+                                                                            "status": 200,
+                                                                            "message": "Booking cancelled successfully",
+                                                                            "error": "",
+                                                                            "data": {
+                                                                              "booking_id": "${widget.bookings.id}",
+                                                                              "status": "Cancelled",
+                                                                              "cancellation_reason": "$value"
+                                                                            }
+                                                                          };
+                                                                          // ========== END MOCK DATA ==========
                                                                           closeLoading();
                                                                           if (resp['status'] ==
                                                                               200) {
@@ -321,14 +386,30 @@ class _HostErecieptState extends State<HostEreciept> {
                                                                 //  Navigator.pop(
                                                                 //     context);
                                                                 showLoading();
-                                                                var resp =
-                                                                    await httpPost(
-                                                                        Config
-                                                                            .confirmBookingByHost,
-                                                                        {
-                                                                      "booking_id":
-                                                                          "${widget.bookings.id}"
-                                                                    });
+                                                                // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                                                // var resp =
+                                                                //     await httpPost(
+                                                                //         Config
+                                                                //             .confirmBookingByHost,
+                                                                //         {
+                                                                //       "booking_id":
+                                                                //           "${widget.bookings.id}"
+                                                                //     });
+
+                                                                // MOCK: Simulate network delay
+                                                                await Future.delayed(const Duration(seconds: 1));
+
+                                                                // MOCK: Static success response for confirming booking
+                                                                var resp = {
+                                                                  "status": 200,
+                                                                  "message": "Booking confirmed successfully",
+                                                                  "error": "",
+                                                                  "data": {
+                                                                    "booking_id": "${widget.bookings.id}",
+                                                                    "status": "Confirmed"
+                                                                  }
+                                                                };
+                                                                // ========== END MOCK DATA ==========
                                                                 closeLoading();
                                                                 if (resp[
                                                                         'status'] ==

@@ -612,6 +612,7 @@ const Map<String, String> arAR = {
   "Identity": "الهوية",
   "Identity not verified": "الهوية غير مؤكدة",
   "Verified Identity": "الهوية مؤكدة",
+  "Verified Member": "عضو موثق",
   "No Review Available": "لا توجد تقييمات متاحة",
   "View All Review": "عرض جميع التقييمات",
   "View All Listing": "عرض جميع القوائم",

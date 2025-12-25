@@ -12,6 +12,7 @@ import 'package:carvy/view/wishlist/wish_list_screen.dart';
 import '../../controller/auth_controller.dart';
 import '../../controller/global_scope_controller.dart';
 import '../../controller/push_notifications.dart';
+import '../../controller/wish_list_controller.dart';
 import '../../utils/common_widget.dart';
 import '../../work_space.dart';
 import '../myaccount/account_screen.dart';
@@ -65,8 +66,18 @@ class _HomeMainScreenState extends State<HomeMain>
       initialIndex: widget.initialIndex!,
     );
     generalController.tabController.addListener(() {
-      generalController.currentIndex.value =
-          generalController.tabController.index;
+      final newIndex = generalController.tabController.index;
+      generalController.currentIndex.value = newIndex;
+      
+      // ========== UX IMPROVEMENT: Refresh Wishlist when switching to Favorites tab ==========
+      if (newIndex == 1) { // Index 1 is the Wishlist/Favorites tab
+        // Find the controller and force fetch
+        if (Get.isRegistered<WishListController>()) {
+          Get.find<WishListController>().getWishlistData();
+          print("🔄 [Tab Switch] Refreshing Wishlist Data...");
+        }
+      }
+      // ========== END UX IMPROVEMENT ==========
     });
   }
 

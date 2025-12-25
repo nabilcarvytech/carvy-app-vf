@@ -400,20 +400,72 @@ class CustomImagesForDetails extends StatefulWidget {
 }
 
 class _CustomImagesForDetailsState extends State<CustomImagesForDetails> {
+  late PageController _pageController;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    List<String> updatedImagesList = widget.imagesList.isNotEmpty
-        ? (widget.frontImage.isNotEmpty
-            ? [widget.frontImage, ...widget.imagesList]
-            : [...widget.imagesList])
-        : (widget.frontImage.isNotEmpty ? [widget.frontImage] : []);
+    // Create a list without duplicates
+    // If frontImage is already in imagesList, don't add it again
+    List<String> updatedImagesList = [];
+    
+    if (widget.frontImage.isNotEmpty) {
+      updatedImagesList.add(widget.frontImage);
+    }
+    
+    // Add images from imagesList that are not already in the list
+    for (String image in widget.imagesList) {
+      if (image.isNotEmpty && !updatedImagesList.contains(image)) {
+        updatedImagesList.add(image);
+      }
+    }
+    
+    // If no images at all, use frontImage as fallback
+    if (updatedImagesList.isEmpty && widget.frontImage.isNotEmpty) {
+      updatedImagesList = [widget.frontImage];
+    }
+    
+    // For thumbnails, use the same list as updatedImagesList (without duplicates)
+    // This ensures thumbnails match exactly the PageView images
+    // The thumbnails will show the same images in the same order as the PageView
+    List<String> thumbnailList = List.from(updatedImagesList);
 
     return Column(
       children: [
         Stack(
           children: [
             GestureDetector(
-              onTap: () {},
+              onTap: () {
+                showGeneralDialog(
+                  context: context,
+                  barrierDismissible: true,
+                  barrierLabel: MaterialLocalizations.of(context)
+                      .modalBarrierDismissLabel,
+                  barrierColor: Colors.black87,
+                  transitionDuration: const Duration(milliseconds: 200),
+                  pageBuilder: (BuildContext buildContext,
+                      Animation animation, Animation secondaryAnimation) {
+                    return Center(
+                      child: FullScreenGallery(
+                        images: updatedImagesList,
+                        imagesIndex: _currentIndex,
+                      ),
+                    );
+                  },
+                );
+              },
               child: Container(
                 height: 287,
                 width: double.maxFinite,
@@ -426,11 +478,30 @@ class _CustomImagesForDetailsState extends State<CustomImagesForDetails> {
                   borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(24),
                       bottomRight: Radius.circular(24)),
-                  child: SizedBox(
-                    height: 287,
-                    width: double.maxFinite,
-                    child: myNetworkImageFillBox(widget.frontImage),
-                  ),
+                  child: updatedImagesList.length > 1
+                      ? PageView.builder(
+                          controller: _pageController,
+                          onPageChanged: (index) {
+                            setState(() {
+                              _currentIndex = index;
+                            });
+                          },
+                          itemCount: updatedImagesList.length,
+                          itemBuilder: (context, index) {
+                            return SizedBox(
+                              height: 287,
+                              width: double.maxFinite,
+                              child: myNetworkImageFillBox(updatedImagesList[index]),
+                            );
+                          },
+                        )
+                      : SizedBox(
+                          height: 287,
+                          width: double.maxFinite,
+                          child: myNetworkImageFillBox(updatedImagesList.isNotEmpty
+                              ? updatedImagesList[0]
+                              : widget.frontImage),
+                        ),
                 ),
               ),
             ),
@@ -450,9 +521,8 @@ class _CustomImagesForDetailsState extends State<CustomImagesForDetails> {
                         Animation animation, Animation secondaryAnimation) {
                       return Center(
                         child: FullScreenGallery(
-                          images:
-                              updatedImagesList, // Use updated images list here
-                          imagesIndex: 0,
+                          images: updatedImagesList,
+                          imagesIndex: _currentIndex,
                         ),
                       );
                     },
@@ -471,58 +541,60 @@ class _CustomImagesForDetailsState extends State<CustomImagesForDetails> {
             ),
           ],
         ),
-        SizedBox(
-          height: 80,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 15, right: 12, top: 10),
-            child: ListView.builder(
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(
-                    left: 5,
-                    right: 5,
-                    top: 5,
-                  ),
-                  child: GestureDetector(
-                    onTap: () {
-                      showGeneralDialog(
-                        context: context,
-                        barrierDismissible: true,
-                        barrierLabel: MaterialLocalizations.of(context)
-                            .modalBarrierDismissLabel,
-                        barrierColor: Colors.black87,
-                        transitionDuration: const Duration(milliseconds: 200),
-                        pageBuilder: (BuildContext buildContext,
-                            Animation animation, Animation secondaryAnimation) {
-                          return Center(
-                            child: FullScreenGallery(
-                              images:
-                                  updatedImagesList, // Use updated images list here
-                              imagesIndex: index,
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    child: Container(
-                      width: 84,
-                      height: 60,
-                      decoration: BoxDecoration(
-                          color: grey5,
-                          borderRadius: BorderRadius.circular(12)),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: myNetworkImageFillBox(updatedImagesList[index]),
+        // Only show thumbnails if there's more than one image
+        // Use thumbnailList (original imagesList) instead of updatedImagesList
+        if (thumbnailList.length > 1)
+          SizedBox(
+            height: 80,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 15, right: 12, top: 10),
+              child: ListView.builder(
+                itemBuilder: (context, index) {
+                  // thumbnailList and updatedImagesList are identical, so index matches directly
+                  String thumbnailImage = thumbnailList[index];
+                  
+                  return Padding(
+                    padding: const EdgeInsets.only(
+                      left: 5,
+                      right: 5,
+                      top: 5,
+                    ),
+                    child: GestureDetector(
+                      onTap: () {
+                        _pageController.animateToPage(
+                          index,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                        setState(() {
+                          _currentIndex = index;
+                        });
+                      },
+                      child: Container(
+                        width: 84,
+                        height: 60,
+                        decoration: BoxDecoration(
+                            color: grey5,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _currentIndex == index
+                                  ? getColorBasedOnActiveModuleid()
+                                  : Colors.transparent,
+                              width: 3,
+                            )),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: myNetworkImageFillBox(thumbnailImage),
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
-              itemCount: updatedImagesList.length,
-              scrollDirection: Axis.horizontal,
+                  );
+                },
+                itemCount: thumbnailList.length,
+                scrollDirection: Axis.horizontal,
+              ),
             ),
           ),
-        ),
       ],
     );
   }

@@ -110,7 +110,36 @@ class KycController extends GetxController implements GetxService {
 
       try {
         if (storedata == null) {
-          var response = await httpPost(Config.getKYCDetails, {});
+          // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+          // var response = await httpPost(Config.getKYCDetails, {});
+
+          // MOCK: Simulate network delay
+          await Future.delayed(const Duration(seconds: 1));
+
+          // MOCK: Static KYC details data
+          var response = {
+            "status": 200,
+            "message": "KYC details retrieved successfully",
+            "error": "",
+            "data": {
+              "kyc_images": {
+                "driver_license_front_image": null,
+                "driver_license_back_image": null,
+                "other_identity_front_image": null,
+                "other_identity_back_image": null
+              },
+              "kyc_reference_data": {
+                "reference_primary_mobile_no": "",
+                "reference_primary_country_code": "+212",
+                "reference_primary_country_short_code": "MA",
+                "reference_secondary_mobile_no": "",
+                "reference_secondary_country_code": "+212",
+                "reference_secondary_country_short_code": "MA"
+              },
+              "kyc_status": "pending"
+            }
+          };
+          // ========== END MOCK DATA ==========
 
           if (response != null && response is Map<String, dynamic>) {
             userKycModel = UserKYC.fromJson(response);
@@ -425,7 +454,19 @@ class KycController extends GetxController implements GetxService {
 
     try {
       showLoading();
-      var response = await httpPost(Config.addKycforCustomer, map);
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.addKycforCustomer, map);
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static success response for submitting KYC
+      var response = {
+        "status": 200,
+        "message": "KYC submitted successfully",
+        "error": ""
+      };
+      // ========== END MOCK DATA ==========
       closeLoading();
       if (response != null && response["status"] == 200) {
         showToastMessage("${response["message"]}");

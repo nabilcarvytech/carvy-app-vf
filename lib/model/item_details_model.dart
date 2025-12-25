@@ -14,7 +14,10 @@ class ItemDetailsModel {
   }
 
   ItemDetailsModel.fromJson(dynamic json) {
-    _status = json['status'];
+    // status peut être num ou String, parsing sécurisé
+    _status = json['status'] is num 
+        ? json['status'] 
+        : (json['status'] != null ? num.tryParse(json['status'].toString()) : null);
     _message = json['message'];
     _data = json['data'] != null ? Data.fromJson(json['data']) : null;
     _error = json['error'];
@@ -68,7 +71,7 @@ class Data {
 
 class ItemDetails {
   ItemDetails(
-      {num? itemId,
+      {String? itemId,
       String? title,
       String? price,
       String? description,
@@ -110,7 +113,11 @@ class ItemDetails {
       num? totalReviews,
       String? itemData,
       String? itemInfo,
-      bool? isInWishlist}) {
+      bool? isInWishlist,
+      List<String>? vehicleRules,
+      List<String>? cancellationRules,
+      String? depositValue,
+      String? depositManager}) {
     _itemId = itemId;
     _title = title;
     _price = price;
@@ -153,36 +160,43 @@ class ItemDetails {
     _totalReviews = totalReviews;
     _itemData = itemData;
     _isInWishlist = isInWishlist;
+    _vehicleRules = vehicleRules;
+    _cancellationRules = cancellationRules;
+    _depositValue = depositValue;
+    _depositManager = depositManager;
   }
 
   ItemDetails.fromJson(dynamic json) {
-    _itemId = json['item_id'];
-    _title = json['title'];
-    _price = json['price'];
-    _description = json['description'];
-    _bedrooms = json['bedrooms'];
-    _beds = json['beds'];
-    _bathroom = json['bathroom'];
-    _itemqft = json['item_sqft'];
-    _itemRating = json['item_rating'];
-    _mobile = json['mobile'];
-    _status = json['status'];
-    _personAllowed = json['person_allowed'];
-    _address = json['address'];
-    _stateRegion = json['state_region'];
-    _zipPostalCode = json['zip_postal_code'];
-    _latitude = json['latitude'];
-    _longitude = json['longitude'];
-    _isVerified = json['is_verified'];
-    _isFeatured = json['is_featured'];
-    _weeklyDiscount = json['weekly_discount'];
-    _weeklyDiscountType = json['weekly_discount_type'];
-    _monthlyDiscount = json['monthly_discount'];
-    _monthlyDiscountType = json['monthly_discount_type'];
-    _itemType = json['item_type'];
+    // Gestion des IDs : conversion sécurisée en String
+    _itemId = json['item_id']?.toString();
+    
+    // Champs String (déjà gérés, mais on s'assure qu'ils sont bien des String)
+    _title = json['title']?.toString();
+    _price = json['price']?.toString();
+    _description = json['description']?.toString();
+    _bedrooms = json['bedrooms']?.toString();
+    _beds = json['beds']?.toString();
+    _bathroom = json['bathroom']?.toString();
+    _itemqft = json['item_sqft']?.toString();
+    _itemRating = json['item_rating']?.toString();
+    _mobile = json['mobile']?.toString();
+    _status = json['status']?.toString();
+    _personAllowed = json['person_allowed']?.toString();
+    _address = json['address']?.toString();
+    _stateRegion = json['state_region']?.toString();
+    _zipPostalCode = json['zip_postal_code']?.toString();
+    _latitude = json['latitude']?.toString();
+    _longitude = json['longitude']?.toString();
+    _isVerified = json['is_verified']?.toString();
+    _isFeatured = json['is_featured']?.toString();
+    _weeklyDiscount = json['weekly_discount']?.toString();
+    _weeklyDiscountType = json['weekly_discount_type']?.toString();
+    _monthlyDiscount = json['monthly_discount']?.toString();
+    _monthlyDiscountType = json['monthly_discount_type']?.toString();
+    _itemType = json['item_type']?.toString();
     _cancellationReason = json['cancellation_reason'];
-    _bedType = json['bed_type'];
-    _city = json['city'];
+    _bedType = json['bed_type']?.toString();
+    _city = json['city']?.toString();
     if (json['amenities'] != null) {
       _amenities = [];
       json['amenities'].forEach((v) {
@@ -195,15 +209,17 @@ class ItemDetails {
         _availableDates?.add(AvailableDates.fromJson(v));
       });
     }
-    _hostId = json['host_id'];
-    _hostPlayerId = json['host_player_id'];
+    // IDs des hôtes : conversion sécurisée en String
+    _hostId = json['host_id']?.toString();
+    _hostPlayerId = json['host_player_id']?.toString();
 
-    _hostFirstName = json['host_first_name'];
-    _hostLastName = json['host_last_name'];
-    _hostEmail = json['host_email'];
-    _hostPhone = json['host_phone'];
-    _hostProfileImage = json['host_profile_image'];
-    _frontImageUrl = json['front_image_url'];
+    // Informations hôte (String)
+    _hostFirstName = json['host_first_name']?.toString();
+    _hostLastName = json['host_last_name']?.toString();
+    _hostEmail = json['host_email']?.toString();
+    _hostPhone = json['host_phone']?.toString();
+    _hostProfileImage = json['host_profile_image']?.toString();
+    _frontImageUrl = json['front_image_url']?.toString();
     _galleryImageUrls = json['gallery_image_urls'] != null
         ? json['gallery_image_urls'].cast<String>()
         : [];
@@ -213,12 +229,47 @@ class ItemDetails {
         _reviews?.add(Reviews.fromJson(v));
       });
     }
-    _totalReviews = json['total_reviews'];
-    _itemData = json['item_data'];
+    // totalReviews : parsing sécurisé (peut être num ou String)
+    _totalReviews = json['total_reviews'] != null 
+        ? (json['total_reviews'] is num 
+            ? json['total_reviews'] 
+            : num.tryParse(json['total_reviews'].toString()))
+        : null;
+    
+    _itemData = json['item_data']?.toString();
     _itemInfo = json['item_info'] is String ? json['item_info'] : null;
-    _isInWishlist = json['is_in_wishlist'];
+    _isInWishlist = json['is_in_wishlist'] is bool ? json['is_in_wishlist'] : (json['is_in_wishlist']?.toString().toLowerCase() == 'true');
+    
+    // Parsing vehicle_rules (peut être un tableau de strings ou un tableau d'objets)
+    if (json['vehicle_rules'] != null && json['vehicle_rules'] is List) {
+      _vehicleRules = (json['vehicle_rules'] as List).map<String>((rule) {
+        // Si c'est une String, on la prend directement
+        if (rule is String) {
+          return rule;
+        }
+        // Si c'est un objet avec une propriété 'description' ou 'rule', on l'extrait
+        else if (rule is Map) {
+          return rule['description']?.toString() ?? 
+                 rule['rule']?.toString() ?? 
+                 rule.toString();
+        }
+        // Sinon, on convertit en String
+        return rule.toString();
+      }).toList();
+    } else {
+      _vehicleRules = [];
+    }
+    
+    // Parsing cancellation_rules (tableau de strings simple, formaté par le backend)
+    _cancellationRules = json['cancellation_rules'] != null && json['cancellation_rules'] is List
+        ? List<String>.from(json['cancellation_rules'])
+        : [];
+    
+    // Parsing deposit fields
+    _depositValue = json['deposit_value']?.toString();
+    _depositManager = json['deposit_manager']?.toString();
   }
-  num? _itemId;
+  String? _itemId;
   String? _title;
   String? _price;
   String? _description;
@@ -261,8 +312,12 @@ class ItemDetails {
   String? _itemData;
   String? _itemInfo;
   bool? _isInWishlist;
+  List<String>? _vehicleRules;
+  List<String>? _cancellationRules;
+  String? _depositValue;
+  String? _depositManager;
 
-  num? get itemId => _itemId;
+  String? get itemId => _itemId;
   String? get title => _title;
   String? get price => _price;
   String? get description => _description;
@@ -305,6 +360,10 @@ class ItemDetails {
   String? get itemData => _itemData;
   String? get itemInfo => _itemInfo;
   bool? get isInWishlist => _isInWishlist;
+  List<String>? get vehicleRules => _vehicleRules;
+  List<String>? get cancellationRules => _cancellationRules;
+  String? get depositValue => _depositValue;
+  String? get depositManager => _depositManager;
 
   set isInWishlist(bool? value) {
     _isInWishlist = value;
@@ -364,6 +423,14 @@ class ItemDetails {
       map['item_info'] = _itemInfo;
     }
     map['is_in_wishlist'] = _isInWishlist;
+    if (_vehicleRules != null) {
+      map['vehicle_rules'] = _vehicleRules;
+    }
+    if (_cancellationRules != null) {
+      map['cancellation_rules'] = _cancellationRules;
+    }
+    map['deposit_value'] = _depositValue;
+    map['deposit_manager'] = _depositManager;
 
     return map;
   }
@@ -371,7 +438,7 @@ class ItemDetails {
 
 class Reviews {
   Reviews({
-    num? id,
+    String? id,
     String? bookingId,
     String? guestId,
     String? guestName,
@@ -393,17 +460,18 @@ class Reviews {
   }
 
   Reviews.fromJson(dynamic json) {
-    _id = json['id'];
-    _bookingId = json['booking_id'];
-    _guestId = json['guest_id'];
-    _guestName = json['guest_name'];
-    _guestProfileImage = json['guest_profile_image'];
-    _rating = json['rating'];
-    _message = json['message'];
-    _createdAt = json['created_at'];
-    _updatedAt = json['updated_at'];
+    // IDs : conversion sécurisée en String
+    _id = json['id']?.toString();
+    _bookingId = json['booking_id']?.toString();
+    _guestId = json['guest_id']?.toString();
+    _guestName = json['guest_name']?.toString();
+    _guestProfileImage = json['guest_profile_image']?.toString();
+    _rating = json['rating']?.toString();
+    _message = json['message']?.toString();
+    _createdAt = json['created_at']?.toString();
+    _updatedAt = json['updated_at']?.toString();
   }
-  num? _id;
+  String? _id;
   String? _bookingId;
   String? _guestId;
   String? _guestName;
@@ -413,7 +481,7 @@ class Reviews {
   String? _createdAt;
   String? _updatedAt;
 
-  num? get id => _id;
+  String? get id => _id;
   String? get bookingId => _bookingId;
   String? get guestId => _guestId;
   String? get guestName => _guestName;
@@ -440,7 +508,7 @@ class Reviews {
 
 class Amenities {
   Amenities({
-    num? id,
+    String? id,
     String? name,
     String? imageUrl,
   }) {
@@ -450,15 +518,16 @@ class Amenities {
   }
 
   Amenities.fromJson(dynamic json) {
-    _id = json['id'];
-    _name = json['name'];
-    _imageUrl = json['image_url'];
+    // ID : conversion sécurisée en String
+    _id = json['id']?.toString();
+    _name = json['name']?.toString();
+    _imageUrl = json['image_url']?.toString();
   }
-  num? _id;
+  String? _id;
   String? _name;
   String? _imageUrl;
 
-  num? get id => _id;
+  String? get id => _id;
   String? get name => _name;
   String? get imageUrl => _imageUrl;
 

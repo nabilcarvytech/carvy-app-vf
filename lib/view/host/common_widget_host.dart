@@ -2000,8 +2000,56 @@ myBookingHostListWidget(
   innerMethod(BuildContext context, index) async {
     if (btnText == "Reject") {
       showLoading();
-      var response =
-          await httpGet(Config.getCancelReasons, {"userType": "host"});
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response =
+      //     await httpGet(Config.getCancelReasons, {"userType": "host"});
+      
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // MOCK: Static cancellation reasons for Host
+      var response = {
+        "status": 200,
+        "message": "Cancel reasons retrieved successfully",
+        "error": "",
+        "data": {
+          "reasons": [
+            {
+              "order_cancellation_id": 1,
+              "reason": "Vehicle unavailable",
+              "user_type": "host",
+              "status": "1",
+              "created_at": "2024-01-01 10:00:00",
+              "updated_at": "2024-01-01 10:00:00"
+            },
+            {
+              "order_cancellation_id": 2,
+              "reason": "Guest behavior suspicion",
+              "user_type": "host",
+              "status": "1",
+              "created_at": "2024-01-01 10:00:00",
+              "updated_at": "2024-01-01 10:00:00"
+            },
+            {
+              "order_cancellation_id": 3,
+              "reason": "Unexpected maintenance",
+              "user_type": "host",
+              "status": "1",
+              "created_at": "2024-01-01 10:00:00",
+              "updated_at": "2024-01-01 10:00:00"
+            },
+            {
+              "order_cancellation_id": 4,
+              "reason": "Double booking error",
+              "user_type": "host",
+              "status": "1",
+              "created_at": "2024-01-01 10:00:00",
+              "updated_at": "2024-01-01 10:00:00"
+            }
+          ]
+        }
+      };
+      // ========== END MOCK DATA ==========
       closeLoading();
       if (response != null) {
         CancellationReasonModel model =
@@ -2078,11 +2126,30 @@ myBookingHostListWidget(
                                           Get.find();
                                       Navigator.pop(context);
                                       showLoading();
-                                      var resp = await httpPost(
-                                          Config.cancelBookingByHost, {
-                                        "booking_id": "${list[index].id}",
-                                        "cancellation_reasion": "$value"
-                                      });
+                                      
+                                      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                      // var resp = await httpPost(
+                                      //     Config.cancelBookingByHost, {
+                                      //   "booking_id": "${list[index].id}",
+                                      //   "cancellation_reasion": "$value"
+                                      // });
+                                      
+                                      // MOCK: Simulate network delay
+                                      await Future.delayed(const Duration(seconds: 1));
+                                      
+                                      // MOCK: Static cancel booking response
+                                      var resp = {
+                                        "status": 200,
+                                        "message": "Booking cancelled successfully",
+                                        "error": "",
+                                        "data": {
+                                          "booking_id": "${list[index].id}",
+                                          "status": "Declined",
+                                          "cancellation_reason": "$value"
+                                        }
+                                      };
+                                      // ========== END MOCK DATA ==========
+                                      
                                       closeLoading();
                                       if (resp['status'] == 200) {
                                         bookingController
@@ -2168,8 +2235,28 @@ myBookingHostListWidget(
     showLoading();
     var isItemDelivered;
     String result;
-    var response = await httpPost(Config.updateItemDeliveredStatus,
-        {"booking_id": bookingId, "is_item_delivered": "1"});
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(Config.updateItemDeliveredStatus,
+    //     {"booking_id": bookingId, "is_item_delivered": "1"});
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static success response for marking item as delivered
+    Map<String, dynamic> response = {
+      "status": 200,
+      "message": "Vehicle marked as delivered successfully",
+      "error": "",
+      "data": {
+        "booking_extension": {
+          "booking_id": bookingId,
+          "is_item_delivered": "1",
+          "is_item_received": "1",
+          "is_item_returned": "0"
+        }
+      }
+    };
+    // ========== END MOCK DATA ==========
     closeLoading();
     if (response["status"] == 200) {
       isItemDelivered =
@@ -2187,8 +2274,29 @@ myBookingHostListWidget(
     showLoading();
     var isItemReturned;
     String result;
-    var response = await httpPost(Config.updateItemReturnedStatus,
-        {"booking_id": bookingId, "is_item_returned": "1"});
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(Config.updateItemReturnedStatus,
+    //     {"booking_id": bookingId, "is_item_returned": "1"});
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static success response for marking item as returned
+    Map<String, dynamic> response = {
+      "status": 200,
+      "message": "Vehicle marked as returned successfully",
+      "error": "",
+      "data": {
+        "booking_extension": {
+          "booking_id": bookingId,
+          "is_item_returned": "1",
+          "is_item_delivered": "1",
+          "is_item_received": "1",
+          "drop_otp": ""
+        }
+      }
+    };
+    // ========== END MOCK DATA ==========
     closeLoading();
     if (response["status"] == 200) {
       isItemReturned =
@@ -2854,14 +2962,38 @@ myBookingHostListWidget(
                                                     }
                                                     try {
                                                       showLoading();
-                                                      var responce =
-                                                          await httpPost(
-                                                              Config
-                                                                  .getItemDetails,
-                                                              {
-                                                            "item_id":
-                                                                "${list[index].itemid}"
-                                                          });
+                                                      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                                      // var responce =
+                                                      //     await httpPost(
+                                                      //         Config
+                                                      //             .getItemDetails,
+                                                      //         {
+                                                      //       "item_id":
+                                                      //           "${list[index].itemid}"
+                                                      //     });
+                                                      
+                                                      // MOCK: Simulate network delay
+                                                      await Future.delayed(const Duration(seconds: 1));
+                                                      
+                                                      // MOCK: Static item details response
+                                                      var responce = {
+                                                        "status": 200,
+                                                        "message": "Item details retrieved successfully",
+                                                        "error": "",
+                                                        "data": {
+                                                          "ItemDetails": {
+                                                            "item_id": int.tryParse("${list[index].itemid}") ?? 101,
+                                                            "title": "Toyota Camry 2023 - Premium Sedan",
+                                                            "price": "50.00",
+                                                            "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
+                                                            "item_rating": "4.5",
+                                                            "status": "1",
+                                                            "host_id": "1001"
+                                                          }
+                                                        }
+                                                      };
+                                                      // ========== END MOCK DATA ==========
+                                                      
                                                       if (responce != null &&
                                                           responce["status"] ==
                                                               500) {
@@ -2954,12 +3086,30 @@ myBookingHostListWidget(
                                                                               BookingController bookingController = Get.find();
                                                                               Navigator.pop(context);
                                                                               showLoading();
-                                                                              var resp = await httpPost(
-                                                                                Config.confirmBookingByHost,
-                                                                                {
-                                                                                  "booking_id": "${list[index].id}"
-                                                                                },
-                                                                              );
+                                                                              
+                                                                              // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                                                              // var resp = await httpPost(
+                                                                              //   Config.confirmBookingByHost,
+                                                                              //   {
+                                                                              //     "booking_id": "${list[index].id}"
+                                                                              //   },
+                                                                              // );
+                                                                              
+                                                                              // MOCK: Simulate network delay
+                                                                              await Future.delayed(const Duration(seconds: 1));
+                                                                              
+                                                                              // MOCK: Static confirm booking response
+                                                                              var resp = {
+                                                                                "status": 200,
+                                                                                "message": "Booking confirmed successfully",
+                                                                                "error": "",
+                                                                                "data": {
+                                                                                  "booking_id": "${list[index].id}",
+                                                                                  "status": "Confirmed"
+                                                                                }
+                                                                              };
+                                                                              // ========== END MOCK DATA ==========
+                                                                              
                                                                               closeLoading();
                                                                               if (resp['status'] == 200) {
                                                                                 showToastMessage(resp['message']);
@@ -3088,14 +3238,38 @@ myBookingHostListWidget(
 
                                                                 try {
                                                                   showLoading();
-                                                                  var responce =
-                                                                      await httpPost(
-                                                                          Config
-                                                                              .getItemDetails,
-                                                                          {
-                                                                        "item_id":
-                                                                            "${list[index].itemid}"
-                                                                      });
+                                                                  // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                                                  // var responce =
+                                                                  //     await httpPost(
+                                                                  //         Config
+                                                                  //             .getItemDetails,
+                                                                  //         {
+                                                                  //       "item_id":
+                                                                  //           "${list[index].itemid}"
+                                                                  //     });
+                                                                  
+                                                                  // MOCK: Simulate network delay
+                                                                  await Future.delayed(const Duration(seconds: 1));
+                                                                  
+                                                                  // MOCK: Static item details response (same structure as http_service.dart)
+                                                                  var responce = {
+                                                                    "status": 200,
+                                                                    "message": "Item details retrieved successfully",
+                                                                    "error": "",
+                                                                    "data": {
+                                                                      "ItemDetails": {
+                                                                        "item_id": int.tryParse("${list[index].itemid}") ?? 101,
+                                                                        "title": "Toyota Camry 2023 - Premium Sedan",
+                                                                        "price": "50.00",
+                                                                        "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
+                                                                        "item_rating": "4.5",
+                                                                        "status": "1",
+                                                                        "host_id": "1001"
+                                                                      }
+                                                                    }
+                                                                  };
+                                                                  // ========== END MOCK DATA ==========
+                                                                  
                                                                   if (responce !=
                                                                           null &&
                                                                       responce[
@@ -3176,28 +3350,50 @@ myBookingHostListWidget(
                                     ? const SizedBox()
                                     : listType == 'Cancelled'
                                         ? const SizedBox()
-                                        : listType == 'Previous'
-                                            ? const SizedBox()
-                                            : Expanded(
-                                                child: InkWell(
-                                                  onTap: () async {
-                                                    if (list[index].userName ==
-                                                        null) {
-                                                      showErrorToastMessage(
-                                                          "user not found");
-                                                      return;
-                                                    }
+                                        : Expanded(
+                                            child: InkWell(
+                                              onTap: () async {
+                                                if (list[index].userName ==
+                                                    null) {
+                                                  showErrorToastMessage(
+                                                      "user not found");
+                                                  return;
+                                                }
 
                                                     try {
                                                       showLoading();
-                                                      var responce =
-                                                          await httpPost(
-                                                              Config
-                                                                  .getItemDetails,
-                                                              {
-                                                            "item_id":
-                                                                "${list[index].itemid}"
-                                                          });
+                                                      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                                      // var responce =
+                                                      //     await httpPost(
+                                                      //         Config
+                                                      //             .getItemDetails,
+                                                      //         {
+                                                      //       "item_id":
+                                                      //           "${list[index].itemid}"
+                                                      //     });
+                                                      
+                                                      // MOCK: Simulate network delay
+                                                      await Future.delayed(const Duration(seconds: 1));
+                                                      
+                                                      // MOCK: Static item details response
+                                                      var responce = {
+                                                        "status": 200,
+                                                        "message": "Item details retrieved successfully",
+                                                        "error": "",
+                                                        "data": {
+                                                          "ItemDetails": {
+                                                            "item_id": int.tryParse("${list[index].itemid}") ?? 101,
+                                                            "title": "Toyota Camry 2023 - Premium Sedan",
+                                                            "price": "50.00",
+                                                            "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
+                                                            "item_rating": "4.5",
+                                                            "status": "1",
+                                                            "host_id": "1001"
+                                                          }
+                                                        }
+                                                      };
+                                                      // ========== END MOCK DATA ==========
+                                                      
                                                       if (responce != null &&
                                                           responce["status"] ==
                                                               500) {
@@ -3966,12 +4162,30 @@ bottomSheetHostReview(id, count, bool fromPropBooking, Bookings bookings,
                   }
 
                   showLoading();
-                  var response = await httpPost(Config.giveReviewByHost, {
-                    "rating":
-                        "${generalScopeController.selectedRatingValue.value.toInt()}",
-                    "message": textEditingControllerReview.text,
-                    "booking_id": '$id'
-                  });
+                  // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                  // var response = await httpPost(Config.giveReviewByHost, {
+                  //   "rating":
+                  //       "${generalScopeController.selectedRatingValue.value.toInt()}",
+                  //   "message": textEditingControllerReview.text,
+                  //   "booking_id": '$id'
+                  // });
+                  
+                  // MOCK: Simulate network delay
+                  await Future.delayed(const Duration(seconds: 1));
+                  
+                  // MOCK: Static success response for submitting a review
+                  Map<String, dynamic> response = {
+                    "status": 200,
+                    "message": "Review submitted successfully",
+                    "error": "",
+                    "data": {
+                      "review_id": DateTime.now().millisecondsSinceEpoch,
+                      "booking_id": '$id',
+                      "rating": "${generalScopeController.selectedRatingValue.value.toInt()}",
+                      "message": textEditingControllerReview.text
+                    }
+                  };
+                  // ========== END MOCK DATA ==========
 
                   closeLoading();
                   if (response != null) {

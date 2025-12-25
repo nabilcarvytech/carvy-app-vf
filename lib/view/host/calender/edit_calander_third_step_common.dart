@@ -152,7 +152,26 @@ class _EditCalenderOnThirdStepCommonState
       "id": (item?.id ?? addItemsHostController.itemHostId).toString()
     };
 
-    var response = await httpPost(Config.addEditCalender, map);
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(Config.addEditCalender, map);
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 2));
+    
+    // MOCK: Static success response for calendar update
+    Map<String, dynamic> mockResponse = {
+      "status": 200,
+      "message": "Calendar updated successfully",
+      "error": "",
+      "data": {
+        "id": (item?.id ?? addItemsHostController.itemHostId).toString(),
+        "updated": true
+      }
+    };
+    
+    var response = mockResponse;
+    // ========== END MOCK DATA ==========
+    
     closeLoading();
     if (response != null) {
       if (response['status'] == 200) {
@@ -171,9 +190,45 @@ class _EditCalenderOnThirdStepCommonState
 
   Future<void> fetchDataCalendar() async {
     showLoading();
-    var response = await httpGet(Config.getItemDates, {
-      "item_id": (item?.id ?? addItemsHostController.itemHostId).toString()
-    });
+    
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpGet(Config.getItemDates, {
+    //   "item_id": (item?.id ?? addItemsHostController.itemHostId).toString()
+    // });
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static calendar dates data
+    Map<String, dynamic> mockGetItemDatesResponse = {
+      "status": 200,
+      "message": "Item dates retrieved successfully",
+      "error": "",
+      "data": {
+        "ItemDates": {
+          "price": "50.00",
+          "available_dates": [
+            {"date": "2025-12-20", "price": "50.00"},
+            {"date": "2025-12-21", "price": "50.00"},
+            {"date": "2025-12-22", "price": "55.00"},
+            {"date": "2025-12-23", "price": "55.00"},
+            {"date": "2025-12-24", "price": "60.00"}
+          ],
+          "not_available_dates": [
+            {"date": "2025-12-25"},
+            {"date": "2025-12-26"},
+            {"date": "2025-12-27"}
+          ],
+          "booked_dates": [
+            {"date": "2025-12-28", "price": "60.00"},
+            {"date": "2025-12-29", "price": "60.00"}
+          ]
+        }
+      }
+    };
+    
+    var response = mockGetItemDatesResponse;
+    // ========== END MOCK DATA ==========
 
     if (response != null) {
       closeLoading();

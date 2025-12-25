@@ -39,22 +39,76 @@ class _WalletScreenState extends State<WalletScreen> {
     walletModel = null;
 
     try {
-      var response = await httpPost(Config.getUserWallet, {});
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.getUserWallet, {});
+      //
+      // if (response != null) {
+      //   walletModel = WalletModel.fromJson(response);
+      //   balanceAmount.value = walletModel!.data!.walletBalance!;
+      // }
 
-      if (response != null) {
-        walletModel = WalletModel.fromJson(response);
-        balanceAmount.value = walletModel!.data!.walletBalance!;
-      }
+      // MOCK: Simulate network delay for wallet balance
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      var transactionsResponse = await httpGet(
-          Config.getUserWalletTransactions, {"offset": "$offset"});
+      // MOCK: Static wallet balance
+      Map<String, dynamic> mockWalletResponse = {
+        "status": 200,
+        "message": "Wallet data retrieved successfully",
+        "error": "",
+        "data": {
+          "wallet_balance": "150.00"
+        }
+      };
 
-      if (transactionsResponse != null) {
-        walletTransactions =
-            GetUserWalletTransactions.fromJson(transactionsResponse);
-        list.addAll(walletTransactions!.data!.walletTransactionsDetails!);
-        offset = walletTransactions!.data!.offset!;
-      }
+      walletModel = WalletModel.fromJson(mockWalletResponse);
+      balanceAmount.value = walletModel!.data!.walletBalance ?? "0.00";
+
+      // ========== MOCK DATA - OLD TRANSACTIONS CALL COMMENTED ==========
+      // var transactionsResponse = await httpGet(
+      //     Config.getUserWalletTransactions, {"offset": "$offset"});
+      //
+      // if (transactionsResponse != null) {
+      //   walletTransactions =
+      //       GetUserWalletTransactions.fromJson(transactionsResponse);
+      //   list.addAll(walletTransactions!.data!.walletTransactionsDetails!);
+      //   offset = walletTransactions!.data!.offset!;
+      // }
+
+      // MOCK: Simulate network delay for transactions
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // MOCK: Static wallet transactions list (minimal pour UI)
+      Map<String, dynamic> mockTransactionsResponse = {
+        "status": 200,
+        "message": "Wallet transactions retrieved successfully",
+        "error": "",
+        "data": {
+          "walletTransactionsDetails": [
+            {
+              "id": 1,
+              "type": "credit",
+              "amount": "50.00",
+              "description": "Booking refund",
+              "created_at": "2024-12-15 10:00:00"
+            },
+            {
+              "id": 2,
+              "type": "debit",
+              "amount": "20.00",
+              "description": "Booking payment",
+              "created_at": "2024-12-10 15:30:00"
+            }
+          ],
+          "offset": 2,
+          "limit": 10
+        }
+      };
+
+      walletTransactions =
+          GetUserWalletTransactions.fromJson(mockTransactionsResponse);
+      list.addAll(walletTransactions!.data!.walletTransactionsDetails!);
+      offset = walletTransactions!.data!.offset ?? 2;
+
       setState(() {});
     } catch (e) {
       print(e);

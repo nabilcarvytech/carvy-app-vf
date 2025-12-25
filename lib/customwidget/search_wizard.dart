@@ -631,32 +631,58 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
               minDate: DateTime.now(),
               maxDate: DateTime.now().add(const Duration(days: 365)),
               enablePastDates: false,
+              navigationDirection: DateRangePickerNavigationDirection.vertical,
+              navigationMode: DateRangePickerNavigationMode.scroll,
+              enableMultiView: true,
+              backgroundColor: Colors.white,
               headerStyle: DateRangePickerHeaderStyle(
-                textStyle: heading2Grey1(context).copyWith(fontSize: 16),
-                textAlign: TextAlign.center,
+                textStyle: heading2Grey1(context).copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.left,
+                backgroundColor: Colors.white,
               ),
               selectionColor: getColorBasedOnActiveModuleid(),
               startRangeSelectionColor: getColorBasedOnActiveModuleid(),
               endRangeSelectionColor: getColorBasedOnActiveModuleid(),
               rangeSelectionColor: getColorBasedOnActiveModuleid()
-                  .withOpacity(0.6), // Plus visible
+                  .withOpacity(0.15), // Very light blue for in-between dates
               todayHighlightColor: getColorBasedOnActiveModuleid(),
               selectionTextStyle: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
-              rangeTextStyle: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
+              rangeTextStyle: TextStyle(
+                color: getColorBasedOnActiveModuleid(),
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
               ),
               monthCellStyle: DateRangePickerMonthCellStyle(
-                textStyle: regular2(context),
+                textStyle: regular2(context).copyWith(
+                  fontSize: 16,
+                  color: Colors.black,
+                ),
                 todayTextStyle: regular2(context).copyWith(
                   color: getColorBasedOnActiveModuleid(),
                   fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
                 disabledDatesTextStyle: regular2(context).copyWith(
-                  color: notifires.getgreycolor.withOpacity(0.4),
+                  color: Colors.grey.withOpacity(0.4),
+                  fontSize: 16,
+                ),
+              ),
+              monthViewSettings: DateRangePickerMonthViewSettings(
+                viewHeaderHeight: 50,
+                viewHeaderStyle: DateRangePickerViewHeaderStyle(
+                  backgroundColor: Colors.white,
+                  textStyle: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               onSelectionChanged: (DateRangePickerSelectionChangedArgs args) {

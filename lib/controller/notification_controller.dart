@@ -41,8 +41,20 @@ class NotificationController extends GetxController implements GetxService {
     } else {
       vv = 0;
     }
-    var response = await httpPost(
-        Config.emailSmsNotification, {"type": "email", "value": vv.toString()});
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(
+    //     Config.emailSmsNotification, {"type": "email", "value": vv.toString()});
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static success response for notification settings
+    var response = {
+      "status": 200,
+      "message": "Notification settings updated successfully",
+      "error": ""
+    };
+    // ========== END MOCK DATA ==========
     closeLoading();
     if (response != null) {
       if (response['status'] == 200) {
@@ -71,8 +83,20 @@ class NotificationController extends GetxController implements GetxService {
     } else {
       vv = 0;
     }
-    var response = await httpPost(
-        Config.emailSmsNotification, {"type": "email", "value": vv.toString()});
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(
+    //     Config.emailSmsNotification, {"type": "email", "value": vv.toString()});
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static success response for notification settings
+    var response = {
+      "status": 200,
+      "message": "Notification settings updated successfully",
+      "error": ""
+    };
+    // ========== END MOCK DATA ==========
     closeLoading();
     if (response != null) {
       if (response['status'] == 200) {
@@ -101,8 +125,20 @@ class NotificationController extends GetxController implements GetxService {
     } else {
       vv = 0;
     }
-    var response = await httpPost(
-        Config.emailSmsNotification, {"type": "sms", "value": vv.toString()});
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(
+    //     Config.emailSmsNotification, {"type": "sms", "value": vv.toString()});
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static success response for notification settings
+    var response = {
+      "status": 200,
+      "message": "Notification settings updated successfully",
+      "error": ""
+    };
+    // ========== END MOCK DATA ==========
     closeLoading();
     if (response != null) {
       if (response['status'] == 200) {

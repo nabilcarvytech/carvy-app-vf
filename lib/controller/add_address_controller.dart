@@ -24,8 +24,7 @@ class AddAddressController extends GetxController implements GetxService {
   TextEditingController stateController = TextEditingController();
   TextEditingController countryController = TextEditingController();
   TextEditingController postalCodeController = TextEditingController();
-  RxString doorSteplatitude =
-      "34.020882".obs; 
+  RxString doorSteplatitude = "34.020882".obs;
   RxString doorSteplongitude = "-6.841650".obs;
   String? selectedLat, selectedLong;
   var markers = <Marker>{}.obs;
@@ -231,7 +230,19 @@ class AddAddressController extends GetxController implements GetxService {
 
     try {
       showLoading();
-      var response = await httpPost(Config.saveDoorStepAddress, map);
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.saveDoorStepAddress, map);
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static success response for saving doorstep address
+      var response = {
+        "status": 200,
+        "message": "Doorstep address saved successfully",
+        "error": ""
+      };
+      // ========== END MOCK DATA ==========
       closeLoading();
 
       if (response != null && response["status"] == 200) {
@@ -262,7 +273,33 @@ class AddAddressController extends GetxController implements GetxService {
         showLoading();
       }
       if (localData == null) {
-        var response = await httpPost(Config.getDoorStepAddress, {});
+        // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+        // var response = await httpPost(Config.getDoorStepAddress, {});
+
+        // MOCK: Simulate network delay
+        await Future.delayed(const Duration(seconds: 1));
+
+        // MOCK: Static doorstep address data
+        var response = {
+          "status": 200,
+          "message": "Doorstep address retrieved successfully",
+          "error": "",
+          "data": {
+            "door_step_address": {
+              "house_floor_number": "2",
+              "building_block_number": "A",
+              "landmark": "Near Central Park",
+              "full_address": "123 Main Street, Los Angeles, CA 90001",
+              "city": "Los Angeles",
+              "state": "California",
+              "country": "United States",
+              "postal_code": "90001",
+              "doorstep_latitude": "34.0522",
+              "doorstep_longitude": "-118.2437"
+            }
+          }
+        };
+        // ========== END MOCK DATA ==========
         if (sholoading == true) {
           closeLoading();
         }

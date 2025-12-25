@@ -67,7 +67,62 @@ class _HostEarningState extends State<HostEarning> {
     };
 
     try {
-      final response = await httpPost(Config.getVendorEarings, mapData);
+      // ========== MOCK DATA - getVendorEarings API ==========
+      // final response = await httpPost(Config.getVendorEarings, mapData);
+      
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // MOCK: Static vendor earnings data
+      Map<String, dynamic> mockResponse = {
+        "status": 200,
+        "message": "Vendor earnings retrieved successfully",
+        "error": "",
+        "data": {
+          "VendorBookings": [
+            {
+              "id": 101,
+              "check_in": DateTime.now().subtract(const Duration(days: 2)).toString().split(' ')[0],
+              "status": "Completed",
+              "vendor_commission": "250.00",
+              "admin_commission": "50.00",
+              "base_price": "300.00",
+              "doorstep_price": "0.00",
+              "coupon_discount": "0.00",
+              "total": "300.00"
+            },
+            {
+              "id": 102,
+              "check_in": DateTime.now().subtract(const Duration(days: 5)).toString().split(' ')[0],
+              "status": "Completed",
+              "vendor_commission": "300.00",
+              "admin_commission": "60.00",
+              "base_price": "360.00",
+              "doorstep_price": "0.00",
+              "coupon_discount": "0.00",
+              "total": "360.00"
+            },
+            {
+              "id": 103,
+              "check_in": DateTime.now().subtract(const Duration(days: 8)).toString().split(' ')[0],
+              "status": "Completed",
+              "vendor_commission": "500.00",
+              "admin_commission": "100.00",
+              "base_price": "600.00",
+              "doorstep_price": "0.00",
+              "coupon_discount": "0.00",
+              "total": "600.00"
+            }
+          ],
+          "offset": offset + 3,
+          "totalBookings": 12,
+          "totalEarnings": 6400.0
+        }
+      };
+      
+      final response = mockResponse;
+      // ========== END MOCK DATA ==========
+      
       if (response != null) {
         vendorEarningModel = VendorEarning.fromJson(response);
 

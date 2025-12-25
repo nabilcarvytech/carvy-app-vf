@@ -151,9 +151,7 @@ void _handleMessage(RemoteMessage message) {
       return;
     }
   }
-  if (messageKeyData is Map<String, dynamic>) {
-
-  }
+  if (messageKeyData is Map<String, dynamic>) {}
 }
 
 Future<void> setupOneSignal() async {
@@ -190,18 +188,28 @@ Future<void> getFCMToken() async {
     //
   }
 }
+
 Future<void> addTagWithKey(String token) async {
   await OneSignal.User.addTagWithKey("FCMToken", token);
 }
+
 Future<void> fetchPlayerId(fcmToken) async {
   try {
     oneSiginalplayerid = OneSignal.User.pushSubscription.id;
     GetStorage().write('oneSiginalplayerid', oneSiginalplayerid);
     if (oneSiginalplayerid != null) {
-      await httpGet(
-        Config.fcmUpdate,
-        {"fcm": fcmToken, "player_id": oneSiginalplayerid},
-      );
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // await httpGet(
+      //   Config.fcmUpdate,
+      //   {"fcm": fcmToken, "player_id": oneSiginalplayerid},
+      // );
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Static success response for FCM update (no response needed, just success)
+      // The function doesn't check the response, so we just simulate the delay
+      // ========== END MOCK DATA ==========
       print(oneSiginalplayerid);
       print("OmneSignialid");
     } else {}
@@ -228,7 +236,7 @@ Future<void> showNotification() async {
       }
       event.preventDefault();
     });
-    isOneSignalListenerAdded = true; 
+    isOneSignalListenerAdded = true;
   }
   OneSignal.Notifications.addClickListener((event) {
     if (markNotificationAsProcessed(event.notification.notificationId)) {
@@ -263,8 +271,7 @@ void handleNotificationClick(String? route, var data) {
         generalController.tabController.index = 2;
         bookingController.tabIndexOfMybooking = 1;
       }
-    }
-    else if (data!["vendorNotification"] == 1) {
+    } else if (data!["vendorNotification"] == 1) {
       if (route == "booking") {
         isHostMode.value = true;
         Get.to(const BottomHost(initialIndex: 2));
@@ -276,8 +283,7 @@ void handleNotificationClick(String? route, var data) {
             data!["status"] == "Confirmed")) {
           bookingController.tabIndexOfMybooking = 0;
         }
-      }
-      else if (route == "review") {
+      } else if (route == "review") {
         isHostMode.value = true;
         Get.to(const BottomHost(initialIndex: 2));
         generalController.currentIndexHost.value = 2;
@@ -318,5 +324,3 @@ Future<void> initializeNotifications() async {
     },
   );
 }
-
-

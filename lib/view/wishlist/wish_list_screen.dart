@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
-import 'package:carvy/model/items_model.dart';
-import '../../../api/config.dart';
 import '../../../controller/global_scope_controller.dart';
 import '../../../controller/wish_list_controller.dart';
 import '../../../customwidget/data_not_found.dart';
@@ -24,29 +22,11 @@ WishListController wishListController = Get.find();
 
 class _WishListScreenState extends State<WishListScreen> {
   GlobalScopeController globalScopeController = Get.find();
-  ItemModel? itemModel;
-  bool noData = false;
   @override
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      fetchData(); // Retrieve dark mode setting
-    });
-  }
-
-  fetchData() async {
-    if (token.isEmpty) {
-      return;
-    }
-    var response = await httpPost(Config.getWishlist, {});
-    if (response != null && response['status'] == 200) {
-      itemModel = ItemModel.fromJson(response);
-    } else {
-      noData = true;
-      showerrorWhenloginwithOtherDevice = "${response["error"]}";
-    }
-    setState(() {});
+    // Les données sont chargées automatiquement dans WishListController.onInit()
   }
 
   stateSetter(fn) => setState(() {});
@@ -81,40 +61,42 @@ class _WishListScreenState extends State<WishListScreen> {
                 ? Center(
                     child: notloginwidget(),
                   )
-                : itemModel == null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(15),
-                          child: verticleShimmerWidgetBookable(),
+                : GetBuilder<WishListController>(
+                    builder: (controller) {
+                      if (controller.isLoading.value) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(15),
+                            child: verticleShimmerWidgetBookable(),
+                          ),
+                        );
+                      }
+
+                      if (connectionLost == true) {
+                        return Center(
+                          child: connectionError(
+                              context, "Something went wrong".tr),
+                        );
+                      }
+
+                      if (controller.wishlistItems.isEmpty) {
+                        return Center(
+                          child: buildNoDataWidget(context, "No Favorites".tr),
+                        );
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.all(15),
+                        child: itemVerticalView(
+                          controller.wishlistItems,
+                          false,
+                          true,
+                          stateSetter,
+                          false,
                         ),
-                      )
-                    : noData == true
-                        ? Center(
-                            child: Text(
-                              "No Data Found".tr,
-                              style: normalAirBk.copyWith(
-                                  color: notifires.getwhiteblackcolor),
-                            ),
-                          )
-                        : connectionLost == true
-                            ? Center(
-                                child: connectionError(
-                                    context, "Something went wrong".tr),
-                              )
-                            : itemModel!.data!.items!.isEmpty
-                                ? Center(
-                                    child: buildNoDataWidget(
-                                        context, "Please add".tr),
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.all(15),
-                                    child: itemVerticalView(
-                                        itemModel!.data!.items,
-                                        false,
-                                        true,
-                                        stateSetter,
-                                        false),
-                                  ),
+                      );
+                    },
+                  ),
       ),
     );
   }

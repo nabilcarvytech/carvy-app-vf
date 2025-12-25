@@ -76,7 +76,7 @@ ChangePhoneModel copyWith({  num? status,
 
 class Data {
   Data({
-      num? id, 
+      String? id, 
       String? firstName, 
       dynamic middle, 
       String? lastName, 
@@ -127,7 +127,7 @@ class Data {
 }
 
   Data.fromJson(dynamic json) {
-    _id = json['id'];
+    _id = json['id']?.toString();
     _firstName = json['first_name'];
     _middle = json['middle'];
     _lastName = json['last_name'];
@@ -157,7 +157,7 @@ class Data {
       });
     }
   }
-  num? _id;
+  String? _id;
   String? _firstName;
   dynamic _middle;
   String? _lastName;
@@ -181,7 +181,7 @@ class Data {
   dynamic _deviceId;
   ProfileImage? _profileImage;
   List<Media>? _media;
-Data copyWith({  num? id,
+Data copyWith({  String? id,
   String? firstName,
   dynamic middle,
   String? lastName,
@@ -230,7 +230,7 @@ Data copyWith({  num? id,
   profileImage: profileImage ?? _profileImage,
   media: media ?? _media,
 );
-  num? get id => _id;
+  String? get id => _id;
   String? get firstName => _firstName;
   dynamic get middle => _middle;
   String? get lastName => _lastName;

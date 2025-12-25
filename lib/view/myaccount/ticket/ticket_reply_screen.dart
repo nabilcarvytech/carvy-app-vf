@@ -45,7 +45,53 @@ class _TicketReplyScreenState extends State<TicketReplyScreen> {
     Map<String, String> postData = {
       "thread_id": widget.thread.threadId.toString()
     };
-    var response = await httpGet(Config.getReplyThreads, postData);
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpGet(Config.getReplyThreads, postData);
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static reply threads data
+    var response = {
+      "status": 200,
+      "message": "Reply threads retrieved successfully",
+      "error": "",
+      "data": {
+        "replyThreads": [
+          {
+            "id": 1,
+            "thread_id": widget.thread.threadId.toString(),
+            "user_id": "1",
+            "is_admin_reply": "0",
+            "message": "Hello, I need help with my booking",
+            "created_at": DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
+            "updated_at": DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
+            "reply_status": "1"
+          },
+          {
+            "id": 2,
+            "thread_id": widget.thread.threadId.toString(),
+            "user_id": "0",
+            "is_admin_reply": "1",
+            "message": "Thank you for contacting us. How can we assist you?",
+            "created_at": DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
+            "updated_at": DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
+            "reply_status": "1"
+          },
+          {
+            "id": 3,
+            "thread_id": widget.thread.threadId.toString(),
+            "user_id": "1",
+            "is_admin_reply": "0",
+            "message": "I have a question about the cancellation policy",
+            "created_at": DateTime.now().subtract(const Duration(hours: 12)).toIso8601String(),
+            "updated_at": DateTime.now().subtract(const Duration(hours: 12)).toIso8601String(),
+            "reply_status": "1"
+          }
+        ]
+      }
+    };
+    // ========== END MOCK DATA ==========
     replyThreads = ReplyThreadsModel.fromJson(response);
     list = replyThreads!.data!.replyThreadsData!;
 
@@ -58,13 +104,40 @@ class _TicketReplyScreenState extends State<TicketReplyScreen> {
       "message": textEditingControllerreply.text
     };
     showLoading();
-    var response = await httpPost(Config.replyToSupportTicket, postData);
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(Config.replyToSupportTicket, postData);
+
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // MOCK: Static success response for reply
+    var response = {
+      "status": 200,
+      "message": "Reply sent successfully",
+      "error": "",
+      "data": {
+        "reply": {
+          "id": DateTime.now().millisecondsSinceEpoch,
+          "thread_id": widget.thread.threadId.toString(),
+          "user_id": "1",
+          "is_admin_reply": "0",
+          "message": textEditingControllerreply.text,
+          "created_at": DateTime.now().toIso8601String(),
+          "updated_at": DateTime.now().toIso8601String(),
+          "reply_status": "1"
+        }
+      }
+    };
+    // ========== END MOCK DATA ==========
     closeLoading();
 
-    ReplyThreadsData replyThreadsData =
-        ReplyThreadsData.fromJson(response['data']['reply']);
-    list.insert(0, replyThreadsData);
-    setState(() {});
+    if (response['data'] != null && 
+        (response['data'] as Map<String, dynamic>)['reply'] != null) {
+      ReplyThreadsData replyThreadsData =
+          ReplyThreadsData.fromJson((response['data'] as Map<String, dynamic>)['reply'] as Map<String, dynamic>);
+      list.insert(0, replyThreadsData);
+      setState(() {});
+    }
 
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _scrollController.animateTo(_scrollController.position.maxScrollExtent,
@@ -299,10 +372,25 @@ class _TicketReplyScreenState extends State<TicketReplyScreen> {
                                                 .toString(),
                                           };
                                           showLoading();
-                                          await httpPost(
-                                              Config.closeSupportTicket,
-                                              postData);
+                                          // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+                                          // await httpPost(
+                                          //     Config.closeSupportTicket,
+                                          //     postData);
 
+                                          // MOCK: Simulate network delay
+                                          await Future.delayed(const Duration(seconds: 1));
+
+                                          // MOCK: Static success response for closing ticket
+                                          var response = {
+                                            "status": 200,
+                                            "message": "Ticket closed successfully",
+                                            "error": "",
+                                            "data": {
+                                              "thread_id": widget.thread.threadId.toString(),
+                                              "status": "0"
+                                            }
+                                          };
+                                          // ========== END MOCK DATA ==========
                                           closeLoading();
                                           //
                                           // Get.back();

@@ -29,7 +29,7 @@ import '../work_space.dart';
 import 'package:uuid/uuid.dart';
 
 class SearchControllerHome extends GetxController implements GetxService {
-  var globalItemType = 0.obs;
+  RxString globalItemType = '0'.obs;
   RxString globalItemTypNamee = "".obs;
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   var isLoadingSpace = false.obs;
@@ -462,38 +462,32 @@ class SearchControllerHome extends GetxController implements GetxService {
     isLoadingVehicle.value = true;
     var vehicleAminities = GetStorage().read("vehicleAminities");
     if (vehicleAminities == null) {
-      httpGet(Config.amenities, {}).then((response) {
+      final response = await httpGet(Config.amenities, {});
+      if (response != null) {
         GetStorage().write("vehicleAminities", response);
-        if (response != null) {
-          amenitiesModelVehicle = AmenitiesModel.fromJson(response);
-          isLoadingVehicle.value = false;
-          update();
-        }
-      });
+        amenitiesModelVehicle = AmenitiesModel.fromJson(response);
+      }
     } else {
       amenitiesModelVehicle = AmenitiesModel.fromJson(vehicleAminities);
-      isLoadingVehicle.value = false;
-      update();
     }
+    isLoadingVehicle.value = false;
+    update();
   }
 
   Future getOdometersvehicle() async {
     isLoadingVehicle.value = true;
     var vehicleOdometer = GetStorage().read("vehicleOdometer");
     if (vehicleOdometer == null) {
-      httpGet(Config.vechileOdometer, {}).then((response) {
+      final response = await httpGet(Config.vechileOdometer, {});
+      if (response != null) {
         GetStorage().write("vehicleOdometer", response);
-        if (response != null) {
-          odometerModelVehicle = Odometer.fromJson(response);
-          isLoadingVehicle.value = false;
-          update();
-        }
-      });
+        odometerModelVehicle = Odometer.fromJson(response);
+      }
     } else {
       odometerModelVehicle = Odometer.fromJson(vehicleOdometer);
-      isLoadingVehicle.value = false;
-      update();
     }
+    isLoadingVehicle.value = false;
+    update();
   }
 
   // NOUVEAU: Récupérer les types de carburant pour le filtre
@@ -501,19 +495,16 @@ class SearchControllerHome extends GetxController implements GetxService {
     isLoadingVehicle.value = true;
     var fuelTypesCache = GetStorage().read("fuelTypesFilter");
     if (fuelTypesCache == null) {
-      httpGet(Config.fuelType, {}).then((response) {
+      final response = await httpGet(Config.fuelType, {});
+      if (response != null) {
         GetStorage().write("fuelTypesFilter", response);
-        if (response != null) {
-          fuelTypeModelFilter = FuelTypeModel.fromJson(response);
-          isLoadingVehicle.value = false;
-          update();
-        }
-      });
+        fuelTypeModelFilter = FuelTypeModel.fromJson(response);
+      }
     } else {
       fuelTypeModelFilter = FuelTypeModel.fromJson(fuelTypesCache);
-      isLoadingVehicle.value = false;
-      update();
     }
+    isLoadingVehicle.value = false;
+    update();
   }
 
   // NOUVEAU: Récupérer les transmissions pour le filtre
@@ -521,38 +512,36 @@ class SearchControllerHome extends GetxController implements GetxService {
     isLoadingVehicle.value = true;
     var transmissionCache = GetStorage().read("transmissionFilter");
     if (transmissionCache == null) {
-      httpGet(Config.odometermannual, {}).then((response) {
+      final response = await httpGet(Config.odometermannual, {});
+      if (response != null) {
         GetStorage().write("transmissionFilter", response);
-        if (response != null) {
-          transmissionModelFilter = Transmission.fromJson(response);
-          isLoadingVehicle.value = false;
-          update();
-        }
-      });
+        transmissionModelFilter = Transmission.fromJson(response);
+      }
     } else {
       transmissionModelFilter = Transmission.fromJson(transmissionCache);
-      isLoadingVehicle.value = false;
-      update();
     }
+    isLoadingVehicle.value = false;
+    update();
   }
 
   Future getMakeApi() async {
     showLoading();
     isLoadingVehiclemake.value = true;
     var vehiclemakedata = GetStorage().read("vehiclemake");
-    if (vehiclemakedata == null) {
-      httpGet(Config.makeType, {"type_id": "$globalItemType"}).then((response) {
-        GetStorage().write("vehiclemake", response);
+    try {
+      if (vehiclemakedata == null) {
+        final response =
+            await httpGet(Config.makeType, {"type_id": "$globalItemType"});
         if (response != null) {
-          closeLoading();
+          GetStorage().write("vehiclemake", response);
           makeTypeModel = CarMakes.fromJson(response);
-          isLoadingVehicle.value = false;
-          update();
         }
-      });
-    } else {
+      } else {
+        makeTypeModel = CarMakes.fromJson(vehiclemakedata);
+      }
+    } finally {
+      // Toujours fermer le loader même en cas d'erreur ou de première requête
       closeLoading();
-      makeTypeModel = CarMakes.fromJson(vehiclemakedata);
       isLoadingVehicle.value = false;
       update();
     }
@@ -817,18 +806,63 @@ class SearchControllerHome extends GetxController implements GetxService {
           : [],
     };
 
-    // DEBUG: Afficher les valeurs des filtres
+    // Préparer une URL GET lisible pour le backend (debug uniquement)
+    final String cityForUrl = setCity.isNotEmpty
+        ? setCity
+        : generalScopeController.homeSearchLocation.value;
+    final String categoryIdForUrl = globalItemType.value;
+
+    final Uri baseUri = Uri.parse(Config.baseurl);
+    final String basePath = baseUri.path.endsWith('/')
+        ? baseUri.path.substring(0, baseUri.path.length - 1)
+        : baseUri.path;
+    final Uri searchDebugUri = Uri(
+      scheme: baseUri.scheme,
+      host: baseUri.host,
+      port: baseUri.port,
+      path: '$basePath/vehicles/search',
+      queryParameters: {
+        'location': cityForUrl,
+        'startDate': checkIn,
+        'endDate': checkout,
+        'categoryId': categoryIdForUrl,
+        'lat': slatsearch,
+        'lng': sLongSearch,
+      },
+    );
+
+    // DEBUG: Afficher les valeurs des filtres et l'URL attendue par le backend
     print("🔍 DEBUG FILTRES:");
     print("   - slatsearch: '$slatsearch'");
     print("   - sLongSearch: '$sLongSearch'");
     print("   - setCity: '$setCity'");
+    print("   - cityForUrl (location): '$cityForUrl'");
+    print("   - categoryId (globalItemType): '$categoryIdForUrl'");
     print("   - fuel_type: ${selectedFuelTypes.toList()}");
     print("   - transmission (raw): ${selectedTransmissions.toList()}");
     print(
         "   - transmission (normalized): ${selectedTransmissions.isNotEmpty ? selectedTransmissions.map((t) => _normalizeTransmission(t.toString())).toList() : []}");
-    print("   - Map envoyée: $map");
+    print("   - Map envoyée (POST ${Config.itemSearch}): $map");
+    print("   🔵 [SEARCH_DEBUG_URL] $searchDebugUri");
 
-    return await httpPost(Config.itemSearch, map);
+    // Appel RÉEL à l'API de recherche (item-search)
+    final dynamic response = await httpPost(Config.itemSearch, map);
+
+    // DEBUG: afficher la réponse brute telle que retournée par l'API
+    print("🔍 RAW SEARCH RESPONSE: $response");
+
+    if (response is Map<String, dynamic>) {
+      return response;
+    } else {
+      print(
+          "❌ [SEARCH_API] Type de réponse inattendu: ${response.runtimeType}");
+      return {
+        "status": 500,
+        "message": "Invalid response from search API",
+        "error": "invalid_response",
+        "data": {}
+      };
+    }
   }
 
   String setpriceforrecentvalue = "";

@@ -44,8 +44,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     SchedulerBinding.instance.addPostFrameCallback((_) {
       generalController.myBookingTabIndex.value = 0;
       homeController.getDataItemType();
+      final storedType = GetStorage().read("selectedVehicleType");
       filterController.globalItemType.value =
-          GetStorage().read("selectedVehicleType") ?? 0;
+          storedType != null ? storedType.toString() : '0';
       filterController.globalItemTypNamee.value =
           GetStorage().read("selectedVehicleTypeName") ?? "";
       fetchData();
@@ -65,6 +66,99 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {});
     });
+  }
+
+  // Ouvre la bottom sheet de tri pour la Home
+  void _showSortBottomSheet(BuildContext context) {
+    final Color primary = getColorBasedOnActiveModuleid();
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final options = <String>[
+          "Cheapest Price",
+          "Nearest Location",
+          "Highest Ranked",
+        ];
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                "Sort By".tr,
+                style: heading3(context).copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...options.map((label) {
+                final bool isSelected =
+                    filterController.selectredeShortByvalue.value == label;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    label.tr,
+                    style: regular3(context).copyWith(
+                      fontSize: 15,
+                      color:
+                          isSelected ? primary : notifires.getGrey1Whitecolor,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? Icon(
+                          Icons.check,
+                          color: primary,
+                        )
+                      : null,
+                  onTap: () async {
+                    await _onSortOptionSelected(context, label);
+                  },
+                );
+              }).toList(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Gère la sélection d'une option de tri
+  Future<void> _onSortOptionSelected(BuildContext context, String label) async {
+    filterController.selectredeShortByvalue.value = label;
+
+    // Gestion spécifique pour "Nearest Location" : si pas de coordonnée, on récupère la localisation
+    if (label == "Nearest Location") {
+      final bool hasLat =
+          (slatsearch != null && slatsearch.toString().isNotEmpty);
+      final bool hasLng =
+          (sLongSearch != null && sLongSearch.toString().isNotEmpty);
+
+      if (!hasLat || !hasLng) {
+        await filterController.getUserLocationForBetterSearch(context);
+      }
+    }
+
+    Navigator.of(context).pop();
   }
 
   void fetchData() async {
@@ -304,6 +398,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                   ),
                 ),
                 const SizedBox(height: 10),
+                // Barre de filtres fixe (Map / Sort / Filter)
+                HomeFilterBar(),
+                const SizedBox(height: 10),
                 Expanded(
                   child: SmartRefresher(
                     controller: refreshController,
@@ -374,19 +471,19 @@ class _VehicleHomePageState extends State<VehicleHomePage>
         break;
       case 'PopularRegion':
         isActive = showHidePopularRegion != "Inactive" &&
-            filterController.globalItemType.value == 0;
+            filterController.globalItemType.value == '0';
         break;
       case 'VehiclesNearYou':
         isActive = showHideNrarYou != "Inactive" &&
-            filterController.globalItemType.value == 0;
+            filterController.globalItemType.value == '0';
         break;
       case 'Make':
         isActive = showHideMake != "Inactive" &&
-            filterController.globalItemType.value == 0;
+            filterController.globalItemType.value == '0';
         break;
       case 'BecomeHost':
         isActive = showHideBecomeHost != "Inactive" &&
-            filterController.globalItemType.value == 0;
+            filterController.globalItemType.value == '0';
         break;
       case 'MostViewed':
         isActive = showHideMustView != "Inactive";
@@ -504,8 +601,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
           if (homeController.isloadingType.value == true) {
             return boxLocation();
           } else {
-            final vehicleType =
-                homeController.itemTypeModel?.data?.itemTypes ?? [];
+            final vehicleType = homeController.vehicleListItemType;
 
             if (vehicleType.isNotEmpty) {
               return vehicleTypeWidget(vehicleType, notifires, stateSetter);
@@ -515,6 +611,97 @@ class _VehicleHomePageState extends State<VehicleHomePage>
           }
         }),
       ],
+    );
+  }
+
+  /// Barre d'actions rapide (Map, Sort, Filter) pour la Home
+  /// Style adapté au thème de la page d'accueil (fond blanc, coins arrondis, ombre légère).
+  Widget HomeFilterBar() {
+    final Color primary = getColorBasedOnActiveModuleid();
+
+    Widget buildAction({
+      required IconData icon,
+      required String label,
+      required VoidCallback onTap,
+    }) {
+      return Expanded(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 20, color: primary),
+                const SizedBox(width: 6),
+                Text(
+                  label.tr,
+                  style: regular3(context).copyWith(
+                    color: primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            buildAction(
+              icon: Icons.map_outlined,
+              label: "Map",
+              onTap: () {
+                print("Open Map");
+              },
+            ),
+            const SizedBox(
+              height: 32,
+              child: VerticalDivider(
+                thickness: 0.8,
+              ),
+            ),
+            buildAction(
+              icon: Icons.swap_vert,
+              label: "Sort",
+              onTap: () {
+                _showSortBottomSheet(context);
+              },
+            ),
+            const SizedBox(
+              height: 32,
+              child: VerticalDivider(
+                thickness: 0.8,
+              ),
+            ),
+            buildAction(
+              icon: Icons.filter_list,
+              label: "Filter",
+              onTap: () {
+                print("Open Filter");
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -625,7 +812,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
           if (homeController.homeDataLoading.value == true) {
             return sliderShimmer();
           } else {
-            final items = homeController.homeDataModel?.data!.nearbyItems ?? [];
+            final items = homeController.homeDataModel?.data?.nearbyItems ?? [];
 
             if (items.isNotEmpty) {
               return Padding(

@@ -67,8 +67,69 @@ class _PayoutScreenState extends State<PayoutScreen> {
   }
 
   getData() async {
-    var ress =
-        await httpPost(Config.getPayoutTransactions, {"offset": "$offset"});
+    // ========== MOCK DATA - getPayoutTransactions API ==========
+    // var ress = await httpPost(Config.getPayoutTransactions, {"offset": "$offset"});
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // MOCK: Static payout transactions data
+    Map<String, dynamic> mockRess = {
+      "status": 200,
+      "message": "Payout transactions retrieved successfully",
+      "error": "",
+      "data": {
+        "payout_transactions": [
+          {
+            "id": 1,
+            "vendorid": "1001",
+            "amount": "200.00",
+            "currency": "MAD",
+            "vendor_name": "John Doe",
+            "payment_method": "Bank Account",
+            "account_number": "1234567890",
+            "payout_status": "Success",
+            "booking_Ids": "101,102",
+            "created_at": DateTime.now().subtract(const Duration(days: 5)).toString().split('.')[0],
+            "updated_at": DateTime.now().subtract(const Duration(days: 5)).toString().split('.')[0],
+            "payout_proof_url": "https://example.com/payout-proof-1.jpg"
+          },
+          {
+            "id": 2,
+            "vendorid": "1001",
+            "amount": "300.00",
+            "currency": "MAD",
+            "vendor_name": "John Doe",
+            "payment_method": "Stripe",
+            "account_number": "acct_123456",
+            "payout_status": "Pending",
+            "booking_Ids": "103",
+            "created_at": DateTime.now().subtract(const Duration(days: 2)).toString().split('.')[0],
+            "updated_at": DateTime.now().subtract(const Duration(days: 2)).toString().split('.')[0],
+            "payout_proof_url": null
+          },
+          {
+            "id": 3,
+            "vendorid": "1001",
+            "amount": "150.00",
+            "currency": "MAD",
+            "vendor_name": "John Doe",
+            "payment_method": "Bank Account",
+            "account_number": "9876543210",
+            "payout_status": "Success",
+            "booking_Ids": "104",
+            "created_at": DateTime.now().subtract(const Duration(days: 10)).toString().split('.')[0],
+            "updated_at": DateTime.now().subtract(const Duration(days: 10)).toString().split('.')[0],
+            "payout_proof_url": "https://example.com/payout-proof-3.jpg"
+          }
+        ],
+        "offset": offset + 3
+      }
+    };
+    
+    var ress = mockRess;
+    // ========== END MOCK DATA ==========
+    
     if (ress != null) {
       payoutTransaction = PayoutTransaction.fromJson(ress);
       list.addAll(payoutTransaction!.data!.payoutTransactions!);
@@ -603,15 +664,44 @@ class _PayoutScreenState extends State<PayoutScreen> {
                                   }
 
                                   showLoading();
-                                  var response = await httpPost(
-                                    Config.insertPayout,
-                                    {
-                                      "amount": textEditingController.text,
-                                      "currency": currency,
-                                      "active_payout_method_id":
-                                          selectedMethodId,
-                                    },
-                                  );
+                                  
+                                  // ========== MOCK DATA - insertPayout API ==========
+                                  // var response = await httpPost(
+                                  //   Config.insertPayout,
+                                  //   {
+                                  //     "amount": textEditingController.text,
+                                  //     "currency": currency,
+                                  //     "active_payout_method_id": selectedMethodId,
+                                  //   },
+                                  // );
+                                  
+                                  // MOCK: Simulate network delay
+                                  await Future.delayed(const Duration(seconds: 1));
+                                  
+                                  // MOCK: Static payout request response
+                                  Map<String, dynamic> mockResponse = {
+                                    "status": 200,
+                                    "message": "Payout request submitted successfully",
+                                    "error": "",
+                                    "data": {
+                                      "payout": {
+                                        "vendorid": "1001",
+                                        "amount": textEditingController.text,
+                                        "currency": currency,
+                                        "payment_method": "Bank Account",
+                                        "account_number": "1234567890",
+                                        "booking_Ids": "0",
+                                        "payout_status": "Pending",
+                                        "created_at": DateTime.now().toString().split('.')[0],
+                                        "updated_at": DateTime.now().toString().split('.')[0],
+                                        "id": DateTime.now().millisecondsSinceEpoch
+                                      }
+                                    }
+                                  };
+                                  
+                                  var response = mockResponse;
+                                  // ========== END MOCK DATA ==========
+                                  
                                   textEditingController.clear();
                                   closeLoading();
 
