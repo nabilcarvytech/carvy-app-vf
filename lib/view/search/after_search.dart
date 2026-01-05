@@ -557,6 +557,7 @@ class _AfterSearchState extends State<AfterSearch> {
                                 "Cheapest Price",
                                 "Nearest Location",
                                 "Highest Ranked",
+                                "Newest",
                               ],
                               selectedOption:
                                   filterController.selectredeShortByvalue.value,

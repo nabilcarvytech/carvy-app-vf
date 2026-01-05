@@ -23,9 +23,11 @@ class _CustomBottomSheetState extends State<CustomBottomSheet> {
         backgroundColor: notifires.getbgcolor,
         bottomNavigationBar: Container(
           alignment: Alignment.center,
-          height: 60,
+          height: 60 + MediaQuery.of(context).padding.bottom,
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom + 8,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [

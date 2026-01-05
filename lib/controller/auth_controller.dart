@@ -13,6 +13,7 @@ import 'package:carvy/api/data_store.dart';
 import 'package:carvy/controller/global_scope_controller.dart';
 import 'package:carvy/controller/push_notifications.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/change_phone_model.dart';
 import 'package:carvy/model/check_mobile_model.dart';
@@ -146,6 +147,16 @@ class AuthController extends GetxController implements GetxService {
           update();
           shouldLogout = false;
           getFCMToken();
+          // Lier l'utilisateur à OneSignal avec External User ID
+          try {
+            print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
+            await OneSignal.login(userId.toString());
+            String? pushToken = OneSignal.User.pushSubscription.id;
+            print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
+            print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
+          } catch (e) {
+            print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
+          }
           database.child(userId.toString()).set({
             "userId": userId.toString(),
             "playerId": oneSiginalplayerid ?? "null",
@@ -260,6 +271,16 @@ class AuthController extends GetxController implements GetxService {
                 "🧹 [Auth] Old Bearer Token flushed. Ready for User Token generation.");
             // ------------------------------
             userId = loginModel.data!.id!;
+          // Lier l'utilisateur à OneSignal avec External User ID
+          try {
+            print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
+            await OneSignal.login(userId.toString());
+            String? pushToken = OneSignal.User.pushSubscription.id;
+            print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
+            print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
+          } catch (e) {
+            print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
+          }
             database.child(userId.toString()).set({
               "userId": userId.toString(),
               "playerId": oneSiginalplayerid ?? "null",
@@ -453,6 +474,18 @@ class AuthController extends GetxController implements GetxService {
             showToastMessage(loginModel.message);
             UserData userObj = UserData();
             userObj.saveLoginData("UserData", jsonEncode(result));
+            token = loginModel.data!.token!;
+            userId = loginModel.data!.id!;
+          // Lier l'utilisateur à OneSignal avec External User ID
+          try {
+            print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
+            await OneSignal.login(userId.toString());
+            String? pushToken = OneSignal.User.pushSubscription.id;
+            print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
+            print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
+          } catch (e) {
+            print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
+          }
             generalController.currentIndex.value = 0;
             shouldLogout = false;
             if (webPlateForm) {
@@ -729,6 +762,16 @@ class AuthController extends GetxController implements GetxService {
           "🧹 [Auth] Old Bearer Token flushed. Ready for User Token generation.");
       // ------------------------------
       userId = socialLoginModel.data!.id!;
+          // Lier l'utilisateur à OneSignal avec External User ID
+          try {
+            print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
+            await OneSignal.login(userId.toString());
+            String? pushToken = OneSignal.User.pushSubscription.id;
+            print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
+            print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
+          } catch (e) {
+            print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
+          }
       database.child(userId.toString()).set({
         "userId": userId.toString(),
         "playerId": oneSiginalplayerid ?? "null",

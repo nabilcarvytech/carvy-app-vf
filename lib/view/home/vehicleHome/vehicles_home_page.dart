@@ -74,6 +74,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
 
     showModalBottomSheet(
       context: context,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -82,60 +83,76 @@ class _VehicleHomePageState extends State<VehicleHomePage>
           "Cheapest Price",
           "Nearest Location",
           "Highest Ranked",
+          "Newest",
         ];
 
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                "Sort By".tr,
-                style: heading3(context).copyWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ...options.map((label) {
-                final bool isSelected =
-                    filterController.selectredeShortByvalue.value == label;
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    label.tr,
-                    style: regular3(context).copyWith(
-                      fontSize: 15,
-                      color:
-                          isSelected ? primary : notifires.getGrey1Whitecolor,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w400,
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.only(
+              left: 16,
+              top: 16,
+              right: 16,
+              bottom: 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  trailing: isSelected
-                      ? Icon(
-                          Icons.check,
-                          color: primary,
-                        )
-                      : null,
-                  onTap: () async {
-                    await _onSortOptionSelected(context, label);
-                  },
-                );
-              }).toList(),
-            ],
+                ),
+                Text(
+                  "Sort By".tr,
+                  style: heading3(context).copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    children: options.map((label) {
+                      final bool isSelected =
+                          filterController.selectredeShortByvalue.value ==
+                              label;
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          label.tr,
+                          style: regular3(context).copyWith(
+                            fontSize: 15,
+                            color: isSelected
+                                ? primary
+                                : notifires.getGrey1Whitecolor,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? Icon(
+                                Icons.check,
+                                color: primary,
+                              )
+                            : null,
+                        onTap: () async {
+                          await _onSortOptionSelected(context, label);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -144,6 +161,8 @@ class _VehicleHomePageState extends State<VehicleHomePage>
 
   // Gère la sélection d'une option de tri
   Future<void> _onSortOptionSelected(BuildContext context, String label) async {
+    print('🚩 [BOUTON_TRI] Clic détecté sur : $label');
+
     filterController.selectredeShortByvalue.value = label;
 
     // Gestion spécifique pour "Nearest Location" : si pas de coordonnée, on récupère la localisation
@@ -159,6 +178,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     }
 
     Navigator.of(context).pop();
+
+    print('🚩 [BOUTON_TRI] Appel de fetchData()...');
+    fetchData();
   }
 
   void fetchData() async {

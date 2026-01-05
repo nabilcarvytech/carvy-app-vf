@@ -9,6 +9,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/controller/booking_controller.dart';
+import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/firebase_options.dart';
@@ -155,8 +156,9 @@ void _handleMessage(RemoteMessage message) {
 }
 
 Future<void> setupOneSignal() async {
+  print('🔔 [ONESIGNAL_DEBUG] App ID utilisé : ${Config.oneSiginalAppid}');
   OneSignal.initialize(Config.oneSiginalAppid);
-  OneSignal.Notifications.requestPermission(true);
+  OneSignal.Notifications.requestPermission(true).then((value) => print('🔔 [ONESIGNAL_DEBUG] Permission acceptée : $value'));
   await getFCMTokenInitialToSetThedata();
 }
 
@@ -198,23 +200,29 @@ Future<void> fetchPlayerId(fcmToken) async {
     oneSiginalplayerid = OneSignal.User.pushSubscription.id;
     GetStorage().write('oneSiginalplayerid', oneSiginalplayerid);
     if (oneSiginalplayerid != null) {
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // await httpGet(
-      //   Config.fcmUpdate,
-      //   {"fcm": fcmToken, "player_id": oneSiginalplayerid},
-      // );
-
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // MOCK: Static success response for FCM update (no response needed, just success)
-      // The function doesn't check the response, so we just simulate the delay
-      // ========== END MOCK DATA ==========
-      print(oneSiginalplayerid);
-      print("OmneSignialid");
-    } else {}
+      // Envoi du Player ID vers le backend Node.js
+      print('📤 [OneSignal] Envoi du Player ID au backend...');
+      print('📤 [OneSignal] FCM Token: ${fcmToken.substring(0, 20)}...');
+      print('📤 [OneSignal] Player ID: $oneSiginalplayerid');
+      
+      try {
+        // Utilisation de httpPost pour mettre à jour le token FCM et le Player ID
+        await httpPost(
+          Config.fcmUpdate,
+          {"fcm": fcmToken, "player_id": oneSiginalplayerid},
+        );
+        print('✅ [OneSignal] Player ID envoyé avec succès au backend');
+      } catch (apiError) {
+        print('❌ [OneSignal] Erreur lors de l\'envoi du Player ID: $apiError');
+        // On continue même en cas d'erreur pour ne pas bloquer l'application
+      }
+      
+      print('📱 [OneSignal] Player ID récupéré: $oneSiginalplayerid');
+    } else {
+      print('⚠️ [OneSignal] Player ID est null, impossible d\'envoyer au backend');
+    }
   } catch (error) {
-    //
+    print('❌ [OneSignal] Erreur lors de la récupération du Player ID: $error');
   }
 }
 
@@ -229,7 +237,59 @@ Future<void> showNotification() async {
   await setupFlutterNotifications();
   if (!isOneSignalListenerAdded) {
     OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+      print('📩 [ONESIGNAL_DEBUG] Notification reçue en premier plan : ${event.notification.body}');
+      print('📩 [ONESIGNAL_DEBUG] Titre : ${event.notification.title}');
+      print('📩 [ONESIGNAL_DEBUG] Données additionnelles : ${event.notification.additionalData}');
       if (markNotificationAsProcessed(event.notification.notificationId)) {
+        // Intercepter le signal : Vérifier si la notification est liée au KYC
+        final notification = event.notification;
+        final title = notification.title?.toLowerCase() ?? '';
+        final additionalData = notification.additionalData;
+        
+        // Détecter une notification KYC : vérifier le titre ou les données additionnelles
+        bool isKycNotification = false;
+        
+        // Vérification 1 : Titre contient des mots-clés liés au KYC
+        if (title.contains('validé') || 
+            title.contains('verifié') || 
+            title.contains('verification') ||
+            title.contains('kyc') ||
+            title.contains('permis') ||
+            title.contains('approuvé') ||
+            title.contains('rejeté') ||
+            title.contains('approved') ||
+            title.contains('rejected') ||
+            title.contains('pending')) {
+          isKycNotification = true;
+          print('🔔 [KYC] Notification KYC détectée via le titre: $title');
+        }
+        
+        // Vérification 2 : Tag type: 'kyc_update' dans les données additionnelles
+        if (additionalData != null && additionalData['type'] == 'kyc_update') {
+          isKycNotification = true;
+          print('🔔 [KYC] Notification KYC détectée via additionalData.type: kyc_update');
+        }
+        
+        // Vérification 3 : Route ou action liée au KYC
+        if (additionalData != null && 
+            (additionalData['route'] == 'kyc' || 
+             additionalData['action'] == 'kyc_update')) {
+          isKycNotification = true;
+          print('🔔 [KYC] Notification KYC détectée via route/action: ${additionalData['route'] ?? additionalData['action']}');
+        }
+        
+        // Rafraîchir le Controller : Si c'est une notification KYC, mettre à jour le statut
+        if (isKycNotification) {
+          try {
+            print('🔄 [KYC] Rafraîchissement du statut KYC en cours...');
+            Get.find<KycController>().getUserKycData();
+            print('✅ [KYC] Statut KYC rafraîchi avec succès');
+          } catch (e) {
+            print('❌ [KYC] Erreur lors du rafraîchissement du statut KYC: $e');
+            // On continue même en cas d'erreur pour afficher la notification
+          }
+        }
+        
         if (!isChatOpen) {
           showOneSignalNotification(event.notification);
         }
@@ -240,6 +300,32 @@ Future<void> showNotification() async {
   }
   OneSignal.Notifications.addClickListener((event) {
     if (markNotificationAsProcessed(event.notification.notificationId)) {
+      // Vérifier si c'est une notification KYC et rafraîchir le statut
+      final notification = event.notification;
+      final additionalData = notification.additionalData;
+      
+      bool isKycNotification = false;
+      
+      // Vérifier les données additionnelles pour détecter une notification KYC
+      if (additionalData != null) {
+        if (additionalData['type'] == 'kyc_update' ||
+            additionalData['route'] == 'kyc' ||
+            additionalData['action'] == 'kyc_update') {
+          isKycNotification = true;
+        }
+      }
+      
+      // Rafraîchir le statut KYC si nécessaire
+      if (isKycNotification) {
+        try {
+          print('🔄 [KYC] Rafraîchissement du statut KYC après clic sur notification...');
+          Get.find<KycController>().getUserKycData();
+          print('✅ [KYC] Statut KYC rafraîchi avec succès');
+        } catch (e) {
+          print('❌ [KYC] Erreur lors du rafraîchissement du statut KYC: $e');
+        }
+      }
+      
       handleNotificationClick(event.notification.additionalData!['route'],
           event.notification.additionalData);
     }
@@ -252,6 +338,24 @@ void handleNotificationClick(String? route, var data) {
     showErrorToastMessage("Please Login first");
     return;
   }
+  
+  // Gestion spécifique pour BOOKING_CONFIRMED
+  if (data != null && data is Map) {
+    String? notificationType = data['type']?.toString();
+    if (notificationType == 'BOOKING_CONFIRMED') {
+      String? bookingId = data['bookingId']?.toString();
+      if (bookingId != null && bookingId.isNotEmpty) {
+        print('🔔 [OneSignal] Notification BOOKING_CONFIRMED reçue pour bookingId: $bookingId');
+        // Naviguer vers l'écran de réservations (l'utilisateur pourra ensuite cliquer sur la réservation)
+        Get.to(const HomeMain(initialIndex: 2));
+        generalController.currentIndex.value = 2;
+        generalController.tabController.index = 2;
+        bookingController.tabIndexOfMybooking = 0; // Onglet "Upcoming" pour les réservations confirmées
+        return;
+      }
+    }
+  }
+  
   if (route != null) {
     if (route == "inbox") {}
     if (data!["vendorNotification"] == 0) {

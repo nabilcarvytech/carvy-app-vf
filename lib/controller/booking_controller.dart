@@ -6,10 +6,13 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:carvy/controller/add_address_controller.dart';
 import 'package:carvy/controller/items_detail_controller.dart';
+import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/digital_singnature_model.dart';
@@ -21,11 +24,13 @@ import '../customwidget/project_color.dart';
 import '../helper/http_service.dart';
 import '../model/book_date_real_estate.dart';
 import '../model/booking_model.dart';
+import '../model/booking_payment_method_model.dart';
 import '../model/calendar_model.dart';
 import '../model/get_item_prices.dart';
 import '../model/wallet_model.dart';
 import '../view/booking/payment_screen.dart';
 import '../view/booking/vehicle/vehicle_booking_summary_screen.dart';
+import '../view/bottombar/home_main.dart';
 import '../work_space.dart';
 
 ItemDetailsController spaceDetailController = Get.find();
@@ -38,6 +43,19 @@ class BookingController extends GetxController implements GetxService {
     currenttimeSlots = <String>[].obs;
     filteredTimeSlotsEndTime = <String>[].obs;
     avalibleSlots = <String>[];
+  }
+
+  @override
+  void onClose() {
+    super.onClose();
+    // Réinitialiser hasSkippedInSession pour que le rappel s'affiche à nouveau pour la prochaine réservation
+    try {
+      final kycController = Get.find<KycController>();
+      kycController.hasSkippedInSession.value = false;
+      kycController.setSkipKyc(false);
+    } catch (e) {
+      // Si le controller n'est pas disponible, ignorer l'erreur
+    }
   }
 
   int numberofguest = 1;
@@ -243,6 +261,7 @@ class BookingController extends GetxController implements GetxService {
   final ValueNotifier<int> currentPageSliderNotifier = ValueNotifier<int>(0);
   RxBool showAddCouponBtn = false.obs;
   var isPaymentSuccess = false.obs;
+  var isProcessingBooking = false.obs;
   String currency = "";
   double discount = 0;
   double basePrice = 0;
@@ -250,6 +269,10 @@ class BookingController extends GetxController implements GetxService {
   double tax = 0;
   GetItemPrices? getItemPrices;
   WalletModel? walletModel;
+  BookingPaymentMethodModel? paymentMethodModel;
+  RxBool isLoadingPaymentMethods = false.obs;
+  PaymentMethod? selectedPaymentMethod;
+  List<PaymentMethod> paymentMethodsList = []; // Liste synchronisée pour l'UI
   TextEditingController textEditingController = TextEditingController();
   listner() {
     if (textEditingController.text.isNotEmpty) {
@@ -330,96 +353,385 @@ class BookingController extends GetxController implements GetxService {
   }
 
   var error = false.obs;
-  getDataBookingSummery(
-      dynamic idFeatured, coupon, wallet, isAddDoorStepPrice) async {
+  getDataBookingSummery(dynamic idFeatured, coupon, wallet, isAddDoorStepPrice,
+      {String? dailyPrice}) async {
+    // ========== LOGS DE DÉBUT ==========
+    print(
+        '🚀 [getDataBookingSummery] ========================================');
+    print('🚀 [getDataBookingSummery] Début de la méthode');
+    debugPrint('🚀 [getDataBookingSummery] Début de la méthode');
+
+    // ========== LOGS DES ARGUMENTS REÇUS ==========
+    print('📥 [getDataBookingSummery] Arguments reçus:');
+    print('   - idFeatured: $idFeatured');
+    print('   - coupon: $coupon');
+    print('   - wallet: $wallet');
+    print('   - isAddDoorStepPrice: $isAddDoorStepPrice');
+    debugPrint(
+        '📥 [getDataBookingSummery] idFeatured: $idFeatured, coupon: $coupon, wallet: $wallet, isAddDoorStepPrice: $isAddDoorStepPrice');
+
+    // ========== INITIALISATION ==========
     error.value = false;
+    isLoading.value = true;
+    print('🔄 [getDataBookingSummery] isLoading mis à true');
+    debugPrint('🔄 [getDataBookingSummery] isLoading mis à true');
     update();
+    print('🔄 [getDataBookingSummery] Premier appel update() effectué');
+    debugPrint('🔄 [getDataBookingSummery] Premier appel update() effectué');
 
-    String startTimeForBackend = selectedStartTime.value;
-    String endTimeForBackend = selectedEndTime.value;
+    try {
+      String startTimeForBackend = selectedStartTime.value;
+      String endTimeForBackend = selectedEndTime.value;
 
-    if (selectedStartTime.value.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'))) {
-      startTimeForBackend = convert24To12(selectedStartTime.value);
-      endTimeForBackend = convert24To12(selectedEndTime.value);
-    }
-
-    Map map = {
-      "item_id": "$idFeatured",
-      "check_in": "$startDate",
-      "check_out": "$endDate",
-      "coupon_code": coupon,
-      "wallet_amount": "$wallet",
-      "start_time": startTimeForBackend,
-      "end_time": endTimeForBackend,
-      "doorStep_price": "$isAddDoorStepPrice",
-    };
-
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpPost(Config.getItemPrices, map);
-
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // MOCK: Calculate total nights from dates
-    int totalNights = 1;
-    if (startDate.value.isNotEmpty && endDate.value.isNotEmpty) {
-      try {
-        DateTime checkIn = DateTime.tryParse(startDate.value) ?? DateTime.now();
-        DateTime checkOut = DateTime.tryParse(endDate.value) ?? DateTime.now();
-        totalNights = checkOut.difference(checkIn).inDays;
-        if (totalNights < 1) totalNights = 1;
-      } catch (e) {
-        totalNights = 1;
+      if (selectedStartTime.value.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'))) {
+        startTimeForBackend = convert24To12(selectedStartTime.value);
+        endTimeForBackend = convert24To12(selectedEndTime.value);
       }
-    }
 
-    // MOCK: Return static response data
-    Map<String, dynamic> response = {
-      "status": 200,
-      "message": "Item prices retrieved successfully",
-      "error": "",
-      "data": {
-        "discount_type": "",
-        "prices": [
-          {
-            "date": startDate.value.isNotEmpty ? startDate.value : "2024-12-16",
-            "price": "50.00",
-            "status": "Available"
-          },
-          {
-            "date": endDate.value.isNotEmpty ? endDate.value : "2024-12-17",
-            "price": "50.00",
-            "status": "Available"
+      Map map = {
+        "item_id": "$idFeatured",
+        "check_in": "$startDate",
+        "check_out": "$endDate",
+        "coupon_code": coupon,
+        "wallet_amount": "$wallet",
+        "start_time": startTimeForBackend,
+        "end_time": endTimeForBackend,
+        "doorStep_price": "$isAddDoorStepPrice",
+      };
+
+      print('📤 [getDataBookingSummery] Données de la requête préparées:');
+      print('   - item_id: ${map["item_id"]}');
+      print('   - check_in: ${map["check_in"]}');
+      print('   - check_out: ${map["check_out"]}');
+      print('   - coupon_code: ${map["coupon_code"]}');
+      print('   - wallet_amount: ${map["wallet_amount"]}');
+      debugPrint('📤 [getDataBookingSummery] Map de requête: $map');
+
+      // ========== LOG AVANT APPEL API ==========
+      print(
+          '🌐 [getDataBookingSummery] Début de l\'appel API vers: ${Config.getItemPrices}');
+      debugPrint(
+          '🌐 [getDataBookingSummery] Début de l\'appel API vers: ${Config.getItemPrices}');
+      print(
+          '🌐 [getDataBookingSummery] URL complète: ${Config.baseurl}${Config.getItemPrices}');
+      debugPrint(
+          '🌐 [getDataBookingSummery] URL complète: ${Config.baseurl}${Config.getItemPrices}');
+
+      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+      // var response = await httpPost(Config.getItemPrices, map);
+
+      // MOCK: Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // MOCK: Calculate total nights from dates
+      int totalNights = 1;
+      if (startDate.value.isNotEmpty && endDate.value.isNotEmpty) {
+        try {
+          DateTime checkIn =
+              DateTime.tryParse(startDate.value) ?? DateTime.now();
+          DateTime checkOut =
+              DateTime.tryParse(endDate.value) ?? DateTime.now();
+          totalNights = checkOut.difference(checkIn).inDays;
+          if (totalNights < 1) totalNights = 1;
+        } catch (e) {
+          totalNights = 1;
+        }
+      }
+
+      // MOCK: Get daily price from parameter or use default
+      double dailyPriceValue = 50.00;
+      if (dailyPrice != null && dailyPrice.isNotEmpty) {
+        try {
+          dailyPriceValue = double.parse(dailyPrice);
+          if (dailyPriceValue <= 0) dailyPriceValue = 50.00;
+        } catch (e) {
+          dailyPriceValue = 50.00;
+        }
+      }
+
+      // Calculate prices using real daily price and real number of days
+      double basePrice = dailyPriceValue * totalNights;
+      double serviceCharge = 10.00;
+      double cleaningCharge = 5.00;
+      double tax = 12.50;
+      double grossPrice = basePrice + serviceCharge + cleaningCharge + tax;
+
+      // MOCK: Return dynamic response data
+      Map<String, dynamic> response = {
+        "status": 200,
+        "message": "Item prices retrieved successfully",
+        "error": "",
+        "data": {
+          "discount_type": "",
+          "prices": [
+            {
+              "date":
+                  startDate.value.isNotEmpty ? startDate.value : "2024-12-16",
+              "price": dailyPriceValue.toStringAsFixed(2),
+              "status": "Available"
+            },
+            {
+              "date": endDate.value.isNotEmpty ? endDate.value : "2024-12-17",
+              "price": dailyPriceValue.toStringAsFixed(2),
+              "status": "Available"
+            }
+          ],
+          "price_before_discount": basePrice.toStringAsFixed(2),
+          "price_per_day": dailyPriceValue.toStringAsFixed(2),
+          "total_days": "$totalNights",
+          "discount_price": "0.00",
+          "coupon_discount": "0.00",
+          "price_after_discount": basePrice.toStringAsFixed(2),
+          "service_charge": serviceCharge.toStringAsFixed(2),
+          "cleaning_charge": cleaningCharge.toStringAsFixed(2),
+          "coupon_code": coupon ?? "",
+          "tax": tax.toStringAsFixed(2),
+          "wallet_amount": wallet ?? "0.00",
+          "remaining_wallet_balance": "0.00",
+          "gross_price": grossPrice.toStringAsFixed(2),
+          "duration": totalNights,
+          "security_deposit": "100.00",
+          "distance": "0",
+          "label": ""
+        }
+      };
+
+      // ========== LOGS DE LA RÉPONSE API ==========
+      print('📥 [getDataBookingSummery] Réponse API reçue');
+      debugPrint('📥 [getDataBookingSummery] Réponse API reçue');
+
+      // ========== LOG DE LA RÉPONSE BRUTE JSON ==========
+      print(
+          '📋 [getDataBookingSummery] ========== RÉPONSE BRUTE JSON ==========');
+      debugPrint(
+          '📋 [getDataBookingSummery] ========== RÉPONSE BRUTE JSON ==========');
+      print(
+          '📋 [getDataBookingSummery] Réponse complète: ${jsonEncode(response)}');
+      debugPrint(
+          '📋 [getDataBookingSummery] Réponse complète: ${jsonEncode(response)}');
+
+      // Log spécifique de la structure data.prices
+      if (response['data'] != null && response['data']['prices'] != null) {
+        print('📋 [getDataBookingSummery] Structure data.prices trouvée');
+        debugPrint('📋 [getDataBookingSummery] Structure data.prices trouvée');
+        print(
+            '📋 [getDataBookingSummery] Type de prices: ${response['data']['prices'].runtimeType}');
+        debugPrint(
+            '📋 [getDataBookingSummery] Type de prices: ${response['data']['prices'].runtimeType}');
+        print(
+            '📋 [getDataBookingSummery] Nombre d\'éléments dans prices: ${(response['data']['prices'] as List).length}');
+        debugPrint(
+            '📋 [getDataBookingSummery] Nombre d\'éléments dans prices: ${(response['data']['prices'] as List).length}');
+
+        // Log de chaque élément dans prices AVANT parsing
+        for (var i = 0; i < (response['data']['prices'] as List).length; i++) {
+          var rawPriceItem = response['data']['prices'][i];
+          print('📋 [getDataBookingSummery] RAW Prix[$i]: $rawPriceItem');
+          debugPrint('📋 [getDataBookingSummery] RAW Prix[$i]: $rawPriceItem');
+          if (rawPriceItem is Map) {
+            print(
+                '📋 [getDataBookingSummery]   - date: ${rawPriceItem['date']}');
+            print(
+                '📋 [getDataBookingSummery]   - price: ${rawPriceItem['price']} (type: ${rawPriceItem['price'].runtimeType})');
+            print(
+                '📋 [getDataBookingSummery]   - status: ${rawPriceItem['status']}');
+            debugPrint(
+                '📋 [getDataBookingSummery]   - date: ${rawPriceItem['date']}, price: ${rawPriceItem['price']}, status: ${rawPriceItem['status']}');
+
+            // Vérifier si price est null, vide, ou "0"
+            if (rawPriceItem['price'] == null) {
+              print(
+                  '⚠️ [getDataBookingSummery] ATTENTION: price est NULL dans la réponse brute');
+              debugPrint(
+                  '⚠️ [getDataBookingSummery] ATTENTION: price est NULL dans la réponse brute');
+            } else if (rawPriceItem['price'].toString().isEmpty) {
+              print(
+                  '⚠️ [getDataBookingSummery] ATTENTION: price est VIDE dans la réponse brute');
+              debugPrint(
+                  '⚠️ [getDataBookingSummery] ATTENTION: price est VIDE dans la réponse brute');
+            } else if (rawPriceItem['price'].toString() == "0" ||
+                rawPriceItem['price'].toString() == "0.00") {
+              print(
+                  '⚠️ [getDataBookingSummery] ATTENTION: price = 0 dans la réponse brute');
+              debugPrint(
+                  '⚠️ [getDataBookingSummery] ATTENTION: price = 0 dans la réponse brute');
+            }
           }
-        ],
-        "price_before_discount": "${50.00 * totalNights}",
-        "price_per_day": "50.00",
-        "total_days": "$totalNights",
-        "discount_price": "0.00",
-        "coupon_discount": "0.00",
-        "price_after_discount": "${50.00 * totalNights}",
-        "service_charge": "10.00",
-        "cleaning_charge": "5.00",
-        "coupon_code": coupon ?? "",
-        "tax": "12.50",
-        "wallet_amount": wallet ?? "0.00",
-        "remaining_wallet_balance": "0.00",
-        "gross_price": "${(50.00 * totalNights) + 10.00 + 5.00 + 12.50}",
-        "duration": totalNights,
-        "security_deposit": "100.00",
-        "distance": "0",
-        "label": ""
-      }
-    };
-
-    if (response != null) {
-      if (response['status'] == 200) {
-        getItemPrices = GetItemPrices.fromJson(response);
+        }
       } else {
-        error.value = true;
-        showErrorToastMessage(response['error'] as String? ?? "");
-        update();
+        print(
+            '⚠️ [getDataBookingSummery] ATTENTION: data.prices est null ou absent dans la réponse');
+        debugPrint(
+            '⚠️ [getDataBookingSummery] ATTENTION: data.prices est null ou absent dans la réponse');
       }
+
+      // Log de price_per_day
+      if (response['data'] != null &&
+          response['data']['price_per_day'] != null) {
+        print(
+            '📋 [getDataBookingSummery] price_per_day brut: ${response['data']['price_per_day']} (type: ${response['data']['price_per_day'].runtimeType})');
+        debugPrint(
+            '📋 [getDataBookingSummery] price_per_day brut: ${response['data']['price_per_day']}');
+      } else {
+        print(
+            '⚠️ [getDataBookingSummery] ATTENTION: price_per_day est null ou absent');
+        debugPrint(
+            '⚠️ [getDataBookingSummery] ATTENTION: price_per_day est null ou absent');
+      }
+
+      print(
+          '📋 [getDataBookingSummery] ============================================');
+      debugPrint(
+          '📋 [getDataBookingSummery] ============================================');
+
+      if (response != null) {
+        print(
+            '📊 [getDataBookingSummery] Statut de la réponse: ${response['status']}');
+        debugPrint(
+            '📊 [getDataBookingSummery] Statut de la réponse: ${response['status']}');
+        print('📊 [getDataBookingSummery] Message: ${response['message']}');
+        debugPrint(
+            '📊 [getDataBookingSummery] Message: ${response['message']}');
+
+        if (response['status'] == 200) {
+          print('✅ [getDataBookingSummery] SUCCÈS - Statut 200');
+          debugPrint('✅ [getDataBookingSummery] SUCCÈS - Statut 200');
+
+          try {
+            getItemPrices = GetItemPrices.fromJson(response);
+            print('✅ [getDataBookingSummery] Parsing JSON réussi');
+            debugPrint('✅ [getDataBookingSummery] Parsing JSON réussi');
+
+            // ========== LOGS DÉTAILLÉS DES PRIX PAR JOUR ==========
+            if (getItemPrices != null && getItemPrices!.data != null) {
+              print(
+                  '💰 [getDataBookingSummery] ========== ANALYSE DES PRIX ==========');
+              debugPrint(
+                  '💰 [getDataBookingSummery] ========== ANALYSE DES PRIX ==========');
+
+              // Log du prix par nuit
+              print(
+                  '💰 [getDataBookingSummery] pricePerNight: ${getItemPrices!.data!.pricePerNight}');
+              debugPrint(
+                  '💰 [getDataBookingSummery] pricePerNight: ${getItemPrices!.data!.pricePerNight}');
+
+              // Log du prix brut
+              print(
+                  '💰 [getDataBookingSummery] grossPrice: ${getItemPrices!.data!.grossPrice}');
+              debugPrint(
+                  '💰 [getDataBookingSummery] grossPrice: ${getItemPrices!.data!.grossPrice}');
+
+              // Log de la liste des prix par jour
+              if (getItemPrices!.data!.prices != null &&
+                  getItemPrices!.data!.prices!.isNotEmpty) {
+                print(
+                    '📅 [getDataBookingSummery] Nombre de prix par jour: ${getItemPrices!.data!.prices!.length}');
+                debugPrint(
+                    '📅 [getDataBookingSummery] Nombre de prix par jour: ${getItemPrices!.data!.prices!.length}');
+
+                for (var i = 0; i < getItemPrices!.data!.prices!.length; i++) {
+                  var priceItem = getItemPrices!.data!.prices![i];
+                  print(
+                      '📅 [getDataBookingSummery] Prix[$i] - Date: ${priceItem.date}, Price: ${priceItem.price}, Status: ${priceItem.status}');
+                  debugPrint(
+                      '📅 [getDataBookingSummery] Prix[$i] - Date: ${priceItem.date}, Price: ${priceItem.price}, Status: ${priceItem.status}');
+
+                  // Vérifier si le prix est null ou vide
+                  if (priceItem.price == null || priceItem.price!.isEmpty) {
+                    print(
+                        '⚠️ [getDataBookingSummery] ATTENTION: Prix vide ou null pour la date ${priceItem.date}');
+                    debugPrint(
+                        '⚠️ [getDataBookingSummery] ATTENTION: Prix vide ou null pour la date ${priceItem.date}');
+                  } else {
+                    // Essayer de parser le prix pour vérifier qu'il est valide
+                    try {
+                      double priceValue = double.parse(priceItem.price!);
+                      if (priceValue == 0) {
+                        print(
+                            '⚠️ [getDataBookingSummery] ATTENTION: Prix = 0 pour la date ${priceItem.date}');
+                        debugPrint(
+                            '⚠️ [getDataBookingSummery] ATTENTION: Prix = 0 pour la date ${priceItem.date}');
+                      }
+                    } catch (e) {
+                      print(
+                          '❌ [getDataBookingSummery] ERREUR parsing prix "${priceItem.price}" pour date ${priceItem.date}: $e');
+                      debugPrint(
+                          '❌ [getDataBookingSummery] ERREUR parsing prix "${priceItem.price}" pour date ${priceItem.date}: $e');
+                    }
+                  }
+                }
+              } else {
+                print(
+                    '⚠️ [getDataBookingSummery] ATTENTION: Liste des prix par jour est vide ou null');
+                debugPrint(
+                    '⚠️ [getDataBookingSummery] ATTENTION: Liste des prix par jour est vide ou null');
+              }
+
+              print(
+                  '💰 [getDataBookingSummery] ============================================');
+              debugPrint(
+                  '💰 [getDataBookingSummery] ============================================');
+            } else {
+              print(
+                  '❌ [getDataBookingSummery] ERREUR: getItemPrices ou data est null après parsing');
+              debugPrint(
+                  '❌ [getDataBookingSummery] ERREUR: getItemPrices ou data est null après parsing');
+            }
+          } catch (e, stackTrace) {
+            print('❌ [getDataBookingSummery] ERREUR lors du parsing JSON: $e');
+            debugPrint(
+                '❌ [getDataBookingSummery] ERREUR lors du parsing JSON: $e');
+            debugPrint('❌ [getDataBookingSummery] StackTrace: $stackTrace');
+            error.value = true;
+            showErrorToastMessage("Erreur lors du traitement des données".tr);
+          }
+        } else {
+          print(
+              '❌ [getDataBookingSummery] ERREUR - Statut: ${response['status']}');
+          debugPrint(
+              '❌ [getDataBookingSummery] ERREUR - Statut: ${response['status']}');
+          print(
+              '❌ [getDataBookingSummery] Message d\'erreur: ${response['error']}');
+          debugPrint(
+              '❌ [getDataBookingSummery] Message d\'erreur: ${response['error']}');
+          error.value = true;
+          showErrorToastMessage(response['error'] as String? ?? "");
+        }
+      } else {
+        print('❌ [getDataBookingSummery] ERREUR - Réponse nulle');
+        debugPrint('❌ [getDataBookingSummery] ERREUR - Réponse nulle');
+        error.value = true;
+        showErrorToastMessage("Aucune réponse du serveur".tr);
+      }
+    } catch (e, stackTrace) {
+      // ========== GESTION DES ERREURS ==========
+      print('❌ [getDataBookingSummery] EXCEPTION CAPTURÉE: $e');
+      debugPrint('❌ [getDataBookingSummery] EXCEPTION CAPTURÉE: $e');
+      debugPrint('❌ [getDataBookingSummery] StackTrace: $stackTrace');
+
+      error.value = true;
+      showErrorToastMessage(
+          "Une erreur est survenue lors du chargement des données".tr);
+    } finally {
+      // ========== GARANTIR L'ARRÊT DU LOADING ==========
+      isLoading.value = false;
+      print('🔄 [getDataBookingSummery] isLoading mis à false dans finally');
+      debugPrint(
+          '🔄 [getDataBookingSummery] isLoading mis à false dans finally');
+
+      // ========== LOG AVANT UPDATE FINAL ==========
+      print('🔄 [getDataBookingSummery] Appel de update() final');
+      debugPrint('🔄 [getDataBookingSummery] Appel de update() final');
+      update();
+      print('✅ [getDataBookingSummery] update() final effectué');
+      debugPrint('✅ [getDataBookingSummery] update() final effectué');
+
+      print('🏁 [getDataBookingSummery] Fin de la méthode');
+      debugPrint('🏁 [getDataBookingSummery] Fin de la méthode');
+      print(
+          '🏁 [getDataBookingSummery] ========================================');
+      debugPrint(
+          '🏁 [getDataBookingSummery] ========================================');
     }
   }
 
@@ -464,6 +776,276 @@ class BookingController extends GetxController implements GetxService {
       showErrorToastMessage("Failed to load wallet data");
     } finally {
       update();
+    }
+  }
+
+  Future<void> fetchPaymentMethods() async {
+    isLoadingPaymentMethods.value = true;
+    paymentMethodModel = null;
+    paymentMethodsList.clear(); // Vider la liste au début
+    error.value = false;
+    update();
+
+    try {
+      // Appel API GET /api/v1/payment-methods
+      var response = await httpGet(Config.getPaymentMethods, {});
+
+      // ========== DIAGNOSTIC COMPLET DE LA STRUCTURE ==========
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('🔍 STRUCTURE COMPLETE : $response');
+      debugPrint('🔍 TYPE DE RESPONSE : ${response.runtimeType}');
+
+      if (response != null) {
+        debugPrint(
+            '🔍 Clés disponibles dans response: ${response.keys.toList()}');
+        debugPrint(
+            '🔍 response.containsKey("status"): ${response.containsKey("status")}');
+        debugPrint(
+            '🔍 response.containsKey("success"): ${response.containsKey("success")}');
+        debugPrint(
+            '🔍 response.containsKey("data"): ${response.containsKey("data")}');
+
+        if (response.containsKey('status')) {
+          debugPrint('🔍 response["status"]: ${response["status"]}');
+        }
+        if (response.containsKey('success')) {
+          debugPrint('🔍 response["success"]: ${response["success"]}');
+        }
+        if (response.containsKey('data')) {
+          debugPrint(
+              '🔍 response["data"] type: ${response["data"].runtimeType}');
+          debugPrint('🔍 response["data"] contenu: ${response["data"]}');
+
+          if (response['data'] is List) {
+            debugPrint(
+                '🔍 response["data"] est une List avec ${(response['data'] as List).length} éléments');
+          } else if (response['data'] is Map) {
+            debugPrint(
+                '🔍 response["data"] est un Map avec clés: ${(response['data'] as Map).keys.toList()}');
+            if ((response['data'] as Map).containsKey('data')) {
+              var innerData = (response['data'] as Map)['data'];
+              debugPrint(
+                  '🔍 response["data"]["data"] type: ${innerData.runtimeType}');
+              debugPrint('🔍 response["data"]["data"] contenu: $innerData');
+              if (innerData is List) {
+                debugPrint(
+                    '🔍 response["data"]["data"] est une List avec ${innerData.length} éléments');
+              }
+            }
+          }
+        }
+      }
+      debugPrint('═══════════════════════════════════════════════════════');
+      // ========== FIN DIAGNOSTIC ==========
+
+      // Log pour diagnostic
+      print('Données reçues : ${jsonEncode(response)}');
+      debugPrint('Données reçues : ${jsonEncode(response)}');
+
+      // Vérifier si response contient 'success': true ou 'status': 200
+      bool isSuccess = false;
+      if (response != null) {
+        if (response.containsKey('success') && response['success'] == true) {
+          isSuccess = true;
+          debugPrint('✅ Réponse avec success: true');
+        } else if (response.containsKey('status') &&
+            response['status'] == 200) {
+          isSuccess = true;
+          debugPrint('✅ Réponse avec status: 200');
+        }
+      }
+
+      if (response != null && isSuccess) {
+        // ========== CORRECTION : Utiliser la variable de classe, pas une variable locale ==========
+        // Vider la liste de classe au début
+        paymentMethodsList.clear();
+        List<PaymentMethod> tempList = []; // Liste temporaire pour le modèle
+
+        // Vérifier si data est directement une List
+        if (response['data'] is List) {
+          var list = response['data'] as List;
+          debugPrint('📦 data est une List avec ${list.length} éléments');
+          debugPrint(
+              '📦 FORÇAGE DU MAPPING: Parcours de response["data"] (List)');
+
+          // Mapping avec try-catch pour chaque élément - AJOUT DIRECT À LA LISTE DE CLASSE
+          for (var item in list) {
+            try {
+              if (item is Map<String, dynamic>) {
+                PaymentMethod mappedMethod = PaymentMethod.fromJson(item);
+                // Ajouter directement à la liste de classe
+                paymentMethodsList.add(mappedMethod);
+                tempList
+                    .add(mappedMethod); // Aussi dans tempList pour le modèle
+                debugPrint(
+                    '✅ Élément mappé et ajouté à paymentMethodsList (classe)');
+              } else {
+                debugPrint('⚠️ Élément ignoré (n\'est pas un Map): $item');
+              }
+            } catch (e, stackTrace) {
+              debugPrint('❌ Erreur sur l\'élément: $item');
+              debugPrint('❌ Erreur: $e');
+              debugPrint('❌ StackTrace: $stackTrace');
+              print('Erreur sur l\'élément: $item');
+            }
+          }
+
+          paymentMethodModel = BookingPaymentMethodModel(
+            status: response['status'] as int? ??
+                (response['success'] == true ? 200 : null),
+            message: response['message'] as String?,
+            data: BookingPaymentMethodData(
+              paymentMethods: tempList,
+            ),
+          );
+        } else if (response['data'] is Map &&
+            response['data']['data'] != null) {
+          // Structure avec data.data (double nesting)
+          var innerData = response['data']['data'];
+          if (innerData is List) {
+            debugPrint(
+                '📦 data.data est une List avec ${innerData.length} éléments');
+            debugPrint(
+                '📦 FORÇAGE DU MAPPING: Parcours de response["data"]["data"] (List)');
+
+            // Mapping avec try-catch pour chaque élément - AJOUT DIRECT À LA LISTE DE CLASSE
+            for (var item in innerData) {
+              try {
+                if (item is Map<String, dynamic>) {
+                  PaymentMethod mappedMethod = PaymentMethod.fromJson(item);
+                  // Ajouter directement à la liste de classe
+                  paymentMethodsList.add(mappedMethod);
+                  tempList
+                      .add(mappedMethod); // Aussi dans tempList pour le modèle
+                  debugPrint(
+                      '✅ Élément mappé et ajouté à paymentMethodsList (classe)');
+                } else {
+                  debugPrint('⚠️ Élément ignoré (n\'est pas un Map): $item');
+                }
+              } catch (e, stackTrace) {
+                debugPrint('❌ Erreur sur l\'élément: $item');
+                debugPrint('❌ Erreur: $e');
+                debugPrint('❌ StackTrace: $stackTrace');
+                print('Erreur sur l\'élément: $item');
+              }
+            }
+
+            paymentMethodModel = BookingPaymentMethodModel(
+              status: response['status'] as int? ??
+                  (response['success'] == true ? 200 : null),
+              message: response['message'] as String?,
+              data: BookingPaymentMethodData(
+                paymentMethods: tempList,
+              ),
+            );
+          } else {
+            // Structure normale avec data.payment_methods
+            debugPrint('📦 data est un Map, utilisation de fromJson');
+            paymentMethodModel = BookingPaymentMethodModel.fromJson(response);
+            // Synchroniser après fromJson
+            if (paymentMethodModel?.data?.paymentMethods != null) {
+              paymentMethodsList.clear();
+              paymentMethodsList
+                  .addAll(paymentMethodModel!.data!.paymentMethods!);
+              debugPrint(
+                  '✅ Synchronisation après fromJson: ${paymentMethodsList.length} méthodes');
+            }
+          }
+        } else if (response['data'] is Map) {
+          // Structure normale avec data.payment_methods
+          debugPrint('📦 data est un Map, utilisation de fromJson');
+          paymentMethodModel = BookingPaymentMethodModel.fromJson(response);
+          // Synchroniser après fromJson
+          if (paymentMethodModel?.data?.paymentMethods != null) {
+            paymentMethodsList.clear();
+            paymentMethodsList
+                .addAll(paymentMethodModel!.data!.paymentMethods!);
+            debugPrint(
+                '✅ Synchronisation après fromJson: ${paymentMethodsList.length} méthodes');
+          }
+        } else {
+          debugPrint('⚠️ Structure de data non reconnue: ${response['data']}');
+        }
+
+        // Vérification que paymentMethodsList (classe) contient bien les données
+        debugPrint(
+            '🔍 VÉRIFICATION: paymentMethodsList (classe).length = ${paymentMethodsList.length}');
+        print(
+            '🔍 VÉRIFICATION: paymentMethodsList (classe).length = ${paymentMethodsList.length}');
+
+        debugPrint(
+            '📦 Nombre de méthodes après parsing: ${paymentMethodModel?.data?.paymentMethods?.length ?? 0}');
+        debugPrint(
+            '📦 Nombre de méthodes dans paymentMethodsList (classe): ${paymentMethodsList.length}');
+
+        // ========== ASSURER LA SYNCHRONISATION (au cas où) ==========
+        // Si paymentMethodsList est vide mais le modèle contient des données, synchroniser
+        if (paymentMethodsList.isEmpty &&
+            paymentMethodModel?.data?.paymentMethods != null &&
+            paymentMethodModel!.data!.paymentMethods!.isNotEmpty) {
+          paymentMethodsList.clear();
+          paymentMethodsList.addAll(paymentMethodModel!.data!.paymentMethods!);
+          debugPrint(
+              '✅ SYNCHRO DE SECOURS : ${paymentMethodsList.length} méthodes ajoutées à paymentMethodsList');
+          print(
+              '✅ SYNCHRO DE SECOURS : ${paymentMethodsList.length} méthodes ajoutées à paymentMethodsList');
+        }
+        // ========== FIN SYNCHRONISATION ==========
+
+        // Filtrer pour ne garder que les méthodes avec status: true
+        // Filtrer directement paymentMethodsList (classe) et le modèle
+        if (paymentMethodsList.isNotEmpty) {
+          // Filtrer la liste de classe
+          paymentMethodsList.removeWhere((method) => method.status != true);
+          debugPrint(
+              '✅ Filtrage paymentMethodsList (classe): ${paymentMethodsList.length} méthodes avec status: true');
+
+          // Filtrer aussi le modèle pour cohérence
+          if (paymentMethodModel?.data?.paymentMethods != null &&
+              paymentMethodModel!.data!.paymentMethods!.isNotEmpty) {
+            paymentMethodModel!.data!.paymentMethods = paymentMethodModel!
+                .data!.paymentMethods!
+                .where((method) => method.status == true)
+                .toList();
+
+            // Log de vérification de l'ID de la première méthode
+            if (paymentMethodModel!.data!.paymentMethods!.isNotEmpty) {
+              print(
+                  'ID de la première méthode: ${paymentMethodModel!.data!.paymentMethods![0].id}');
+              debugPrint(
+                  '🆔 ID de la première méthode: ${paymentMethodModel!.data!.paymentMethods![0].id}');
+              debugPrint(
+                  '📦 Nombre final de méthodes après filtrage: ${paymentMethodModel!.data!.paymentMethods!.length}');
+            }
+          }
+        }
+
+        // Vérification finale
+        debugPrint(
+            '🔍 VÉRIFICATION FINALE: paymentMethodsList (classe).length = ${paymentMethodsList.length}');
+        print(
+            '🔍 VÉRIFICATION FINALE: paymentMethodsList (classe).length = ${paymentMethodsList.length}');
+
+        // Rafraîchissement UI après parsing réussi - IMPORTANT pour GetBuilder
+        debugPrint('🔄 Appel de update() pour rafraîchir l\'UI');
+        update();
+      } else {
+        error.value = true;
+        debugPrint(
+            '❌ Réponse invalide ou échec: status=${response?['status']}, success=${response?['success']}');
+        showErrorToastMessage(response?['error'] ??
+            response?['message'] ??
+            'Erreur lors du chargement des méthodes de paiement'.tr);
+      }
+    } catch (e, stackTrace) {
+      error.value = true;
+      debugPrint('❌ [fetchPaymentMethods] Erreur globale: $e');
+      debugPrint('❌ [fetchPaymentMethods] StackTrace: $stackTrace');
+      showErrorToastMessage(
+          'Erreur lors du chargement des méthodes de paiement'.tr);
+    } finally {
+      isLoadingPaymentMethods.value = false;
+      update(); // Rafraîchissement UI final
     }
   }
 
@@ -670,6 +1252,572 @@ class BookingController extends GetxController implements GetxService {
     }
     return response;
   }
+
+  // ========== FONCTION processBooking() POUR API NODE.JS PRODUCTION ==========
+  /// Fonction async qui envoie une requête POST à l'API Node.js locale
+  /// Gère les réponses 200 (succès avec booking_id et otp), 400/409 (erreurs)
+  /// [vehicleId] : L'ID du véhicule depuis le widget (optionnel, utilise fallback)
+  /// [widgetVehicleId] : L'ID du véhicule depuis widget.idFeatured (fallback final)
+  Future<void> processBooking(
+      {dynamic vehicleId, dynamic widgetVehicleId}) async {
+    // Prévenir les appels multiples
+    if (isProcessingBooking.value) {
+      debugPrint('⚠️ [processBooking] Déjà en cours, ignore l\'appel');
+      return;
+    }
+
+    isProcessingBooking.value = true;
+
+    try {
+      // ========== 1. RÉCUPÉRATION DU TOKEN D'AUTHENTIFICATION ==========
+      String? authToken = GetStorage().read('token') ?? token;
+      if (authToken.isEmpty) {
+        // Essayer de récupérer depuis UserData
+        try {
+          var userData = GetStorage().read('UserData');
+          if (userData != null) {
+            var userDataMap = jsonDecode(userData);
+            if (userDataMap['data'] != null &&
+                userDataMap['data']['token'] != null) {
+              authToken = userDataMap['data']['token'].toString();
+            }
+          }
+        } catch (e) {
+          debugPrint(
+              '❌ [processBooking] Erreur lors de la récupération du token: $e');
+        }
+      }
+
+      if (authToken == null || authToken.isEmpty) {
+        debugPrint('❌ [processBooking] Token d\'authentification manquant');
+        Get.snackbar(
+          'Erreur d\'authentification'.tr,
+          'Veuillez vous reconnecter'.tr,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: redColor,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+        isProcessingBooking.value = false;
+        return;
+      }
+
+      // ========== DEBUG: LOG DU TOKEN ENVOYÉ ==========
+      print('🔑 Token envoyé : $authToken');
+      debugPrint('🔑 Token envoyé : $authToken');
+
+      // ========== 2. VALIDATION ET FALLBACK POUR L'ID DU VÉHICULE ==========
+      // Fallback: vehicleId ?? idFeatured ?? widgetVehicleId
+      dynamic finalVehicleId = vehicleId ?? idFeatured ?? widgetVehicleId;
+
+      if (finalVehicleId == null || finalVehicleId.toString().isEmpty) {
+        Get.snackbar(
+          'Erreur'.tr,
+          'ID du véhicule manquant'.tr,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: redColor,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+        isProcessingBooking.value = false;
+        return;
+      }
+
+      // ========== 3. VALIDATION DES DATES ==========
+      if (startDate.value.isEmpty || endDate.value.isEmpty) {
+        Get.snackbar(
+          'Erreur'.tr,
+          'Veuillez sélectionner les dates de réservation'.tr,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: redColor,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+        isProcessingBooking.value = false;
+        return;
+      }
+
+      // ========== 4. CONVERSION DES DATES EN ISO 8601 ==========
+      DateTime checkInDate;
+      DateTime checkOutDate;
+      try {
+        checkInDate = DateTime.parse(startDate.value);
+        checkOutDate = DateTime.parse(endDate.value);
+      } catch (e) {
+        debugPrint('❌ [processBooking] Erreur de parsing des dates: $e');
+        Get.snackbar(
+          'Erreur'.tr,
+          'Format de date invalide'.tr,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: redColor,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+        isProcessingBooking.value = false;
+        return;
+      }
+
+      String checkInIso = checkInDate.toIso8601String();
+      String checkOutIso = checkOutDate.toIso8601String();
+
+      // ========== 5. PRÉPARATION DES DONNÉES DE LA REQUÊTE ==========
+      String startTimeForBackend = selectedStartTime.value;
+      String endTimeForBackend = selectedEndTime.value;
+
+      if (selectedStartTime.value.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$'))) {
+        startTimeForBackend = convert24To12(selectedStartTime.value);
+        endTimeForBackend = convert24To12(selectedEndTime.value);
+      }
+
+      dynamic couponCode = "";
+      if (getItemPrices!.data!.couponCode != null) {
+        couponCode = getItemPrices!.data!.couponCode;
+      }
+
+      // ========== 6. FORMATAGE DU PRIX TOTAL AVEC FRAIS DE MÉTHODE DE PAIEMENT ==========
+      // total_price en tant que double (numérique) et non String
+      // Inclure les frais de la méthode de paiement sélectionnée
+      double basePrice = 0.0;
+      if (getItemPrices!.data!.grossPrice != null) {
+        try {
+          basePrice = double.parse(getItemPrices!.data!.grossPrice.toString());
+        } catch (e) {
+          debugPrint(
+              '⚠️ [processBooking] Erreur parsing base_price: $e, utilisation de 0.0');
+          basePrice = 0.0;
+        }
+      }
+
+      // Calculer les frais de la méthode de paiement
+      double feeAmount = 0.0;
+      if (selectedPaymentMethod != null &&
+          selectedPaymentMethod!.feePercentage != null) {
+        double feePercentage = selectedPaymentMethod!.feePercentage!;
+        feeAmount = basePrice * (feePercentage / 100);
+        debugPrint(
+            '💰 [processBooking] Frais de méthode de paiement: $feePercentage% = $feeAmount');
+      }
+
+      // Prix total = prix de base + frais de méthode de paiement
+      double totalPriceDouble = basePrice + feeAmount;
+      debugPrint(
+          '💰 [processBooking] Prix de base: $basePrice, Frais: $feeAmount, Total: $totalPriceDouble');
+
+      // ========== 7. FORMATAGE DU WALLET ==========
+      // wall_amt: Si le wallet est activé, envoie la valeur numérique. Sinon, envoie 0 (en tant que double)
+      double walletAmount = 0.0;
+      if (getItemPrices!.data!.walletAmount != null) {
+        try {
+          double walletValue =
+              double.parse(getItemPrices!.data!.walletAmount!.toString());
+          if (walletValue > 0) {
+            walletAmount = walletValue; // Valeur numérique si wallet activé
+          } else {
+            walletAmount = 0.0; // 0 en tant que double si wallet non utilisé
+          }
+        } catch (e) {
+          debugPrint(
+              '⚠️ [processBooking] Erreur parsing wallet_amount: $e, utilisation de 0.0');
+          walletAmount = 0.0;
+        }
+      }
+
+      // ========== 8. CONSTRUCTION DU BODY JSON ==========
+      Map<String, dynamic> requestBody = {
+        "item_id": finalVehicleId.toString(),
+        "check_in": checkInIso, // ISO 8601 String
+        "check_out": checkOutIso, // ISO 8601 String
+        "total_price": totalPriceDouble, // Double
+        "wall_amt": walletAmount, // Double (0 si wallet non utilisé)
+        "meta": commonMetaData(), // String JSON
+        "total_day": int.parse(getItemPrices!.data!.totalNights ?? "1") - 1,
+        "per_day": getItemPrices!.data!.pricePerNight ?? "0",
+        "book_for": "",
+        "base_price": getItemPrices!.data!.priceBeforeDiscount ?? "0",
+        "service_charge": getItemPrices!.data!.serviceCharge ?? "0",
+        "security_money": getItemPrices!.data!.serviceCharge ?? "0",
+        "iva_tax": getItemPrices!.data!.tax ?? "0",
+        "currency_code": currency,
+        "payment_method":
+            selectedPaymentMethod?.name?.toLowerCase() ?? "stripe",
+        "payment_method_id": selectedPaymentMethod?.id ?? null,
+        "host_id": "",
+        "total_guest": numberofguest,
+        "coupon_code": couponCode,
+        "discount_price": getItemPrices!.data!.discountPrice?.toString() ?? "0",
+        "coupon_discount":
+            getItemPrices!.data!.couponDiscount?.toString() ?? "0",
+        "discount_type": getItemPrices!.data!.discountType ?? "",
+        "cleaning_charges":
+            getItemPrices!.data!.cleaningCharge?.toString() ?? "0",
+        "start_time": startTimeForBackend,
+        "end_time": endTimeForBackend,
+        "onlinepayment": paymentStatus ?? "",
+        "doorStep_price": addDoorStepPrice.toString(),
+        "doorStep_address": addDoorStepPrice ? doorStepAddress() : "",
+      };
+
+      // ========== 9. CONSTRUCTION DE L'URL ==========
+      // Utiliser Config.baseurl + Config.bookItem
+      String url = '${Config.baseurl}${Config.bookItem}';
+
+      // ========== 10. DEBUG LOGS ==========
+      // Print du Body JSON complet et autres informations de debug
+      String requestBodyJson = jsonEncode(requestBody);
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('📤 [processBooking] URL FINALE: $url');
+      debugPrint(
+          '📤 [processBooking] x-auth-token: ${authToken.length > 20 ? "${authToken.substring(0, 20)}..." : authToken} (longueur: ${authToken.length})');
+      debugPrint(
+          '📤 [processBooking] item_id (MongoDB): ${finalVehicleId.toString()}');
+      debugPrint('📤 [processBooking] check_in (ISO 8601): $checkInIso');
+      debugPrint('📤 [processBooking] check_out (ISO 8601): $checkOutIso');
+      debugPrint(
+          '📤 [processBooking] total_price: $totalPriceDouble (type: double)');
+      debugPrint('📤 [processBooking] wall_amt: $walletAmount (type: double)');
+      debugPrint('📤 [processBooking] Request Body JSON complet:');
+      debugPrint(requestBodyJson);
+      debugPrint('═══════════════════════════════════════════════════════');
+
+      // ========== 11. ENVOI DE LA REQUÊTE POST ==========
+      final response = await http
+          .post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': authToken,
+        },
+        body: jsonEncode(requestBody),
+      )
+          .timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('La requête a expiré');
+        },
+      );
+
+      // ========== 11. DEBUG: PRINT STATUS CODE ET RÉPONSE BRUTE ==========
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('📥 [processBooking] Status Code: ${response.statusCode}');
+      debugPrint('📥 Réponse brute du serveur: ${response.body}');
+      debugPrint(
+          '📥 [processBooking] Response Body Length: ${response.body.length}');
+      debugPrint('═══════════════════════════════════════════════════════');
+
+      // ========== 12. PARSING JSON AVEC TRY-CATCH SPÉCIFIQUE ==========
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+        debugPrint('✅ [processBooking] JSON parsing réussi');
+      } catch (e, stackTrace) {
+        debugPrint('❌ [processBooking] ERREUR DE PARSING JSON: $e');
+        debugPrint('❌ [processBooking] StackTrace: $stackTrace');
+        debugPrint('❌ [processBooking] Response body qui a causé l\'erreur:');
+        debugPrint(response.body);
+        Get.snackbar(
+          'Erreur de format'.tr,
+          'Le serveur a renvoyé une réponse invalide. Veuillez réessayer.'.tr,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: redColor,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+        isProcessingBooking.value = false;
+        return;
+      }
+
+      // ========== 13. VÉRIFICATION DES CLÉS DE LA RÉPONSE ==========
+      debugPrint('🔍 [processBooking] Vérification des clés de la réponse:');
+      debugPrint(
+          '   • responseData.containsKey("data"): ${responseData.containsKey("data")}');
+      debugPrint(
+          '   • responseData.containsKey("message"): ${responseData.containsKey("message")}');
+      debugPrint(
+          '   • responseData.containsKey("error"): ${responseData.containsKey("error")}');
+      debugPrint(
+          '   • responseData.containsKey("status"): ${responseData.containsKey("status")}');
+
+      if (responseData.containsKey("data")) {
+        debugPrint(
+            '   • responseData["data"] type: ${responseData["data"].runtimeType}');
+        if (responseData["data"] is Map) {
+          Map<String, dynamic> dataMap = responseData["data"];
+          debugPrint(
+              '   • data.containsKey("booking_id"): ${dataMap.containsKey("booking_id")}');
+          debugPrint(
+              '   • data.containsKey("otp"): ${dataMap.containsKey("otp")}');
+          if (dataMap.containsKey("booking_id")) {
+            debugPrint(
+                '   • data["booking_id"] value: ${dataMap["booking_id"]}');
+            debugPrint(
+                '   • data["booking_id"] is null: ${dataMap["booking_id"] == null}');
+          }
+          if (dataMap.containsKey("otp")) {
+            debugPrint('   • data["otp"] value: ${dataMap["otp"]}');
+            debugPrint('   • data["otp"] type: ${dataMap["otp"].runtimeType}');
+          }
+        }
+      }
+
+      // ========== 14. GESTION DES RÉPONSES ==========
+      if (response.statusCode == 200) {
+        debugPrint(
+            '✅ [processBooking] Status Code 200 - Tentative de parsing du succès');
+
+        // Vérifier si la clé 'data' existe
+        if (!responseData.containsKey('data')) {
+          debugPrint(
+              '❌ [processBooking] ERREUR: responseData ne contient pas la clé "data"');
+          debugPrint(
+              '❌ [processBooking] Clés disponibles: ${responseData.keys.toList()}');
+          Get.snackbar(
+            'Erreur de réponse'.tr,
+            'La réponse du serveur est incomplète.'.tr,
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: redColor,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 3),
+          );
+          isProcessingBooking.value = false;
+          return;
+        }
+
+        // Vérifier si 'data' est un Map
+        if (responseData['data'] is! Map) {
+          debugPrint(
+              '❌ [processBooking] ERREUR: responseData["data"] n\'est pas un Map');
+          debugPrint(
+              '❌ [processBooking] Type de data: ${responseData["data"].runtimeType}');
+          Get.snackbar(
+            'Erreur de format'.tr,
+            'Format de réponse invalide.'.tr,
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: redColor,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 3),
+          );
+          isProcessingBooking.value = false;
+          return;
+        }
+
+        Map<String, dynamic> dataMap = responseData['data'];
+
+        // Succès : Parser la réponse (booking_id et codes OTP: otp.pickup et otp.drop)
+        String? bookingId = dataMap['booking_id']?.toString();
+        debugPrint('🔍 [processBooking] booking_id extrait: $bookingId');
+        debugPrint(
+            '🔍 [processBooking] booking_id is null: ${bookingId == null}');
+
+        // Parser les codes OTP depuis responseData['data']['otp']
+        Map<String, dynamic>? otpData;
+        if (dataMap.containsKey('otp')) {
+          if (dataMap['otp'] is Map) {
+            otpData = Map<String, dynamic>.from(dataMap['otp']);
+            debugPrint('🔍 [processBooking] otp data trouvé: $otpData');
+          } else {
+            debugPrint(
+                '⚠️ [processBooking] otp existe mais n\'est pas un Map: ${dataMap["otp"].runtimeType}');
+          }
+        } else {
+          debugPrint('⚠️ [processBooking] otp n\'existe pas dans data');
+        }
+
+        String? otpPickup = otpData?['pickup']?.toString();
+        String? otpDrop = otpData?['drop']?.toString();
+        debugPrint('🔍 [processBooking] otp.pickup: $otpPickup');
+        debugPrint('🔍 [processBooking] otp.drop: $otpDrop');
+
+        // Construire le message de succès avec les codes OTP
+        String successMessage =
+            'Votre réservation a été créée avec succès !'.tr;
+        String instructionsMessage = '';
+
+        if (bookingId != null) {
+          successMessage += '\n\n📋 ID de réservation: $bookingId';
+        }
+
+        // Afficher les codes OTP si disponibles
+        if (otpPickup != null || otpDrop != null) {
+          successMessage += '\n\n🔐 Codes OTP:';
+          if (otpPickup != null) {
+            successMessage += '\n   • Pickup: $otpPickup';
+          }
+          if (otpDrop != null) {
+            successMessage += '\n   • Drop: $otpDrop';
+          }
+        }
+
+        // Instructions selon la méthode de paiement
+        if (selectedPaymentMethod != null) {
+          String paymentMethodName =
+              selectedPaymentMethod!.name ?? 'Méthode de paiement';
+          if (paymentMethodName.toLowerCase().contains('cash') ||
+              paymentMethodName.toLowerCase().contains('espèce')) {
+            instructionsMessage =
+                '\n\n💵 Paiement à la livraison:\nVous paierez lors de la récupération du véhicule.'
+                    .tr;
+          } else if (paymentMethodName
+                  .toLowerCase()
+                  .contains('digital wallet') ||
+              paymentMethodName.toLowerCase().contains('paypal')) {
+            instructionsMessage =
+                '\n\n💳 Paiement en ligne:\nVotre paiement sera traité dans les prochaines minutes.'
+                    .tr;
+          }
+        }
+
+        // Afficher une boîte de dialogue de succès stylisée
+        Get.dialog(
+          barrierDismissible: false,
+          Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: Colors.white,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Icône de succès
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 50,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Titre
+                  Text(
+                    'Réservation réussie !'.tr,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  // Message principal
+                  SingleChildScrollView(
+                    child: Text(
+                      successMessage + instructionsMessage,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.black54,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Bouton OK
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Get.back(); // Fermer le dialogue
+                        // Naviguer vers l'écran "My Bookings"
+                        generalController.currentIndex.value = 2;
+                        Get.offAll(() => const HomeMain(initialIndex: 2));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Voir mes réservations'.tr,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      } else if (response.statusCode == 400 || response.statusCode == 409) {
+        // Erreur : Extraire le message depuis la réponse JSON
+        String errorMessage = responseData['message'] ??
+            responseData['error'] ??
+            'Une erreur est survenue'.tr;
+
+        // Messages spécifiques selon le code d'erreur
+        if (response.statusCode == 400) {
+          errorMessage = responseData['message'] ?? 'Erreur de validation'.tr;
+        } else if (response.statusCode == 409) {
+          errorMessage = responseData['message'] ?? 'Véhicule déjà réservé'.tr;
+        }
+
+        debugPrint(
+            '❌ [processBooking] Erreur ${response.statusCode}: $errorMessage');
+        Get.snackbar(
+          'Erreur de réservation'.tr,
+          errorMessage,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: redColor,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 4),
+        );
+        // Réinitialiser l'état pour que le bouton redevienne cliquable
+        isProcessingBooking.value = false;
+      } else {
+        // Autre erreur
+        String errorMessage = responseData['message'] ??
+            responseData['error'] ??
+            'Une erreur est survenue lors de la réservation'.tr;
+        debugPrint(
+            '❌ [processBooking] Erreur ${response.statusCode}: $errorMessage');
+        Get.snackbar(
+          'Erreur'.tr,
+          errorMessage,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: redColor,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 4),
+        );
+        // Réinitialiser l'état pour que le bouton redevienne cliquable
+        isProcessingBooking.value = false;
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ [processBooking] Erreur: $e');
+      debugPrint('❌ [processBooking] StackTrace: $stackTrace');
+      Get.snackbar(
+        'Erreur de connexion'.tr,
+        'Impossible de se connecter au serveur. Veuillez réessayer.'.tr,
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: redColor,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+      );
+      // Réinitialiser l'état immédiatement en cas d'erreur
+      isProcessingBooking.value = false;
+    } finally {
+      // S'assurer que l'état est toujours réinitialisé même si tout s'est bien passé
+      // (bien que cela devrait déjà être géré dans le cas de succès)
+      if (isProcessingBooking.value) {
+        isProcessingBooking.value = false;
+      }
+    }
+  }
+  // ========== FIN FONCTION processBooking() ==========
 
   var isenqablestarttime = false.obs;
   var isenableendTime = false.obs;
@@ -1379,70 +2527,228 @@ class BookingController extends GetxController implements GetxService {
   CalendarItemId? calendarItemId;
   ItemDates? itemDates;
   Future<void> fetchDataCalendar(id) async {
+    print('🚀 TENTATIVE APPEL API CALENDRIER');
     isLoading.value = true;
 
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpGet(Config.getItemDates, {"item_id": id.toString()});
+    try {
+      // ========== TRACEUR D'ADRESSE IP ==========
+      debugPrint('🌐 [NETWORK] Base URL configurée : ${Config.baseurl}');
+      debugPrint('🌐 [NETWORK] Endpoint : ${Config.getItemDates}');
+      debugPrint('🌐 [NETWORK] Item ID : $id');
 
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
+      // ========== TRACEUR D'URL ==========
+      // Construire l'URL complète avec l'ID dans le path (pas en paramètre)
+      String endpointWithId = "${Config.getItemDates}/$id";
+      String fullUrl = '${Config.baseurl}$endpointWithId';
+      debugPrint('🌐 [NETWORK] Appel vers : $fullUrl');
 
-    // MOCK: Static calendar data
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Item dates retrieved successfully",
-      "error": "",
-      "data": {
-        "ItemDates": {
-          "price": "50.00",
-          "available_dates": [
-            {"date": "2024-12-18", "price": "50.00"},
-            {"date": "2024-12-19", "price": "50.00"},
-            {"date": "2024-12-23", "price": "55.00"}
-          ],
-          "not_available_dates": [
-            {"date": "2024-12-20", "price": "0.00"},
-            {"date": "2024-12-21", "price": "0.00"}
-          ],
-          "booked_dates": [
-            {"date": "2024-12-25", "price": "60.00"},
-            {"date": "2024-12-26", "price": "60.00"}
-          ]
-        }
+      // Vider les listes avant le chargement
+      availableDates.clear();
+      alreadySelectedList.clear();
+      availableDatesPrice.clear();
+
+      // Appel API réel - ID directement dans l'URL
+      var response = await httpGet(endpointWithId, {});
+
+      // ========== TRACEUR DE PAYLOAD ==========
+      if (response != null && response is Map) {
+        debugPrint(
+            '💬 [SERVER_MSG] Message du serveur : ${response["message"] ?? "Aucun message"}');
+        debugPrint('💬 [SERVER_MSG] Status : ${response["status"] ?? "N/A"}');
       }
-    };
 
-    var response = mockResponse;
-    // ========== END MOCK DATA ==========
+      debugPrint('📡 Réponse brute API: $response');
 
-    if (response != null) {
-      calendarItemId = CalendarItemId.fromJson(response);
-      if (calendarItemId != null && calendarItemId!.data != null) {
-        itemDates = calendarItemId!.data!.itemDates;
-        if (itemDates != null) {
-          if (itemDates!.availableDates != null) {
-            String jsonString = jsonEncode(itemDates!.availableDates!);
-            List jsonList = jsonDecode(jsonString);
-            isLoading.value = false;
-            if (jsonList.isNotEmpty) {
-              for (var x in jsonList) {
-                availableDates.add(DateTime.parse(x["date"]));
-                availableDatesPrice.add(x["price"]);
+      if (response != null && response is Map) {
+        // Extraire directement depuis response['data'] sans passer par les modèles
+        if (response['data'] != null && response['data'] is Map) {
+          Map<String, dynamic> data = response['data'] as Map<String, dynamic>;
+
+          // ========== EXTRACTION DES LISTES DIRECTEMENT DEPUIS DATA ==========
+          List<dynamic>? available = data['available_dates'] as List<dynamic>?;
+          List<dynamic>? booked = data['booked_dates'] as List<dynamic>?;
+          List<dynamic>? notAvailable =
+              data['not_available_dates'] as List<dynamic>?;
+
+          // Récupérer le prix depuis data['price'] ou utiliser le prix par défaut du véhicule
+          String basePrice = data['price']?.toString() ?? "0.00";
+          double basePriceDouble = 0.0;
+          try {
+            basePriceDouble = double.parse(basePrice);
+          } catch (e) {
+            debugPrint('⚠️ [fetchDataCalendar] Erreur parsing basePrice: $e');
+            basePriceDouble = 0.0;
+          }
+
+          debugPrint('💰 Prix extrait depuis API: $basePriceDouble');
+
+          // ========== TRACEUR TEMPOREL ==========
+          // Vérifier la première date reçue avant de parser
+          if (available != null && available.isNotEmpty) {
+            dynamic firstDateRaw = available[0];
+            String? firstDateString;
+
+            // Gérer si c'est un String directement ou un objet avec une clé 'date'
+            if (firstDateRaw is String) {
+              firstDateString = firstDateRaw;
+            } else if (firstDateRaw is Map && firstDateRaw['date'] != null) {
+              firstDateString = firstDateRaw['date'].toString();
+            }
+
+            if (firstDateString != null) {
+              debugPrint(
+                  '📅 [DATE_CHECK] La première date reçue est : $firstDateString');
+
+              // ========== ALERTE DE DÉCALAGE ==========
+              // Vérifier si la date contient '2024'
+              if (firstDateString.contains("2024")) {
+                debugPrint(
+                    '🚨 [CRITICAL] ════════════════════════════════════════════════════');
+                debugPrint(
+                    '🚨 [CRITICAL] ALERTE CRITIQUE : Le serveur envoie encore du MOCK 2024 !');
+                debugPrint(
+                    '🚨 [CRITICAL] Première date reçue : $firstDateString');
+                debugPrint('🚨 [CRITICAL] Vérifie ton déploiement Node.js.');
+                debugPrint(
+                    '🚨 [CRITICAL] Vérifie que le serveur a bien redémarré.');
+                debugPrint(
+                    '🚨 [CRITICAL] Vérifie que les données mockées ont été supprimées.');
+                debugPrint(
+                    '🚨 [CRITICAL] ════════════════════════════════════════════════════');
               }
             }
           }
-          if (itemDates!.bookedDates != null) {
-            String jsonString = jsonEncode(itemDates!.bookedDates!);
-            List jsonList = jsonDecode(jsonString);
-            isLoading.value = false;
-            if (jsonList.isNotEmpty) {
-              for (var x in jsonList) {
-                alreadySelectedList.add(DateTime.parse(x["date"]));
+
+          // ========== PARSING DES DATES DISPONIBLES ==========
+          if (available != null) {
+            debugPrint('📊 Nombre de dates disponibles: ${available.length}');
+            for (var dateItem in available) {
+              String? dateString;
+
+              // Gérer si c'est un String directement ou un objet avec une clé 'date'
+              if (dateItem is String) {
+                dateString = dateItem;
+              } else if (dateItem is Map && dateItem['date'] != null) {
+                dateString = dateItem['date'].toString();
+              }
+
+              if (dateString != null) {
+                try {
+                  DateTime parsedDate = DateTime.parse(dateString);
+                  // Normaliser la date (sans heure) pour faciliter la comparaison
+                  DateTime normalizedDate = DateTime(
+                      parsedDate.year, parsedDate.month, parsedDate.day);
+                  availableDates.add(normalizedDate);
+
+                  // Utiliser le prix de l'item si disponible, sinon le basePrice
+                  double priceForDate = basePriceDouble;
+                  if (dateItem is Map && dateItem['price'] != null) {
+                    try {
+                      priceForDate = (dateItem['price'] as num).toDouble();
+                    } catch (e) {
+                      debugPrint(
+                          '⚠️ [fetchDataCalendar] Erreur parsing prix de date: $e');
+                    }
+                  }
+
+                  availableDatesPrice.add(priceForDate);
+                  debugPrint(
+                      '✅ Date ajoutée à availableDates: $normalizedDate, prix: $priceForDate');
+                } catch (e) {
+                  debugPrint(
+                      '⚠️ [fetchDataCalendar] Erreur parsing date available: $dateString, erreur: $e');
+                }
+              }
+            }
+            debugPrint(
+                '📋 Total dates disponibles après parsing: ${availableDates.length}');
+          }
+
+          // ========== PARSING DES DATES RÉSERVÉES ==========
+          if (booked != null) {
+            debugPrint('📊 Nombre de dates réservées: ${booked.length}');
+            for (var dateItem in booked) {
+              String? dateString;
+
+              // Gérer si c'est un String directement ou un objet avec une clé 'date'
+              if (dateItem is String) {
+                dateString = dateItem;
+              } else if (dateItem is Map && dateItem['date'] != null) {
+                dateString = dateItem['date'].toString();
+              }
+
+              if (dateString != null) {
+                try {
+                  DateTime parsedDate = DateTime.parse(dateString);
+                  // Normaliser la date (sans heure) pour faciliter la comparaison
+                  DateTime normalizedDate = DateTime(
+                      parsedDate.year, parsedDate.month, parsedDate.day);
+                  alreadySelectedList.add(normalizedDate);
+                  debugPrint('🔒 Date réservée ajoutée: $normalizedDate');
+                } catch (e) {
+                  debugPrint(
+                      '⚠️ [fetchDataCalendar] Erreur parsing date booked: $dateString, erreur: $e');
+                }
               }
             }
           }
+
+          // ========== PARSING DES DATES NON DISPONIBLES ==========
+          if (notAvailable != null) {
+            debugPrint(
+                '📊 Nombre de dates non disponibles: ${notAvailable.length}');
+            for (var dateItem in notAvailable) {
+              String? dateString;
+
+              // Gérer si c'est un String directement ou un objet avec une clé 'date'
+              if (dateItem is String) {
+                dateString = dateItem;
+              } else if (dateItem is Map && dateItem['date'] != null) {
+                dateString = dateItem['date'].toString();
+              }
+
+              if (dateString != null) {
+                try {
+                  DateTime parsedDate = DateTime.parse(dateString);
+                  // Normaliser la date (sans heure) pour faciliter la comparaison
+                  DateTime normalizedDate = DateTime(
+                      parsedDate.year, parsedDate.month, parsedDate.day);
+                  alreadySelectedList.add(normalizedDate);
+                  debugPrint('🚫 Date non disponible ajoutée: $normalizedDate');
+                } catch (e) {
+                  debugPrint(
+                      '⚠️ [fetchDataCalendar] Erreur parsing date not_available: $dateString, erreur: $e');
+                }
+              }
+            }
+          }
+
+          // Logs de résumé final
+          debugPrint('📋 Total dates disponibles: ${availableDates.length}');
+          debugPrint(
+              '📋 Total dates bloquées (réservées + non disponibles): ${alreadySelectedList.length}');
+          debugPrint(
+              '💰 Total prix dans availableDatesPrice: ${availableDatesPrice.length}');
+          debugPrint('✅ fetchDataCalendar: Parsing terminé avec succès');
+        } else {
+          debugPrint(
+              '⚠️ [fetchDataCalendar] response["data"] est null ou n\'est pas un Map');
         }
+      } else {
+        debugPrint(
+            '⚠️ [fetchDataCalendar] response est null ou n\'est pas un Map');
       }
+    } catch (e, stackTrace) {
+      debugPrint(
+          '❌ [fetchDataCalendar] Erreur lors de la récupération des dates: $e');
+      debugPrint('❌ [fetchDataCalendar] StackTrace: $stackTrace');
+    } finally {
+      isLoading.value = false;
+      debugPrint(
+          '🔄 [fetchDataCalendar] isLoading mis à false, appel de update()');
+      update();
+      debugPrint(
+          '✅ [fetchDataCalendar] update() appelé - UI devrait se rafraîchir');
     }
   }
 

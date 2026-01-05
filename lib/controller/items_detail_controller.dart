@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:carvy/controller/booking_controller.dart';
+import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/work_space.dart';
 import '../api/config.dart';
 import '../helper/http_service.dart';
 import '../model/item_details_model.dart';
+import '../model/vehicle_home_model.dart';
 
 class ItemDetailsController extends GetxController implements GetxService {
   BookingController bookingController = Get.find();
@@ -21,6 +23,15 @@ class ItemDetailsController extends GetxController implements GetxService {
   var isLoadingVehicle = true.obs;
   var isLoadingVehicleNotFound = true.obs;
   List vehicleimageList = [];
+  ItemInfo? itemInfo;
+  
+  @override
+  void onReady() {
+    super.onReady();
+    // Force le rafraîchissement du statut KYC quand l'utilisateur consulte un véhicule
+    final kycController = Get.find<KycController>();
+    kycController.getKycDetails();
+  }
   Future getdataVehicle(id) async {
     // ========== INITIALIZATION ==========
     debugPrint("🔍 getdataVehicle() - Called with id: $id");
@@ -138,10 +149,27 @@ class ItemDetailsController extends GetxController implements GetxService {
                 }
 
                 // Décodage de itemInfo (JSON stringifié)
-                String? itemInfo = itemDetails.itemInfo;
-                if (itemInfo != null && itemInfo.isNotEmpty) {
+                String? itemInfoString = itemDetails.itemInfo;
+                if (itemInfoString != null && itemInfoString.isNotEmpty) {
                   try {
-                    itemInfoDetails = json.decode(itemInfo);
+                    // Récupérer la catégorie depuis response['data']['ItemDetails']['item_type']
+                    final rootType = response['data']['ItemDetails']['item_type'];
+                    
+                    // Décoder le JSON item_info dans une variable Map<String, dynamic> itemData
+                    Map<String, dynamic> itemData = json.decode(itemInfoString);
+                    
+                    // Forcer l'écrasement avant de créer ItemInfo
+                    itemData['type'] = rootType;
+                    
+                    // Log de contrôle
+                    print('✅ SUCCESS : Catégorie détectée (${rootType}) et injectée dans ItemInfo');
+                    
+                    // Passer ce itemData à ItemInfo.fromJson(itemData)
+                    itemInfo = ItemInfo.fromJson(itemData);
+                    
+                    // Stocker dans itemInfoDetails pour compatibilité
+                    itemInfoDetails = itemData;
+                    
                     debugPrint("✅ getdataVehicle() - itemInfo decoded successfully");
                   } catch (e) {
                     debugPrint("❌ getdataVehicle() - Error decoding itemInfo JSON: $e");

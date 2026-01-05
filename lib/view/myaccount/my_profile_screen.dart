@@ -28,7 +28,7 @@ class _MyProfileState extends State<MyProfile> {
   ProfileController profileController = Get.find();
   GlobalScopeController globalScopeController = Get.find();
   final _formKey = GlobalKey<FormState>();
-  String? selectedCountryDrop;
+  String? selectedCountryDrop = "Maroc"; // Pays par défaut : Maroc
   double spacingBeteenFeilds = 15;
   List listCountry = [];
 
@@ -47,9 +47,22 @@ class _MyProfileState extends State<MyProfile> {
         setState(() {});
       });
       profileController.setFirstNameFromLoginModel();
+
+      // Initialiser le code pays par défaut à MA (Maroc) si vide
+      if (profileController.defaultCountry.value.isEmpty) {
+        profileController.defaultCountry.value = "MA";
+      }
+      // Initialiser le code téléphone par défaut à +212 (Maroc) si vide
+      if (profileController.selectedCountry.value.isEmpty) {
+        profileController.selectedCountry.value = "+212";
+      }
+
       if (loginModel!.data!.country != null &&
           loginModel!.data!.country.toString().isNotEmpty) {
         selectedCountryDrop = loginModel!.data!.country;
+      } else {
+        // Définir le Maroc comme pays par défaut
+        selectedCountryDrop = "Maroc";
       }
       if (loginModel != null &&
           loginModel!.data != null &&
@@ -424,7 +437,7 @@ class _MyProfileState extends State<MyProfile> {
                                       child: IntelPhoneFieldRefs(
                                         defultcountry:
                                             loginModel?.data?.defaultCountry ??
-                                                "TH",
+                                                "MA",
                                         isenable: true,
                                         readOnly: true,
                                         textEditingControllerCommons:
@@ -605,6 +618,9 @@ class _MyProfileState extends State<MyProfile> {
                                             filled: true,
                                             fillColor: grey5)),
                                     context: context,
+                                    exclude: <String>[
+                                      'EH'
+                                    ], // Exclure Western Sahara
                                     onSelect: (country) {
                                       setState(() {
                                         selectedCountryDrop =

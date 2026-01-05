@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 class BookingModel {
@@ -56,12 +58,43 @@ class Data {
   Data.fromJson(dynamic json) {
     if (json['Bookings'] != null) {
       _bookings = [];
+      debugPrint('📦 [Data.fromJson] Début parsing de ${json['Bookings'].length} réservations');
+      
+      int index = 0;
       json['Bookings'].forEach((v) {
-        _bookings?.add(Bookings.fromJson(v));
+        debugPrint('═══════════════════════════════════════════════════════');
+        debugPrint('🔄 [Data.fromJson] Parsing Booking #$index');
+        debugPrint('🔄 [Data.fromJson] JSON brut: ${v.toString().substring(0, v.toString().length > 200 ? 200 : v.toString().length)}...');
+        
+        // Log des clés importantes avant parsing
+        if (v is Map) {
+          debugPrint('🔄 [Data.fromJson] Clés disponibles: ${v.keys.toList()}');
+          debugPrint('🔄 [Data.fromJson] _id présent: ${v.containsKey('_id')}, valeur: ${v['_id']}');
+          debugPrint('🔄 [Data.fromJson] id présent: ${v.containsKey('id')}, valeur: ${v['id']}');
+          debugPrint('🔄 [Data.fromJson] item_data présent: ${v.containsKey('item_data')}, type: ${v['item_data']?.runtimeType}');
+        }
+        
+        try {
+          var booking = Bookings.fromJson(v);
+          _bookings?.add(booking);
+          debugPrint('✅ [Data.fromJson] Booking #$index parsé avec succès - ID: ${booking.id}');
+        } catch (e, stackTrace) {
+          debugPrint('❌ [Data.fromJson] ERREUR lors du parsing du Booking #$index: $e');
+          debugPrint('❌ [Data.fromJson] StackTrace: $stackTrace');
+          // Continuer même si un booking échoue
+        }
+        
+        index++;
       });
+      
+      debugPrint('✅ [Data.fromJson] ${_bookings?.length ?? 0} réservations parsées avec succès');
+    } else {
+      debugPrint('⚠️ [Data.fromJson] json["Bookings"] est null');
     }
-    _offset = json['offset'];
-    _limit = json['limit'];
+    
+    // Sécurisation des champs numériques offset et limit
+    _offset = Bookings.safeToNum(json['offset']);
+    _limit = Bookings.safeToNum(json['limit']);
   }
   List<Bookings>? _bookings;
   num? _offset;
@@ -84,7 +117,7 @@ class Data {
 
 class Bookings {
   Bookings({
-    num? id,
+    String? id,
     String? itemid,
     String? userid,
     String? hostId,
@@ -217,76 +250,226 @@ class Bookings {
               _singnatureImage = singnatureImage;
   }
 
-  Bookings.fromJson(dynamic json) {
-    _id = json['id'];
-    _itemid = json['itemid'];
-    _userid = json['userid'];
-    _hostId = json['host_id'];
-    _checkIn = json['check_in'];
-    _checkOut = json['check_out'];
-    _status = json['status'];
-    _totalNight = json['total_day'];
-    _perNight = json['per_day'];
-    _bookFor = json['book_for'];
-    _basePrice = json['base_price'];
-    _cleaningCharge = json['cleaning_charge'];
-    _guestCharge = json['guest_charge'];
-    _serviceCharge = json['service_charge'];
-    _securityMoney = json['security_money'];
-    _ivaTax = json['iva_tax'];
-    _totalGuest = json['total_guest'];
-    _doorStepPrice = json["doorstep_price"];
-    _total = json['total'];
-    _adminCommission = json['admin_commission'];
-    _vendorCommision = json['vendor_commision'];
-    _currencyCode = json['currency_code'];
-    _cancellationReasion = json['cancellation_reasion'];
-    _cancelledCharge = json['cancelled_charge'];
-    _transaction = json['transaction'];
-    _paymentMethod = json['payment_method'];
-    _paymentStatus = json['payment_status'];
-    _propImg = json['image'];
-    _propTitle = json['item_title'];
-    _itemData = json['item_data'];
-    _wallAmt = json['wall_amt'];
-    _note = json['note'];
-    _rating = json['rating'];
-    _cancelledBy = json['cancelled_by'];
-    _createdAt = json['created_at'];
-    _updatedAt = json['updated_at'];
-    _reviewStatus = json['review_status'];
-    _reviewRating = json['review_rating'];
-    _review = json['review'];
-    _hostName = json['host_name'];
-    _hostNumber = json['host_number'];
-    _hostEmail = json['host_email'];
-    _hostPhoneCountry = json['host_phone_country'];
-    _userName = json['user_name'];
-    _userNumber = json['user_number'];
-    _userPhoneCountry = json['user_phone_country'];
-    _userEmail = json['user_email'];
-
-    _module = json['module'];
-    _token = json['token'];
-    _startTime = json['start_time'];
-    _endTime = json['end_time'];
-    _bookingMeta = json['booking_meta'];
-    _isItemDelivered = json['is_item_delivered'];
-    _isItemReceived = json['is_item_received'];
-    _isItemReturned = json['is_item_returned'];
-    _isItemDeliveredButton = json['is_item_delivered_button'];
-    _isItemReturnedButton = json['is_item_returned_button'];
-    _isItemRecivedButton = json['is_received_button'];
-
-    _pickOtp = json['pick_otp'];
-    _dropOtp = json['drop_otp'];
-
-    _doorStepAddress = json['doorStep_address'];
-
-     _iteriorImage = json['booking_vehicle_images'];
-         _singnatureImage = json['signature_image'];
+  // ========== FONCTIONS HELPER POUR CONVERSION SÉCURISÉE ==========
+  /// Convertit une valeur en num? de manière sécurisée
+  /// Gère String, num, int, double, null
+  static num? safeToNum(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value;
+    if (value is String) {
+      if (value.isEmpty) return null;
+      return num.tryParse(value);
+    }
+    // Essayer de convertir via toString puis parsing
+    try {
+      return num.tryParse(value.toString());
+    } catch (e) {
+      return null;
+    }
   }
-  num? _id;
+
+  /// Convertit une valeur en String? de manière sécurisée
+  /// Gère String, num, int, double, null
+  static String? safeToString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value.isEmpty ? null : value;
+    return value.toString();
+  }
+
+  Bookings.fromJson(dynamic json) {
+    try {
+      // ========== 1. INSPECTION DU DÉCODAGE - ID ==========
+      // MongoDB envoie des IDs sous forme de String (ex: '694e...')
+      // Le backend envoie _id (avec underscore), pas id
+      _id = json['_id']?.toString() ?? json['id']?.toString();
+      print('🆔 [Bookings.fromJson] Parsing Booking ID: ${_id} (depuis _id: ${json['_id']}, id: ${json['id']})');
+      
+      // ========== CHAMPS IDENTIFIANTS (String) ==========
+      // Tous les IDs MongoDB sont des String
+      // Mapping avec fallback pour compatibilité avec différentes versions de l'API
+      _itemid = json['itemid']?.toString() ?? json['item_id']?.toString();
+      _userid = json['userid']?.toString();
+      _hostId = json['host_id']?.toString();
+      
+      // ========== CHAMPS DATES ET STATUS (String) ==========
+      _checkIn = safeToString(json['check_in']);
+      _checkOut = safeToString(json['check_out']);
+      _status = safeToString(json['status']);
+      
+      // ========== CHAMPS NUMÉRIQUES FINANCIERS (String mais peuvent être num) ==========
+      _totalNight = safeToString(json['total_day']);
+      _perNight = safeToString(json['per_day']);
+      _basePrice = safeToString(json['base_price']);
+      _cleaningCharge = safeToString(json['cleaning_charge']);
+      _guestCharge = safeToString(json['guest_charge']);
+      _serviceCharge = safeToString(json['service_charge']);
+      _securityMoney = safeToString(json['security_money']);
+      _ivaTax = safeToString(json['iva_tax']);
+      _totalGuest = safeToString(json['total_guest']);
+      _doorStepPrice = safeToString(json["doorstep_price"]);
+      
+      // ========== TOTAL (String mais peut être num) ==========
+      if (json['total'] != null) {
+        print('💰 [Bookings.fromJson] Total type: ${json['total'].runtimeType}, Valeur: ${json['total']}');
+        _total = safeToString(json['total']);
+      } else {
+        _total = null;
+        print('⚠️ [Bookings.fromJson] Total est null');
+      }
+      
+      // ========== AUTRES CHAMPS FINANCIERS (String) ==========
+      _adminCommission = safeToString(json['admin_commission']);
+      _vendorCommision = safeToString(json['vendor_commision']);
+      _currencyCode = safeToString(json['currency_code']);
+      _wallAmt = safeToString(json['wall_amt']);
+      
+      // ========== CHAMPS DIVERS ==========
+      _bookFor = json['book_for'];
+      _cancellationReasion = json['cancellation_reasion'];
+      _cancelledCharge = json['cancelled_charge'];
+      _transaction = json['transaction'];
+      _paymentMethod = safeToString(json['payment_method']);
+      _paymentStatus = safeToString(json['payment_status']);
+      _propImg = safeToString(json['image']);
+      _propTitle = safeToString(json['item_title']);
+      _note = json['note'];
+      _rating = safeToString(json['rating']);
+      _cancelledBy = json['cancelled_by'];
+      _createdAt = safeToString(json['created_at']);
+      _updatedAt = safeToString(json['updated_at']);
+      _reviewStatus = safeToString(json['review_status']);
+      _reviewRating = safeToString(json['review_rating']);
+      _review = safeToString(json['review']);
+      
+      // ========== INFORMATIONS HOST (String) ==========
+      _hostName = safeToString(json['host_name']);
+      _hostNumber = safeToString(json['host_number']);
+      _hostEmail = safeToString(json['host_email']);
+      _hostPhoneCountry = safeToString(json['host_phone_country']);
+      
+      // ========== INFORMATIONS USER (String) ==========
+      _userName = safeToString(json['user_name']);
+      _userNumber = safeToString(json['user_number']);
+      _userPhoneCountry = safeToString(json['user_phone_country']);
+      _userEmail = safeToString(json['user_email']);
+
+      // ========== MÉTADONNÉES (String) ==========
+      _module = safeToString(json['module']);
+      _token = safeToString(json['token']);
+      _startTime = safeToString(json['start_time']);
+      _endTime = safeToString(json['end_time']);
+      _bookingMeta = safeToString(json['booking_meta']);
+      
+      // ========== CHAMPS NUMÉRIQUES (num?) ==========
+      _isItemDelivered = safeToNum(json['is_item_delivered']);
+      _isItemReceived = safeToNum(json['is_item_received']);
+      _isItemReturned = safeToNum(json['is_item_returned']);
+      
+      // ========== BOUTONS (String) ==========
+      _isItemDeliveredButton = safeToString(json['is_item_delivered_button']);
+      _isItemReturnedButton = safeToString(json['is_item_returned_button']);
+      _isItemRecivedButton = safeToString(json['is_received_button']);
+
+      // ========== OTP (String mais peuvent être num) ==========
+      // Mapping avec fallback pour compatibilité avec différentes versions de l'API
+      _pickOtp = json['pickOtp']?.toString() ?? json['pick_otp']?.toString();
+      _dropOtp = json['dropOtp']?.toString() ?? json['drop_otp']?.toString();
+
+      // ========== ADRESSE (String) ==========
+      _doorStepAddress = safeToString(json['doorStep_address']);
+
+      // ========== IMAGES (dynamic) ==========
+      _iteriorImage = json['booking_vehicle_images'];
+      _singnatureImage = json['signature_image'];
+      
+      // ========== 2. PARSING DE item_data (Sièges et Type) ==========
+      _itemData = json['item_data'];
+      print('📦 [Bookings.fromJson] item_data brut reçu: ${_itemData} (type: ${_itemData?.runtimeType})');
+      
+      // Décodage spécifique de item_data avec try-catch
+      if (_itemData != null && _itemData.toString().isNotEmpty) {
+        try {
+          // Si c'est déjà une String, la décoder
+          dynamic itemDataToDecode = _itemData;
+          if (_itemData is String) {
+            itemDataToDecode = jsonDecode(_itemData);
+          }
+          
+          if (itemDataToDecode is List && itemDataToDecode.isNotEmpty) {
+            print('✅ [Bookings.fromJson] item_data décodé avec succès. Taille: ${itemDataToDecode.length}');
+            Map<String, dynamic> firstItem = itemDataToDecode[0];
+            print('📍 [Bookings.fromJson] Adresse extraite: ${firstItem['address']}');
+            print('⭐ [Bookings.fromJson] Rating extrait: ${firstItem['item_rating']}');
+            
+            // Extraction de item_type depuis item_data[0]
+            dynamic itemType = firstItem['item_type'];
+            if (itemType != null) {
+              print('✅ [Bookings.fromJson] item_type trouvé dans item_data[0]: $itemType');
+            } else {
+              print('⚠️ [Bookings.fromJson] item_type manquant dans item_data[0]');
+            }
+            
+            // Extraction de number_of_seats depuis item_info
+            if (firstItem.containsKey('item_info')) {
+              try {
+                dynamic itemInfoRaw = firstItem['item_info'];
+                Map<String, dynamic>? itemInfoMap;
+                
+                // item_info peut être une String JSON ou un Map
+                if (itemInfoRaw is String) {
+                  itemInfoMap = Map<String, dynamic>.from(jsonDecode(itemInfoRaw));
+                  print('✅ [Bookings.fromJson] item_info décodé depuis String JSON');
+                } else if (itemInfoRaw is Map) {
+                  itemInfoMap = Map<String, dynamic>.from(itemInfoRaw);
+                  print('✅ [Bookings.fromJson] item_info est déjà un Map');
+                }
+                
+                if (itemInfoMap != null) {
+                  // Extraction de number_of_seats
+                  dynamic numberOfSeats = itemInfoMap['number_of_seats'];
+                  if (numberOfSeats != null) {
+                    print('✅ [Bookings.fromJson] number_of_seats trouvé dans item_info: $numberOfSeats');
+                  } else {
+                    print('⚠️ [Bookings.fromJson] number_of_seats manquant dans item_info');
+                    print('   Clés disponibles dans item_info: ${itemInfoMap.keys.toList()}');
+                  }
+                  
+                  // Extraction de transmission
+                  dynamic transmission = itemInfoMap['transmission'] ?? itemInfoMap['transmission_type'];
+                  if (transmission != null) {
+                    print('✅ [Bookings.fromJson] transmission trouvé dans item_info: $transmission');
+                  }
+                }
+              } catch (e) {
+                print('❌ [Bookings.fromJson] Erreur lors du décodage de item_info: $e');
+              }
+            } else {
+              print('⚠️ [Bookings.fromJson] item_info manquant dans item_data[0]');
+            }
+          } else if (itemDataToDecode is Map) {
+            print('✅ [Bookings.fromJson] item_data est un Map. Adresse: ${itemDataToDecode['address']}');
+          }
+        } catch (e, stackTrace) {
+          print('❌ [Bookings.fromJson] ERREUR de décodage item_data: $e');
+          print('❌ [Bookings.fromJson] StackTrace: $stackTrace');
+          print('❌ [Bookings.fromJson] item_data qui a causé l\'erreur: $_itemData');
+          // Continuer même si le décodage échoue
+        }
+      } else {
+        print('⚠️ [Bookings.fromJson] item_data est null ou vide');
+      }
+      
+    } catch (e, stackTrace) {
+      debugPrint('❌ [Bookings.fromJson] ERREUR CRITIQUE lors du parsing: $e');
+      debugPrint('❌ [Bookings.fromJson] StackTrace: $stackTrace');
+      // Continuer avec des valeurs par défaut pour éviter un crash complet
+      _id = null; // String? null est valide
+      _itemid = null;
+      _userid = null;
+      _hostId = null;
+    }
+  }
+  String? _id;
   String? _itemid;
   String? _userid;
   String? _hostId;
@@ -352,7 +535,7 @@ class Bookings {
   dynamic       _singnatureImage;
     dynamic _iteriorImage;
 
-  num? get id => _id;
+  String? get id => _id;
   String? get itemid => _itemid;
   String? get userid => _userid;
   String? get hostId => _hostId;
@@ -412,8 +595,8 @@ class Bookings {
   String? get isItemDeliveredButton => _isItemDeliveredButton;
   String? get isItemReturnedButton => _isItemReturnedButton;
   String? get isItemRecivedButton => _isItemRecivedButton;
-  String? get pickOtp => _pickOtp;
-  String? get dropOtp => _dropOtp;
+  String? get pickOtp => _pickOtp?.toString();
+  String? get dropOtp => _dropOtp?.toString();
   String? get doorStepAddress => _doorStepAddress;
 
     dynamic? get iteriorImage => _iteriorImage;

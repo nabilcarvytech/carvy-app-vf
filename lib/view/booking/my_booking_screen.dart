@@ -9,6 +9,7 @@ import 'package:carvy/view/booking/liveBooking.dart';
 import 'package:carvy/view/booking/up_comming_trip.dart';
 import 'package:carvy/view/booking/previous_trip_screen.dart';
 import '../../controller/booking_controller.dart';
+import '../../controller/booking_record_controller.dart';
 import '../../utils/common_widget.dart';
 import '../../work_space.dart';
 
@@ -23,6 +24,7 @@ class MyBooking extends StatefulWidget {
 
 class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   late BookingController bookingController;
+  final BookingRecordController bookingRecordController = Get.find();
 
   TabController? tabController;
   int index = 0;
@@ -45,8 +47,33 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     });
 
     tabController!.addListener(() {
-      index = tabController!.index;
-      setState(() {});
+      if (index != tabController!.index) {
+        index = tabController!.index;
+        
+        // Appeler getBookingRecord explicitement selon l'onglet sélectionné
+        String type;
+        switch (index) {
+          case 0:
+            type = 'upcoming';
+            break;
+          case 1:
+            type = 'ongoing';
+            break;
+          case 2:
+            type = 'previous';
+            break;
+          case 3:
+            type = 'cancelled';
+            break;
+          default:
+            type = 'upcoming';
+        }
+        
+        // Appeler l'API explicitement lors du changement d'onglet
+        bookingRecordController.getBookingRecord(type: type, offset: 0);
+        
+        setState(() {});
+      }
     });
   }
 

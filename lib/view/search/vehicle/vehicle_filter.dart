@@ -276,9 +276,12 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                   style: heading2Grey1(context),
                                 ),
                                 // NOUVEAU: Widget BrandMultiSelect avec recherche
-                                if (filterController.makeTypeModel?.data?.makes != null)
+                                if (filterController
+                                        .makeTypeModel?.data?.makes !=
+                                    null)
                                   BrandMultiSelect(
-                                    makes: filterController.makeTypeModel!.data!.makes!,
+                                    makes: filterController
+                                        .makeTypeModel!.data!.makes!,
                                   ),
                                 const SizedBox(
                                   height: 5,

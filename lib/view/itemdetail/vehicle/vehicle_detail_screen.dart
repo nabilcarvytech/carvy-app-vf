@@ -4,6 +4,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:carvy/controller/general_controller.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/controller/publix_profile_controller.dart';
 import 'package:carvy/controller/push_notifications.dart';
@@ -26,6 +27,7 @@ import '../../../customwidget/miscellaneous_project_elements.dart';
 import '../../../utils/vehicle_common_widgets.dart';
 import '../../../work_space.dart';
 import '../../chat/conversation_screen.dart';
+import '../../kyc/user_kyc.dart';
 import '../../myaccount/publicProfile/public_profile_screen.dart';
 import 'package:carvy/customwidget/search_wizard.dart';
 
@@ -66,7 +68,8 @@ class VehicleDetailSScreen extends StatefulWidget {
 }
 
 class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
-  KycController kycController = Get.find();
+  // Éviter le crash au démarrage : S'assurer que le KycController est bien injecté AVANT que l'UI ne tente de lire activeStatus.value
+  late KycController kycController;
   ItemDetailsController vehicleDetailController = Get.find();
   final ValueNotifier<int> vehicleCurrentPageNotifier = ValueNotifier<int>(0);
   final PageController vehiclePagereviewController = PageController();
@@ -79,6 +82,14 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
   @override
   void initState() {
     super.initState();
+    // Éviter le crash au démarrage : S'assurer que le KycController est bien injecté AVANT que l'UI ne tente de lire activeStatus.value
+    try {
+      kycController = Get.find<KycController>();
+    } catch (e) {
+      // Si le contrôleur n'est pas encore injecté, on le crée ou on attend
+      print('⚠️ [KYC] KycController non trouvé, tentative de création...');
+      kycController = Get.put(KycController());
+    }
     print("🚗 VehicleDetailSScreen initState - widget.id: ${widget.id}");
     print(
         "🚗 VehicleDetailSScreen initState - widget.itemInfo: ${widget.itemInfo}");
@@ -89,6 +100,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
       print(
           "🚗 VehicleDetailSScreen postFrameCallback - Starting initialization");
       kycController.getUserKycData();
+      kycController.getKycDetails(); // Récupérer le statut KYC à jour
       if (handleDirectBooking == false) {
         filterController.setDefaultDates(
           startDateCustomDate: generalScopeController.startDateCustomDate,
@@ -364,83 +376,90 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                           height: 10,
                         ),
 
-                        Wrap(
-                          spacing: 16,
-                          runSpacing: 16,
-                          children: [
-                            if (widget.itemInfo?.vehicleType != null)
-                              carItemBox(
-                                icon: Icons.car_rental,
-                                title: 'Vehicle Type'.tr,
-                                desc: '${widget.itemInfo?.vehicleType}',
-                              ),
-                            if (widget.itemInfo?.makeType != null)
-                              carItemBox(
-                                icon: Icons.settings,
-                                title: 'Make'.tr,
-                                desc: '${widget.itemInfo?.makeType}',
-                              ),
-                            if (widget.itemInfo?.model != null)
-                              carItemBox(
-                                icon: Icons.star_border_outlined,
-                                title: 'Model'.tr,
-                                desc: '${widget.itemInfo?.model}',
-                              ),
-                            if (widget.itemInfo?.year != null)
-                              carItemBox(
-                                icon: Icons.calendar_month_outlined,
-                                title: 'Year'.tr,
-                                desc: '${widget.itemInfo?.year}',
-                              ),
-                            if (widget.itemInfo?.transmission != null)
-                              carItemBox(
-                                icon: Icons.track_changes,
-                                title: 'Transmission'.tr,
-                                desc: '${widget.itemInfo?.transmission}',
-                              ),
-                            if (widget.itemInfo?.odometer != null)
-                              carItemBox(
-                                icon: Icons.traffic_outlined,
-                                title: 'Odometer'.tr,
-                                desc: '${widget.itemInfo?.odometer}',
-                              ),
-                            if (widget.itemInfo?.fuelType != null)
-                              if (widget.itemInfo?.fuelType != null)
+                        GetBuilder<ItemDetailsController>(
+                          builder: (controller) {
+                            print(
+                                '🎨 UI RENDER: Valeur affichée dans le badge = ${controller.itemInfo?.type}');
+                            return Wrap(
+                              spacing: 16,
+                              runSpacing: 16,
+                              children: [
                                 carItemBox(
-                                  icon: Icons.local_gas_station,
-                                  title: 'Fuel Type'.tr,
-                                  desc:
-                                      '${widget.itemInfo?.fuelType == "" ? "Petrol" : "${widget.itemInfo?.fuelType}"}',
+                                  icon: Icons.car_rental,
+                                  title: 'Vehicle Type'.tr,
+                                  desc: controller.itemInfo?.type ?? 'CAR',
                                 ),
-                            if (widget.itemInfo?.seatCapicity != null)
-                              carItemBox(
-                                icon: Icons.event_seat,
-                                title: 'Seats'.tr,
-                                desc: '${widget.itemInfo?.seatCapicity}',
-                              ),
-                            carItemBox(
-                              icon: Icons.credit_card,
-                              title: 'Plate Number'.tr,
-                              desc:
-                                  maskLicensePlate(widget.itemInfo?.platNumber),
-                            ),
-                            carItemBox(
-                              icon: Icons.event,
-                              title: 'Minimum Rental Days'.tr,
-                              desc: '${widget.itemInfo?.minRentalDays ?? "0"}',
-                            ),
-                            carItemBox(
-                              icon: Icons.person_2,
-                              title: 'Minimum Age'.tr,
-                              desc: '${widget.itemInfo?.ageRistriction ?? "0"}',
-                            ),
-                            carItemBox(
-                              icon: Icons.verified_user,
-                              title: 'Insurance Coverage'.tr,
-                              desc:
-                                  '${widget.itemInfo?.insuranceCoverage ?? "0"}',
-                            ),
-                          ],
+                                if (widget.itemInfo?.makeType != null)
+                                  carItemBox(
+                                    icon: Icons.settings,
+                                    title: 'Make'.tr,
+                                    desc: '${widget.itemInfo?.makeType}',
+                                  ),
+                                if (widget.itemInfo?.model != null)
+                                  carItemBox(
+                                    icon: Icons.star_border_outlined,
+                                    title: 'Model'.tr,
+                                    desc: '${widget.itemInfo?.model}',
+                                  ),
+                                if (widget.itemInfo?.year != null)
+                                  carItemBox(
+                                    icon: Icons.calendar_month_outlined,
+                                    title: 'Year'.tr,
+                                    desc: '${widget.itemInfo?.year}',
+                                  ),
+                                if (widget.itemInfo?.transmission != null)
+                                  carItemBox(
+                                    icon: Icons.track_changes,
+                                    title: 'Transmission'.tr,
+                                    desc: '${widget.itemInfo?.transmission}',
+                                  ),
+                                if (widget.itemInfo?.odometer != null)
+                                  carItemBox(
+                                    icon: Icons.traffic_outlined,
+                                    title: 'Odometer'.tr,
+                                    desc: '${widget.itemInfo?.odometer}',
+                                  ),
+                                if (widget.itemInfo?.fuelType != null)
+                                  if (widget.itemInfo?.fuelType != null)
+                                    carItemBox(
+                                      icon: Icons.local_gas_station,
+                                      title: 'Fuel Type'.tr,
+                                      desc:
+                                          '${widget.itemInfo?.fuelType == "" ? "Petrol" : "${widget.itemInfo?.fuelType}"}',
+                                    ),
+                                if (widget.itemInfo?.seatCapicity != null)
+                                  carItemBox(
+                                    icon: Icons.event_seat,
+                                    title: 'Seats'.tr,
+                                    desc: '${widget.itemInfo?.seatCapicity}',
+                                  ),
+                                carItemBox(
+                                  icon: Icons.credit_card,
+                                  title: 'Plate Number'.tr,
+                                  desc: formatPlate(
+                                      controller.itemInfo?.platNumber),
+                                ),
+                                carItemBox(
+                                  icon: Icons.event,
+                                  title: 'Minimum Rental Days'.tr,
+                                  desc:
+                                      '${widget.itemInfo?.minRentalDays ?? "0"}',
+                                ),
+                                carItemBox(
+                                  icon: Icons.person_2,
+                                  title: 'Minimum Age'.tr,
+                                  desc:
+                                      '${widget.itemInfo?.ageRistriction ?? "0"}',
+                                ),
+                                carItemBox(
+                                  icon: Icons.verified_user,
+                                  title: 'Insurance Coverage'.tr,
+                                  desc:
+                                      '${widget.itemInfo?.insuranceCoverage ?? "0"}',
+                                ),
+                              ],
+                            );
+                          },
                         ),
 
                         // Large Caution Card - Separate from grid
@@ -1140,347 +1159,328 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                 ),
                 Positioned(
                     left: 0,
-                    top: 115,
-                    child: backButtonfordetailPageForVehicle(context, true)),
+                    top: MediaQuery.of(context).padding.top + 10,
+                    child: SafeArea(
+                      bottom: false,
+                      child: backButtonfordetailPageForVehicle(context, true),
+                    )),
                 Positioned(
                   right: 15,
-                  top: 120,
-                  child: isHostMode.value == true
-                      ? const SizedBox()
-                      : showWishList == 0
-                          ? const SizedBox(
-                              height: 25,
-                              width: 25,
-                              child: Center(child: CircularProgressIndicator()))
-                          : Padding(
-                              padding: const EdgeInsets.only(
-                                  top: Dimensions.paddingSizeDefault,
-                                  bottom: 8),
-                              child: InkWell(
-                                child: widget.isWishList == false
-                                    ? SvgPicture.asset(
-                                        'assets/images/whitHeart.svg',
-                                        // height: 15,
-                                      )
-                                    : SvgPicture.asset(
-                                        'assets/images/redHeart.svg',
-                                      ),
-                                onTap: () async {
-                                  if (token.isEmpty) {
-                                    showErrorToastMessage(
-                                        "You are not Login Yet Please Login ");
-                                    return;
-                                  }
-                                  setState(() {});
-                                  showWishList = -1;
-                                  if (widget.isWishList == false) {
-                                    showWishList = 0;
-                                    var value = await wishListController
-                                        .addTowishlist(widget.id);
-                                    if (value == true) {
-                                      setState(() {
-                                        widget.isWishList = true;
-                                        showWishList = -1;
-                                      });
+                  top: MediaQuery.of(context).padding.top + 15,
+                  child: SafeArea(
+                    bottom: false,
+                    child: isHostMode.value == true
+                        ? const SizedBox()
+                        : showWishList == 0
+                            ? const SizedBox(
+                                height: 25,
+                                width: 25,
+                                child:
+                                    Center(child: CircularProgressIndicator()))
+                            : Padding(
+                                padding: const EdgeInsets.only(
+                                    top: Dimensions.paddingSizeDefault,
+                                    bottom: 8),
+                                child: InkWell(
+                                  child: widget.isWishList == false
+                                      ? SvgPicture.asset(
+                                          'assets/images/whitHeart.svg',
+                                          // height: 15,
+                                        )
+                                      : SvgPicture.asset(
+                                          'assets/images/redHeart.svg',
+                                        ),
+                                  onTap: () async {
+                                    if (token.isEmpty) {
+                                      showErrorToastMessage(
+                                          "You are not Login Yet Please Login ");
+                                      return;
                                     }
-                                  } else {
-                                    showWishList = 0;
-                                    var value = await wishListController
-                                        .removeToWishlist(widget.id);
-                                    if (value == true) {
-                                      setState(() {
-                                        widget.isWishList = false;
-                                        showWishList = -1;
-                                      });
+                                    setState(() {});
+                                    showWishList = -1;
+                                    if (widget.isWishList == false) {
+                                      showWishList = 0;
+                                      var value = await wishListController
+                                          .addTowishlist(widget.id);
+                                      if (value == true) {
+                                        setState(() {
+                                          widget.isWishList = true;
+                                          showWishList = -1;
+                                        });
+                                      }
+                                    } else {
+                                      showWishList = 0;
+                                      var value = await wishListController
+                                          .removeToWishlist(widget.id);
+                                      if (value == true) {
+                                        setState(() {
+                                          widget.isWishList = false;
+                                          showWishList = -1;
+                                        });
+                                      }
                                     }
-                                  }
-                                },
+                                  },
+                                ),
                               ),
-                            ),
+                  ),
                 ),
               ],
             ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(color: Colors.white, boxShadow: [
-          BoxShadow(color: notifires.getgreycolor, blurRadius: 5)
-        ]),
-        child: BottomAppBar(
-          elevation: 0,
-          surfaceTintColor: notifires.getbgcolor,
-          color: notifires.getbgcolor,
-          height: 55,
-          child: Align(
-            alignment: Alignment.center,
-            child: SizedBox(
-              width: Dimensions.containerWidth,
-              child: Row(
-                children: [
-                  Text(
-                    "$currency ${widget.price!}",
-                    style: heading2(context)
-                        .copyWith(color: getColorBasedOnActiveModuleid()),
-                  ),
-                  widget.itemInfo!.serviceType!.toString() == "booking"
-                      ? Text(
-                          " / day".tr,
-                          style: regular2(context)
-                              .copyWith(color: notifires.getGrey4Whitecolor),
-                        )
-                      : Text(
-                          " / ${widget.itemInfo!.serviceType!}",
-                          style: regular2(context)
-                              .copyWith(color: notifires.getGrey4Whitecolor),
-                        ),
-                  const Spacer(),
-                  loginModel != null &&
-                          widget.itemInfo?.hostId.toString() ==
-                              userId.toString()
-                      ? const SizedBox()
-                      : widget.itemInfo!.serviceType!.toString() == "sale" ||
-                              widget.itemInfo!.serviceType!.toString() == "rent"
-                          ? Row(
-                              children: [
-                                Container(
-                                  height: 40,
-                                  width: 40,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: notifires.getGrey5Whitecolor,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: IconButton(
-                                    onPressed: () {
-                                      launchUrl(Uri.parse(
-                                          'tel:${widget.itemInfo!.hostPhone!}'));
-                                    },
-                                    icon: Icon(Icons.call,
-                                        color: getColorBasedOnActiveModuleid()),
-                                  ),
-                                ),
-                                const SizedBox(width: 20),
-                                Container(
-                                  height: 40,
-                                  width: 40,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: notifires.getGrey5Whitecolor,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: IconButton(
-                                    onPressed: () {
-                                      launchUrl(Uri.parse(
-                                          'mailto:${widget.itemInfo!.hostEmail!}'));
-                                    },
-                                    icon: Icon(Icons.email,
-                                        color: getColorBasedOnActiveModuleid()),
-                                  ),
-                                ),
-                              ],
-                            )
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Barre de navigation principale
+          Container(
+            decoration: BoxDecoration(color: Colors.white, boxShadow: [
+              BoxShadow(color: notifires.getgreycolor, blurRadius: 5)
+            ]),
+            child: BottomAppBar(
+              elevation: 0,
+              surfaceTintColor: notifires.getbgcolor,
+              color: notifires.getbgcolor,
+              height: 55,
+              child: Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: Dimensions.containerWidth,
+                  child: Row(
+                    children: [
+                      // Prix uniquement (sans le texte qui cause l'overflow)
+                      Text(
+                        "$currency ${widget.price!}",
+                        style: heading2(context)
+                            .copyWith(color: getColorBasedOnActiveModuleid()),
+                      ),
+                      const Spacer(),
+                      loginModel != null &&
+                              widget.itemInfo?.hostId.toString() ==
+                                  userId.toString()
+                          ? const SizedBox()
                           : widget.itemInfo!.serviceType!.toString() ==
-                                  "booking"
-                              ? isHostMode.value == true
-                                  ? const SizedBox()
-                                  : SizedBox(
-                                      height: 56,
-                                      child: ElevatedButton(
+                                      "sale" ||
+                                  widget.itemInfo!.serviceType!.toString() ==
+                                      "rent"
+                              ? Row(
+                                  children: [
+                                    Container(
+                                      height: 40,
+                                      width: 40,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: notifires.getGrey5Whitecolor,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: IconButton(
                                         onPressed: () {
-                                          if (token.isEmpty) {
-                                            loginAlert(context);
-                                            return;
-                                          }
-
-                                          if (loginModel != null &&
-                                              widget.itemInfo?.hostId
-                                                      .toString() ==
-                                                  userId.toString()) {
-                                            showErrorToastMessage(
-                                                "You can't book your own vehicle");
-                                            return;
-                                          }
-
-                                          late SearchControllerHome
-                                              searchController = Get.find();
-
-                                          bookingController
-                                                  .selectedStartTime.value =
-                                              searchController
-                                                  .startTimeSearch.value;
-
-                                          bookingController
-                                                  .selectedEndTime.value =
-                                              searchController
-                                                  .endTimeSearch.value;
-
-                                          bookingController.startDate.value =
-                                              generalScopeController
-                                                  .startDateCustomDate.value;
-
-                                          bookingController.endDate.value =
-                                              generalScopeController
-                                                  .endDateCustomDate.value;
-// if allready filteres
-
-                                          kycController
-                                              .kycStatus(
-                                                  kycController
-                                                      .activeStatus.value,
-                                                  context)
-                                              .then((isValid) {
-                                            if (!isValid) return;
-
-                                            if (handleDirectBooking == true) {
-                                              bookingController
-                                                  .commonNavigateToBookingSummary(
-                                                context,
-                                                widget.id,
-                                                widget.itemInfo,
-                                                widget.address,
-                                                widget.frontImage,
-                                                widget.title,
-                                                widget.rating,
-                                                widget.itemType,
-                                                widget.price,
-                                                "",
-                                              );
-
-                                              return;
-                                            }
-                                            showLoading();
-                                            bookingController
-                                                .checkDateApi(
-                                                    idFeatured: '${widget.id}')
-                                                .then((value) {
-                                              closeLoading();
-                                              try {
-                                                final data = value?["data"];
-                                                if (data == null) {
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          VehicleCheckAvailability(
-                                                        idFeatured: widget.id,
-                                                        itemDetails:
-                                                            widget.itemInfo,
-                                                        address: widget.address,
-                                                        frontImage:
-                                                            widget.frontImage,
-                                                        title: widget.title,
-                                                        rating: widget.rating,
-                                                        itemType:
-                                                            widget.itemType,
-                                                        price: widget.price,
-                                                      ),
-                                                    ),
-                                                  );
-                                                  return;
-                                                }
-                                                String? startTime =
-                                                    data["next_start_time"];
-                                                String? endTime =
-                                                    data["next_end_time"];
-                                                final availability =
-                                                    data["availability"];
-                                                if (availability != null) {
-                                                  startTime = availability[
-                                                          "next_start_time"] ??
-                                                      startTime;
-                                                  endTime = availability[
-                                                          "next_end_time"] ??
-                                                      endTime;
-                                                  startTime ??= "12:00 AM";
-                                                  endTime ??= "11:30 AM";
-                                                  bookingController
-                                                      .selectedStartTime
-                                                      .value = startTime;
-                                                  bookingController
-                                                      .selectedEndTime
-                                                      .value = endTime;
-
-                                                  bookingController
-                                                      .commonNavigateToBookingSummary(
-                                                    context,
-                                                    widget.id,
-                                                    widget.itemInfo,
-                                                    widget.address,
-                                                    widget.frontImage,
-                                                    widget.title,
-                                                    widget.rating,
-                                                    widget.itemType,
-                                                    widget.price,
-                                                    "",
-                                                  );
-                                                } else {
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          VehicleCheckAvailability(
-                                                        idFeatured: widget.id,
-                                                        itemDetails:
-                                                            widget.itemInfo,
-                                                        address: widget.address,
-                                                        frontImage:
-                                                            widget.frontImage,
-                                                        title: widget.title,
-                                                        rating: widget.rating,
-                                                        itemType:
-                                                            widget.itemType,
-                                                        price: widget.price,
-                                                      ),
-                                                    ),
-                                                  );
-                                                }
-
-                                                debugPrint(
-                                                  '✅ Checkout Time -> Start: $startTime | End: $endTime',
-                                                );
-
-                                                closeLoading();
-                                              } catch (e) {
-                                                debugPrint(
-                                                    'Error parsing checkDateApi response: $e');
-                                                showErrorToastMessage(
-                                                    "Something went wrong. Please try again."
-                                                        .tr);
-                                              }
-                                            }).catchError((error) {
-                                              closeLoading();
-                                              debugPrint(
-                                                  '❌ Error in checkDateApi: $error');
-                                              showErrorToastMessage(
-                                                  "An error occurred while checking availability."
-                                                      .tr);
-                                            });
-                                          });
+                                          launchUrl(Uri.parse(
+                                              'tel:${widget.itemInfo!.hostPhone!}'));
                                         },
-                                        style: ButtonStyle(
-                                          backgroundColor: WidgetStateProperty.all(
-                                              getColorBasedOnActiveModuleid()),
-                                          shape: WidgetStateProperty.all(
-                                            RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
+                                        icon: Icon(Icons.call,
+                                            color:
+                                                getColorBasedOnActiveModuleid()),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    Container(
+                                      height: 40,
+                                      width: 40,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: notifires.getGrey5Whitecolor,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: IconButton(
+                                        onPressed: () {
+                                          launchUrl(Uri.parse(
+                                              'mailto:${widget.itemInfo!.hostEmail!}'));
+                                        },
+                                        icon: Icon(Icons.email,
+                                            color:
+                                                getColorBasedOnActiveModuleid()),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : widget.itemInfo!.serviceType!.toString() ==
+                                      "booking"
+                                  ? isHostMode.value == true
+                                      ? const SizedBox()
+                                      : SizedBox(
+                                          height: 40,
+                                          child: ElevatedButton(
+                                            onPressed: () async {
+                                              await _handleNextButtonPress(
+                                                  context);
+                                            },
+                                            style: ButtonStyle(
+                                              backgroundColor:
+                                                  WidgetStateProperty.all(
+                                                      getColorBasedOnActiveModuleid()),
+                                              shape: WidgetStateProperty.all(
+                                                RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              'Next'.tr,
+                                              style: heading3(context).copyWith(
+                                                  color: whiteColor,
+                                                  overflow:
+                                                      TextOverflow.ellipsis),
                                             ),
                                           ),
-                                        ),
-                                        child: Text(
-                                          'Next'.tr,
-                                          style: heading3(context).copyWith(
-                                              color: whiteColor,
-                                              overflow: TextOverflow.ellipsis),
-                                        ),
-                                      ),
-                                    )
-                              : const SizedBox(),
-                ],
+                                        )
+                                  : const SizedBox(),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
+  }
+
+  // Méthode pour gérer l'action du bouton "Next"
+  Future<void> _handleNextButtonPress(BuildContext context) async {
+    if (token.isEmpty) {
+      loginAlert(context);
+      return;
+    }
+
+    if (loginModel != null &&
+        widget.itemInfo?.hostId.toString() == userId.toString()) {
+      showErrorToastMessage("You can't book your own vehicle");
+      return;
+    }
+
+    // ========== VÉRIFICATION DU STATUT KYC ==========
+    final kycStatus = kycController.activeStatus.value.toLowerCase();
+
+    // Si le statut est 'none' ou 'no' ET que l'utilisateur n'a pas passé cette étape dans cette session,
+    // rediriger vers UserKyc()
+    if ((kycStatus == "none" || kycStatus == "no" || kycStatus.isEmpty) &&
+        !kycController.hasSkippedInSession.value) {
+      Get.to(() => const UserKyc());
+      return;
+    }
+
+    // Si le statut est 'pending', 'waiting', 'review' ou 'verified' (ou si l'utilisateur a passé l'étape),
+    // ignorer l'étape KYC et continuer avec la navigation normale
+
+    late SearchControllerHome searchController = Get.find();
+
+    bookingController.selectedStartTime.value =
+        searchController.startTimeSearch.value;
+
+    bookingController.selectedEndTime.value =
+        searchController.endTimeSearch.value;
+
+    bookingController.startDate.value =
+        generalScopeController.startDateCustomDate.value;
+
+    bookingController.endDate.value =
+        generalScopeController.endDateCustomDate.value;
+
+    // if allready filteres
+    if (handleDirectBooking == true) {
+      bookingController.commonNavigateToBookingSummary(
+        context,
+        widget.id,
+        widget.itemInfo,
+        widget.address,
+        widget.frontImage,
+        widget.title,
+        widget.rating,
+        widget.itemType,
+        widget.price,
+        "",
+      );
+      return;
+    }
+
+    showLoading();
+    bookingController.checkDateApi(idFeatured: '${widget.id}').then((value) {
+      closeLoading();
+      try {
+        final data = value?["data"];
+        if (data == null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VehicleCheckAvailability(
+                idFeatured: widget.id,
+                itemDetails: widget.itemInfo,
+                address: widget.address,
+                frontImage: widget.frontImage,
+                title: widget.title,
+                rating: widget.rating,
+                itemType: widget.itemType,
+                price: widget.price,
+              ),
+            ),
+          );
+          return;
+        }
+        String? startTime = data["next_start_time"];
+        String? endTime = data["next_end_time"];
+        final availability = data["availability"];
+        if (availability != null) {
+          startTime = availability["next_start_time"] ?? startTime;
+          endTime = availability["next_end_time"] ?? endTime;
+          startTime ??= "12:00 AM";
+          endTime ??= "11:30 AM";
+          bookingController.selectedStartTime.value = startTime;
+          bookingController.selectedEndTime.value = endTime;
+
+          bookingController.commonNavigateToBookingSummary(
+            context,
+            widget.id,
+            widget.itemInfo,
+            widget.address,
+            widget.frontImage,
+            widget.title,
+            widget.rating,
+            widget.itemType,
+            widget.price,
+            "",
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VehicleCheckAvailability(
+                idFeatured: widget.id,
+                itemDetails: widget.itemInfo,
+                address: widget.address,
+                frontImage: widget.frontImage,
+                title: widget.title,
+                rating: widget.rating,
+                itemType: widget.itemType,
+                price: widget.price,
+              ),
+            ),
+          );
+        }
+
+        debugPrint(
+          '✅ Checkout Time -> Start: $startTime | End: $endTime',
+        );
+
+        closeLoading();
+      } catch (e) {
+        debugPrint('Error parsing checkDateApi response: $e');
+        showErrorToastMessage("Something went wrong. Please try again.".tr);
+      }
+    }).catchError((error) {
+      closeLoading();
+      debugPrint('❌ Error in checkDateApi: $error');
+      showErrorToastMessage(
+          "An error occurred while checking availability.".tr);
+    });
   }
 
   Widget buildDescriptionWidget() {
@@ -1531,6 +1531,18 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
           )
         : const SizedBox
             .shrink(); // If no need for Show More button, return an empty SizedBox
+  }
+
+  String formatPlate(String? plate) {
+    if (plate == null || plate.isEmpty) return 'N/A';
+    if (plate.length < 3) return plate;
+
+    // Logique pour extraire la fin (ex: 1-A) et l'afficher au début
+    var parts = plate.split('-');
+    if (parts.length >= 3) {
+      return '${parts[2]}-${parts[1]}-*****';
+    }
+    return plate;
   }
 
   Widget carItemBox({

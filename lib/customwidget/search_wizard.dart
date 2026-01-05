@@ -817,23 +817,18 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
             ),
           ),
 
-          // Info règle minimum 1h
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.info_outline,
-                    color: notifires.getgreycolor, size: 14),
-                const SizedBox(width: 6),
-                Text(
-                  'Minimum rental: 1 hour'.tr,
-                  style: regular2(context).copyWith(
-                    color: notifires.getgreycolor,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+          // Message d'information sur la confirmation des horaires
+          Container(
+            margin: const EdgeInsets.only(top: 16, bottom: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Text(
+              'Pour toute demande effectuée en dehors des horaires d\'ouverture de l\'agence, l\'horaire devra être confirmé directement avec l\'agence après la validation de la réservation.',
+              textAlign: TextAlign.center,
+              style: regular2(context).copyWith(
+                fontSize: 12,
+                color: notifires.getgreycolor,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
 

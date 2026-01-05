@@ -198,6 +198,7 @@ class ItemInfo {
   dynamic serviceType;
   List<dynamic>? rules;
   dynamic vehicleType;
+  final String? type;
   dynamic makeType;
   dynamic model;
   dynamic year;
@@ -238,6 +239,7 @@ class ItemInfo {
     this.serviceType,
     this.rules,
     this.vehicleType,
+    this.type,
     this.makeType,
     this.model,
     this.year,
@@ -276,10 +278,12 @@ class ItemInfo {
   });
 
   factory ItemInfo.fromJson(Map<String, dynamic> json) {
+    print('DEBUG MODEL: Type reçu du JSON = ${json['type']}');
     return ItemInfo(
       serviceType: json['service_type'],
       rules: List<String>.from(json['rules'] ?? []),
       vehicleType: json['vehicleType'],
+      type: json['type']?.toString() ?? 'CAR',
       makeType: json['make_type'],
       model: json['model'],
       year: json['year'],

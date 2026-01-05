@@ -15,6 +15,7 @@ import 'package:carvy/view/booking/vehicle_photoes_booking.dart';
 import 'package:carvy/view/host/wallet/finance_screen.dart';
 import 'package:carvy/view/host/orders/orders_screen.dart';
 import 'package:carvy/view/host/wallet/payment_method_screen.dart';
+import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/view/kyc/user_kyc.dart';
 import 'package:carvy/view/myaccount/addaddress/pick_address_with_map.dart';
 import 'package:carvy/view/myaccount/my_profile_screen.dart';
@@ -31,6 +32,7 @@ class AccountScreen extends StatefulWidget {
 
 class _AccounScreenState extends State<AccountScreen> {
   ProfileController profileController = Get.find();
+  KycController kycController = Get.find();
 
   @override
   void initState() {
@@ -381,6 +383,142 @@ class _AccounScreenState extends State<AccountScreen> {
                                   leadingIcon: Icons.info,
                                   iconColor: getColorBasedOnActiveModuleid(),
                                 ),
+                                const SizedBox(
+                                  height: 10,
+                                ),
+                                HeaderTextWidget(
+                                  headingText: "Vérification d'identité".tr,
+                                ),
+                                const SizedBox(
+                                  height: 5,
+                                ),
+                                Obx(() {
+                                  // Lire la variable réactive activeStatus.value pour que GetX détecte la réactivité
+                                  final kycStatus =
+                                      kycController.activeStatus.value;
+
+                                  Color badgeColor;
+                                  Color textColor;
+                                  IconData iconData;
+                                  String badgeText;
+
+                                  // Déterminer le texte, la couleur et l'icône selon le statut
+                                  if (kycStatus == "approved" ||
+                                      kycStatus == "verified") {
+                                    badgeText = "Compte vérifié";
+                                    badgeColor = Colors.green;
+                                    textColor = Colors.white;
+                                    iconData = Icons.verified;
+                                  } else if (kycStatus == "pending" ||
+                                      kycStatus == "review") {
+                                    badgeText = "Vérification en cours";
+                                    badgeColor = Colors.orange;
+                                    textColor = Colors.white;
+                                    iconData = Icons.pending;
+                                  } else {
+                                    // NONE, null, "", "no", etc.
+                                    badgeText = "Non soumis";
+                                    badgeColor =
+                                        getColorBasedOnActiveModuleid();
+                                    textColor = Colors.white;
+                                    iconData = Icons.perm_identity;
+                                  }
+
+                                  return InkWell(
+                                    onTap: () {
+                                      // Accès permanent à l'upload - pas de blocage
+                                      Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (builder) =>
+                                                  const UserKyc()));
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 5),
+                                      child: Container(
+                                        height: 65,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: notifires.getBoxColor,
+                                          borderRadius:
+                                              BorderRadius.circular(13),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const SizedBox(width: 15),
+                                            Icon(
+                                              iconData,
+                                              color: badgeColor,
+                                              size: 24,
+                                            ),
+                                            const SizedBox(width: 15),
+                                            Expanded(
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          "Vérification d'identité"
+                                                              .tr,
+                                                          style: headingh5
+                                                              .copyWith(
+                                                            color: notifires
+                                                                .getGrey2Whitecolor,
+                                                            fontSize: 16,
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  // Badge orange arrondi
+                                                  Container(
+                                                    padding:
+                                                        EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: badgeColor,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              12),
+                                                    ),
+                                                    child: Text(
+                                                      badgeText.tr,
+                                                      style: TextStyle(
+                                                        color: textColor,
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Icon(
+                                              Icons.arrow_forward_ios,
+                                              size: 16,
+                                              color:
+                                                  notifires.getGrey4Whitecolor,
+                                            ),
+                                            const SizedBox(width: 20),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
                                 const SizedBox(
                                   height: 10,
                                 ),

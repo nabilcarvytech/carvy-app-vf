@@ -15,6 +15,7 @@ import 'package:carvy/work_space.dart';
 import '../../../controller/booking_controller.dart';
 import '../../../customwidget/miscellaneous_project_elements.dart';
 import '../../../model/vehicle_home_model.dart';
+import '../../../view/kyc/user_kyc.dart';
 
 class VehicleCheckAvailability extends StatefulWidget {
   final dynamic idFeatured;
@@ -45,13 +46,19 @@ class VehicleCheckAvailability extends StatefulWidget {
 }
 
 class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
-  BookingController bookingController = Get.find();
-  getData() async {
-    await bookingController.fetchDataCalendar(widget.idFeatured);
-  }
-
+  late BookingController bookingController;
   KycController kycController = Get.find();
   AddAddressController addAddressController = Get.find();
+  
+  getData() async {
+    print('📅 getData() appelé avec idFeatured: ${widget.idFeatured}');
+    try {
+      await bookingController.fetchDataCalendar(widget.idFeatured);
+      print('✅ fetchDataCalendar terminé');
+    } catch (e) {
+      print('❌ Erreur dans getData(): $e');
+    }
+  }
   Future<void> onpress(BuildContext contex) async {
     if (bookingController.selectedStartTime.value == "") {
       showErrorToastMessage("Select Start  time to continue".tr);
@@ -77,26 +84,35 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
       }
     }
 
+    // ========== VÉRIFICATION DU STATUT KYC ==========
+    final kycStatus = kycController.activeStatus.value.toLowerCase();
+
+    // Si le statut est 'none' ou 'no' ET que l'utilisateur n'a pas passé cette étape dans cette session,
+    // rediriger vers UserKyc()
+    if ((kycStatus == "none" || kycStatus == "no" || kycStatus.isEmpty) &&
+        !kycController.hasSkippedInSession.value) {
+      Get.to(() => const UserKyc());
+      return;
+    }
+
+    // Si le statut est 'pending', 'waiting', 'review' ou 'verified' (ou si l'utilisateur a passé l'étape),
+    // ignorer l'étape KYC et continuer avec la navigation normale
+
     try {
       if (bookingController.isDateAvailale.value == true) {
-        kycController
-            .kycStatus(kycController.activeStatus.value, context)
-            .then((isValid) {
-          if (!isValid) return;
-          bookingController.commonNavigateToBookingSummary(
-              context,
-              widget.idFeatured,
-              widget.itemDetails,
-              widget.address,
-              widget.frontImage,
-              widget.title,
-              widget.rating,
-              widget.itemType,
-              widget.price,
-              bookingController.addDoorStepPrice
-                  ? widget.itemDetails?.doorStepPrice
-                  : "0");
-        });
+        bookingController.commonNavigateToBookingSummary(
+            context,
+            widget.idFeatured,
+            widget.itemDetails,
+            widget.address,
+            widget.frontImage,
+            widget.title,
+            widget.rating,
+            widget.itemType,
+            widget.price,
+            bookingController.addDoorStepPrice
+                ? widget.itemDetails?.doorStepPrice
+                : "0");
       }
     } finally {
       setState(() {});
@@ -106,7 +122,19 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
   @override
   void initState() {
     super.initState();
+    print('🔄 initState() de VehicleCheckAvailability appelé');
+    
+    // S'assurer que le contrôleur est initialisé
+    try {
+      bookingController = Get.find<BookingController>();
+      print('✅ BookingController trouvé via Get.find()');
+    } catch (e) {
+      print('⚠️ BookingController non trouvé, création avec Get.put()');
+      bookingController = Get.put(BookingController());
+    }
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('📋 addPostFrameCallback exécuté');
       addAddressController.getDoorStepAddressp(false);
 
       if (widget.cleanvalue == null) {
@@ -124,6 +152,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
       bookingController.availableDatesPrice.clear();
       bookingController.alreadySelectedList.clear();
       bookingController.idFeatured = widget.idFeatured;
+      print('📞 Appel de getData() depuis addPostFrameCallback');
       getData();
     });
   }
@@ -250,7 +279,6 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     setState(() {});
                                   },
                                 ),
-
                                 Text("$monthName $yearText",
                                     style: heading2(context)),
                                 IconButton(
@@ -268,15 +296,23 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                 ),
                               ],
                             ),
-                            Container(
-                              height: 400,
-                              padding: const EdgeInsets.only(left: 8, right: 8),
-                              margin: const EdgeInsets.all(0),
-                              decoration: BoxDecoration(
-                                color: whiteColor,
-                                borderRadius: BorderRadius.circular(0),
-                              ),
-                              child: SfDateRangePicker(
+                            GetBuilder<BookingController>(
+                              builder: (controller) {
+                                print('🔔 UI REBUILD - Dates dispo: ${controller.availableDates.length}');
+                                print('🔄 GetBuilder<BookingController> rebuild - availableDates.length: ${controller.availableDates.length}, alreadySelectedList.length: ${controller.alreadySelectedList.length}');
+                                if (controller.availableDates.isNotEmpty) {
+                                  print('   - Première date disponible: ${controller.availableDates.first.toString().split(' ')[0]}');
+                                  print('   - Dernière date disponible: ${controller.availableDates.last.toString().split(' ')[0]}');
+                                }
+                                return Container(
+                                  height: 400,
+                                  padding: const EdgeInsets.only(left: 8, right: 8),
+                                  margin: const EdgeInsets.all(0),
+                                  decoration: BoxDecoration(
+                                    color: whiteColor,
+                                    borderRadius: BorderRadius.circular(0),
+                                  ),
+                                  child: SfDateRangePicker(
                                 minDate: DateTime.now(),
                                 headerHeight: 0,
                                 headerStyle: DateRangePickerHeaderStyle(
@@ -302,14 +338,50 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                 selectionColor: Colors.transparent,
                                 cellBuilder: (context, cellDetails) {
                                   DateTime now = DateTime.now();
-                                  bool isDateAvailable = bookingController
-                                      .availableDates
-                                      .contains(cellDetails.date);
+                                  // Extraire le jour, le mois et l'année de la cellule (insensible aux heures)
+                                  final cellDate = DateTime(
+                                      cellDetails.date.year,
+                                      cellDetails.date.month,
+                                      cellDetails.date.day);
+                                  
+                                  // Diagnostic pour le 1er du mois
+                                  if (cellDetails.date.day == 1) {
+                                    print('📅 Test Cellule 1er du mois: $cellDate | Liste dispo: ${bookingController.availableDates.take(3).map((d) => d.toString().split(' ')[0]).toList()}');
+                                    print('   - availableDates.length: ${bookingController.availableDates.length}');
+                                    print('   - alreadySelectedList.length: ${bookingController.alreadySelectedList.length}');
+                                  }
+                                  
+                                  // Recherche manuelle insensible aux heures pour availableDates
+                                  bool isDateAvailable = bookingController.availableDates.any((d) => 
+                                      d.year == cellDate.year && 
+                                      d.month == cellDate.month && 
+                                      d.day == cellDate.day);
+                                  
+                                  // Recherche manuelle insensible aux heures pour alreadySelectedList
+                                  bool isInAlreadySelectedList = bookingController.alreadySelectedList.any((d) => 
+                                      d.year == cellDate.year && 
+                                      d.month == cellDate.month && 
+                                      d.day == cellDate.day);
+                                  
+                                  // Diagnostic pour le 1er du mois
+                                  if (cellDetails.date.day == 1) {
+                                    print('   - isDateAvailable pour $cellDate: $isDateAvailable');
+                                    print('   - isInAlreadySelectedList: $isInAlreadySelectedList');
+                                  }
+                                  
                                   String? priceText;
                                   if (isDateAvailable) {
-                                    final index = bookingController
-                                        .availableDates
-                                        .indexOf(cellDetails.date);
+                                    // Trouver l'index en utilisant la même logique de comparaison
+                                    int index = -1;
+                                    for (int i = 0; i < bookingController.availableDates.length; i++) {
+                                      final d = bookingController.availableDates[i];
+                                      if (d.year == cellDate.year && 
+                                          d.month == cellDate.month && 
+                                          d.day == cellDate.day) {
+                                        index = i;
+                                        break;
+                                      }
+                                    }
 
                                     if (index != -1 &&
                                         index <
@@ -336,10 +408,6 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                   }
                                   DateTime today =
                                       DateTime(now.year, now.month, now.day);
-                                  DateTime cellDate = DateTime(
-                                      cellDetails.date.year,
-                                      cellDetails.date.month,
-                                      cellDetails.date.day);
 
                                   return Container(
                                     margin: const EdgeInsets.all(1),
@@ -350,22 +418,22 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                       color: (cellDate.isBefore(today) &&
                                                   cellDate != today) ||
                                               !isDateAvailable
-                                          ? Colors.grey.withOpacity(
-                                              0.2)
-                                          : bookingController.alreadySelectedList
-                                                  .contains(cellDetails.date)
+                                          ? Colors.grey.withOpacity(0.2)
+                                          : isInAlreadySelectedList
                                               ? pc1.withOpacity(.4)
                                               : bookingController.startDate
                                                           .value.isNotEmpty &&
-                                                      DateTime.parse(bookingController.startDate.value) ==
-                                                          cellDetails.date
+                                                      DateTime.parse(bookingController.startDate.value).year == cellDate.year &&
+                                                      DateTime.parse(bookingController.startDate.value).month == cellDate.month &&
+                                                      DateTime.parse(bookingController.startDate.value).day == cellDate.day
                                                   ? greenback
                                                   : bookingController
                                                               .endDate
                                                               .value
                                                               .isNotEmpty &&
-                                                          DateTime.parse(bookingController.endDate.value) ==
-                                                              cellDetails.date
+                                                          DateTime.parse(bookingController.endDate.value).year == cellDate.year &&
+                                                          DateTime.parse(bookingController.endDate.value).month == cellDate.month &&
+                                                          DateTime.parse(bookingController.endDate.value).day == cellDate.day
                                                       ? greenback
                                                       : bookingController
                                                                   .startDate
@@ -375,8 +443,8 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                                   .endDate
                                                                   .value
                                                                   .isNotEmpty &&
-                                                              DateTime.parse(bookingController.startDate.value).isBefore(cellDetails.date) &&
-                                                              DateTime.parse(bookingController.endDate.value).isAfter(cellDetails.date)
+                                                              DateTime.parse(bookingController.startDate.value).isBefore(cellDate) &&
+                                                              DateTime.parse(bookingController.endDate.value).isAfter(cellDate)
                                                           ? greenback
                                                           : Colors.transparent,
                                     ),
@@ -395,10 +463,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                           .isBefore(today) &&
                                                       cellDate != today)
                                                   ? Colors.grey.shade600
-                                                  : bookingController
-                                                          .alreadySelectedList
-                                                          .contains(
-                                                              cellDetails.date)
+                                                  : isInAlreadySelectedList
                                                       ? Colors.white
                                                       : isDateAvailable
                                                           ? Colors.black
@@ -433,6 +498,8 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                   );
                                 },
                               ),
+                                );
+                              },
                             ),
                             Column(
                               children: [
@@ -547,17 +614,14 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                 bookingController.startDate
                                                             .toString() !=
                                                         ''
-                                                    ? '${bookingController
-                                                            .startDate} ${bookingController
-                                                            .selectedStartTime
-                                                            .value}'
+                                                    ? '${bookingController.startDate} ${bookingController.selectedStartTime.value}'
                                                     : 'YYYY-MM-DD',
                                                 style:
                                                     regular2(context).copyWith(
                                                   color: notifires
                                                       .getwhiteblackcolor,
                                                 )),
-                                          ),                                   
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -594,16 +658,14 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                 bookingController.endDate
                                                             .toString() !=
                                                         ''
-                                                    ? '${bookingController.endDate} ${bookingController
-                                                            .selectedEndTime
-                                                            .value}'
+                                                    ? '${bookingController.endDate} ${bookingController.selectedEndTime.value}'
                                                     : 'YYYY-MM-DD',
                                                 style:
                                                     regular2(context).copyWith(
                                                   color: notifires
                                                       .getwhiteblackcolor,
                                                 )),
-                                          ),                                     
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -717,8 +779,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius: BorderRadius.circular(
-                                          12), 
+                                      borderRadius: BorderRadius.circular(12),
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.grey.withOpacity(0.2),

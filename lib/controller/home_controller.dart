@@ -9,6 +9,8 @@ import '../helper/http_service.dart';
 import '../model/get_currency_details_model.dart';
 import '../model/locations_model.dart';
 import '../model/vehicle_home_model.dart';
+import 'search_controller.dart';
+import '../work_space.dart';
 
 class HomeController extends GetxController implements GetxService {
   apibasedonModuleid() async {
@@ -402,19 +404,67 @@ class HomeController extends GetxController implements GetxService {
 
   RxBool homeDataLoading = false.obs;
   HomeDataModel? homeDataModel;
-  Future<void> getHomeData() async {
+  
+  // Mappe les valeurs de tri de l'UI vers les valeurs attendues par le backend
+  String _mapSortValue(String uiValue) {
+    switch (uiValue) {
+      case "Nearest Location":
+        return "nearest_location";
+      case "Highest Ranked":
+        return "highest_rated";
+      case "Newest":
+        return "newest";
+      case "Cheapest Price":
+      default:
+        return "cheapest_price";
+    }
+  }
+  
+  Future<void> getHomeData({bool forceRefresh = false}) async {
     print("🔵 [HOME_DATA] getHomeData() called");
     homeDataLoading.value = true;
-    var storedData = GetStorage().read("homeData");
+    
+    // 1. On vérifie si un tri est actif
+    String sortValue = Get.find<SearchControllerHome>().selectredeShortByvalue.value;
+    
+    // 2. Si on a un tri (pas 'Nearest Location' par défaut) OU si on force, on ignore le cache
+    bool shouldSkipCache = sortValue != "Nearest Location" || forceRefresh;
+    
+    var storedData = shouldSkipCache ? null : GetStorage().read("homeData");
+    
     if (storedData == null) {
+      if (shouldSkipCache) {
+        print("🚀 [HOME_DATA] Sort active or forced: Skipping cache and calling API");
+      }
       print("🔵 [HOME_DATA] No cached data found, fetching from API...");
       try {
         print(
             "🔵 [HOME_DATA] Calling httpGet with endpoint: ${Config.homeDataApi}");
         print(
             "🔵 [HOME_DATA] Full URL will be: ${Config.baseurl}${Config.homeDataApi}");
+        String mappedSortValue = _mapSortValue(sortValue);
+        print("🔵 [HOME_DATA] Sort value: $sortValue -> $mappedSortValue");
+        
+        // Vérifier si mappedSortValue n'est pas vide ou toujours bloqué sur 'cheapest_price'
+        if (mappedSortValue.isEmpty) {
+          print("⚠️ [HOME_DATA] WARNING: mappedSortValue is empty!");
+        }
+        if (mappedSortValue == "cheapest_price" && sortValue != "Cheapest Price") {
+          print("⚠️ [HOME_DATA] WARNING: mappedSortValue is 'cheapest_price' but sortValue was '$sortValue'");
+        }
+        
+        print('DEBUG API - URL: ${Config.homeDataApi} | Sort: $mappedSortValue');
+        print('🚀 [FLUTTER_API_CALL] URL envoyée : ${Config.homeDataApi}?sort=$mappedSortValue');
 
-        var response = await httpGet(Config.homeDataApi, {});
+        // Récupérer les coordonnées depuis les variables globales
+        String currentLat = slatsearch ?? "";
+        String currentLng = sLongSearch ?? "";
+        
+        var response = await httpGet(Config.homeDataApi, {
+          "sort": mappedSortValue,
+          "Slatitude": currentLat,
+          "Slongitude": currentLng,
+        });
 
         print("🔵 [HOME_DATA] Response received from API");
         print("🔵 [HOME_DATA] Response type: ${response.runtimeType}");

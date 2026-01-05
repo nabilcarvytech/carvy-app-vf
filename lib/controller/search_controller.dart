@@ -788,7 +788,9 @@ class SearchControllerHome extends GetxController implements GetxService {
           ? "nearest_location"
           : selectredeShortByvalue.value == "Highest Ranked"
               ? "highest_rated"
-              : "cheapest_price",
+              : selectredeShortByvalue.value == "Newest"
+                  ? "newest"
+                  : "cheapest_price",
       "meta": meta,
       "odometer": odometerValues.toString(),
       "start_time": startTimeForBackend,

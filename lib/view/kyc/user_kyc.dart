@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/controller/profile_controller.dart';
 import 'package:carvy/customwidget/form_elements.dart';
@@ -42,15 +43,69 @@ class _UserKycState extends State<UserKyc> {
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Obx(() => kycController.isdataLoading.value
-                ? SizedBox.shrink()
-                : Text(
-                    kycController.getReviewStatus()["text"],
-                    style: TextStyle(
-                      color: kycController.getReviewStatus()["color"],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )),
+            child: Obx(() {
+              if (kycController.isdataLoading.value) {
+                return SizedBox.shrink();
+              }
+
+              // Mapper les statuts selon le contrat API (kyc_status)
+              String displayText = "";
+              Color displayColor = Colors.grey;
+
+              if (kycController.activeStatus.value == "approved") {
+                displayText = "Vérifié";
+                displayColor = Colors.green;
+              } else if (kycController.activeStatus.value == "pending" ||
+                  kycController.activeStatus.value == "review") {
+                displayText = "Vérification en cours";
+                displayColor = Colors.orange;
+              } else if (kycController.activeStatus.value == "rejected") {
+                displayText = "Rejeté";
+                displayColor = Colors.red;
+              } else {
+                final statusInfo = kycController.getReviewStatus();
+                final statusText = statusInfo["text"] as String;
+                final statusColor = statusInfo["color"] as Color?;
+                if (statusText.isNotEmpty) {
+                  displayText = statusText;
+                  displayColor = statusColor ?? Colors.grey;
+                }
+              }
+
+              return displayText.isNotEmpty
+                  ? Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: displayColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: displayColor, width: 1.5),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: displayColor,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            displayText,
+                            style: TextStyle(
+                              color: displayColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : SizedBox.shrink();
+            }),
           ),
         ],
         backgroundColor: notifires.getbgcolor,
@@ -58,227 +113,306 @@ class _UserKycState extends State<UserKyc> {
         titleColor: notifires.getwhiteblackcolor,
       ),
       body: Obx(
-        () => kycController.isdataLoading.value == true
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                  ],
-                ),
-              )
-            : Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: ListView(
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          "First driver license".tr,
-                          style: heading2Grey1(context)
-                              .copyWith(color: blackColor, fontSize: 15),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "*",
-                          style: heading2Grey1(context).copyWith(
-                              color: Colors.red,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    SizedBox(
-                      height: 5,
-                    ),
-                    SizedBox(
-                      child: Row(
-                        children: [
-                          Expanded(child: addharFrontImage("Change", context)),
-                          SizedBox(
-                            width: 10,
-                          ),
-                          Expanded(child: addharBack("", context)),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      height: 15,
-                    ),
-                    Text(
-                      "Primary reference mob no".tr,
-                      style: heading2Grey1(context)
-                          .copyWith(color: blackColor, fontSize: 15),
-                    ),
-                    SizedBox(
-                      height: 5,
-                    ),
-                    AbsorbPointer(
-                      absorbing: kycController.activeStatus.value == "yes"
-                          ? true
-                          : false,
-                      child: IntelPhoneFieldRefs(
-                        validator: (phoneNumber) {
-                          if (phoneNumber == null ||
-                              phoneNumber.number.isEmpty) {
-                            return 'Please enter your phone number';
-                          }
-
-                          int expectedLength =
-                              phoneLengths[phoneNumber.countryISOCode] ?? 10;
-                          if (phoneNumber.number.length != expectedLength) {
-                            return 'Phone number must be $expectedLength digits';
-                          }
-                          return null;
-                        },
-                        defultcountry: kycController.countryShortNamePrimary,
-                        textEditingControllerCommons:
-                            kycController.referenceMobileNo1,
-                        selectedcountry:
-                            kycController.defaultCountryCodePrimary,
-                        oncountryChanged: (value) {
-                          kycController.referenceMobileNo1.clear();
-                          kycController.defaultCountryCodePrimary =
-                              "+${value.dialCode}";
-                          kycController.countryShortNamePrimary = value.code;
-                        },
-                        onChanged: (value) {
-                          // Limit the input to the expected length
-                          int expectedLength = phoneLengths[
-                                  profileController.defaultCountry.value] ??
-                              10;
-
-                          if (value!.number.length > expectedLength) {
-                            // Truncate the input to the expected length
-                            kycController.referenceMobileNo1.text =
-                                value.number.substring(0, expectedLength);
-                            kycController.referenceMobileNo1.selection =
-                                TextSelection.fromPosition(
-                              TextPosition(
-                                  offset: kycController
-                                      .referenceMobileNo1.text.length),
-                            );
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    SizedBox(
-                      height: 15,
-                    ),
-                    Text("Second driver license".tr,
-                        style: heading2Grey1(context)
-                            .copyWith(color: blackColor, fontSize: 15)),
-                    SizedBox(
-                      height: 5,
-                    ),
-                    Row(
-                      children: [
-                        Expanded(child: dfFrontImage("", context)),
-                        SizedBox(
-                          width: 10,
-                        ),
-                        Expanded(child: dlBackImage("", context)),
-                      ],
-                    ),
-                    SizedBox(
-                      height: 15,
-                    ),
-                    Text(
-                      "Secondary reference mob no (Optional)".tr,
-                      style: heading2Grey1(context)
-                          .copyWith(color: blackColor, fontSize: 15),
-                    ),
-                    SizedBox(
-                      height: 5,
-                    ),
-                    AbsorbPointer(
-                      absorbing: kycController.activeStatus.value == "yes"
-                          ? true
-                          : false,
-                      child: IntelPhoneFieldRefs(
-                        validator: (phoneNumber) {
-                          if (phoneNumber == null ||
-                              phoneNumber.number.isEmpty) {
-                            return 'Please enter your phone number';
-                          }
-
-                          int expectedLength =
-                              phoneLengths[phoneNumber.countryISOCode] ?? 10;
-                          if (phoneNumber.number.length != expectedLength) {
-                            return 'Phone number must be $expectedLength digits';
-                          }
-                          return null;
-                        },
-                        defultcountry: kycController.countryShortNameSecondary,
-                        textEditingControllerCommons:
-                            kycController.referenceMobileNo2,
-                        selectedcountry:
-                            kycController.defaultCountryCodeSecondary,
-                        oncountryChanged: (value) {
-                          kycController.referenceMobileNo2.clear();
-                          kycController.defaultCountryCodeSecondary =
-                              "+${value.dialCode}";
-                          kycController.countryShortNameSecondary = value.code;
-                        },
-                        onChanged: (value) {
-                          // Limit the input to the expected length
-                          int expectedLength = phoneLengths[
-                                  profileController.defaultCountry.value] ??
-                              10;
-
-                          if (value!.number.length > expectedLength) {
-                            // Truncate the input to the expected length
-                            kycController.referenceMobileNo2.text =
-                                value.number.substring(0, expectedLength);
-                            kycController.referenceMobileNo2.selection =
-                                TextSelection.fromPosition(
-                              TextPosition(
-                                  offset: kycController
-                                      .referenceMobileNo2.text.length),
-                            );
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    SizedBox(
-                      height: 25,
-                    ),
-                    kycController.activeStatus.value == "yes" ||
-                            kycController.activeStatus.value == "review"
-                        ? SizedBox()
-                        : CustomsButtons(
-                            text: kycController.activeStatus.value == "yes"
-                                ? "Verified"
-                                : kycController.activeStatus.value == "review"
-                                    ? "Under Review".tr
-                                    : "Apply".tr,
-                            backgroundColor: getColorBasedOnActiveModuleid(),
-                            onPressed: () {
-                              if (kycController.activeStatus.value == "yes") {
-                                return;
-                              }
-                              if (kycController.activeStatus.value ==
-                                  "review") {
-                                return;
-                              }
-
-                              kycController.submit(context);
-                            })
-                  ],
-                ),
+        () {
+          // Afficher le loader si les données sont en cours de chargement
+          if (kycController.isdataLoading.value == true) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                ],
               ),
+            );
+          }
+
+          // Toujours afficher le formulaire d'édition, même si le statut est 'pending'
+          // L'utilisateur peut modifier ses documents à tout moment
+
+          // Afficher le formulaire d'édition
+          return Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: ListView(
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      "First driver license".tr,
+                      style: heading2Grey1(context)
+                          .copyWith(color: blackColor, fontSize: 15),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "*",
+                      style: heading2Grey1(context).copyWith(
+                          color: Colors.red,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                SizedBox(
+                  height: 5,
+                ),
+                SizedBox(
+                  child: Row(
+                    children: [
+                      Expanded(child: addharFrontImage("Change", context)),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      Expanded(child: addharBack("", context)),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 15,
+                ),
+                Text(
+                  "Primary reference mob no".tr,
+                  style: heading2Grey1(context)
+                      .copyWith(color: blackColor, fontSize: 15),
+                ),
+                SizedBox(
+                  height: 5,
+                ),
+                AbsorbPointer(
+                  absorbing:
+                      kycController.activeStatus.value == "yes" ? true : false,
+                  child: IntelPhoneFieldRefs(
+                    validator: (phoneNumber) {
+                      if (phoneNumber == null || phoneNumber.number.isEmpty) {
+                        return 'Please enter your phone number';
+                      }
+
+                      int expectedLength =
+                          phoneLengths[phoneNumber.countryISOCode] ?? 10;
+                      if (phoneNumber.number.length != expectedLength) {
+                        return 'Phone number must be $expectedLength digits';
+                      }
+                      return null;
+                    },
+                    defultcountry: kycController.countryShortNamePrimary,
+                    textEditingControllerCommons:
+                        kycController.referenceMobileNo1,
+                    selectedcountry: kycController.defaultCountryCodePrimary,
+                    oncountryChanged: (value) {
+                      kycController.referenceMobileNo1.clear();
+                      kycController.defaultCountryCodePrimary =
+                          "+${value.dialCode}";
+                      kycController.countryShortNamePrimary = value.code;
+                    },
+                    onChanged: (value) {
+                      // Limit the input to the expected length
+                      int expectedLength = phoneLengths[
+                              profileController.defaultCountry.value] ??
+                          10;
+
+                      if (value!.number.length > expectedLength) {
+                        // Truncate the input to the expected length
+                        kycController.referenceMobileNo1.text =
+                            value.number.substring(0, expectedLength);
+                        kycController.referenceMobileNo1.selection =
+                            TextSelection.fromPosition(
+                          TextPosition(
+                              offset:
+                                  kycController.referenceMobileNo1.text.length),
+                        );
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                SizedBox(
+                  height: 15,
+                ),
+                Text("Second driver license".tr,
+                    style: heading2Grey1(context)
+                        .copyWith(color: blackColor, fontSize: 15)),
+                SizedBox(
+                  height: 5,
+                ),
+                Row(
+                  children: [
+                    Expanded(child: dfFrontImage("", context)),
+                    SizedBox(
+                      width: 10,
+                    ),
+                    Expanded(child: dlBackImage("", context)),
+                  ],
+                ),
+                SizedBox(
+                  height: 15,
+                ),
+                Text(
+                  "Secondary reference mob no (Optional)".tr,
+                  style: heading2Grey1(context)
+                      .copyWith(color: blackColor, fontSize: 15),
+                ),
+                SizedBox(
+                  height: 5,
+                ),
+                AbsorbPointer(
+                  absorbing:
+                      kycController.activeStatus.value == "yes" ? true : false,
+                  child: IntelPhoneFieldRefs(
+                    validator: (phoneNumber) {
+                      if (phoneNumber == null || phoneNumber.number.isEmpty) {
+                        return 'Please enter your phone number';
+                      }
+
+                      int expectedLength =
+                          phoneLengths[phoneNumber.countryISOCode] ?? 10;
+                      if (phoneNumber.number.length != expectedLength) {
+                        return 'Phone number must be $expectedLength digits';
+                      }
+                      return null;
+                    },
+                    defultcountry: kycController.countryShortNameSecondary,
+                    textEditingControllerCommons:
+                        kycController.referenceMobileNo2,
+                    selectedcountry: kycController.defaultCountryCodeSecondary,
+                    oncountryChanged: (value) {
+                      kycController.referenceMobileNo2.clear();
+                      kycController.defaultCountryCodeSecondary =
+                          "+${value.dialCode}";
+                      kycController.countryShortNameSecondary = value.code;
+                    },
+                    onChanged: (value) {
+                      // Limit the input to the expected length
+                      int expectedLength = phoneLengths[
+                              profileController.defaultCountry.value] ??
+                          10;
+
+                      if (value!.number.length > expectedLength) {
+                        // Truncate the input to the expected length
+                        kycController.referenceMobileNo2.text =
+                            value.number.substring(0, expectedLength);
+                        kycController.referenceMobileNo2.selection =
+                            TextSelection.fromPosition(
+                          TextPosition(
+                              offset:
+                                  kycController.referenceMobileNo2.text.length),
+                        );
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                SizedBox(
+                  height: 25,
+                ),
+                // Toujours permettre la soumission pour permettre la mise à jour des documents
+                // (Update mode - même si le statut est pending/review, on peut écraser les anciens documents)
+                Obx(() {
+                  // Ne bloquer que si le statut est 'approved' (vérifié et finalisé)
+                  final status = kycController.activeStatus.value;
+                  final isDisabled = status == "yes" || status == "approved";
+
+                  return Column(
+                    children: [
+                      // Bouton "Passer pour l'instant" stylisé
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            kycController.bypassKyc();
+                            Get.back();
+                          },
+                          child: Text(
+                            "Passer pour l'instant".tr,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      // Bouton "Appliquer"
+                      isDisabled
+                          ? SizedBox()
+                          : CustomsButtons(
+                              text: "Apply".tr,
+                              backgroundColor: getColorBasedOnActiveModuleid(),
+                              onPressed: () {
+                                kycController.submit(context);
+                              }),
+                    ],
+                  );
+                })
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
+  // Widget pour afficher une image en lecture seule (mode pending)
+  Widget _buildReadOnlyImagePreview(String imageUrl, BuildContext context) {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: notifires.getboxcolor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: notifires.getGrey3Whitecolor.withOpacity(0.1),
+            spreadRadius: 3,
+            blurRadius: 5,
+            offset: const Offset(0, 0),
+          ),
+        ],
+      ),
+      child: imageUrl.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(child: CircularProgressIndicator());
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return getErrorImage();
+                },
+              ),
+            )
+          : Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey.shade400,
+                    size: 35,
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    "Aucune image".tr,
+                    style: regular2(context).copyWith(
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+
   Widget addharFrontImage(String text, BuildContext context) {
+    // Permettre l'édition même si le statut est 'pending' (ne bloquer que 'yes' et 'approved')
+    final isEditable = kycController.activeStatus.value != "yes" &&
+        kycController.activeStatus.value != "approved";
+
     return IgnorePointer(
-      ignoring: kycController.activeStatus.value == "yes",
+      ignoring: !isEditable,
       child: PopupMenuButton<int>(
-        enabled: kycController.activeStatus.value != "yes",
+        enabled: isEditable,
         itemBuilder: (context) => [
           PopupMenuItem(
             onTap: () async {
@@ -323,84 +457,104 @@ class _UserKycState extends State<UserKyc> {
               ),
             ],
           ),
-          child: Stack(
-            children: [
-              Center(
-                child: kycController.addharFrontImage != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          File(kycController.addharFrontImage!.path),
-                          fit: BoxFit.cover,
+          child: Obx(() {
+            // Afficher un indicateur de chargement si les données sont en cours de chargement
+            if (kycController.isdataLoading.value) {
+              return Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+
+            // Priorité 1: Image locale sélectionnée
+            Widget imageWidget;
+            if (kycController.addharFrontImage.value != null) {
+              imageWidget = ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(
+                  File(kycController.addharFrontImage.value!.path),
+                  fit: BoxFit.cover,
+                ),
+              );
+            }
+            // Priorité 2: URL depuis le backend (persistante)
+            else if (kycController.frontImageUrl.value.isNotEmpty) {
+              imageWidget = ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  kycController.frontImageUrl.value,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(child: CircularProgressIndicator());
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return getErrorImage();
+                  },
+                ),
+              );
+            }
+            // Priorité 3: Icône d'upload
+            else {
+              imageWidget = Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.cloud_upload,
+                    color: getColorBasedOnActiveModuleid(),
+                    size: 35,
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    "Front image",
+                    style: regular2(context),
+                  ),
+                ],
+              );
+            }
+
+            // Vérifier si l'édition est autorisée (permettre l'édition même si pending)
+            final isEditable = kycController.activeStatus.value != "yes" &&
+                kycController.activeStatus.value != "approved";
+
+            return Stack(
+              children: [
+                Center(child: imageWidget),
+                // Afficher l'icône d'édition uniquement si l'édition est autorisée
+                isEditable
+                    ? Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black54,
+                          ),
+                          padding: EdgeInsets.all(6),
+                          child: Icon(
+                            Icons.edit,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       )
-                    : kycController.userKycModel?.data?.kycImages
-                                    .aadharFrontImage !=
-                                null &&
-                            kycController.userKycModel!.data!.kycImages
-                                .aadharFrontImage!.isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              kycController.userKycModel!.data!.kycImages
-                                  .aadharFrontImage!,
-                              fit: BoxFit.cover,
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Center(
-                                    child: CircularProgressIndicator());
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return getErrorImage();
-                              },
-                            ),
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.cloud_upload,
-                                color: getColorBasedOnActiveModuleid(),
-                                size: 35,
-                              ),
-                              SizedBox(height: 10),
-                              Text(
-                                "Front image",
-                                style: regular2(context),
-                              ),
-                            ],
-                          ),
-              ),
-              if (kycController.activeStatus.value != "yes")
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black54,
-                    ),
-                    padding: EdgeInsets.all(6),
-                    child: Icon(
-                      Icons.edit,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+                    : SizedBox.shrink(),
+              ],
+            );
+          }),
         ),
       ),
     );
   }
 
   Widget addharBack(String text, BuildContext context) {
+    // Permettre l'édition même si le statut est 'pending' (ne bloquer que 'yes' et 'approved')
+    final isEditable = kycController.activeStatus.value != "yes" &&
+        kycController.activeStatus.value != "approved";
+
     return IgnorePointer(
-      ignoring: kycController.activeStatus.value == "yes",
+      ignoring: !isEditable,
       child: PopupMenuButton<int>(
-        enabled: kycController.activeStatus.value != "yes",
+        enabled: isEditable,
         itemBuilder: (context) => [
           PopupMenuItem(
             onTap: () async {
@@ -453,84 +607,105 @@ class _UserKycState extends State<UserKyc> {
               ),
             ],
           ),
-          child: Stack(
-            children: [
-              Center(
-                child: kycController.addharBackImage != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          File(kycController.addharBackImage!.path),
-                          fit: BoxFit.cover,
+          child: Obx(() {
+            // Afficher un indicateur de chargement si les données sont en cours de chargement
+            if (kycController.isdataLoading.value) {
+              return Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+
+            // Priorité 1: Image locale sélectionnée
+            Widget imageWidget;
+            if (kycController.addharBackImage.value != null) {
+              imageWidget = ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(
+                  File(kycController.addharBackImage.value!.path),
+                  fit: BoxFit.cover,
+                ),
+              );
+            }
+            // Priorité 2: URL depuis le backend (persistante)
+            else if (kycController.backImageUrl.value.isNotEmpty) {
+              imageWidget = ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  kycController.backImageUrl.value,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(child: CircularProgressIndicator());
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return getErrorImage();
+                  },
+                ),
+              );
+            }
+            // Priorité 3: Icône d'upload
+            else {
+              imageWidget = Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.cloud_upload,
+                    color: getColorBasedOnActiveModuleid(),
+                    size: 35,
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    "Back image",
+                    style: regular2(context),
+                  ),
+                ],
+              );
+            }
+
+            // Vérifier si l'édition est autorisée (permettre l'édition même si pending)
+            final isEditable = kycController.activeStatus.value != "yes" &&
+                kycController.activeStatus.value != "approved";
+
+            return Stack(
+              children: [
+                Center(child: imageWidget),
+                // Afficher l'icône d'édition uniquement si l'édition est autorisée
+                isEditable
+                    ? Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black54,
+                          ),
+                          padding: EdgeInsets.all(6),
+                          child: Icon(
+                            Icons.edit,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       )
-                    : kycController.userKycModel?.data?.kycImages
-                                    .aadharBackImage !=
-                                null &&
-                            kycController.userKycModel!.data!.kycImages
-                                .aadharBackImage!.isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              kycController.userKycModel!.data!.kycImages
-                                  .aadharBackImage!,
-                              fit: BoxFit.cover,
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Center(
-                                    child: CircularProgressIndicator());
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return getErrorImage();
-                              },
-                            ),
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.cloud_upload,
-                                color: getColorBasedOnActiveModuleid(),
-                                size: 35,
-                              ),
-                              SizedBox(height: 10),
-                              Text(
-                                "Back image",
-                                style: regular2(context),
-                              ),
-                            ],
-                          ),
-              ),
-              if (kycController.activeStatus.value != "yes")
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black54,
-                    ),
-                    padding: EdgeInsets.all(6),
-                    child: Icon(
-                      Icons.edit,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+                    : SizedBox.shrink(),
+              ],
+            );
+          }),
         ),
       ),
     );
   }
 
   Widget dfFrontImage(String text, BuildContext context) {
+    // Désactiver l'édition si le statut est 'pending' ou 'approved'
+    final isEditable = kycController.activeStatus.value != "yes" &&
+        kycController.activeStatus.value != "approved" &&
+        kycController.activeStatus.value != "pending";
+
     return IgnorePointer(
-      ignoring: kycController.activeStatus.value == "yes",
+      ignoring: !isEditable,
       child: PopupMenuButton<int>(
-        enabled: kycController.activeStatus.value != "yes",
+        enabled: isEditable,
         itemBuilder: (context) => [
           PopupMenuItem(
             onTap: () async {
@@ -566,100 +741,129 @@ class _UserKycState extends State<UserKyc> {
           ),
         ],
         offset: const Offset(1, 50),
-        child: Stack(
-          children: [
-            Container(
+        child: Obx(() {
+          // Afficher un indicateur de chargement si les données sont en cours de chargement
+          if (kycController.isdataLoading.value) {
+            return Container(
               height: 200,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: notifires.getboxcolor,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: notifires.getGrey3Whitecolor.withOpacity(0.1),
-                    spreadRadius: 3,
-                    blurRadius: 5,
-                    offset: const Offset(0, 0),
-                  ),
-                ],
               ),
               child: Center(
-                child: kycController.otherimageFront != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          File(kycController.otherimageFront!.path),
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : kycController.userKycModel?.data?.kycImages
-                                    .otherIdentityFrontImage !=
-                                null &&
-                            kycController.userKycModel!.data!.kycImages
-                                .otherIdentityFrontImage!.isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              kycController.userKycModel!.data!.kycImages
-                                  .otherIdentityFrontImage!,
-                              fit: BoxFit.cover,
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Center(
-                                    child: CircularProgressIndicator());
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return getErrorImage();
-                              },
-                            ),
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.cloud_upload,
-                                color: getColorBasedOnActiveModuleid(),
-                                size: 35,
-                              ),
-                              SizedBox(height: 10),
-                              Text(
-                                "Front image",
-                                style: regular2(context),
-                              ),
-                            ],
-                          ),
+                child: CircularProgressIndicator(),
               ),
-            ),
-            // Edit Icon
-            if (kycController.activeStatus.value != "yes")
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.black54,
-                  ),
-                  padding: EdgeInsets.all(6),
-                  child: Icon(
-                    Icons.edit,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+            );
+          }
+
+          // Priorité 1: Image locale sélectionnée
+          Widget imageWidget;
+          if (kycController.otherimageFront.value != null) {
+            imageWidget = ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                File(kycController.otherimageFront.value!.path),
+                fit: BoxFit.cover,
+              ),
+            );
+          }
+          // Priorité 2: URL depuis le backend (persistante)
+          else if (kycController.otherFrontImageUrl.value.isNotEmpty) {
+            imageWidget = ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                kycController.otherFrontImageUrl.value,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(child: CircularProgressIndicator());
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return getErrorImage();
+                },
+              ),
+            );
+          }
+          // Priorité 3: Icône d'upload
+          else {
+            imageWidget = Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.cloud_upload,
+                  color: getColorBasedOnActiveModuleid(),
+                  size: 35,
                 ),
+                SizedBox(height: 10),
+                Text(
+                  "Front image",
+                  style: regular2(context),
+                ),
+              ],
+            );
+          }
+
+          // Vérifier si l'édition est autorisée
+          final isEditable = kycController.activeStatus.value != "yes" &&
+              kycController.activeStatus.value != "approved" &&
+              kycController.activeStatus.value != "pending";
+
+          return Stack(
+            children: [
+              Container(
+                height: 200,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: notifires.getboxcolor,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: notifires.getGrey3Whitecolor.withOpacity(0.1),
+                      spreadRadius: 3,
+                      blurRadius: 5,
+                      offset: const Offset(0, 0),
+                    ),
+                  ],
+                ),
+                child: Center(child: imageWidget),
               ),
-          ],
-        ),
+              // Afficher l'icône d'édition uniquement si l'édition est autorisée
+              isEditable
+                  ? Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black54,
+                        ),
+                        padding: EdgeInsets.all(6),
+                        child: Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    )
+                  : SizedBox.shrink(),
+            ],
+          );
+        }),
       ),
     );
   }
 
   Widget dlBackImage(String text, BuildContext context) {
+    // Désactiver l'édition si le statut est 'pending' ou 'approved'
+    final isEditable = kycController.activeStatus.value != "yes" &&
+        kycController.activeStatus.value != "approved" &&
+        kycController.activeStatus.value != "pending";
+
     return IgnorePointer(
-      ignoring: kycController.activeStatus.value == "yes",
+      ignoring: !isEditable,
       child: PopupMenuButton<int>(
-        enabled: kycController.activeStatus.value != "yes",
+        enabled: isEditable,
         itemBuilder: (context) => [
           PopupMenuItem(
             onTap: () async {
@@ -694,91 +898,115 @@ class _UserKycState extends State<UserKyc> {
           ),
         ],
         offset: const Offset(1, 50),
-        child: Stack(
-          children: [
-            Container(
+        child: Obx(() {
+          // Afficher un indicateur de chargement si les données sont en cours de chargement
+          if (kycController.isdataLoading.value) {
+            return Container(
               height: 200,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: notifires.getboxcolor,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: notifires.getGrey3Whitecolor.withOpacity(0.1),
-                    spreadRadius: 3,
-                    blurRadius: 5,
-                    offset: const Offset(0, 0),
-                  ),
-                ],
               ),
               child: Center(
-                child: kycController.otherImageBack != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          File(kycController.otherImageBack!.path),
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : kycController.userKycModel?.data?.kycImages
-                                    .otherIdentityBackImage !=
-                                null &&
-                            kycController.userKycModel!.data!.kycImages
-                                .otherIdentityBackImage!.isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              kycController.userKycModel!.data!.kycImages
-                                  .otherIdentityBackImage!,
-                              fit: BoxFit.cover,
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Center(
-                                    child: CircularProgressIndicator());
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return getErrorImage();
-                              },
-                            ),
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.cloud_upload,
-                                color: getColorBasedOnActiveModuleid(),
-                                size: 35,
-                              ),
-                              SizedBox(height: 10),
-                              Text(
-                                "Back image",
-                                style: regular2(context),
-                              ),
-                            ],
-                          ),
+                child: CircularProgressIndicator(),
               ),
-            ),
-            // Edit Icon
-            if (kycController.activeStatus.value != "yes")
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.black54,
-                  ),
-                  padding: EdgeInsets.all(6),
-                  child: Icon(
-                    Icons.edit,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+            );
+          }
+
+          // Priorité 1: Image locale sélectionnée
+          Widget imageWidget;
+          if (kycController.otherImageBack.value != null) {
+            imageWidget = ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                File(kycController.otherImageBack.value!.path),
+                fit: BoxFit.cover,
+              ),
+            );
+          }
+          // Priorité 2: URL depuis le backend (persistante)
+          else if (kycController.otherBackImageUrl.value.isNotEmpty) {
+            imageWidget = ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                kycController.otherBackImageUrl.value,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(child: CircularProgressIndicator());
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return getErrorImage();
+                },
+              ),
+            );
+          }
+          // Priorité 3: Icône d'upload
+          else {
+            imageWidget = Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.cloud_upload,
+                  color: getColorBasedOnActiveModuleid(),
+                  size: 35,
                 ),
+                SizedBox(height: 10),
+                Text(
+                  "Back image",
+                  style: regular2(context),
+                ),
+              ],
+            );
+          }
+
+          // Vérifier si l'édition est autorisée
+          final isEditable = kycController.activeStatus.value != "yes" &&
+              kycController.activeStatus.value != "approved" &&
+              kycController.activeStatus.value != "pending";
+
+          return Stack(
+            children: [
+              Container(
+                height: 200,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: notifires.getboxcolor,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: notifires.getGrey3Whitecolor.withOpacity(0.1),
+                      spreadRadius: 3,
+                      blurRadius: 5,
+                      offset: const Offset(0, 0),
+                    ),
+                  ],
+                ),
+                child: Center(child: imageWidget),
               ),
-          ],
-        ),
+              // Afficher l'icône d'édition uniquement si l'édition est autorisée
+              isEditable
+                  ? Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black54,
+                        ),
+                        padding: EdgeInsets.all(6),
+                        child: Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    )
+                  : SizedBox.shrink(),
+            ],
+          );
+        }),
       ),
     );
   }

@@ -701,9 +701,12 @@ const Map<String, String> frFR = {
   "Search location": "Rechercher un lieu",
   "Welcome to carvy": "Bienvenue sur Carvy",
   "Welcome to Carvy": "Bienvenue sur Carvy",
-  "Book cars and bikes easily for any journey. Quick rides or long trips, we've got you covered": "Réservez facilement des voitures et des motos pour tous vos trajets. Trajets rapides ou longs voyages, nous sommes là pour vous.",
-  "Find Your Car and Bike Today": "Trouvez votre voiture et votre moto aujourd'hui",
-  "Effortlessly rent cars and bikes for any trip. Choose from a variety of vehicles for your journey.": "Louez sans effort des voitures et des motos pour tous vos trajets. Choisissez parmi une variété de véhicules pour votre voyage.",
+  "Book cars and bikes easily for any journey. Quick rides or long trips, we've got you covered":
+      "Réservez facilement des voitures pour tous vos trajets.",
+  "Find Your Car and Bike Today":
+      "Trouvez votre voiture et votre moto aujourd'hui",
+  "Effortlessly rent cars and bikes for any trip. Choose from a variety of vehicles for your journey.":
+      "Louez sans effort des voitures et des motos pour tous vos trajets. Choisissez parmi une variété de véhicules pour votre voyage.",
   "Wishlist": "Liste de souhaits",
   "Please add": "Veuillez ajouter",
   "carvy Boat Booking: Explore the Waters":

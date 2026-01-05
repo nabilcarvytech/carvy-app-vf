@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:carvy/controller/kyc_controller.dart';
+import 'package:carvy/view/kyc/user_kyc.dart';
 import 'package:carvy/controller/search_controller.dart';
 import 'package:carvy/customwidget/data_not_found.dart';
 import 'package:carvy/customwidget/form_elements.dart';
@@ -13,6 +14,7 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:get/get.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
+import 'package:carvy/view/booking/payment_method_screen.dart';
 import 'package:carvy/view/chat/conversation_screen.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/itemdetail/vehicle/vehicle_check_availability_screen.dart';
@@ -67,7 +69,8 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
   getData(coupon, wallet) async {
     setState(() {});
     await bookingController.getDataBookingSummery(
-        widget.idFeatured, coupon, wallet, widget.isAddDoorStepPrice);
+        widget.idFeatured, coupon, wallet, widget.isAddDoorStepPrice,
+        dailyPrice: widget.price);
     await bookingController.getWalletData();
     setState(() {});
   }
@@ -76,21 +79,44 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
   @override
   void initState() {
     super.initState();
-    handleDirectBooking = false;
+    print('🔄 [initState] Début de l\'initialisation de VehicleBookingSummary');
+    debugPrint(
+        '🔄 [initState] Début de l\'initialisation de VehicleBookingSummary');
 
+    handleDirectBooking = false;
     handleBackonBooking = false;
     generalController.myBookingTabIndex.value = 0;
     bookingController.textEditingController.clear();
     bookingController.getItemPrices = null;
     bookingController.isPaymentSuccess.value = false;
-    print(widget.isAddDoorStepPrice);
-    print("dhfgvudjgvjlgv");
+    print('📋 [initState] isAddDoorStepPrice: ${widget.isAddDoorStepPrice}');
+    debugPrint(
+        '📋 [initState] isAddDoorStepPrice: ${widget.isAddDoorStepPrice}');
+
     bookingController.textEditingController
         .addListener(bookingController.listner);
     bookingController.currency = currency;
-    if (token.isNotEmpty) {
-      getData("", "");
-    }
+
+    // Utiliser addPostFrameCallback pour s'assurer que le framework Flutter est prêt
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      print(
+          '✅ [initState] addPostFrameCallback exécuté - Framework Flutter prêt');
+      debugPrint(
+          '✅ [initState] addPostFrameCallback exécuté - Framework Flutter prêt');
+
+      if (token.isNotEmpty) {
+        print('🔐 [initState] Token présent, appel de getData()');
+        debugPrint('🔐 [initState] Token présent, appel de getData()');
+        getData("", "");
+      } else {
+        print('⚠️ [initState] Token vide, getData() non appelé');
+        debugPrint('⚠️ [initState] Token vide, getData() non appelé');
+      }
+
+      print('✅ [initState] Fin de l\'initialisation de VehicleBookingSummary');
+      debugPrint(
+          '✅ [initState] Fin de l\'initialisation de VehicleBookingSummary');
+    });
   }
 
   @override
@@ -121,93 +147,195 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                             const SizedBox(
                               height: 10,
                             ),
-                            Obx(() => bookingController
-                                        .isPaymentSuccess.value ==
-                                    true
-                                ? Row(
-                                    children: [
-                                      Expanded(
-                                        child: CustomsButtons(
-                                            onPressed: () {
-                                              generalController
-                                                  .currentIndex.value = 2;
-                                              Get.offAll(() => const HomeMain(
-                                                    initialIndex: 2,
-                                                  ));
-                                            },
-                                            // text: "Pay now".tr,
-                                            text: "See Bookings".tr,
-                                            backgroundColor:
-                                                getColorBasedOnActiveModuleid()),
-                                      ),
-                                      const SizedBox(
-                                        width: 15,
-                                      ),
-                                      Expanded(
-                                        child: CustomsButtons(
-                                            onPressed: () {},
-                                            text: "Chat".tr,
-                                            backgroundColor:
-                                                getColorBasedOnActiveModuleid()),
-                                      )
-                                    ],
-                                  )
-                                : CustomsButtons(
-                                    onPressed: () {
-                                      KycController kycController = Get.find();
-                                      kycController
-                                          .kycStatus(
-                                              kycController.activeStatus.value,
-                                              context)
-                                          .then((isValid) {
-                                        if (!isValid) return;
-                                        if (loginModel!.data!.firstName !=
-                                            null) {
-                                          if (loginModel!.data!.firstName ==
-                                              "") {
-                                            profileUpdate(context);
-                                            return;
-                                          }
-                                        } else if ((loginModel!
-                                                .data!.lastName !=
-                                            null)) {
-                                          if (loginModel!.data!.lastName ==
-                                              "") {
-                                            profileUpdate(context);
-                                            return;
-                                          }
-                                        }
-                                        bookingController.bookingMainFunction(
-                                          widget.idFeatured,
-                                          int.parse(bookingController
-                                              .getItemPrices!
-                                              .data!
-                                              .totalNights!),
-                                          bookingController.getItemPrices!.data!
-                                                  .pricePerNight ??
-                                              "",
-                                          '',
-                                          widget.itemDetails!.hostId ?? "",
-                                          '',
-                                          widget.isAddDoorStepPrice ?? false,
-                                          widget.itemType ?? "",
-                                          widget.frontImage ?? "",
-                                          widget.itemDetails,
-                                          widget.address ?? "",
-                                          widget.rating ?? "",
-                                          widget.title ?? "",
-                                          bookingController.commonMetaData(),
-                                        );
-                                      });
-                                    },
-                                    text: generalDataModel
-                                                ?.data?.metaData?.onlinePayment
-                                                .toString() ==
-                                            "Inactive"
-                                        ? "Confirm"
-                                        : "Pay now".tr,
-                                    backgroundColor:
-                                        getColorBasedOnActiveModuleid()))
+                            Obx(() {
+                              // Réinitialiser hasSkippedKyc après une réservation réussie
+                              if (bookingController.isPaymentSuccess.value ==
+                                  true) {
+                                final kycController = Get.find<KycController>();
+                                kycController.hasSkippedKyc.value = false;
+                              }
+
+                              if (bookingController.isPaymentSuccess.value ==
+                                  true) {
+                                return Row(
+                                  children: [
+                                    Expanded(
+                                      child: CustomsButtons(
+                                          onPressed: () {
+                                            generalController
+                                                .currentIndex.value = 2;
+                                            Get.offAll(() => const HomeMain(
+                                                  initialIndex: 2,
+                                                ));
+                                          },
+                                          // text: "Pay now".tr,
+                                          text: "See Bookings".tr,
+                                          backgroundColor:
+                                              getColorBasedOnActiveModuleid()),
+                                    ),
+                                    const SizedBox(
+                                      width: 15,
+                                    ),
+                                    Expanded(
+                                      child: CustomsButtons(
+                                          onPressed: () {},
+                                          text: "Chat".tr,
+                                          backgroundColor:
+                                              getColorBasedOnActiveModuleid()),
+                                    )
+                                  ],
+                                );
+                              }
+
+                              return ConstrainedBox(
+                                constraints: const BoxConstraints.expand(
+                                    width: double.infinity, height: 50.0),
+                                child: ElevatedButton(
+                                    onPressed: bookingController
+                                            .isProcessingBooking.value
+                                        ? null
+                                        : () {
+                                            KycController kycController =
+                                                Get.find();
+                                            final kycStatus = kycController
+                                                .activeStatus.value;
+
+                                            // Debug: Vérifier si le clic a bien été enregistré
+                                            print(
+                                                'DEBUG: Skip flag is ${kycController.hasSkippedInSession.value}');
+
+                                            // Si le statut est NONE (vide, "no", "none") ET que l'utilisateur n'a pas encore cliqué sur Skip dans cette session,
+                                            // rediriger vers UserKyc. Sinon, continuer avec la réservation.
+                                            if ((kycStatus.isEmpty ||
+                                                    kycStatus == "no" ||
+                                                    kycStatus == "none") &&
+                                                !kycController
+                                                    .hasSkippedInSession
+                                                    .value) {
+                                              Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                      builder: (builder) =>
+                                                          const UserKyc()));
+                                              return;
+                                            }
+
+                                            // Si le statut est PENDING ou VERIFIED/approved, autoriser le paiement
+                                            // (ignorer l'étape KYC et continuer directement vers le paiement)
+                                            // Convertir en minuscules pour une comparaison insensible à la casse
+                                            final kycStatusLower =
+                                                kycStatus.toLowerCase();
+                                            if (kycStatusLower == "pending" ||
+                                                kycStatusLower == "review" ||
+                                                kycStatusLower == "approved" ||
+                                                kycStatusLower == "verified") {
+                                              // Continuer avec le processus de paiement
+                                              if (loginModel!.data!.firstName !=
+                                                  null) {
+                                                if (loginModel!
+                                                        .data!.firstName ==
+                                                    "") {
+                                                  profileUpdate(context);
+                                                  return;
+                                                }
+                                              } else if ((loginModel!
+                                                      .data!.lastName !=
+                                                  null)) {
+                                                if (loginModel!
+                                                        .data!.lastName ==
+                                                    "") {
+                                                  profileUpdate(context);
+                                                  return;
+                                                }
+                                              }
+                                              // Naviguer vers l'écran de sélection des méthodes de paiement
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      PaymentMethodScreen(
+                                                    vehicleId: widget.idFeatured
+                                                        .toString(),
+                                                  ),
+                                                ),
+                                              );
+                                              return;
+                                            }
+
+                                            // Pour les autres statuts (rejected, etc.), utiliser la logique existante
+                                            kycController
+                                                .kycStatus(kycStatus, context)
+                                                .then((isValid) {
+                                              if (!isValid) return;
+                                              if (loginModel!.data!.firstName !=
+                                                  null) {
+                                                if (loginModel!
+                                                        .data!.firstName ==
+                                                    "") {
+                                                  profileUpdate(context);
+                                                  return;
+                                                }
+                                              } else if ((loginModel!
+                                                      .data!.lastName !=
+                                                  null)) {
+                                                if (loginModel!
+                                                        .data!.lastName ==
+                                                    "") {
+                                                  profileUpdate(context);
+                                                  return;
+                                                }
+                                              }
+                                              // Naviguer vers l'écran de sélection des méthodes de paiement
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      PaymentMethodScreen(
+                                                    vehicleId: widget.idFeatured
+                                                        .toString(),
+                                                  ),
+                                                ),
+                                              );
+                                            });
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.only(
+                                            left: 5,
+                                            right: 5,
+                                            top: 10,
+                                            bottom: 10),
+                                        backgroundColor:
+                                            getColorBasedOnActiveModuleid(),
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12))),
+                                    child: bookingController
+                                            .isProcessingBooking.value
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                      Colors.white),
+                                            ),
+                                          )
+                                        : Text(
+                                            generalDataModel?.data?.metaData
+                                                        ?.onlinePayment
+                                                        .toString() ==
+                                                    "Inactive"
+                                                ? "Confirm"
+                                                : "Pay now".tr,
+                                            style: heading2(context)
+                                                .copyWith(color: bgColor),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          )),
+                              );
+                            })
                           ],
                         ),
                       ),
@@ -272,6 +400,47 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                     : SingleChildScrollView(
                         child: Column(
                           children: [
+                            // Bandeau d'information si KYC a été passé
+                            Obx(() {
+                              final kycController = Get.find<KycController>();
+                              if (kycController.hasSkippedInSession.value) {
+                                return Container(
+                                  width: double.infinity,
+                                  margin: EdgeInsets.all(20),
+                                  padding: EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.orange.shade200,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.info_outline,
+                                        color: Colors.orange.shade700,
+                                        size: 24,
+                                      ),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          "Note : Vous pourrez finaliser votre profil (permis) plus tard dans votre espace compte."
+                                              .tr,
+                                          style: TextStyle(
+                                            color: Colors.orange.shade900,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              return SizedBox.shrink();
+                            }),
                             Padding(
                               padding: const EdgeInsets.all(20.0),
                               child: GestureDetector(
@@ -1119,7 +1288,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 ),
                                                 const Spacer(),
                                                 Text(
-                                                  "${bookingController.currency} ${bookingController.getItemPrices!.data!.priceBeforeDiscount!}",
+                                                  "${bookingController.currency} ${double.tryParse(bookingController.getItemPrices!.data!.priceBeforeDiscount ?? "0")?.toStringAsFixed(2) ?? bookingController.getItemPrices!.data!.priceBeforeDiscount ?? "0.00"}",
                                                   style: regular2(context)
                                                       .copyWith(
                                                           color: greenback),
@@ -1455,7 +1624,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 ),
                                                 const Spacer(),
                                                 Text(
-                                                  "${bookingController.currency} ${bookingController.getItemPrices!.data!.grossPrice!}",
+                                                  "${bookingController.currency} ${double.tryParse(bookingController.getItemPrices!.data!.grossPrice ?? "0")?.toStringAsFixed(2) ?? bookingController.getItemPrices!.data!.grossPrice ?? "0.00"}",
                                                   style: heading3(context).copyWith(
                                                       color:
                                                           getColorBasedOnActiveModuleid()),

@@ -1003,77 +1003,25 @@ myBookingListWidget(
   innerMethod(context, index) async {
     if (btnText == "Cancel") {
       showLoading();
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var response =
-      //     await httpGet(Config.getCancelReasons, {"userType": "user"});
-
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // MOCK: Static cancellation reasons for users
-      var response = {
-        "status": 200,
-        "message": "Cancel reasons retrieved successfully",
-        "error": "",
-        "data": {
-          "reasons": [
-            {
-              "order_cancellation_id": 1,
-              "reason": "Change of plans",
-              "user_type": "user",
-              "status": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z"
-            },
-            {
-              "order_cancellation_id": 2,
-              "reason": "Found a better option",
-              "user_type": "user",
-              "status": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z"
-            },
-            {
-              "order_cancellation_id": 3,
-              "reason": "Unexpected circumstances",
-              "user_type": "user",
-              "status": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z"
-            },
-            {
-              "order_cancellation_id": 4,
-              "reason": "Vehicle not as described",
-              "user_type": "user",
-              "status": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z"
-            },
-            {
-              "order_cancellation_id": 5,
-              "reason": "Host unresponsive",
-              "user_type": "user",
-              "status": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z"
-            }
-          ]
-        }
-      };
-      // ========== END MOCK DATA ==========
-      closeLoading();
-      if (response != null && response['status'] == 200) {
-        try {
-          CancellationReasonModel model =
-              CancellationReasonModel.fromJson(response);
-          await showModalBottomSheet(
-            showDragHandle: true,
-            enableDrag: true,
-            context: context,
-            builder: (context) {
-              return CustomBottomSheet(model: model);
-            },
-          ).then((value) async {
+      dynamic response;
+      try {
+        response = await httpGet(Config.getCancelReasons, {"userType": "user"});
+        closeLoading();
+        
+        if (response != null && response['status'] == 200) {
+          try {
+            CancellationReasonModel model =
+                CancellationReasonModel.fromJson(response);
+            await showModalBottomSheet(
+              isScrollControlled: true,
+              useSafeArea: true,
+              showDragHandle: true,
+              enableDrag: true,
+              context: context,
+              builder: (context) {
+                return CustomBottomSheet(model: model);
+              },
+            ).then((value) async {
             if (value != null) {
               showDialog<void>(
                 context: context,
@@ -1145,33 +1093,17 @@ myBookingListWidget(
                                             Get.find();
                                         Navigator.pop(context);
                                         showLoading();
-                                        // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-                                        // var resp = await httpPost(
-                                        //     Config.cancelBookingByUser, {
-                                        //   "booking_id".tr: "${list[index].id}".tr,
-                                        //   "cancellation_reasion".tr: "$value".tr
-                                        // });
-
-                                        // MOCK: Simulate network delay
-                                        await Future.delayed(
-                                            const Duration(seconds: 1));
-
-                                        // MOCK: Static success response for cancelling booking
-                                        var resp = {
-                                          "status": 200,
-                                          "message":
-                                              "Booking cancelled successfully",
-                                          "error": "",
-                                          "data": {
+                                        dynamic resp;
+                                        try {
+                                          resp = await httpPost(
+                                              Config.cancelBookingByUser, {
                                             "booking_id": "${list[index].id}",
-                                            "cancellation_reason": "$value",
-                                            "status": "Cancelled"
-                                          }
-                                        };
-                                        // ========== END MOCK DATA ==========
-                                        closeLoading();
-                                        if (resp != null &&
-                                            resp['status'] == 200) {
+                                            "cancellation_reason": "$value"
+                                          });
+                                          closeLoading();
+                                          
+                                          if (resp != null &&
+                                              resp['status'] == 200) {
                                           showToastMessage(resp['message']);
                                           bookingController
                                               .updateBookingStatusIfExists(
@@ -1192,6 +1124,12 @@ myBookingListWidget(
                                                   resp['error'] != null
                                               ? resp['error']
                                               : "Failed to cancel booking");
+                                        }
+                                        } catch (e) {
+                                          closeLoading();
+                                          print("Error cancelling booking: $e");
+                                          showErrorToastMessage(
+                                              "Error cancelling booking. Please try again.");
                                         }
                                       },
                                       child: Container(
@@ -1225,17 +1163,23 @@ myBookingListWidget(
                 },
               );
             }
-          });
-        } catch (e) {
-          print("Error in cancel booking flow: $e");
+            });
+          } catch (e) {
+            print("Error parsing cancellation reasons: $e");
+            showErrorToastMessage(
+                "Error loading cancellation reasons. Please try again.");
+          }
+        } else if (response != null && response['error'] != null) {
+          showErrorToastMessage(response['error']);
+        } else {
           showErrorToastMessage(
-              "Error loading cancellation reasons. Please try again.");
+              "Failed to load cancellation reasons. Please try again.");
         }
-      } else if (response != null && response['error'] != null) {
-        showErrorToastMessage(response['error']);
-      } else {
+      } catch (e) {
+        closeLoading();
+        print("Error fetching cancellation reasons: $e");
         showErrorToastMessage(
-            "Failed to load cancellation reasons. Please try again.");
+            "Error loading cancellation reasons. Please try again.");
       }
     } else if (btnText == "Add Review") {
       if (list[index].reviewStatus != null && list[index].reviewStatus != "0") {
@@ -1592,7 +1536,7 @@ myBookingListWidget(
                                   color: getColorBasedOnActiveModuleid()
                                       .withOpacity(.8),
                                   borderRadius: BorderRadius.circular(12)),
-                              child: Text("#${list[index].token}",
+                              child: Text("${list[index].pickOtp ?? ''}",
                                   style: regular2(context)
                                       .copyWith(color: whiteColor)),
                             )),
@@ -1651,7 +1595,7 @@ myBookingListWidget(
                                         borderRadius: BorderRadius.circular(6)),
                                     padding: EdgeInsets.all(5),
                                     child: Text(
-                                      "${itemInfoData.vehicleType}",
+                                      "${proType ?? itemInfoData.vehicleType ?? ''}",
                                       style: regular2(context).copyWith(),
                                     ),
                                   ),

@@ -22,47 +22,6 @@ Future<dynamic> httpGet(String path, Map<String, dynamic> data) async {
   SearchControllerHome filterController = Get.find();
   connectionLost = false;
 
-  // ========== MOCK DATA - get-cancel-reasons API ==========
-  // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
-  if (path == Config.getCancelReasons) {
-    await Future.delayed(const Duration(seconds: 1));
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Cancel reasons retrieved successfully",
-      "error": "",
-      "data": {
-        "reasons": [
-          {
-            "order_cancellation_id": 1,
-            "reason": "Change of plans",
-            "user_type": data['userType']?.toString() ?? "user",
-            "status": "1",
-            "created_at": "2024-01-01 10:00:00",
-            "updated_at": "2024-01-01 10:00:00"
-          },
-          {
-            "order_cancellation_id": 2,
-            "reason": "Found a better option",
-            "user_type": data['userType']?.toString() ?? "user",
-            "status": "1",
-            "created_at": "2024-01-01 10:00:00",
-            "updated_at": "2024-01-01 10:00:00"
-          },
-          {
-            "order_cancellation_id": 3,
-            "reason": "Unexpected circumstances",
-            "user_type": data['userType']?.toString() ?? "user",
-            "status": "1",
-            "created_at": "2024-01-01 10:00:00",
-            "updated_at": "2024-01-01 10:00:00"
-          }
-        ]
-      }
-    };
-    developer.log("⚠️ MOCK MODE: Returning mock get-cancel-reasons data");
-    return mockResponse;
-  }
-  // ========== END MOCK DATA ==========
 
   // ========== MOCK DATA - get-digital-signature API ==========
   // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
@@ -415,29 +374,9 @@ Future<dynamic> httpPost(path, data) async {
   }
   // ========== END MOCK DATA ==========
 
-  // ========== MOCK DATA - booking-record API ==========
-  // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
-  if (path == Config.upcommingRecord) {
-    await Future.delayed(const Duration(seconds: 1));
-    String bookingType = data['type'] ?? 'upcoming';
-    num offset = int.tryParse(data['offset']?.toString() ?? '0') ?? 0;
-
-    // Generate mock booking based on type
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Bookings retrieved successfully",
-      "error": "",
-      "data": {
-        "Bookings": _generateMockBookings(bookingType),
-        "offset": offset + 10,
-        "limit": 10
-      }
-    };
-
-    developer.log(
-        "⚠️ MOCK MODE: Returning mock booking-record data for type: $bookingType");
-    return mockResponse;
-  }
+  // ========== MOCK DATA REMOVED - booking-record API now uses real backend ==========
+  // Le code mock a été supprimé pour permettre la connexion au serveur Node.js réel
+  // Voir lib/controller/booking_record_controller.dart pour l'implémentation
   // ========== END MOCK DATA ==========
 
   // ========== MOCK DATA - vendor-booking-record API ==========
@@ -942,6 +881,13 @@ Future<dynamic> httpPost(path, data) async {
     data['lang'] = globallanguage.toString().substring(0, 2);
     log("Api-Url: $url");
     log("Request Body:\n${const JsonEncoder.withIndent('  ').convert(data)}");
+
+    // Correction de l'URL : Print spécifique pour l'endpoint KYC
+    if (path == Config.getKYCDetails) {
+      print(
+          '🔗 [DEBUG] Tentative d\'appel sur : ${Config.baseurl}${Config.getKYCDetails}');
+      print('🔗 [DEBUG] URL complète construite dans httpPost : $url');
+    }
 
     // ========== AUTO-RETRY LOGIC: Handle 401 Unauthorized with automatic token refresh ==========
     bool hasRetried = false;

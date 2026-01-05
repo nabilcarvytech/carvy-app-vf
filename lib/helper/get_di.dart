@@ -13,6 +13,7 @@ import 'package:carvy/controller/wish_list_controller.dart';
 import '../controller/add_items_host_controller.dart';
 import '../controller/publix_profile_controller.dart';
 import '../controller/booking_controller.dart';
+import '../controller/booking_record_controller.dart';
 import '../controller/items_detail_controller.dart';
 import '../controller/search_controller.dart';
 import '../controller/home_controller.dart';
@@ -25,6 +26,7 @@ init() async {
   Get.lazyPut(() => HomeController());
   Get.lazyPut(() => SearchControllerHome());
   Get.lazyPut(() => BookingController());
+  Get.lazyPut(() => BookingRecordController());
   Get.lazyPut(() => StaticController());
   Get.lazyPut(() => ProfileController());
   Get.lazyPut(() => NotificationController());

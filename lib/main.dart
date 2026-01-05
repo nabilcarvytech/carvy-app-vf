@@ -121,6 +121,14 @@ void main() {
         DeviceOrientation.portraitUp,
       ]);
 
+      // Configuration de la barre de statut transparente
+      SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ));
+
       runApp(
         _MyApp(initialLocale: selectedLocale),
       );

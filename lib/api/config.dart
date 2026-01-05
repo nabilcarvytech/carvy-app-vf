@@ -113,8 +113,8 @@ class Config {
   static const String fuelType = 'get-vehicle-fuel-types';
   static const String saveDoorStepAddress = 'save-door-step-address';
   static const String getDoorStepAddress = 'get-door-step-address';
-  static const String getKYCDetails = 'get-kyc-document';
-  static const String addKycforCustomer = 'upload-kyc-document';
+  static const String getKYCDetails = 'get-kyc-details';
+  static const String addKycforCustomer = 'add-kyc-for-customer';
   static const String getVendorEarings = 'get-vendor-earings';
   static const String getPayoutType = 'get-payout-types';
   static const String getPayoutMethod = 'get-payout-methods';
@@ -123,4 +123,5 @@ class Config {
   static const String generateToken = 'generate-token';
   static const String uploadSignature = 'upload-digital-signature';
   static const String getDigitalSingnature = 'get-digital-signature';
+  static const String getPaymentMethods = 'payment-methods';
 }
