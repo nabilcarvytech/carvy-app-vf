@@ -4289,9 +4289,6 @@ Widget analyticOverview(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          const SizedBox(
-            height: 10,
-          ),
           SizedBox(
             height: 40,
             width: 40,
@@ -4299,17 +4296,31 @@ Widget analyticOverview(
               child: SvgPicture.asset(imageapath),
             ),
           ),
-          SizedBox(
+          const SizedBox(
             width: 10,
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(tttle.tr,
-                  style:
-                      heading2(context).copyWith(fontWeight: FontWeight.bold)),
-              Text(subtittle.tr, style: regular2(context)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(tttle.tr,
+                      style: heading2(context).copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16)),
+                ),
+                const SizedBox(height: 2),
+                Flexible(
+                  child: Text(subtittle.tr,
+                      style: regular2(context).copyWith(fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1),
+                ),
+              ],
+            ),
           ),
         ],
       ),

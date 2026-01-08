@@ -29,6 +29,8 @@ import 'package:carvy/view/host/wallet/finance_screen.dart';
 import 'package:carvy/work_space.dart';
 import '../../model/vehicle_home_model.dart';
 import '../itemdetail/vehicle/vehicle_detail_screen.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:carvy/view/auth/login_screen.dart';
 
 class DashBoardScreen extends StatefulWidget {
   final ScreenMode mode;
@@ -74,186 +76,24 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
     });
   }
   getData() async {
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpPost(Config.myItems, {"offset": "$offset"});
+    // ========== Clear list if this is initial load (offset == 0) ==========
+    if (offset == 0) {
+      list.clear();
+      print('🚗 [DASHBOARD] Liste vidée pour le chargement initial (offset = 0)');
+    }
     
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
+    // ========== API CALL - Real endpoint ==========
+    print('🚗 [DASHBOARD] Appel API my-items avec offset: $offset');
+    var response = await httpPost(Config.myItems, {"offset": "$offset"});
     
-    // MOCK: Static my-items data
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "My items retrieved successfully",
-      "error": "",
-      "data": {
-        "host_status": "1",
-        "checkLimit": 10,
-        "offset": offset + 2,
-        "limit": "10",
-        "items": [
-          {
-            "id": 101,
-            "title": "Toyota Camry 2023",
-            "description": "Clean and comfortable sedan perfect for city driving",
-            "item_rating": "4.5",
-            "mobile": "+1234567890",
-            "status": "1",
-            "person_allowed": "5",
-            "price": "50.00",
-            "address": "123 Main Street, Los Angeles",
-            "state_region": "California",
-            "zip_postal_code": "90001",
-            "city_name": "Los Angeles",
-            "country": "USA",
-            "latitude": "34.0522",
-            "longitude": "-118.2437",
-            "weekly_discount": "10",
-            "weekly_discount_type": "percent",
-            "monthly_discount": "15",
-            "monthly_discount_type": "percent",
-            "item_type_id": "1",
-            "features_id": "[1,2,3]",
-            "place_id": "ChIJE9on3F3HwoAR9AhGJW_fL-I",
-            "booking_policies_id": 1,
-            "item_type": "Sedan",
-            "front_image": {
-              "id": 1,
-              "model_type": "Item",
-              "model_id": "101",
-              "uuid": "abc123",
-              "collection_name": "front_image",
-              "name": "camry-front",
-              "file_name": "camry-front.jpg",
-              "mime_type": "image/jpeg",
-              "disk": "public",
-              "conversions_disk": "public",
-              "size": "500000",
-              "order_column": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z",
-              "url": "https://example.com/host-camry-front.jpg",
-              "thumbnail": "https://example.com/host-camry-front-thumb.jpg",
-              "preview": "https://example.com/host-camry-front-preview.jpg",
-              "original_url": "https://example.com/host-camry-front-original.jpg",
-              "preview_url": "https://example.com/host-camry-front-preview.jpg"
-            },
-            "front_image_doc": null,
-            "gallery": [
-              {
-                "id": 1,
-                "model_type": "Item",
-                "model_id": "101",
-                "uuid": "gallery1",
-                "collection_name": "gallery",
-                "name": "camry-gallery-1",
-                "file_name": "camry-gallery-1.jpg",
-                "mime_type": "image/jpeg",
-                "disk": "public",
-                "conversions_disk": "public",
-                "size": "400000",
-                "order_column": "1",
-                "created_at": "2024-01-01T00:00:00.000Z",
-                "updated_at": "2024-01-01T00:00:00.000Z",
-                "url": "https://example.com/host-camry-gallery-1.jpg",
-                "thumbnail": "https://example.com/host-camry-gallery-1-thumb.jpg",
-                "preview": "https://example.com/host-camry-gallery-1-preview.jpg",
-                "original_url": "https://example.com/host-camry-gallery-1-original.jpg",
-                "preview_url": "https://example.com/host-camry-gallery-1-preview.jpg"
-              }
-            ],
-            "available_dates": null,
-            "not_available_dates": null,
-            "booked_dates": null,
-            "item_info": "{\"host_id\":\"1\",\"service_type\":\"booking\",\"review_data\":[],\"features_data\":[],\"gallery_image_urls\":[]}",
-            "metaData": "{}"
-          },
-          {
-            "id": 102,
-            "title": "Tesla Model 3 2022",
-            "description": "Electric vehicle with autopilot features",
-            "item_rating": "4.8",
-            "mobile": "+1234567890",
-            "status": "1",
-            "person_allowed": "5",
-            "price": "80.00",
-            "address": "456 Market Street, San Francisco",
-            "state_region": "California",
-            "zip_postal_code": "94102",
-            "city_name": "San Francisco",
-            "country": "USA",
-            "latitude": "37.7749",
-            "longitude": "-122.4194",
-            "weekly_discount": "12",
-            "weekly_discount_type": "percent",
-            "monthly_discount": "18",
-            "monthly_discount_type": "percent",
-            "item_type_id": "2",
-            "features_id": "[4,5,6]",
-            "place_id": "ChIJIQBpAG2ahYAR_6128GcTUEo",
-            "booking_policies_id": 2,
-            "item_type": "Electric",
-            "front_image": {
-              "id": 2,
-              "model_type": "Item",
-              "model_id": "102",
-              "uuid": "def456",
-              "collection_name": "front_image",
-              "name": "tesla-front",
-              "file_name": "tesla-front.jpg",
-              "mime_type": "image/jpeg",
-              "disk": "public",
-              "conversions_disk": "public",
-              "size": "600000",
-              "order_column": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z",
-              "url": "https://example.com/host-tesla-front.jpg",
-              "thumbnail": "https://example.com/host-tesla-front-thumb.jpg",
-              "preview": "https://example.com/host-tesla-front-preview.jpg",
-              "original_url": "https://example.com/host-tesla-front-original.jpg",
-              "preview_url": "https://example.com/host-tesla-front-preview.jpg"
-            },
-            "front_image_doc": null,
-            "gallery": [
-              {
-                "id": 2,
-                "model_type": "Item",
-                "model_id": "102",
-                "uuid": "gallery2",
-                "collection_name": "gallery",
-                "name": "tesla-gallery-1",
-                "file_name": "tesla-gallery-1.jpg",
-                "mime_type": "image/jpeg",
-                "disk": "public",
-                "conversions_disk": "public",
-                "size": "450000",
-                "order_column": "1",
-                "created_at": "2024-01-01T00:00:00.000Z",
-                "updated_at": "2024-01-01T00:00:00.000Z",
-                "url": "https://example.com/host-tesla-gallery-1.jpg",
-                "thumbnail": "https://example.com/host-tesla-gallery-1-thumb.jpg",
-                "preview": "https://example.com/host-tesla-gallery-1-preview.jpg",
-                "original_url": "https://example.com/host-tesla-gallery-1-original.jpg",
-                "preview_url": "https://example.com/host-tesla-gallery-1-preview.jpg"
-              }
-            ],
-            "available_dates": null,
-            "not_available_dates": null,
-            "booked_dates": null,
-            "item_info": "{\"host_id\":\"1\",\"service_type\":\"booking\",\"review_data\":[],\"features_data\":[],\"gallery_image_urls\":[]}",
-            "metaData": "{}"
-          }
-        ]
-      }
-    };
-    
-    var response = mockResponse;
-    // ========== END MOCK DATA ==========
+    // ========== DEBUG: Print response status ==========
+    print('🚗 [DASHBOARD] Réponse API reçue - status: ${response?['status']}');
     
     if (response != null && response['status'] == 200) {
       myItemsModels = MyItemsModel.fromJson(response);
-      if (myItemsModels!.data != null) {
-        if (myItemsModels!.data!.hoststatus == "0" || myItemsModels!.data!.hoststatus == 0) {
+      if (myItemsModels?.data != null) {
+        final hostStatus = myItemsModels?.data?.hoststatus;
+        if (hostStatus == "0" || hostStatus == 0) {
           hostblocked(context);
           Future.delayed(const Duration(seconds: 5), () {
             Get.to(
@@ -265,12 +105,41 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
           return;
         }
         checkItemPiblicationLimit = response["data"]["checkLimit"];
-        list.addAll(myItemsModels!.data!.items!);
-        offset = myItemsModels!.data!.offset!;
+        
+        // ========== DEBUG: Print items before adding ==========
+        final newItems = myItemsModels?.data?.items;
+        final itemsCount = newItems?.length ?? 0;
+        print('🚗 [DASHBOARD] Nombre de véhicules reçus de l\'API : $itemsCount');
+        
+        if (itemsCount > 0 && newItems != null) {
+          print('🚗 [DASHBOARD] Premier véhicule reçu : ${newItems[0].title}');
+          
+          // ========== Add items safely ==========
+          list.addAll(newItems);
+          
+          // ========== Update offset safely ==========
+          final newOffset = myItemsModels?.data?.offset;
+          if (newOffset != null) {
+            offset = newOffset;
+          }
+          
+          // ========== DEBUG: Print total after adding ==========
+          print('🚗 [DASHBOARD] Nombre total de véhicules dans la liste après ajout : ${list.length}');
+        } else {
+          print('⚠️ [DASHBOARD] WARNING: Aucun véhicule reçu ou items est null');
+        }
+      } else {
+        print('⚠️ [DASHBOARD] WARNING: myItemsModels.data est null');
       }
     } else {
-      showerrorWhenloginwithOtherDevice = "${response["error"]}";
-      showErrorToastMessage("${response["error"]}");
+      if (response != null && response["error"] != null) {
+        print('❌ [DASHBOARD] Erreur API: ${response["error"]}');
+        showerrorWhenloginwithOtherDevice = "${response["error"]}";
+        showErrorToastMessage("${response["error"]}");
+      } else {
+        print('❌ [DASHBOARD] Erreur: Réponse null ou status != 200');
+        showErrorToastMessage("Failed to load items. Please try again.".tr);
+      }
     }
     setState(() {});
     refreshController.loadComplete();
@@ -284,45 +153,92 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
     items.clear();
     weeklyData.clear();
     
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpPost(Config.hostDashBoard, {});
+    // ========== 2c. Checking User Token ==========
+    print('🔐 [DASHBOARD_AUTH] 2c. Checking User Token...');
     
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
+    // Check token from global variable
+    String? userToken = token;
+    if (userToken == null || userToken.isEmpty) {
+      // Try to load from storage as fallback
+      userToken = GetStorage().read("raw_user_token");
+      print('🔐 [DASHBOARD_AUTH] Token from global variable is empty, checking storage...');
+    }
     
-    // MOCK: Static dashboard stats data
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Dashboard data retrieved successfully",
-      "error": "",
-      "data": {
-        "data": {
-          "total_sales": "5000.00",
-          "today_orders": "5",
-          "new_products": "3",
-          "pending_orders": "2",
-          "confirmedOrders": "8",
-          "cancelledOrders": "1",
-          "weekly_total_bookings": "25",
-          "weekly_total_earnings": "3500.00",
-          "weekly_income_report": {
-            "monday": 450.50,
-            "tuesday": 520.75,
-            "wednesday": 380.25,
-            "thursday": 600.00,
-            "friday": 750.30,
-            "saturday": 420.20,
-            "sunday": 378.00
-          }
-        }
-      }
-    };
+    if (userToken == null || userToken.isEmpty) {
+      print('❌ [DASHBOARD_AUTH] ERROR: User Token is EMPTY! Cannot proceed with dashboard request.');
+      print('❌ [DASHBOARD_AUTH] Redirecting to login screen...');
+      showErrorToastMessage("Session expired. Please login again".tr);
+      // Force logout and redirect to login
+      Future.delayed(const Duration(seconds: 1), () {
+        logout();
+      });
+      setState(() {});
+      return;
+    }
     
-    var response = mockResponse;
-    // ========== END MOCK DATA ==========
+    print('✅ [DASHBOARD_AUTH] User Token is present: ${userToken.length > 10 ? userToken.substring(0, 10) : userToken}... (length: ${userToken.length})');
+    print('🔐 [DASHBOARD_AUTH] Proceeding with dashboard API call...');
+    
+    var response = await httpPost(Config.hostDashBoard, {});
+    
+    // ========== DEBUG: Print response body ==========
+    print('📥 [DASHBOARD_DEBUG] Response Body: $response');
+    
+    // ========== Handle 401 Unauthorized ==========
+    if (response != null && response['status'] == 401) {
+      print('❌ [DASHBOARD_AUTH] ERROR: 401 Unauthorized - Token is invalid or expired');
+      print('❌ [DASHBOARD_AUTH] Response status: ${response['status']}');
+      print('❌ [DASHBOARD_AUTH] Response error: ${response['error']}');
+      showErrorToastMessage("Session expired. Please login again".tr);
+      // Force logout and redirect to login
+      Future.delayed(const Duration(seconds: 1), () {
+        logout();
+      });
+      setState(() {});
+      return;
+    }
     
     if (response != null && response['status'] == 200) {
-      dashBoardHostModel = DashBoardHost.fromJson(response);
+      // ========== DEBUG: Check response structure ==========
+      if (response['data'] == null) {
+        print('❌ [DASHBOARD_DEBUG] ERROR: response["data"] is null');
+        showErrorToastMessage("Invalid response: missing 'data' field");
+        setState(() {});
+        return;
+      }
+      
+      if (response['data']['data'] == null) {
+        print('❌ [DASHBOARD_DEBUG] ERROR: response["data"]["data"] is null');
+        print('📋 [DASHBOARD_DEBUG] Available keys in response["data"]: ${response['data'].keys}');
+        showErrorToastMessage("Invalid response: missing 'data.data' field");
+        setState(() {});
+        return;
+      }
+      
+      final dashboardData = response['data']['data'];
+      print('📊 [DASHBOARD_DEBUG] Dashboard data keys: ${dashboardData.keys}');
+      print('📊 [DASHBOARD_DEBUG] total_sales: ${dashboardData['total_sales']}');
+      print('📊 [DASHBOARD_DEBUG] today_orders: ${dashboardData['today_orders']}');
+      print('📊 [DASHBOARD_DEBUG] new_products: ${dashboardData['new_products']}');
+      print('📊 [DASHBOARD_DEBUG] pending_orders: ${dashboardData['pending_orders']}');
+      print('📊 [DASHBOARD_DEBUG] confirmedOrders: ${dashboardData['confirmedOrders']}');
+      print('📊 [DASHBOARD_DEBUG] cancelledOrders: ${dashboardData['cancelledOrders']}');
+      print('📊 [DASHBOARD_DEBUG] weekly_total_bookings: ${dashboardData['weekly_total_bookings']}');
+      print('📊 [DASHBOARD_DEBUG] weekly_total_earnings: ${dashboardData['weekly_total_earnings']}');
+      print('📊 [DASHBOARD_DEBUG] weekly_income_report: ${dashboardData['weekly_income_report']}');
+      
+      // ========== Try-Catch for JSON parsing ==========
+      try {
+        dashBoardHostModel = DashBoardHost.fromJson(response);
+        print('✅ [DASHBOARD_DEBUG] DashBoardHost parsed successfully');
+      } catch (e, stackTrace) {
+        print('❌ [DASHBOARD_DEBUG] ERROR parsing DashBoardHost: $e');
+        print('❌ [DASHBOARD_DEBUG] Stack trace: $stackTrace');
+        showErrorToastMessage("Error parsing dashboard data: $e");
+        setState(() {});
+        return;
+      }
+      
       items = [
         {
           "title": convertToLocaleDigits(
@@ -362,8 +278,18 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
         },
       ];
 
+      // ========== DEBUG: Check weekly_income_report ==========
       if (dashBoardHostModel?.data?.data?.weeklyIncomeReport != null) {
         final report = dashBoardHostModel!.data!.data!.weeklyIncomeReport!;
+        print('✅ [DASHBOARD_DEBUG] weekly_income_report found');
+        print('📊 [DASHBOARD_DEBUG] Monday: ${report.monday}');
+        print('📊 [DASHBOARD_DEBUG] Tuesday: ${report.tuesday}');
+        print('📊 [DASHBOARD_DEBUG] Wednesday: ${report.wednesday}');
+        print('📊 [DASHBOARD_DEBUG] Thursday: ${report.thursday}');
+        print('📊 [DASHBOARD_DEBUG] Friday: ${report.friday}');
+        print('📊 [DASHBOARD_DEBUG] Saturday: ${report.saturday}');
+        print('📊 [DASHBOARD_DEBUG] Sunday: ${report.sunday}');
+        
         weeklyData = [
           {
             "day": getWeekdayName(1, locale: Get.locale?.languageCode ?? 'en'),
@@ -394,9 +320,16 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
             "amount": report.sunday ?? 0
           },
         ];
+      } else {
+        print('⚠️ [DASHBOARD_DEBUG] WARNING: weekly_income_report is null or missing');
+        print('📋 [DASHBOARD_DEBUG] Available fields in dashboardData: ${dashboardData.keys}');
+        weeklyData = []; // Initialize empty to avoid null errors
       }
     } else {
-      showErrorToastMessage("${response['error']}");
+      print('❌ [DASHBOARD_DEBUG] ERROR: Response status is not 200');
+      print('📊 [DASHBOARD_DEBUG] Response status: ${response?['status']}');
+      print('📊 [DASHBOARD_DEBUG] Response error: ${response?['error']}');
+      showErrorToastMessage("${response?['error'] ?? 'Unknown error'}");
     }
     setState(() {});
   }
@@ -774,6 +707,7 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                   padding: const EdgeInsets.only(
                                       left: 15, right: 15),
                                   child: Container(
+                                    width: MediaQuery.of(context).size.width - 30,
                                     height: 250,
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
@@ -798,12 +732,14 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                         const SizedBox(height: 8),
                                         // Bar Chart
                                         Expanded(
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceAround,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.end,
-                                            children: List.generate(7, (index) {
+                                          child: LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              return Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.spaceEvenly,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.end,
+                                                children: List.generate(7, (index) {
                                               // Define days of the week
                                               final day = getWeekdayName(
                                                   index + 1,
@@ -835,21 +771,22 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                                           maxAmount
                                                       : 0;
 
-                                              return Column(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.end,
-                                                children: [
-                                                  Container(
-                                                    width: 16,
-                                                    height: 105,
-                                                    decoration: BoxDecoration(
-                                                      color:
-                                                          grey5, // Use grey5 as the background color
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              15),
-                                                    ),
-                                                    child: Align(
+                                              return Expanded(
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.end,
+                                                  children: [
+                                                    Container(
+                                                      width: 16,
+                                                      height: 105,
+                                                      decoration: BoxDecoration(
+                                                        color:
+                                                            grey5, // Use grey5 as the background color
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                                15),
+                                                      ),
+                                                      child: Align(
                                                       alignment: Alignment
                                                           .bottomCenter,
                                                       child:
@@ -887,9 +824,16 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                                     ),
                                                   ),
                                                   const SizedBox(height: 8),
-                                                  Text(
-                                                    entry['day'],
-                                                    style: regular2(context),
+                                                  Flexible(
+                                                    child: FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      child: Text(
+                                                        entry['day'],
+                                                        style: regular2(context).copyWith(fontSize: 10),
+                                                        overflow: TextOverflow.ellipsis,
+                                                        maxLines: 1,
+                                                      ),
+                                                    ),
                                                   ),
                                                   const SizedBox(height: 5),
                                                   Container(
@@ -898,17 +842,25 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                                     color: Colors.grey,
                                                   ),
                                                   const SizedBox(height: 5),
-                                                  Text(
-                                                    truncatetext(
-                                                      convertToLocaleDigits(
-                                                          '${currency} ${entry['amount']}'),
-                                                      11,
+                                                  Flexible(
+                                                    child: FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      child: Text(
+                                                        truncatetext(
+                                                          convertToLocaleDigits(
+                                                              '${currency} ${entry['amount']}'),
+                                                          11,
+                                                        ),
+                                                        style: regular2(context).copyWith(fontSize: 10),
+                                                      ),
+                                                      ),
                                                     ),
-                                                    style: regular2(context),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               );
                                             }),
+                                              );
+                                            },
                                           ),
                                         ),
                                       ],
@@ -1203,25 +1155,45 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(width: 1, color: Colors.black12),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          Text(title,
-              style: regular2(context).copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: themeColor)),
-          Text(value,
-              style: regular2(context).copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: valueColor)),
-          Text(subtitle,
-              style: regular2(context).copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: themeColor)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(title,
+                    style: regular2(context).copyWith(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: themeColor)),
+              ),
+            ),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(value,
+                    style: regular2(context).copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: valueColor),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1),
+              ),
+            ),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(subtitle,
+                    style: regular2(context).copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: themeColor)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1307,7 +1279,7 @@ class VehicleItemCard extends StatelessWidget {
                           width: 9,
                         ),
                         Center(
-                          child: Text('${itemInfoData!.vehicleType}',
+                          child: Text('${itemInfoData?.vehicleType ?? 'Sans Matricule'}',
                               style: regular2(context).copyWith(
                                 fontSize: 11,
                               )),

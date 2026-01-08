@@ -1008,6 +1008,16 @@ myBookingListWidget(
         response = await httpGet(Config.getCancelReasons, {"userType": "user"});
         closeLoading();
         
+        // Debug: Log the raw response from backend
+        print('📥 [FLUTTER_DEBUG] ========================================');
+        print('📥 [FLUTTER_DEBUG] Raw response from get-cancel-reasons:');
+        print('📥 [FLUTTER_DEBUG] ${response}');
+        if (response != null && response['data'] != null && response['data']['reasons'] != null) {
+          print('📥 [FLUTTER_DEBUG] First reason structure:');
+          print('📥 [FLUTTER_DEBUG] ${response['data']['reasons'][0]}');
+        }
+        print('📥 [FLUTTER_DEBUG] ========================================');
+        
         if (response != null && response['status'] == 200) {
           try {
             CancellationReasonModel model =
@@ -1095,10 +1105,42 @@ myBookingListWidget(
                                         showLoading();
                                         dynamic resp;
                                         try {
+                                          String bookingId = "${list[index].id}";
+                                          // Convert value to String and validate ObjectId format
+                                          String cancelReasonId = value?.toString().trim() ?? "";
+                                          
+                                          print('📤 [FLUTTER_DEBUG] ========================================');
+                                          print('📤 [FLUTTER_DEBUG] Preparing cancellation request:');
+                                          print('📤 [FLUTTER_DEBUG]   Raw value from bottom sheet: $value');
+                                          print('📤 [FLUTTER_DEBUG]   Value type: ${value.runtimeType}');
+                                          print('📤 [FLUTTER_DEBUG]   Converted ID: "$cancelReasonId"');
+                                          print('📤 [FLUTTER_DEBUG]   ID length: ${cancelReasonId.length}');
+                                          
+                                          // Validate MongoDB ObjectId format (24 hex characters)
+                                          bool isValidObjectId = cancelReasonId.isNotEmpty && 
+                                                                  cancelReasonId.length == 24 &&
+                                                                  RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(cancelReasonId);
+                                          
+                                          if (!isValidObjectId) {
+                                            print('⚠️ [FLUTTER_DEBUG] ⚠️ CRITICAL ERROR: Invalid ObjectId format!');
+                                            print('⚠️ [FLUTTER_DEBUG]   Received: "$cancelReasonId" (length: ${cancelReasonId.length})');
+                                            print('⚠️ [FLUTTER_DEBUG]   Expected: 24 hexadecimal characters (MongoDB ObjectId)');
+                                            print('⚠️ [FLUTTER_DEBUG]   This means the backend is NOT sending _id field!');
+                                            print('⚠️ [FLUTTER_DEBUG]   Backend must return _id (MongoDB ObjectId) instead of order_cancellation_id (number)');
+                                            print('⚠️ [FLUTTER_DEBUG]   Request will FAIL with 404 error!');
+                                            // Don't use test ID - let it fail so we can see the error
+                                          }
+                                          
+                                          print('📤 [FLUTTER_DEBUG] Envoi de l\'ID MongoDB réel : $cancelReasonId');
+                                          print('💎 [FLUTTER_DEBUG] ID réel sélectionné depuis l\'API : $cancelReasonId');
+                                          print('📤 [FLUTTER_DEBUG] Booking ID: $bookingId');
+                                          print('📤 [FLUTTER_DEBUG] Route API: ${Config.cancelBookingByUser}');
+                                          print('📤 [FLUTTER_DEBUG] ========================================');
+                                          
                                           resp = await httpPost(
                                               Config.cancelBookingByUser, {
-                                            "booking_id": "${list[index].id}",
-                                            "cancellation_reason": "$value"
+                                            "booking_id": bookingId,
+                                            "cancellation_reason": cancelReasonId
                                           });
                                           closeLoading();
                                           

@@ -59,14 +59,31 @@ class _CustomBottomSheetState extends State<CustomBottomSheet> {
                           content: Text('Please select a reason'.tr),
                         ),
                       );
-                    } else {       
+                    } else {
+                      // Get the selected cancellation reason ObjectId
+                      var selectedReason = widget
+                          .model
+                          .data!
+                          .reasons![GlobalScopeController.selectedRadio];
+                      
+                      // Try to get MongoDB _id via sId getter, fallback to orderCancellationId
+                      String? selectedId = selectedReason.sId ?? selectedReason.orderCancellationId;
+                      
+                      print('📋 [FLUTTER_DEBUG] ========================================');
+                      print('📋 [FLUTTER_DEBUG] Selected cancellation reason:');
+                      print('📋 [FLUTTER_DEBUG]   Index: ${GlobalScopeController.selectedRadio}');
+                      print('📋 [FLUTTER_DEBUG]   orderCancellationId: ${selectedReason.orderCancellationId}');
+                      print('📋 [FLUTTER_DEBUG]   sId: ${selectedReason.sId}');
+                      print('📋 [FLUTTER_DEBUG]   Final selected ID: $selectedId');
+                      print('📋 [FLUTTER_DEBUG]   ID Type: ${selectedId.runtimeType}');
+                      print('📋 [FLUTTER_DEBUG]   ID Length: ${selectedId?.length ?? 0}');
+                      print('📋 [FLUTTER_DEBUG]   Reason text: ${selectedReason.reason}');
+                      print('💎 [FLUTTER_DEBUG] ID réel sélectionné depuis l\'API : ${selectedReason.sId}');
+                      print('📋 [FLUTTER_DEBUG] ========================================');
+                      
                       Navigator.pop(
                         context,
-                        widget
-                            .model
-                            .data!
-                            .reasons![GlobalScopeController.selectedRadio]
-                            .orderCancellationId,
+                        selectedId, // This should be a MongoDB ObjectId string (24 chars)
                       );
                       GlobalScopeController.selectedRadio =
                           -1; 

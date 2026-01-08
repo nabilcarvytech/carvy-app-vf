@@ -71,7 +71,7 @@ class Data {
 
 class Reasons {
   Reasons({
-      num? orderCancellationId, 
+      String? orderCancellationId, 
       String? reason, 
       String? userType, 
       String? status, 
@@ -86,21 +86,55 @@ class Reasons {
 }
 
   Reasons.fromJson(dynamic json) {
-    _orderCancellationId = json['order_cancellation_id'];
+    // Priority: _id (MongoDB ObjectId) > id > sId > order_cancellation_id
+    dynamic idValue;
+    
+    // Handle MongoDB _id which can be a string or an object like {"$oid": "..."}
+    if (json['_id'] != null) {
+      if (json['_id'] is Map && json['_id']['\$oid'] != null) {
+        idValue = json['_id']['\$oid']; // MongoDB extended JSON format
+      } else if (json['_id'] is Map && json['_id']['oid'] != null) {
+        idValue = json['_id']['oid']; // Alternative format
+      } else {
+        idValue = json['_id']; // Direct string
+      }
+    } else if (json['id'] != null) {
+      idValue = json['id'];
+    } else if (json['sId'] != null) {
+      idValue = json['sId'];
+    } else {
+      idValue = json['order_cancellation_id'];
+    }
+    
+    // Convert to String and log for debugging
+    _orderCancellationId = idValue?.toString();
+    
+    print('🔍 [CANCEL_DEBUG] Parsing cancellation reason:');
+    print('🔍 [CANCEL_DEBUG]   Raw _id: ${json['_id']}');
+    print('🔍 [CANCEL_DEBUG]   Raw id: ${json['id']}');
+    print('🔍 [CANCEL_DEBUG]   Raw sId: ${json['sId']}');
+    print('🔍 [CANCEL_DEBUG]   Raw order_cancellation_id: ${json['order_cancellation_id']}');
+    print('🔍 [CANCEL_DEBUG]   Final selected ID: $_orderCancellationId');
+    print('🔍 [CANCEL_DEBUG]   ID length: ${_orderCancellationId?.length ?? 0}');
+    print('🔍 [CANCEL_DEBUG]   Reason text: ${json['reason']}');
+    
     _reason = json['reason'];
     _userType = json['user_type'];
     _status = json['status'];
     _createdAt = json['created_at'];
     _updatedAt = json['updated_at'];
   }
-  num? _orderCancellationId;
+  String? _orderCancellationId;
   String? _reason;
   String? _userType;
   String? _status;
   String? _createdAt;
   String? _updatedAt;
 
-  num? get orderCancellationId => _orderCancellationId;
+  String? get orderCancellationId => _orderCancellationId;
+  // Alias for MongoDB _id access
+  String? get sId => _orderCancellationId;
+  String? get id => _orderCancellationId;
   String? get reason => _reason;
   String? get userType => _userType;
   String? get status => _status;

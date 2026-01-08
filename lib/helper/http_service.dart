@@ -359,18 +359,12 @@ Future<dynamic> httpPost(path, data) async {
   // Le code mock a été supprimé pour permettre la connexion au serveur Node.js réel
 
   // ========== MOCK DATA - cancel-booking-by-user API ==========
-  // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
+  // ✅ MOCK REMOVED - Now using real Node.js backend
+  // The request will be sent to the actual backend at: ${Config.baseurl}${Config.cancelBookingByUser}
   if (path == Config.cancelBookingByUser) {
-    await Future.delayed(const Duration(seconds: 1));
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Booking cancelled successfully",
-      "error": "",
-      "data": {}
-    };
-    developer
-        .log("⚠️ MOCK MODE: Returning mock cancel-booking-by-user response");
-    return mockResponse;
+    print('🚀 [FLUTTER_DEBUG] httpPost: cancel-booking-by-user detected, sending to real backend');
+    print('🚀 [FLUTTER_DEBUG] Backend URL: ${Config.baseurl}${Config.cancelBookingByUser}');
+    print('🚀 [FLUTTER_DEBUG] Request data: $data');
   }
   // ========== END MOCK DATA ==========
 
@@ -449,43 +443,6 @@ Future<dynamic> httpPost(path, data) async {
 
     developer.log(
         "⚠️ MOCK MODE: Returning mock cancel-booking-by-host for booking_id: ${data['booking_id']}");
-    return mockResponse;
-  }
-  // ========== END MOCK DATA ==========
-
-  // ========== MOCK DATA - get-vendor-dashboard-record API ==========
-  // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
-  if (path == Config.hostDashBoard) {
-    await Future.delayed(const Duration(seconds: 1));
-
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Dashboard data retrieved successfully",
-      "error": "",
-      "data": {
-        "data": {
-          "total_sales": "5000.00",
-          "today_orders": "5",
-          "new_products": "3",
-          "pending_orders": "2",
-          "confirmedOrders": "8",
-          "cancelledOrders": "1",
-          "weekly_total_bookings": "25",
-          "weekly_total_earnings": "3500.00",
-          "weekly_income_report": {
-            "monday": 450.50,
-            "tuesday": 520.75,
-            "wednesday": 380.25,
-            "thursday": 600.00,
-            "friday": 750.30,
-            "saturday": 420.20,
-            "sunday": 378.00
-          }
-        }
-      }
-    };
-
-    developer.log("⚠️ MOCK MODE: Returning mock get-vendor-dashboard-record");
     return mockResponse;
   }
   // ========== END MOCK DATA ==========
@@ -594,196 +551,6 @@ Future<dynamic> httpPost(path, data) async {
   }
   // ========== END MOCK DATA ==========
 
-  // ========== MOCK DATA - my-items API ==========
-  // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
-  if (path == Config.myItems) {
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Simule la liste des véhicules du host (My Items).
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "My items retrieved successfully",
-      "error": "",
-      "data": {
-        "host_status": "1",
-        "checkLimit": 10,
-        "offset": (int.tryParse(data["offset"]?.toString() ?? "0") ?? 0) + 2,
-        "limit": "10",
-        "items": [
-          {
-            "id": 101,
-            "title": "Toyota Camry 2023",
-            "description":
-                "Clean and comfortable sedan perfect for city driving",
-            "item_rating": "4.5",
-            "mobile": "+1234567890",
-            "status": "1",
-            "person_allowed": "5",
-            "price": "50.00",
-            "address": "123 Main Street, Los Angeles",
-            "state_region": "California",
-            "zip_postal_code": "90001",
-            "city_name": "Los Angeles",
-            "country": "USA",
-            "latitude": "34.0522",
-            "longitude": "-118.2437",
-            "weekly_discount": "10",
-            "weekly_discount_type": "percent",
-            "monthly_discount": "15",
-            "monthly_discount_type": "percent",
-            "item_type_id": "1",
-            "features_id": "[1,2,3]",
-            "place_id": "ChIJE9on3F3HwoAR9AhGJW_fL-I",
-            "booking_policies_id": 1,
-            "item_type": "Sedan",
-            "front_image": {
-              "id": 1,
-              "model_type": "Item",
-              "model_id": "101",
-              "uuid": "abc123",
-              "collection_name": "front_image",
-              "name": "camry-front",
-              "file_name": "camry-front.jpg",
-              "mime_type": "image/jpeg",
-              "disk": "public",
-              "conversions_disk": "public",
-              "size": "500000",
-              "order_column": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z",
-              "url": "https://example.com/host-camry-front.jpg",
-              "thumbnail": "https://example.com/host-camry-front-thumb.jpg",
-              "preview": "https://example.com/host-camry-front-preview.jpg",
-              "original_url":
-                  "https://example.com/host-camry-front-original.jpg",
-              "preview_url": "https://example.com/host-camry-front-preview.jpg"
-            },
-            "front_image_doc": null,
-            "gallery": [
-              {
-                "id": 1,
-                "model_type": "Item",
-                "model_id": "101",
-                "uuid": "gallery1",
-                "collection_name": "gallery",
-                "name": "camry-gallery-1",
-                "file_name": "camry-gallery-1.jpg",
-                "mime_type": "image/jpeg",
-                "disk": "public",
-                "conversions_disk": "public",
-                "size": "400000",
-                "order_column": "1",
-                "created_at": "2024-01-01T00:00:00.000Z",
-                "updated_at": "2024-01-01T00:00:00.000Z",
-                "url": "https://example.com/host-camry-gallery-1.jpg",
-                "thumbnail":
-                    "https://example.com/host-camry-gallery-1-thumb.jpg",
-                "preview":
-                    "https://example.com/host-camry-gallery-1-preview.jpg",
-                "original_url":
-                    "https://example.com/host-camry-gallery-1-original.jpg",
-                "preview_url":
-                    "https://example.com/host-camry-gallery-1-preview.jpg"
-              }
-            ],
-            "available_dates": null,
-            "not_available_dates": null,
-            "booked_dates": null,
-            "item_info":
-                "{\"host_id\":\"1\",\"service_type\":\"booking\",\"review_data\":[],\"features_data\":[],\"gallery_image_urls\":[]}",
-            "metaData": "{}"
-          },
-          {
-            "id": 102,
-            "title": "Tesla Model 3 2022",
-            "description": "Electric vehicle with autopilot features",
-            "item_rating": "4.8",
-            "mobile": "+1234567890",
-            "status": "1",
-            "person_allowed": "5",
-            "price": "80.00",
-            "address": "456 Market Street, San Francisco",
-            "state_region": "California",
-            "zip_postal_code": "94102",
-            "city_name": "San Francisco",
-            "country": "USA",
-            "latitude": "37.7749",
-            "longitude": "-122.4194",
-            "weekly_discount": "12",
-            "weekly_discount_type": "percent",
-            "monthly_discount": "18",
-            "monthly_discount_type": "percent",
-            "item_type_id": "2",
-            "features_id": "[4,5,6]",
-            "place_id": "ChIJIQBpAG2ahYAR_6128GcTUEo",
-            "booking_policies_id": 2,
-            "item_type": "Electric",
-            "front_image": {
-              "id": 2,
-              "model_type": "Item",
-              "model_id": "102",
-              "uuid": "def456",
-              "collection_name": "front_image",
-              "name": "tesla-front",
-              "file_name": "tesla-front.jpg",
-              "mime_type": "image/jpeg",
-              "disk": "public",
-              "conversions_disk": "public",
-              "size": "600000",
-              "order_column": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z",
-              "url": "https://example.com/host-tesla-front.jpg",
-              "thumbnail": "https://example.com/host-tesla-front-thumb.jpg",
-              "preview": "https://example.com/host-tesla-front-preview.jpg",
-              "original_url":
-                  "https://example.com/host-tesla-front-original.jpg",
-              "preview_url": "https://example.com/host-tesla-front-preview.jpg"
-            },
-            "front_image_doc": null,
-            "gallery": [
-              {
-                "id": 2,
-                "model_type": "Item",
-                "model_id": "102",
-                "uuid": "gallery2",
-                "collection_name": "gallery",
-                "name": "tesla-gallery-1",
-                "file_name": "tesla-gallery-1.jpg",
-                "mime_type": "image/jpeg",
-                "disk": "public",
-                "conversions_disk": "public",
-                "size": "450000",
-                "order_column": "1",
-                "created_at": "2024-01-01T00:00:00.000Z",
-                "updated_at": "2024-01-01T00:00:00.000Z",
-                "url": "https://example.com/host-tesla-gallery-1.jpg",
-                "thumbnail":
-                    "https://example.com/host-tesla-gallery-1-thumb.jpg",
-                "preview":
-                    "https://example.com/host-tesla-gallery-1-preview.jpg",
-                "original_url":
-                    "https://example.com/host-tesla-gallery-1-original.jpg",
-                "preview_url":
-                    "https://example.com/host-tesla-gallery-1-preview.jpg"
-              }
-            ],
-            "available_dates": null,
-            "not_available_dates": null,
-            "booked_dates": null,
-            "item_info":
-                "{\"host_id\":\"1\",\"service_type\":\"booking\",\"review_data\":[],\"features_data\":[],\"gallery_image_urls\":[]}",
-            "metaData": "{}"
-          }
-        ]
-      }
-    };
-
-    developer.log(
-        "⚠️ MOCK MODE: Returning mock my-items list for offset: ${data['offset']}");
-    return mockResponse;
-  }
-  // ========== END MOCK DATA ==========
 
   // ========== MOCK DATA - deleteItem API ==========
   // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
@@ -864,6 +631,7 @@ Future<dynamic> httpPost(path, data) async {
     print("🚨 [STOP CHECK] 5. Constructing headers...");
     var headers = {
       'Content-Type': 'application/json',
+      'x-auth-token': token,
       "Authorization": "Bearer $bearerToken",
     };
     print(
@@ -893,12 +661,25 @@ Future<dynamic> httpPost(path, data) async {
     bool hasRetried = false;
     http.Response result;
 
+    // Debug print for cancel-booking-by-user
+    if (path == Config.cancelBookingByUser) {
+      print('🚀 [FLUTTER_DEBUG] About to send POST request to: $url');
+      print('🚀 [FLUTTER_DEBUG] Request body: ${jsonEncode(data)}');
+      print('🚀 [FLUTTER_DEBUG] Headers: ${headers.keys.join(", ")}');
+    }
+
     // First attempt
     result = await http.post(
       Uri.parse(url),
       headers: headers,
       body: jsonEncode(data),
     );
+    
+    // Debug print for response
+    if (path == Config.cancelBookingByUser) {
+      print('🚀 [FLUTTER_DEBUG] Response status code: ${result.statusCode}');
+      print('🚀 [FLUTTER_DEBUG] Response body: ${result.body}');
+    }
 
     // Check for 401 Unauthorized
     if (result.statusCode == 401 && !hasRetried) {
