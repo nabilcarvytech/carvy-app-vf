@@ -25,6 +25,7 @@ import 'package:carvy/view/auth/otp_screen.dart';
 import 'package:carvy/view/auth/success_change_password.dart';
 import 'package:carvy/view/myaccount/my_profile_screen.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
+import 'package:carvy/view/host/switch_splash_screen.dart';
 import 'package:carvy/work_space.dart';
 import '../helper/http_service.dart';
 import '../view/auth/reset_password_screen.dart';
@@ -1027,6 +1028,65 @@ class AuthController extends GetxController implements GetxService {
         closeLoading();
         Get.back();
       }
+    }
+  }
+
+  // Fonction pour changer de rôle (user <-> vendor)
+  Future<void> switchRole(BuildContext context) async {
+    if (token.isEmpty) {
+      loginAlert(context);
+      return;
+    }
+
+    // Déterminer le rôle actuel basé sur isHostMode
+    // Si isHostMode == true, l'utilisateur est vendor, sinon user
+    String currentRole = isHostMode.value ? 'vendor' : 'user';
+    String newRole = currentRole == 'vendor' ? 'user' : 'vendor';
+
+    print('🔄 [SWITCH_ROLE] Rôle actuel: $currentRole');
+    print('🔄 [SWITCH_ROLE] Nouveau rôle: $newRole');
+
+    showLoading();
+    try {
+      // Appel API pour mettre à jour le rôle dans la base de données
+      // Note: Vous devrez créer cet endpoint 'switch-role' dans votre backend Node.js
+      var response = await httpPost(Config.switchRole, {
+        'role': newRole,
+      });
+
+      closeLoading();
+
+      if (response != null && response['status'] == 200) {
+        // Mettre à jour isHostMode localement
+        bool newHostMode = newRole == 'vendor';
+        isHostMode.value = newHostMode;
+        GetStorage().write('isHostMode', newHostMode);
+
+        // Mettre à jour le loginModel si nécessaire
+        if (loginModel != null && response['data'] != null) {
+          // Optionnel: mettre à jour le modèle avec les nouvelles données
+          loginModel = LoginModel.fromJson(response);
+          UserData userObj = UserData();
+          userObj.saveLoginData("UserData", jsonEncode(response));
+        }
+
+        showToastMessage(response['message'] ?? 'Rôle changé avec succès'.tr);
+
+        // Rediriger vers le bon dashboard en utilisant SwitchSplashScreen
+        Get.offAll(() => SwitchSplashScreen(isHostMode: newHostMode));
+      } else {
+        showErrorToastMessage(response?['error'] ?? 'Erreur lors du changement de rôle'.tr);
+      }
+    } catch (e) {
+      closeLoading();
+      print('❌ [SWITCH_ROLE] Erreur: $e');
+      // En cas d'erreur API, utiliser la logique locale existante
+      // (fallback si l'endpoint n'existe pas encore)
+      bool newHostMode = newRole == 'vendor';
+      isHostMode.value = newHostMode;
+      GetStorage().write('isHostMode', newHostMode);
+      showToastMessage('Mode changé avec succès'.tr);
+      Get.offAll(() => SwitchSplashScreen(isHostMode: newHostMode));
     }
   }
 }

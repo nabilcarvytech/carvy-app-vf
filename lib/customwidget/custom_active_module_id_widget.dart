@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:carvy/api/config.dart';
+import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
@@ -136,25 +137,39 @@ void tobecomeHost(BuildContext context) async {
 }
 
 Widget switchToOwner(BuildContext context) {
+  AuthController authController = Get.find();
+  
   return Obx(
-    () => generalController.hasGeneralData.value == true
-        ? const SizedBox()
-        : SizedBox(
-            width: 290,
-            child: ElevatedButton(
-              onPressed: () async {
-                tobecomeHost(context);
-              },
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: getColorBasedOnActiveModuleid(),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  )),
-              child: Text(
-                isHostMode.value ? "Become a Rent".tr : "Become a Lend".tr,
-                style: heading3(context).copyWith(color: whiteColor),
+    () {
+      // Déterminer le rôle actuel basé sur isHostMode
+      // Si isHostMode == true, l'utilisateur est vendor, sinon user
+      String currentRole = isHostMode.value ? 'vendor' : 'user';
+      
+      // Déterminer le texte du bouton selon le rôle
+      String buttonText = currentRole == 'vendor' 
+          ? "Become a User".tr  // "Devenir locataire" si vendor
+          : "Become a Host".tr;  // "Devenir propriétaire" si user
+      
+      return generalController.hasGeneralData.value == true
+          ? const SizedBox()
+          : SizedBox(
+              width: 290,
+              child: ElevatedButton(
+                onPressed: () async {
+                  // Appeler la fonction switchRole() au lieu de tobecomeHost()
+                  await authController.switchRole(context);
+                },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: getColorBasedOnActiveModuleid(),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    )),
+                child: Text(
+                  buttonText,
+                  style: heading3(context).copyWith(color: whiteColor),
+                ),
               ),
-            ),
-          ),
+            );
+    },
   );
 }

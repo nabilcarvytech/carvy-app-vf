@@ -8,14 +8,15 @@ class Config {
   //static const String baseurlForBearer = 'https://admin.carvy.tech/api/';
 
   // ========== NEW NODE.JS BACKEND (LOCAL DEVELOPMENT) ==========
-  //static const String baseurl = 'http://10.0.2.2:5000/api/v1/';
-  //static const String baseurlForBearer = 'http://10.0.2.2:5000/api/v1/';
-  //static const String baseurl = 'https://carvy.tech/api/v1/';
   static const String baseurl = 'http://10.0.2.2:5000/api/v1/';
+  static const String baseurlForBearer = 'http://10.0.2.2:5000/api/v1/';
+  //static const String baseurl = 'https://carvy.tech/api/v1/';
+  //static const String baseurl = 'https://admin.carvy.tech/api/v1/';
 
   // Apparemment tu utilises ça pour les tokens ou les images ?
   //static const String baseurlForBearer = 'https://carvy.tech/api/v1/';
-  static const String baseurlForBearer = 'http://10.0.2.2:5000/api/v1/';
+  //atic const String baseurlForBearer = 'https://admin.carvy.tech/api/v1/';
+  //static const String baseurlForBearer = 'https://carvy.tech/api/v1/';
 
   static const String secretKey = '49382716504938271650493827165049';
   static const String registerUser = 'userRegister';
@@ -107,6 +108,7 @@ class Config {
   static const String nearbyItems = 'nearbyItems';
   static const String getHostStatus = 'get-host-status';
   static const String putHostRequest = 'put-host-request';
+  static const String switchRole = 'switch-role';
   static const String getCurrencyDetails = 'getCurrencyDetails';
   static const String updateItemDeliveredStatus =
       'update-item-delivered-status';

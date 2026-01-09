@@ -181,11 +181,35 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
     
     var response = await httpPost(Config.hostDashBoard, {});
     
+    // ========== RAW DEBUG: Voir exactement ce qui est reçu du serveur ==========
+    print('📡 [RAW_RECEIVE] Body complet : $response');
+    print('📡 [RAW_RECEIVE] Type de response : ${response.runtimeType}');
+    if (response != null && response is Map) {
+      try {
+        print('📡 [RAW_RECEIVE] JSON stringifié : ${jsonEncode(response)}');
+      } catch (e) {
+        print('⚠️ [RAW_RECEIVE] Impossible de stringifier en JSON: $e');
+      }
+      print('🔑 [KEYS_CHECK] Clés présentes : ${response.keys.toList()}');
+      print('🔑 [KEYS_CHECK] Valeur de status : ${response['status']}');
+      print('🔑 [KEYS_CHECK] Type de status : ${response['status']?.runtimeType}');
+      print('🔑 [KEYS_CHECK] Valeur de data : ${response['data']}');
+      print('🔑 [KEYS_CHECK] Type de data : ${response['data']?.runtimeType}');
+      print('🔑 [KEYS_CHECK] Valeur de message : ${response['message']}');
+      print('🔑 [KEYS_CHECK] Valeur de error : ${response['error']}');
+    } else {
+      print('⚠️ [RAW_RECEIVE] WARNING: response est null ou n\'est pas un Map');
+    }
+    
     // ========== DEBUG: Print response body ==========
     print('📥 [DASHBOARD_DEBUG] Response Body: $response');
     
     // ========== Handle 401 Unauthorized ==========
-    if (response != null && response['status'] == 401) {
+    // Vérification flexible du statut (200, '200', ou statusCode)
+    var status = response?['status'];
+    var statusCode = response?['statusCode'];
+    
+    if (response != null && (status == 401 || status == '401' || statusCode == 401)) {
       print('❌ [DASHBOARD_AUTH] ERROR: 401 Unauthorized - Token is invalid or expired');
       print('❌ [DASHBOARD_AUTH] Response status: ${response['status']}');
       print('❌ [DASHBOARD_AUTH] Response error: ${response['error']}');
@@ -198,28 +222,25 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
       return;
     }
     
-    if (response != null && response['status'] == 200) {
+    // ========== Vérification flexible du statut (200, '200', ou statusCode) ==========
+    if (response != null && (status == 200 || status == '200' || statusCode == 200)) {
+      print('✅ [STATUS_CHECK] Status valide détecté: status=$status, statusCode=$statusCode');
+      
       // ========== DEBUG: Check response structure ==========
       if (response['data'] == null) {
-        print('❌ [DASHBOARD_DEBUG] ERROR: response["data"] is null');
+        print('⚠️ [DATA_ERROR] Le champ data est manquant dans la réponse');
+        print('⚠️ [DATA_ERROR] Structure complète de la réponse: $response');
         showErrorToastMessage("Invalid response: missing 'data' field");
         setState(() {});
         return;
       }
       
-      if (response['data']['data'] == null) {
-        print('❌ [DASHBOARD_DEBUG] ERROR: response["data"]["data"] is null');
-        print('📋 [DASHBOARD_DEBUG] Available keys in response["data"]: ${response['data'].keys}');
-        showErrorToastMessage("Invalid response: missing 'data.data' field");
-        setState(() {});
-        return;
-      }
-      
-      final dashboardData = response['data']['data'];
+      final dashboardData = response['data'];
       print('📊 [DASHBOARD_DEBUG] Dashboard data keys: ${dashboardData.keys}');
       print('📊 [DASHBOARD_DEBUG] total_sales: ${dashboardData['total_sales']}');
       print('📊 [DASHBOARD_DEBUG] today_orders: ${dashboardData['today_orders']}');
       print('📊 [DASHBOARD_DEBUG] new_products: ${dashboardData['new_products']}');
+      print('📊 [DASHBOARD_DEBUG] total_items: ${dashboardData['total_items']}');
       print('📊 [DASHBOARD_DEBUG] pending_orders: ${dashboardData['pending_orders']}');
       print('📊 [DASHBOARD_DEBUG] confirmedOrders: ${dashboardData['confirmedOrders']}');
       print('📊 [DASHBOARD_DEBUG] cancelledOrders: ${dashboardData['cancelledOrders']}');
@@ -327,9 +348,20 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
       }
     } else {
       print('❌ [DASHBOARD_DEBUG] ERROR: Response status is not 200');
-      print('📊 [DASHBOARD_DEBUG] Response status: ${response?['status']}');
+      print('📊 [DASHBOARD_DEBUG] Response status: $status');
+      print('📊 [DASHBOARD_DEBUG] Response statusCode: $statusCode');
       print('📊 [DASHBOARD_DEBUG] Response error: ${response?['error']}');
-      showErrorToastMessage("${response?['error'] ?? 'Unknown error'}");
+      print('📊 [DASHBOARD_DEBUG] Response message: ${response?['message']}');
+      print('📊 [DASHBOARD_DEBUG] Response complet: $response');
+      
+      // Vérification spéciale si status est null
+      if (status == null && statusCode == null) {
+        print('⚠️ [STATUS_NULL] ATTENTION: Le champ status est null dans la réponse!');
+        print('⚠️ [STATUS_NULL] Cela peut indiquer un problème côté serveur Node.js');
+        showErrorToastMessage("Erreur serveur: status manquant dans la réponse");
+      } else {
+        showErrorToastMessage("${response?['error'] ?? response?['message'] ?? 'Unknown error'}");
+      }
     }
     setState(() {});
   }

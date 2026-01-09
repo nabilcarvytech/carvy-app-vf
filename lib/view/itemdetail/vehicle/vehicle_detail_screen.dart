@@ -128,9 +128,9 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
       print("🚗 VehicleDetailSScreen - Checking itemInfo and hostId");
       if (widget.itemInfo != null && widget.itemInfo?.hostId != null) {
         print(
-            "🚗 VehicleDetailSScreen - Calling getDataPublicProfile with hostId: ${widget.itemInfo!.hostId}");
+            "🚗 VehicleDetailSScreen - Calling getDataPublicProfile with hostId: ${widget.itemInfo?.hostId}");
         publicProfileController
-            .getDataPublicProfile(widget.itemInfo!.hostId.toString());
+            .getDataPublicProfile(widget.itemInfo?.hostId?.toString() ?? "");
       } else {
         print(
             "⚠️ VehicleDetailSScreen - itemInfo or hostId is null, skipping getDataPublicProfile");
@@ -158,18 +158,15 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
     // Safe null check for reviewData
     if (widget.itemInfo != null && widget.itemInfo?.reviewData != null) {
       print(
-          "✅ VehicleDetailSScreen build() - reviewData exists: ${widget.itemInfo!.reviewData}");
+          "✅ VehicleDetailSScreen build() - reviewData exists: ${widget.itemInfo?.reviewData}");
     } else {
       print(
           "⚠️ VehicleDetailSScreen build() - reviewData is null or itemInfo is null");
     }
 
     String? vehicleRating = vehicleDetailController
-                .vehicleDetailModel?.data?.itemDetails?.itemRating !=
-            null
-        ? vehicleDetailController
-            .vehicleDetailModel!.data!.itemDetails!.itemRating
-        : "0";
+                .vehicleDetailModel?.data?.itemDetails?.itemRating ??
+            "0";
     print("🔨 VehicleDetailSScreen build() - vehicleRating: $vehicleRating");
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     return Scaffold(
@@ -287,10 +284,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                       children: <Widget>[
                         CustomImagesForDetails(
                           imagesList:
-                              (widget.itemInfo?.galleryImageUrls?.isNotEmpty ??
-                                      false)
-                                  ? (widget.itemInfo!.galleryImageUrls ?? [])
-                                  : [],
+                              widget.itemInfo?.galleryImageUrls ?? [],
                           frontImage: widget.frontImage ?? '',
                         ),
 
@@ -302,10 +296,10 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                               Expanded(
                                 child: Text(
                                   widget.title != null
-                                      ? widget.title!.length > 50
-                                          ? "${widget.title!.substring(0, 19)}..."
-                                          : widget.title!
-                                      : "",
+                                      ? (widget.title?.length ?? 0) > 50
+                                          ? "${widget.title?.substring(0, 19) ?? "Chargement..."}..."
+                                          : (widget.title ?? "Chargement...")
+                                      : "Chargement...",
                                   style: boldstyle(context).copyWith(
                                       color: notifires.getwhiteblackcolor,
                                       fontSize: 24),
@@ -699,18 +693,15 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                           height: 15,
                         ),
 
-                        widget.itemInfo!.reviewData == null ||
-                                widget.itemInfo!.reviewData!.isEmpty
+                        (widget.itemInfo?.reviewData?.isEmpty ?? true)
                             ? const SizedBox()
                             : buildDivider(),
-                        widget.itemInfo!.reviewData == null ||
-                                widget.itemInfo!.reviewData!.isEmpty
+                        (widget.itemInfo?.reviewData?.isEmpty ?? true)
                             ? const SizedBox()
                             : const SizedBox(
                                 height: 15,
                               ),
-                        widget.itemInfo!.reviewData == null ||
-                                widget.itemInfo!.reviewData!.isEmpty
+                        (widget.itemInfo?.reviewData?.isEmpty ?? true)
                             ? const SizedBox()
                             : Row(
                                 children: [
@@ -734,7 +725,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                     ],
                                   ),
                                   const Spacer(),
-                                  widget.itemInfo!.reviewData!.isEmpty
+                                  (widget.itemInfo?.reviewData?.isEmpty ?? true)
                                       ? const SizedBox()
                                       : InkWell(
                                           onTap: () {
@@ -755,8 +746,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                 ],
                               ),
 
-                        widget.itemInfo!.reviewData == null ||
-                                widget.itemInfo!.reviewData!.isEmpty
+                        (widget.itemInfo?.reviewData?.isEmpty ?? true)
                             ? const SizedBox()
                             : SizedBox(
                                 height: 120,
@@ -769,11 +759,13 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                       vehicleCurrentPageNotifier.value = index;
                                     },
                                     itemCount:
-                                        widget.itemInfo!.reviewData!.length,
+                                        widget.itemInfo?.reviewData?.length ?? 0,
                                     physics: const BouncingScrollPhysics(),
                                     itemBuilder: (context, index) {
-                                      print(widget.itemInfo!.reviewData![index]
-                                          ["guest_profile_image"]);
+                                      final reviewData = widget.itemInfo?.reviewData ?? [];
+                                      final currentReview = (index < reviewData.length) ? reviewData[index] : null;
+                                      final guestProfileImage = currentReview?["guest_profile_image"];
+                                      print(guestProfileImage);
                                       return Row(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
@@ -785,20 +777,10 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                             child: SizedBox(
                                               height: 55,
                                               width: 55,
-                                              child: widget.itemInfo!.reviewData![
-                                                                  index][
-                                                              "guest_profile_image"] !=
-                                                          null &&
-                                                      widget
-                                                          .itemInfo!
-                                                          .reviewData![index][
-                                                              "guest_profile_image"]
-                                                          .isNotEmpty
+                                              child: guestProfileImage != null &&
+                                                      guestProfileImage.toString().isNotEmpty
                                                   ? myNetworkImage(
-                                                      widget.itemInfo!
-                                                                  .reviewData![
-                                                              index][
-                                                          "guest_profile_image"],
+                                                      guestProfileImage.toString(),
                                                       true,
                                                     )
                                                   : Container(
@@ -820,9 +802,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                widget.itemInfo!
-                                                            .reviewData![index]
-                                                        ["guest_name"] ??
+                                                currentReview?["guest_name"]?.toString() ??
                                                     "Guest Name Missing".tr,
                                                 style: heading3Grey1(context),
                                               ),
@@ -835,9 +815,11 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                                         .spaceBetween,
                                                 children: [
                                                   RatingBar.builder(
-                                                    initialRating: double.parse(
-                                                      "${widget.itemInfo!.reviewData![vehicleCurrentPageNotifier.value]["rating"]}",
-                                                    ),
+                                                    initialRating: double.tryParse(
+                                                      currentReview?["rating"]?.toString() ?? 
+                                                      reviewData[vehicleCurrentPageNotifier.value]?["rating"]?.toString() ??
+                                                      "0",
+                                                    ) ?? 0.0,
                                                     itemSize: 20,
                                                     ignoreGestures: true,
                                                     direction: Axis.horizontal,
@@ -856,21 +838,19 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                                         (double value) {},
                                                   ),
                                                   Text(
-                                                    "${widget.itemInfo!.reviewData![index]["updated_at"] ?? "Timestamp Missing"}",
+                                                    currentReview?["updated_at"]?.toString() ?? "Timestamp Missing",
                                                     style: regular(context),
                                                   ),
                                                 ],
                                               ),
-                                              widget.itemInfo!.reviewData![
-                                                          index]["message"] ==
-                                                      null
+                                              currentReview?["message"] == null
                                                   ? const SizedBox()
                                                   : Container(
                                                       margin:
                                                           const EdgeInsets.only(
                                                               top: 4),
                                                       child: Text(
-                                                        "${widget.itemInfo!.reviewData![index]["message"].length > 32 ? widget.itemInfo!.reviewData![index]["message"].substring(0, 32) + "..." : widget.itemInfo!.reviewData![index]["message"]}",
+                                                        "${(currentReview["message"]?.toString().length ?? 0) > 32 ? (currentReview["message"]?.toString().substring(0, 32) ?? "") + "..." : currentReview["message"]?.toString() ?? ""}",
                                                         style: regular2(context)
                                                             .copyWith(),
                                                       ),
@@ -887,8 +867,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                 ),
                               ),
 
-                        widget.itemInfo!.reviewData == null ||
-                                widget.itemInfo!.reviewData!.isEmpty
+                        (widget.itemInfo?.reviewData?.isEmpty ?? true)
                             ? const SizedBox()
                             : ValueListenableBuilder<int>(
                                 valueListenable: vehicleCurrentPageNotifier,
@@ -896,7 +875,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                   return Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: List.generate(
-                                      widget.itemInfo!.reviewData!.length,
+                                      widget.itemInfo?.reviewData?.length ?? 0,
                                       // Same as itemCount in PageView
                                       (index) {
                                         return Container(
@@ -1085,22 +1064,23 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
 
                         GestureDetector(
                           onTap: () {
-                            print(widget.itemInfo!.hostProfileImage);
+                            print(widget.itemInfo?.hostProfileImage);
                             Get.to(() => PublicProfile(
-                                  userid: widget.itemInfo!.hostId.toString(),
+                                  userid: widget.itemInfo?.hostId?.toString() ?? "",
                                   photo: widget.frontImage,
                                   userName:
-                                      "${widget.itemInfo!.hostFirstName} ${widget.itemInfo!.hostLastName}",
+                                      "${widget.itemInfo?.hostFirstName ?? ""} ${widget.itemInfo?.hostLastName ?? ""}".trim(),
                                   profileImage:
-                                      widget.itemInfo!.hostProfileImage ?? "",
+                                      widget.itemInfo?.hostProfileImage ?? "",
                                 ));
                           },
                           child: ListTile(
                             leading: ClipRRect(
                               borderRadius: BorderRadius.circular(40),
-                              child: widget.itemInfo!.hostProfileImage != null
+                              child: widget.itemInfo?.hostProfileImage != null &&
+                                      (widget.itemInfo?.hostProfileImage?.isNotEmpty ?? false)
                                   ? Image.network(
-                                      "${widget.itemInfo!.hostProfileImage}",
+                                      "${widget.itemInfo?.hostProfileImage}",
                                       height: 55,
                                       fit: BoxFit.cover,
                                       errorBuilder:
@@ -1136,8 +1116,8 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                 )),
                             trailing: widget.chatafterBooking == null
                                 ? const SizedBox()
-                                : widget.itemInfo!.hostId == null ||
-                                        widget.itemInfo!.hostId!.toString() ==
+                                : widget.itemInfo?.hostId == null ||
+                                        widget.itemInfo?.hostId?.toString() ==
                                             userId.toString()
                                     ? const SizedBox()
                                     : GestureDetector(
@@ -1247,18 +1227,18 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                     children: [
                       // Prix uniquement (sans le texte qui cause l'overflow)
                       Text(
-                        "$currency ${widget.price!}",
+                        "$currency ${widget.price ?? "0"}",
                         style: heading2(context)
                             .copyWith(color: getColorBasedOnActiveModuleid()),
                       ),
                       const Spacer(),
                       loginModel != null &&
-                              widget.itemInfo?.hostId.toString() ==
+                              widget.itemInfo?.hostId?.toString() ==
                                   userId.toString()
                           ? const SizedBox()
-                          : widget.itemInfo!.serviceType!.toString() ==
+                          : widget.itemInfo?.serviceType?.toString() ==
                                       "sale" ||
-                                  widget.itemInfo!.serviceType!.toString() ==
+                                  widget.itemInfo?.serviceType?.toString() ==
                                       "rent"
                               ? Row(
                                   children: [
@@ -1272,8 +1252,10 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                       ),
                                       child: IconButton(
                                         onPressed: () {
-                                          launchUrl(Uri.parse(
-                                              'tel:${widget.itemInfo!.hostPhone!}'));
+                                          final phone = widget.itemInfo?.hostPhone ?? "";
+                                          if (phone.isNotEmpty) {
+                                            launchUrl(Uri.parse('tel:$phone'));
+                                          }
                                         },
                                         icon: Icon(Icons.call,
                                             color:
@@ -1291,8 +1273,10 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                       ),
                                       child: IconButton(
                                         onPressed: () {
-                                          launchUrl(Uri.parse(
-                                              'mailto:${widget.itemInfo!.hostEmail!}'));
+                                          final email = widget.itemInfo?.hostEmail ?? "";
+                                          if (email.isNotEmpty) {
+                                            launchUrl(Uri.parse('mailto:$email'));
+                                          }
                                         },
                                         icon: Icon(Icons.email,
                                             color:
@@ -1301,7 +1285,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                     ),
                                   ],
                                 )
-                              : widget.itemInfo!.serviceType!.toString() ==
+                              : widget.itemInfo?.serviceType?.toString() ==
                                       "booking"
                                   ? isHostMode.value == true
                                       ? const SizedBox()

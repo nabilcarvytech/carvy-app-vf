@@ -31,7 +31,9 @@ class DataWrapper {
   DataWrapper({this.data});
 
   DataWrapper.fromJson(Map<String, dynamic> json) {
-    data = json['data'] != null ? DashboardData.fromJson(json['data']) : null;
+    // Le backend retourne maintenant directement les données du dashboard dans 'data'
+    // sans niveau supplémentaire, donc on crée DashboardData directement depuis json
+    data = DashboardData.fromJson(json);
   }
 
   Map<String, dynamic> toJson() {
@@ -69,7 +71,8 @@ class DashboardData {
   DashboardData.fromJson(Map<String, dynamic> json) {
     totalSales = json['total_sales'];
     todayOrders = json['today_orders'];
-    newProducts = json['new_products'];
+    // Support pour total_items (Node.js) et new_products (ancien format) pour compatibilité
+    newProducts = json['total_items'] ?? json['new_products'];
     pendingOrders = json['pending_orders'];
     confirmedOrders = json['confirmedOrders'];
     cancelledOrders = json['cancelledOrders'];
