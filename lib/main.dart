@@ -15,6 +15,7 @@ import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/locale_string.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/view/splash/initial_screen.dart';
+import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'helper/get_di.dart' as di;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -39,16 +40,50 @@ void main() {
       // ========== INITIALISATION SÉCURISÉE ==========
       await di.init();
       await GetStorage().initStorage;
-
-      // Initialisation des notifications / Firebase : ne JAMAIS bloquer l'UI
+      
+      // Initialiser isHostMode après que GetStorage soit prêt
       try {
-        if (!kIsWeb) {
-          await setupOneSignal();
-        }
+        initializeIsHostMode();
+        debugPrint('✅ [MAIN] isHostMode initialized successfully');
+      } catch (e) {
+        debugPrint('⚠️ [MAIN] Could not initialize isHostMode: $e');
+      }
+
+      // Ajouter un délai pour permettre au système de se stabiliser avant d'initialiser OneSignal
+      // Cela évite les crashes liés à l'initialisation trop rapide
+      await Future.delayed(const Duration(seconds: 1));
+
+      // Initialisation de Firebase : ne JAMAIS bloquer l'UI
+      try {
         await firebaseInit();
-        await initializeNotifications();
+        debugPrint('✅ [MAIN] Firebase initialized successfully');
       } catch (e, stackTrace) {
-        debugPrint('🔴 ERROR: Notification/Firebase init failed: $e');
+        debugPrint('🔴 ERROR: Firebase init failed: $e');
+        debugPrint('🔴 STACKTRACE: $stackTrace');
+        // Ne pas rethrow ici : on veut quand même atteindre runApp()
+      }
+
+      // Initialisation de OneSignal : séparée avec gestion d'erreur détaillée
+      // Déplacée après le délai pour éviter les crashes au démarrage
+      if (!kIsWeb) {
+        try {
+          debugPrint('🔔 [MAIN] Starting OneSignal initialization...');
+          await setupOneSignal();
+          debugPrint('✅ [MAIN] OneSignal initialized successfully');
+        } catch (e, stackTrace) {
+          debugPrint('🔴 ERROR: OneSignal init failed: $e');
+          debugPrint('🔴 STACKTRACE: $stackTrace');
+          // Ne pas rethrow ici : on veut quand même atteindre runApp()
+          // L'application peut fonctionner sans OneSignal
+        }
+      }
+
+      // Initialisation des notifications locales : séparée avec gestion d'erreur
+      try {
+        await initializeNotifications();
+        debugPrint('✅ [MAIN] Local notifications initialized successfully');
+      } catch (e, stackTrace) {
+        debugPrint('🔴 ERROR: Local notifications init failed: $e');
         debugPrint('🔴 STACKTRACE: $stackTrace');
         // Ne pas rethrow ici : on veut quand même atteindre runApp()
       }

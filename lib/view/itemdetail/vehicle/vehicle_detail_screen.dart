@@ -4,6 +4,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/controller/general_controller.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/controller/publix_profile_controller.dart';
@@ -99,8 +100,23 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       print(
           "🚗 VehicleDetailSScreen postFrameCallback - Starting initialization");
-      kycController.getUserKycData();
-      kycController.getKycDetails(); // Récupérer le statut KYC à jour
+      
+      // Log du rôle avant l'appel KYC
+      try {
+        AuthController? authController = Get.find<AuthController>();
+        print('🔍 [DEBUG] Statut du rôle avant crash: ${authController.userRole.value}');
+      } catch (e) {
+        print('⚠️ [DEBUG] AuthController non trouvé: $e');
+      }
+      
+      try {
+        kycController.getUserKycData();
+        kycController.getKycDetails(); // Récupérer le statut KYC à jour
+      } catch (e, stackTrace) {
+        print('❌ [VEHICLE_DETAIL] Erreur lors de l\'appel KYC: $e');
+        print('❌ [VEHICLE_DETAIL] StackTrace: $stackTrace');
+        // Continuer même si le KYC échoue
+      }
       if (handleDirectBooking == false) {
         filterController.setDefaultDates(
           startDateCustomDate: generalScopeController.startDateCustomDate,

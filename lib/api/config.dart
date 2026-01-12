@@ -8,9 +8,11 @@ class Config {
   //static const String baseurlForBearer = 'https://admin.carvy.tech/api/';
 
   // ========== NEW NODE.JS BACKEND (LOCAL DEVELOPMENT) ==========
-  static const String baseurl = 'http://10.0.2.2:5000/api/v1/';
-  static const String baseurlForBearer = 'http://10.0.2.2:5000/api/v1/';
-  //static const String baseurl = 'https://carvy.tech/api/v1/';
+  //static const String baseurl = 'http://10.0.2.2:5000/api/v1/';
+  //static const String baseurlForBearer = 'http://10.0.2.2:5000/api/v1/';
+  static const String baseurl = 'https://carvy.tech/api/v1/';
+  static const String baseurlForBearer = 'https://carvy.tech/api/v1/';
+  //static const String baseurl = 'https://admin.carvy.tech/api/v1/';
   //static const String baseurl = 'https://admin.carvy.tech/api/v1/';
 
   // Apparemment tu utilises ça pour les tokens ou les images ?

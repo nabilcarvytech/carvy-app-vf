@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:carvy/api/config.dart';
+import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/http_service.dart';
@@ -145,12 +146,31 @@ class KycController extends GetxController implements GetxService {
   Future<void> getUserKycData() async {
     // Marqueur d'entrée : Tout au début de la fonction
     print('🚀 [FLOW] Entrée dans getUserKycData...');
+    
+    // Log du rôle avant l'appel KYC
+    try {
+      AuthController? authController;
+      try {
+        authController = Get.find<AuthController>();
+        print('🔍 [DEBUG] Statut du rôle avant crash: ${authController.userRole.value}');
+      } catch (e) {
+        print('⚠️ [DEBUG] AuthController non trouvé: $e');
+      }
+    } catch (e) {
+      print('⚠️ [DEBUG] Erreur lors de la récupération du rôle: $e');
+    }
 
     // Forcer l'activation : Supprimer la condition qui vérifie kycenable != 'Active'
     // Nous voulons que le statut soit récupéré peu importe ce réglage global
     // if (kycenable == "Active") {
     print('🚀 [FLOW] KYC - Forçage de l\'activation (ignorant kycenable)');
-    clearAllValues();
+    
+    try {
+      clearAllValues();
+    } catch (e) {
+      print('⚠️ [KYC] Erreur lors de clearAllValues: $e');
+    }
+    
     isdataLoading.value = true;
     userKycModel = null;
 
@@ -408,21 +428,46 @@ class KycController extends GetxController implements GetxService {
         activeStatus.value = "";
       }
     } catch (e, stackTrace) {
-      // Capture d'erreur immédiate : Enveloppe tout le contenu de la fonction dans un try-catch
-      print('💥 [FLOW] Erreur fatale dans le contrôleur : $e');
+      // Capture d'erreur immédiate : Enveloppe tout le contenu de la fonction dans un try-catch robuste
+      print('💥 [FLOW] Erreur fatale dans getUserKycData : $e');
+      print('💥 [FLOW] Type d\'erreur: ${e.runtimeType}');
       print('💥 [FLOW] StackTrace: $stackTrace');
-      activeStatus.value = "";
+      
+      // Protection supplémentaire : s'assurer que les valeurs sont sécurisées
+      try {
+        activeStatus.value = "";
+        userKycModel = null;
+      } catch (innerError) {
+        print('💥 [FLOW] Erreur lors de la réinitialisation des valeurs: $innerError');
+      }
+      
+      // Ne pas rethrow l'erreur pour éviter le crash de l'application
+      // L'application peut continuer à fonctionner même si le KYC échoue
     } finally {
-      isdataLoading.value = false;
-      // Rafraîchissement global : Appeler update() à la fin de la fonction pour forcer la disparition du bandeau orange
-      update();
-      print(
-          '🔄 UI: update() appelé dans finally pour forcer le redessin final');
-      print('🚀 [FLOW] Sortie de getUserKycData (finally)');
+      try {
+        isdataLoading.value = false;
+        // Rafraîchissement global : Appeler update() à la fin de la fonction pour forcer la disparition du bandeau orange
+        update();
+        print(
+            '🔄 UI: update() appelé dans finally pour forcer le redessin final');
+        print('🚀 [FLOW] Sortie de getUserKycData (finally)');
+      } catch (e) {
+        print('💥 [FLOW] Erreur dans le bloc finally: $e');
+        // Même en cas d'erreur dans finally, on ne doit pas crasher
+      }
     }
     // } else {
     //   print('🚀 [FLOW] KYC n\'est pas activé (kycenable != Active)');
     // }
+
+    // Rafraîchir le rôle de l'utilisateur après le chargement des données KYC
+    try {
+      AuthController? authController = Get.find<AuthController>();
+      authController.refreshUserRole();
+      print('✅ [KYC] Rôle rafraîchi après getUserKycData');
+    } catch (e) {
+      print('⚠️ [KYC] Erreur lors du rafraîchissement du rôle: $e');
+    }
 
     // Rafraîchissement global : Appeler update() à la fin de la fonction pour forcer la disparition du bandeau orange sur tous les écrans
     update();

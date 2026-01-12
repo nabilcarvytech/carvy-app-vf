@@ -23,7 +23,9 @@ class InitialScreen extends StatefulWidget {
 }
 
 class _InitialScreenState extends State<InitialScreen> {
-  final KycController kycController = Get.find();
+  // Ne pas initialiser directement avec Get.find() pour éviter les crashes
+  // si GetX n'est pas encore prêt
+  KycController? kycController;
 
   /// Pour éviter les doubles navigations en cas de timeout / data lente
   bool _navigationDone = false;
@@ -31,6 +33,13 @@ class _InitialScreenState extends State<InitialScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialiser le contrôleur de manière sécurisée
+    try {
+      kycController = Get.find<KycController>();
+    } catch (e) {
+      debugPrint('⚠️ [INITIAL_SCREEN] KycController not found yet: $e');
+      // Le contrôleur sera disponible plus tard via Get.lazyPut
+    }
     // Lancer le flux de splash dès que possible
     _startSplashFlow();
   }
@@ -106,12 +115,30 @@ class _InitialScreenState extends State<InitialScreen> {
       // Si la langue est choisie, continuer avec le flux normal
       final bool isFirstUser = getData.read('Firstuser') != true;
 
+      // Vérifier isHostMode de manière sécurisée
+      // S'assurer que GetStorage est initialisé et que isHostMode est prêt
+      bool hostModeValue = false;
+      try {
+        // Utiliser la valeur de isHostMode (initialisée dans main.dart après GetStorage)
+        hostModeValue = isHostMode.value;
+        debugPrint('ℹ️ [INITIAL_SCREEN] isHostMode value: $hostModeValue');
+      } catch (e) {
+        // En cas d'erreur, lire directement depuis GetStorage comme fallback
+        try {
+          hostModeValue = GetStorage().read('isHostMode') ?? false;
+          debugPrint('ℹ️ [INITIAL_SCREEN] Fallback: reading isHostMode from storage: $hostModeValue');
+        } catch (e2) {
+          debugPrint('⚠️ [INITIAL_SCREEN] Error reading isHostMode: $e2, defaulting to false');
+          hostModeValue = false;
+        }
+      }
+
       if (webPlateForm) {
         if (isFirstUser) {
           debugPrint('ℹ️ Splash: Web first user, going to VehicleOnBoardingScreen');
           Get.offNamed(WebRoutes.vehicleOnboardingScreen);
         } else {
-          if (isHostMode.value == true) {
+          if (hostModeValue == true) {
             debugPrint('ℹ️ Splash: Web host mode, going to BottomHost');
             Get.offNamed(WebRoutes.buttomHost);
           } else {
@@ -129,7 +156,7 @@ class _InitialScreenState extends State<InitialScreen> {
             ),
           );
         } else {
-          if (isHostMode.value == true) {
+          if (hostModeValue == true) {
             debugPrint('ℹ️ Splash: Mobile host mode, going to BottomHost');
             Navigator.pushReplacement(
               context,

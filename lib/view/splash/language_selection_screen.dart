@@ -9,6 +9,7 @@ import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/work_space.dart';
 import '../onBoarding/vehicle/vehicle_on_boarding_screen.dart';
+import 'user_role_selection_screen.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
   const LanguageSelectionScreen({super.key});
@@ -18,86 +19,125 @@ class LanguageSelectionScreen extends StatefulWidget {
       _LanguageSelectionScreenState();
 }
 
-class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
-  int _value = 0;
+// Modèle de données pour les langues
+class LanguageItem {
+  final String name;
+  final String flag;
+  final Locale locale;
+  final int originalIndex;
 
-  // Ordre personnalisé : français, anglais, arabe, espagnol
-  // Liste des indices dans l'ordre d'affichage souhaité
-  late List<int> orderedIndices;
+  LanguageItem({
+    required this.name,
+    required this.flag,
+    required this.locale,
+    required this.originalIndex,
+  });
+}
+
+class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
+  Locale? selectedLocale;
+  late List<LanguageItem> languages;
 
   @override
   void initState() {
     super.initState();
 
     debugPrint('=== Language Selection Screen Init ===');
-    debugPrint('Locale list length: ${locale.length}');
-    for (int i = 0; i < locale.length; i++) {
-      Locale loc = locale[i]['locale'] as Locale;
-      debugPrint(
-          '  [$i] ${locale[i]['name']} - ${loc.languageCode}_${loc.countryCode}');
+    
+    // Créer la liste des langues avec drapeaux et noms endonymes
+    languages = [
+      LanguageItem(
+        name: 'Français',
+        flag: '🇫🇷',
+        locale: const Locale('fr', 'FR'),
+        originalIndex: locale.indexWhere((l) {
+          Locale loc = l['locale'] as Locale;
+          return loc.languageCode == 'fr' && loc.countryCode == 'FR';
+        }),
+      ),
+      LanguageItem(
+        name: 'English',
+        flag: '🇺🇸',
+        locale: const Locale('en', 'US'),
+        originalIndex: locale.indexWhere((l) {
+          Locale loc = l['locale'] as Locale;
+          return loc.languageCode == 'en' && loc.countryCode == 'US';
+        }),
+      ),
+      LanguageItem(
+        name: 'العربية',
+        flag: '🇲🇦',
+        locale: const Locale('ar', 'AR'),
+        originalIndex: locale.indexWhere((l) {
+          Locale loc = l['locale'] as Locale;
+          return loc.languageCode == 'ar' && loc.countryCode == 'AR';
+        }),
+      ),
+      LanguageItem(
+        name: 'Español',
+        flag: '🇪🇸',
+        locale: const Locale('es', 'ES'),
+        originalIndex: locale.indexWhere((l) {
+          Locale loc = l['locale'] as Locale;
+          return loc.languageCode == 'es' && loc.countryCode == 'ES';
+        }),
+      ),
+    ];
+
+    // Filtrer les langues non trouvées (originalIndex == -1)
+    languages = languages.where((lang) => lang.originalIndex != -1).toList();
+
+    debugPrint('Languages count: ${languages.length}');
+    for (var lang in languages) {
+      debugPrint('  - ${lang.name} ${lang.flag} (index: ${lang.originalIndex})');
     }
-
-    // Créer l'ordre personnalisé : français, anglais, arabe, espagnol
-    // Trouver les indices dans la liste originale
-    int frenchIndex = locale.indexWhere((l) {
-      Locale loc = l['locale'] as Locale;
-      return loc.languageCode == 'fr' && loc.countryCode == 'FR';
-    });
-    int englishIndex = locale.indexWhere((l) {
-      Locale loc = l['locale'] as Locale;
-      return loc.languageCode == 'en' && loc.countryCode == 'US';
-    });
-    int arabicIndex = locale.indexWhere((l) {
-      Locale loc = l['locale'] as Locale;
-      return loc.languageCode == 'ar' && loc.countryCode == 'AR';
-    });
-    int spanishIndex = locale.indexWhere((l) {
-      Locale loc = l['locale'] as Locale;
-      return loc.languageCode == 'es' && loc.countryCode == 'ES';
-    });
-
-    debugPrint(
-        'Found indices: French=$frenchIndex, English=$englishIndex, Arabic=$arabicIndex, Spanish=$spanishIndex');
-
-    // Créer la liste ordonnée des indices
-    orderedIndices = [];
-    if (frenchIndex != -1) orderedIndices.add(frenchIndex);
-    if (englishIndex != -1) orderedIndices.add(englishIndex);
-    if (arabicIndex != -1) orderedIndices.add(arabicIndex);
-    if (spanishIndex != -1) orderedIndices.add(spanishIndex);
-
-    debugPrint('Ordered indices: $orderedIndices');
 
     // Vérifier si une langue a déjà été sélectionnée
     var savedLanguage = getData.read("lanValue");
     debugPrint('Saved language index: $savedLanguage');
+    
     if (savedLanguage != null && savedLanguage is int) {
-      // Trouver l'index dans orderedIndices
-      int foundIndex = orderedIndices.indexWhere((idx) => idx == savedLanguage);
+      // Trouver la langue correspondante dans notre liste
+      int foundIndex = languages.indexWhere((lang) => lang.originalIndex == savedLanguage);
       if (foundIndex != -1) {
-        _value = foundIndex;
-        debugPrint('Found saved language at display index: $_value');
+        selectedLocale = languages[foundIndex].locale;
+        debugPrint('Found saved language: ${languages[foundIndex].name}');
       } else {
-        debugPrint(
-            'WARNING: Saved language index $savedLanguage not found in orderedIndices!');
+        // Par défaut, sélectionner la première langue
+        if (languages.isNotEmpty) {
+          selectedLocale = languages[0].locale;
+        }
+      }
+    } else {
+      // Par défaut, sélectionner la première langue
+      if (languages.isNotEmpty) {
+        selectedLocale = languages[0].locale;
       }
     }
-    debugPrint('Initial _value: $_value');
+    
+    debugPrint('Initial selectedLocale: $selectedLocale');
     debugPrint('======================================');
   }
 
   void _continueToOnboarding() async {
+    if (selectedLocale == null) {
+      debugPrint('⚠️ No language selected');
+      return;
+    }
+
     debugPrint('=== Continue to Onboarding ===');
-    debugPrint('Selected display index (_value): $_value');
+    debugPrint('Selected locale: ${selectedLocale!.languageCode}_${selectedLocale!.countryCode}');
 
-    // Obtenir l'index réel dans la liste locale originale
-    int realIndex = orderedIndices[_value];
+    // Trouver l'index réel dans la liste locale originale
+    LanguageItem? selectedLanguage = languages.firstWhere(
+      (lang) => lang.locale.languageCode == selectedLocale!.languageCode &&
+          lang.locale.countryCode == selectedLocale!.countryCode,
+      orElse: () => languages.first,
+    );
+    
+    int realIndex = selectedLanguage.originalIndex;
     debugPrint('Mapped real index: $realIndex');
-    debugPrint('Locale name: ${locale[realIndex]['name']}');
-
-    Locale selectedLocale = locale[realIndex]['locale'] as Locale;
-    debugPrint(
-        'Selected locale: ${selectedLocale.languageCode}_${selectedLocale.countryCode}');
+    debugPrint('Locale name: ${selectedLanguage.name}');
 
     // Sauvegarder AVANT updateLanguage
     debugPrint('Saving lanValue: $realIndex');
@@ -108,7 +148,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     debugPrint('Verified saved lanValue: $savedValue (should be $realIndex)');
 
     // Mettre à jour la langue globale
-    globallanguage = selectedLocale;
+    globallanguage = selectedLocale!;
     save("lCode", globallanguage.toString());
     debugPrint('Saved lCode: ${getData.read("lCode")}');
     debugPrint('globallanguage set to: $globallanguage');
@@ -117,12 +157,12 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     debugPrint('Updating GetX locale...');
     
     // Mettre à jour globallanguage AVANT Get.updateLocale
-    globallanguage = selectedLocale;
+    globallanguage = selectedLocale!;
     
     // Mettre à jour le ValueNotifier pour forcer la reconstruction de l'application
-    localeNotifier.value = selectedLocale;
+    localeNotifier.value = selectedLocale!;
     
-    Get.updateLocale(selectedLocale);
+    Get.updateLocale(selectedLocale!);
     
     // Forcer la mise à jour de toute l'application
     Get.forceAppUpdate();
@@ -141,14 +181,14 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     // Attendre un peu pour que la mise à jour soit prise en compte
     await Future.delayed(const Duration(milliseconds: 100));
 
-    // Rediriger vers l'onboarding - Get.offNamed va reconstruire avec la nouvelle locale
+    // Rediriger vers la sélection de rôle - Get.offNamed va reconstruire avec la nouvelle locale
     if (webPlateForm) {
-      Get.offNamed(WebRoutes.vehicleOnboardingScreen);
+      Get.offNamed(WebRoutes.userRoleSelectionScreen);
     } else {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const VehicleOnBoardingScreen(),
+          builder: (context) => const UserRoleSelectionScreen(),
         ),
       );
     }
@@ -160,106 +200,129 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     return Scaffold(
       backgroundColor: whiteColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Spacer(flex: 2),
-              // Titre
-              Text(
-                "Select Your Language",
-                style: heading1(context).copyWith(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: notifires.getwhiteblackcolor,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                "Choose your preferred language to continue",
-                style: heading2Grey1(context),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 50),
-              // Liste des langues - seule cette partie est scrollable
-              Container(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.4,
-                ),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: orderedIndices.length,
-                  physics: const BouncingScrollPhysics(),
-                  itemBuilder: (context, index) {
-                    int realIndex = orderedIndices[index];
-                    return InkWell(
-                      onTap: () {
-                        setState(() {
-                          _value = index;
-                        });
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 15),
-                        decoration: BoxDecoration(
-                          color: _value == index
-                              ? vehicalThemColor.withOpacity(0.1)
-                              : notifires.getbgcolor,
-                          border: Border.all(
-                            color: _value == index
-                                ? vehicalThemColor
-                                : notifires.getGrey3Whitecolor,
-                            width: 2,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 18),
-                          child: Row(
-                            children: [
-                              Text(
-                                locale[realIndex]['name'],
-                                style: heading2(context).copyWith(
-                                  color: notifires.getwhiteblackcolor,
-                                  fontWeight: _value == index
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
+        child: Column(
+          children: [
+            // Contenu scrollable
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Spacer(flex: 2),
+                    // Titre
+                    Text(
+                      "Select Your Language",
+                      style: heading1(context).copyWith(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: notifires.getwhiteblackcolor,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      "Choose your preferred language to continue",
+                      style: heading2Grey1(context),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 50),
+                    // Liste des langues avec ListTile
+                    Expanded(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: languages.length,
+                        physics: const BouncingScrollPhysics(),
+                        separatorBuilder: (context, index) => const SizedBox(height: 16),
+                        itemBuilder: (context, index) {
+                          final language = languages[index];
+                          final isSelected = selectedLocale?.languageCode == language.locale.languageCode &&
+                              selectedLocale?.countryCode == language.locale.countryCode;
+                          
+                          return InkWell(
+                            onTap: () {
+                              setState(() {
+                                selectedLocale = language.locale;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? vehicalThemColor.withOpacity(0.1)
+                                    : notifires.getbgcolor,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? vehicalThemColor
+                                      : Colors.grey.withOpacity(0.3),
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                leading: Text(
+                                  language.flag,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                  ),
+                                ),
+                                title: Text(
+                                  language.name,
+                                  style: heading2(context).copyWith(
+                                    color: notifires.getwhiteblackcolor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                trailing: Radio<Locale>(
+                                  value: language.locale,
+                                  groupValue: selectedLocale,
+                                  activeColor: vehicalThemColor,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedLocale = value;
+                                    });
+                                  },
                                 ),
                               ),
-                              const Spacer(),
-                              Radio(
-                                value: index,
-                                groupValue: _value,
-                                activeColor: vehicalThemColor,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _value = index;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
+                    ),
+                    const Spacer(),
+                  ],
                 ),
               ),
-              const Spacer(),
-              // Bouton continuer
-              Padding(
-                padding: const EdgeInsets.only(bottom: 30),
+            ),
+            // Bouton Continue fixé en bas
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: whiteColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 5,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
                 child: CustomsButtons(
                   text: "Continue",
                   backgroundColor: vehicalThemColor,
                   onPressed: _continueToOnboarding,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

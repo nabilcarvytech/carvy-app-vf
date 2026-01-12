@@ -17,9 +17,28 @@ import '../work_space.dart';
 import 'package:carvy/utils/theme_style.dart';
 
 RxInt activeModuleId = 2.obs;
-RxBool isHostMode = RxBool(GetStorage().read('isHostMode') ?? false);
+// Initialisation sécurisée de isHostMode pour éviter les crashes au démarrage
+// Si GetStorage n'est pas encore initialisé, on utilise false par défaut
+RxBool isHostMode = RxBool(false);
 var shouldNavigatetoHost = false.obs;
-RxBool switchonOff = RxBool(GetStorage().read('IsCarFilter') ?? false);
+RxBool switchonOff = RxBool(false);
+
+// Fonction pour initialiser isHostMode de manière sécurisée
+void initializeIsHostMode() {
+  try {
+    // Vérifier si GetStorage est initialisé avant de lire
+    final storage = GetStorage();
+    if (storage.read('isHostMode') != null) {
+      isHostMode.value = storage.read('isHostMode') ?? false;
+    }
+    if (storage.read('IsCarFilter') != null) {
+      switchonOff.value = storage.read('IsCarFilter') ?? false;
+    }
+  } catch (e) {
+    // Si GetStorage n'est pas encore initialisé, on garde les valeurs par défaut (false)
+    debugPrint('⚠️ [CUSTOM_MODULE] GetStorage not ready yet, using default values: $e');
+  }
+}
 void switchphostFunmction(BuildContext context) {
   if (isHostMode.value == true) {
     isHostMode.value = false;
@@ -92,17 +111,20 @@ void tobecomeHost(BuildContext context) async {
               ),
             );
           } else {
-            if (loginModel!.data!.firstName != null) {
-              if (loginModel!.data!.firstName == "") {
-                handleBackonBooking = true;
-                profileUpdate(context);
-                return;
-              }
-            } else if ((loginModel!.data!.lastName != null)) {
-              if (loginModel!.data!.lastName == "") {
-                handleBackonBooking = true;
-                profileUpdate(context);
-                return;
+            // Vérifier que loginModel est non null avant d'utiliser !
+            if (loginModel != null && loginModel!.data != null) {
+              if (loginModel!.data!.firstName != null) {
+                if (loginModel!.data!.firstName == "") {
+                  handleBackonBooking = true;
+                  profileUpdate(context);
+                  return;
+                }
+              } else if ((loginModel!.data!.lastName != null)) {
+                if (loginModel!.data!.lastName == "") {
+                  handleBackonBooking = true;
+                  profileUpdate(context);
+                  return;
+                }
               }
             }
             getUserDataLocallyToHandleTheState();
@@ -141,35 +163,84 @@ Widget switchToOwner(BuildContext context) {
   
   return Obx(
     () {
-      // Déterminer le rôle actuel basé sur isHostMode
-      // Si isHostMode == true, l'utilisateur est vendor, sinon user
-      String currentRole = isHostMode.value ? 'vendor' : 'user';
+      // Normaliser le rôle (minuscules et sans espaces)
+      final role = authController.userRole.value.toLowerCase().trim();
       
-      // Déterminer le texte du bouton selon le rôle
-      String buttonText = currentRole == 'vendor' 
-          ? "Become a User".tr  // "Devenir locataire" si vendor
-          : "Become a Host".tr;  // "Devenir propriétaire" si user
+      // Log permanent pour monitoring
+      print('👀 [UI_MONITOR] Rôle actuel détecté : "$role"');
+      debugPrint('👀 [UI_MONITOR] Rôle actuel détecté : "$role"');
       
-      return generalController.hasGeneralData.value == true
-          ? const SizedBox()
-          : SizedBox(
-              width: 290,
-              child: ElevatedButton(
-                onPressed: () async {
-                  // Appeler la fonction switchRole() au lieu de tobecomeHost()
-                  await authController.switchRole(context);
-                },
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: getColorBasedOnActiveModuleid(),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    )),
-                child: Text(
-                  buttonText,
-                  style: heading3(context).copyWith(color: whiteColor),
+      // Si le rôle est vide, afficher un bouton de test rouge pour vérifier la présence du widget
+      if (role.isEmpty) {
+        print('⚠️ [UI_MONITOR] Rôle vide détecté - Affichage du bouton de test');
+        return generalController.hasGeneralData.value == true
+            ? const SizedBox()
+            : SizedBox(
+                width: 290,
+                child: ElevatedButton(
+                  onPressed: () {
+                    print('🔍 [TEST] Bouton de test cliqué - Rôle vide');
+                    // Essayer de rafraîchir le rôle
+                    try {
+                      authController.refreshUserRole();
+                      print('🔄 [TEST] Tentative de rafraîchissement du rôle');
+                    } catch (e) {
+                      print('❌ [TEST] Erreur lors du rafraîchissement: $e');
+                    }
+                    showErrorToastMessage('Rôle non détecté. Valeur actuelle: "$role"');
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      )),
+                  child: Text(
+                    'Rôle non détecté',
+                    style: heading3(context).copyWith(color: whiteColor),
+                  ),
                 ),
-              ),
-            );
+              );
+      }
+      
+      // On ne montre le bouton QUE si c'est un partenaire (vendor ou host)
+      if (role == 'vendor' || role == 'host') {
+        debugPrint('✅ [UI_MONITOR] Rôle partenaire détecté ($role) - Affichage du bouton de switch');
+        
+        // Déterminer le rôle actuel basé sur isHostMode
+        // Si isHostMode == true, l'utilisateur est vendor, sinon user
+        String currentRole = isHostMode.value ? 'vendor' : 'user';
+        
+        // Déterminer le texte du bouton selon le rôle
+        String buttonText = currentRole == 'vendor' 
+            ? "Become a User".tr  // "Devenir locataire" si vendor
+            : "Become a Host".tr;  // "Devenir propriétaire" si user
+        
+        // Afficher le bouton de switch bleu
+        return generalController.hasGeneralData.value == true
+            ? const SizedBox()
+            : SizedBox(
+                width: 290,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    // Appeler la fonction switchRole() au lieu de tobecomeHost()
+                    await authController.switchRole(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: getColorBasedOnActiveModuleid(),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      )),
+                  child: Text(
+                    buttonText,
+                    style: heading3(context).copyWith(color: whiteColor),
+                  ),
+                ),
+              );
+      }
+      
+      // Pour tous les autres (comme Nabil qui est un simple user), on ne montre RIEN
+      debugPrint('🚫 [UI_MONITOR] Rôle non partenaire ($role) - Bouton caché');
+      return const SizedBox.shrink();
     },
   );
 }

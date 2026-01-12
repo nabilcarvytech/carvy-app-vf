@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/controller/profile_controller.dart';
 import 'package:carvy/customwidget/form_elements.dart';
@@ -29,7 +30,21 @@ class _UserKycState extends State<UserKyc> {
   @override
   void initState() {
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      kycController.getUserKycData();
+      // Log du rôle avant l'appel KYC
+      try {
+        AuthController? authController = Get.find<AuthController>();
+        print('🔍 [DEBUG] Statut du rôle avant crash: ${authController.userRole.value}');
+      } catch (e) {
+        print('⚠️ [DEBUG] AuthController non trouvé: $e');
+      }
+      
+      try {
+        kycController.getUserKycData();
+      } catch (e, stackTrace) {
+        print('❌ [USER_KYC] Erreur lors de l\'appel getUserKycData: $e');
+        print('❌ [USER_KYC] StackTrace: $stackTrace');
+        // Continuer même si le KYC échoue
+      }
     });
     super.initState();
   }

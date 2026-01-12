@@ -1,3 +1,4 @@
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 class LoginModel {
   LoginModel({
@@ -74,6 +75,7 @@ class Data {
     dynamic pushNotification,
 
     dynamic firebaseAuth,
+    String? role,
   }) {
     _id = id;
     _firstName = firstName;
@@ -106,6 +108,7 @@ class Data {
     _emailNotification = emailNotification;
     _pushNotification = pushNotification;
     _firebaseAuth = firebaseAuth;
+    _role = role;
   }
 
   Data.fromJson(dynamic json) {
@@ -140,6 +143,25 @@ class Data {
     _emailNotification = json['email_notification'];
     _pushNotification = json['push_notification'];
     _firebaseAuth = json['firebase_auth'];
+    
+    // Cherche d'abord dans le JSON
+    _role = json['role']?.toString();
+    
+    // SI LE RÔLE EST NULL, ON LE DÉCODE DEPUIS LE TOKEN
+    if ((_role == null || _role == 'null') && json['token'] != null) {
+      try {
+        String token = json['token'].toString();
+        Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+        _role = decodedToken['role']?.toString();
+        print('💡 [JWT_FIX] Rôle récupéré du token : $_role');
+      } catch (e) {
+        print('❌ [JWT_FIX] Erreur décodage token : $e');
+        _role = null;
+      }
+    }
+    
+    print('🛠️ [MODEL_DEBUG] Rôle extrait du JSON: $_role');
+    print('🛠️ [FINAL_CHECK] JSON BRUT REÇU: $json');
   }
 
   String? _id;
@@ -173,6 +195,7 @@ class Data {
   dynamic _emailNotification;
   dynamic _pushNotification;
   dynamic _firebaseAuth;
+  String? _role;
 
   String? get id => _id;
   String? get firstName => _firstName;
@@ -205,6 +228,7 @@ class Data {
   dynamic get emailNotification => _emailNotification;
   dynamic get pushNotification => _pushNotification;
   dynamic get firebaseAuth => _firebaseAuth;
+  String? get role => _role;
 
   set firstNameSetter(value) {
     _firstName = value;
@@ -294,6 +318,7 @@ class Data {
     map['email_notification'] = emailNotification;
     map['push_notification'] = pushNotification;
     map['firebase_auth'] = firebaseAuth;
+    map['role'] = _role;
     return map;
   }
 }

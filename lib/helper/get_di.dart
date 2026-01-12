@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:carvy/controller/add_address_controller.dart';
 import 'package:carvy/controller/add_bank_account_controller.dart';
+import 'package:carvy/controller/agency_controller.dart';
 import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/controller/global_scope_controller.dart';
 import 'package:carvy/controller/general_controller.dart';
@@ -37,4 +38,5 @@ init() async {
   Get.lazyPut(() => AddBankAccount());
   Get.lazyPut(() => AddAddressController());
   Get.lazyPut(() => KycController());
+  Get.lazyPut(() => AgencyController());
 }

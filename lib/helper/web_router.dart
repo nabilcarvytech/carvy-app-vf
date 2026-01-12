@@ -9,6 +9,10 @@ import 'package:carvy/view/auth/phone_update_screen.dart';
 import 'package:carvy/view/auth/sign_up_screen.dart';
 import 'package:carvy/view/auth/success_change_password.dart';
 import 'package:carvy/view/auth/user_google_sign_up_screen.dart';
+import 'package:carvy/view/auth/agency_registration_screen.dart';
+import 'package:carvy/view/auth/agency_registration_pending_screen.dart';
+import 'package:carvy/view/auth/agency_sign_up_screen.dart';
+import 'package:carvy/view/home/client_home_screen.dart';
 import 'package:carvy/view/booking/my_booking_screen.dart';
 import 'package:carvy/view/booking/booking_success_page.dart';
 import 'package:carvy/view/booking/e_reciept.dart';
@@ -35,6 +39,7 @@ import 'package:carvy/view/payments/wallet_screen.dart';
 import 'package:carvy/view/search/after_search.dart';
 import 'package:carvy/view/splash/initial_screen.dart';
 import 'package:carvy/view/splash/language_selection_screen.dart';
+import 'package:carvy/view/splash/user_role_selection_screen.dart';
 import '../view/auth/reset_password_screen.dart';
 import '../view/itemdetail/vehicle/vehicle_detail_screen.dart';
 import '../view/myaccount/publicProfile/public_profile_screen.dart';
@@ -104,6 +109,11 @@ class WebRoutes {
   static String changeCurrency = "/changeCurrency";
   static String hostSearch = "/hostSearch";
   static String languageSelectionScreen = "/languageSelectionScreen";
+  static String userRoleSelectionScreen = "/userRoleSelectionScreen";
+  static String agencyRegistrationScreen = "/agencyRegistrationScreen";
+  static String agencySignUpScreen = "/agencySignUpScreen";
+  static String agencyRegistrationPendingScreen = "/agencyRegistrationPendingScreen";
+  static String clientHomeScreen = "/clientHomeScreen";
 }
 
 final getPagesforweb = [
@@ -111,6 +121,21 @@ final getPagesforweb = [
   GetPage(
       name: WebRoutes.languageSelectionScreen,
       page: () => const LanguageSelectionScreen()),
+  GetPage(
+      name: WebRoutes.userRoleSelectionScreen,
+      page: () => const UserRoleSelectionScreen()),
+  GetPage(
+      name: WebRoutes.agencyRegistrationScreen,
+      page: () => const AgencyRegistrationScreen()),
+  GetPage(
+      name: WebRoutes.agencySignUpScreen,
+      page: () => const AgencySignUpScreen()),
+  GetPage(
+      name: WebRoutes.agencyRegistrationPendingScreen,
+      page: () => const AgencyRegistrationPendingScreen()),
+  GetPage(
+      name: WebRoutes.clientHomeScreen,
+      page: () => const ClientHomeScreen()),
   GetPage(name: WebRoutes.signUpScreen, page: () => const SignUp()),
   GetPage(
       name: WebRoutes.homeMain, page: () => const HomeMain(initialIndex: 0)),

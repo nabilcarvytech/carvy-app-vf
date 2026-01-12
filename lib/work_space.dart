@@ -143,6 +143,9 @@ getUserDataLocallyToHandleTheState() async {
       try {
         var json = jsonDecode(data);
         loginModel = LoginModel.fromJson(json);
+        
+        // Mettre à jour le rôle dans AuthController
+        authController.setLoginModel(loginModel!);
 
         if (loginModel!.data != null) {
           if (loginModel!.data!.token != null) {

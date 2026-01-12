@@ -21,16 +21,29 @@ import 'package:carvy/model/forgot_pass_model.dart';
 import 'package:carvy/model/login_model.dart';
 import 'package:carvy/model/reset_pass_model.dart';
 import 'package:carvy/view/auth/google_update_screen.dart';
+import 'package:carvy/view/auth/login_screen.dart';
 import 'package:carvy/view/auth/otp_screen.dart';
 import 'package:carvy/view/auth/success_change_password.dart';
 import 'package:carvy/view/myaccount/my_profile_screen.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
+import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/view/host/switch_splash_screen.dart';
+import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/theme_style.dart';
+import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/work_space.dart';
 import '../helper/http_service.dart';
 import '../view/auth/reset_password_screen.dart';
 
 class AuthController extends GetxController implements GetxService {
+  // Variable pour gérer le mode host (vendor) ou user
+  // Note: Cette variable est synchronisée avec la variable globale isHostMode
+  // définie dans custom_active_module_id_widget.dart et accessible via work_space.dart
+  var isHostMode = false.obs;
+  
+  // Variable pour stocker le rôle de l'utilisateur (vendor, user, host, etc.)
+  RxString userRole = ''.obs;
+  
   late TextEditingController textEditingControllerEmail;
   late TextEditingController textEditingControllerPass;
   late TextEditingController textEditingSignUpControllerFirstName;
@@ -47,6 +60,148 @@ class AuthController extends GetxController implements GetxService {
   late TextEditingController textEditingControllerConfirmPassword;
   late TextEditingController textEditingControllerOldPassword;
   bool shouldLogout = false;
+  
+  // Initialiser isHostMode et userRole depuis le stockage au démarrage
+  @override
+  void onInit() {
+    super.onInit();
+    isHostMode.value = GetStorage().read('isHostMode') ?? false;
+    
+    // Récupérer le LoginModel depuis le stockage si l'utilisateur est déjà connecté
+    try {
+      // Essayer d'abord de lire depuis 'user_data' (nouvelle clé)
+      var data = GetStorage().read('user_data');
+      LoginModel? storedModel;
+      
+      if (data != null) {
+        print('✅ [AUTH_CONTROLLER] Données trouvées dans user_data');
+        try {
+          // Si data est déjà un Map, l'utiliser directement, sinon le décoder
+          Map<String, dynamic> userDataJson;
+          if (data is Map) {
+            userDataJson = Map<String, dynamic>.from(data);
+          } else if (data is String) {
+            userDataJson = jsonDecode(data);
+          } else {
+            throw Exception('Format de données inattendu: ${data.runtimeType}');
+          }
+          
+          loginModel = LoginModel.fromJson(userDataJson);
+          storedModel = loginModel;
+          print('✅ [AUTH_CONTROLLER] LoginModel créé depuis user_data');
+        } catch (e) {
+          print('⚠️ [AUTH_CONTROLLER] Erreur lors du parsing de user_data: $e');
+        }
+      }
+      
+      // Fallback : essayer de lire depuis 'UserData' (ancienne clé) si user_data n'existe pas
+      if (storedModel == null) {
+        String? userDataString = GetStorage().read('UserData');
+        if (userDataString != null && userDataString.isNotEmpty) {
+          print('✅ [AUTH_CONTROLLER] Données trouvées dans UserData (fallback)');
+          var userDataJson = jsonDecode(userDataString);
+          storedModel = LoginModel.fromJson(userDataJson);
+          loginModel = storedModel;
+        }
+      }
+      
+      // Mettre à jour le rôle explicitement depuis le modèle stocké
+      if (storedModel != null) {
+        userRole.value = storedModel.data?.role ?? '';
+        debugPrint('✅ [AUTH_CONTROLLER] LoginModel loaded from storage');
+        debugPrint('🔍 DEBUG ROLE: Current user role is: ${userRole.value}');
+        
+        // Forcer le rafraîchissement du rôle après le chargement du stockage
+        refreshUserRole();
+      } else {
+        userRole.value = '';
+        debugPrint('⚠️ [AUTH_CONTROLLER] Aucun modèle trouvé dans le stockage');
+        debugPrint('🔍 DEBUG ROLE: Current user role is: ${userRole.value}');
+      }
+    } catch (e, stackTrace) {
+      userRole.value = '';
+      debugPrint('⚠️ [AUTH_CONTROLLER] Error loading user role from storage: $e');
+      debugPrint('🔍 DEBUG ROLE: Current user role is: ${userRole.value}');
+      debugPrint('🔍 DEBUG ROLE: StackTrace: $stackTrace');
+    }
+  }
+  
+  // Méthode pour afficher une alerte si l'utilisateur n'est pas connecté
+  void loginAlert(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: notifires.getbgcolor,
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text(
+                  'You are not Login yet'.tr,
+                  textAlign: TextAlign.center,
+                  style: heading3(context).copyWith(
+                    color: notifires.getwhiteblackcolor,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Please login to continue'.tr,
+                  textAlign: TextAlign.center,
+                  style: regular2(context).copyWith(
+                    color: notifires.getGrey3Whitecolor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: Text(
+                      "Cancel".tr,
+                      style: regular2(context).copyWith(
+                        color: notifires.getGrey3Whitecolor,
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      handlelogin = true;
+                      if (webPlateForm) {
+                        Get.toNamed(WebRoutes.loginScreen);
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => LoginScreen(),
+                          ),
+                        );
+                      }
+                    },
+                    child: Text(
+                      "Login".tr,
+                      style: regular2(context).copyWith(
+                        color: getColorBasedOnActiveModuleid(),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
   AuthController() {
     textEditingControllerEmail = TextEditingController();
     textEditingControllerPass = TextEditingController();
@@ -111,6 +266,32 @@ class AuthController extends GetxController implements GetxService {
 
   void setLoginModel(LoginModel model) {
     loginModel = model;
+    // Mettre à jour le rôle de l'utilisateur depuis le modèle
+    if (model.data != null && model.data!.role != null) {
+      userRole.value = model.data!.role!;
+      debugPrint('✅ [AUTH_CONTROLLER] User role updated: ${userRole.value}');
+      debugPrint('🔍 DEBUG ROLE: Current user role is: ${userRole.value}');
+      print('🔑 [VERIF_ROLE] Valeur finale stockée : ${userRole.value}');
+    } else {
+      userRole.value = '';
+      debugPrint('⚠️ [AUTH_CONTROLLER] User role not found in login model');
+      debugPrint('🔍 DEBUG ROLE: Current user role is: ${userRole.value}');
+      print('🔑 [VERIF_ROLE] Valeur finale stockée : ${userRole.value} (vide - rôle non trouvé)');
+    }
+  }
+
+  /// Rafraîchit le rôle de l'utilisateur depuis loginModel
+  /// Utile pour forcer la mise à jour du rôle après le chargement des données
+  void refreshUserRole() {
+    if (loginModel?.data?.role != null) {
+      userRole.value = loginModel!.data!.role!;
+      print('🎯 [ROLE_FIX] Rôle forcé à : ${userRole.value}');
+      debugPrint('🎯 [ROLE_FIX] Rôle forcé à : ${userRole.value}');
+    } else {
+      userRole.value = '';
+      print('⚠️ [ROLE_FIX] loginModel ou role est null - Rôle non disponible');
+      debugPrint('⚠️ [ROLE_FIX] loginModel ou role est null - Rôle non disponible');
+    }
   }
 
   LoginModel? getLoginModel() {
@@ -128,11 +309,24 @@ class AuthController extends GetxController implements GetxService {
           "email": textEditingControllerEmail.text,
           "password": textEditingControllerPass.text,
         });
+        
+        // Log des données brutes reçues
+        print('📥 [LOGIN_RAW] Données reçues : $json');
+        if (json['data'] != null) {
+          print('📥 [LOGIN_RAW] Données data : ${json['data']}');
+        }
+        
         LoginModel loginModel = LoginModel.fromJson(json);
         Get.back();
         if (json["status"] == 200) {
           GetStorage().write('Remember', true);
           GetStorage().write('Firstuser', true);
+          
+          // Sauvegarder TOUT l'objet dans 'user_data' pour inclure le rôle
+          GetStorage().write('user_data', jsonEncode(json));
+          print('💾 [LOGIN] Données sauvegardées dans user_data');
+          
+          // Sauvegarder aussi dans 'UserData' pour compatibilité
           UserData userObj = UserData();
           userObj.saveLoginData("UserData", jsonEncode(json));
           token = loginModel.data!.token!;
@@ -394,6 +588,11 @@ class AuthController extends GetxController implements GetxService {
           LoginModel loginModel = LoginModel.fromJson(response);
           if (loginModel.status == 200) {
             showToastMessage(loginModel.message);
+            
+            // Sauvegarder TOUT l'objet dans 'user_data' pour inclure le rôle
+            GetStorage().write('user_data', jsonEncode(loginModel.toJson()));
+            print('💾 [CHANGE_EMAIL] Données sauvegardées dans user_data');
+            
             UserData userObj = UserData();
             userObj.saveLoginData("UserData", jsonEncode(loginModel.toJson()));
             generalController.currentIndex.value = 0;
@@ -422,6 +621,11 @@ class AuthController extends GetxController implements GetxService {
         LoginModel loginModel = LoginModel.fromJson(response);
         if (loginModel.status == 200) {
           showToastMessage(loginModel.message);
+          
+          // Sauvegarder TOUT l'objet dans 'user_data' pour inclure le rôle
+          GetStorage().write('user_data', jsonEncode(response));
+          print('💾 [CHANGE_MOBILE] Données sauvegardées dans user_data');
+          
           UserData userObj = UserData();
           userObj.saveLoginData("UserData", jsonEncode(response));
           generalController.currentIndex.value = 0;
@@ -473,6 +677,11 @@ class AuthController extends GetxController implements GetxService {
           LoginModel loginModel = LoginModel.fromJson(result);
           if (loginModel.status == 200) {
             showToastMessage(loginModel.message);
+            
+            // Sauvegarder TOUT l'objet dans 'user_data' pour inclure le rôle
+            GetStorage().write('user_data', jsonEncode(result));
+            print('💾 [VERIFY_OTP] Données sauvegardées dans user_data');
+            
             UserData userObj = UserData();
             userObj.saveLoginData("UserData", jsonEncode(result));
             token = loginModel.data!.token!;
@@ -510,6 +719,11 @@ class AuthController extends GetxController implements GetxService {
         if (response["status"] == 200) {
           ResetPassModel resetPassModel = ResetPassModel.fromJson(response);
           showToastMessage(resetPassModel.message);
+          
+          // Sauvegarder TOUT l'objet dans 'user_data' pour inclure le rôle
+          GetStorage().write('user_data', jsonEncode(response));
+          print('💾 [RESET_PASSWORD] Données sauvegardées dans user_data');
+          
           UserData userObj = UserData();
           userObj.saveLoginData("UserData", jsonEncode(response));
           shouldLogout = false;
@@ -850,6 +1064,11 @@ class AuthController extends GetxController implements GetxService {
       );
       GetStorage().write('Remember', true);
       GetStorage().write('Firstuser', true);
+      
+      // Sauvegarder TOUT l'objet dans 'user_data' pour inclure le rôle
+      GetStorage().write('user_data', jsonEncode(socialLoginModel.toJson()));
+      print('💾 [SOCIAL_LOGIN] Données sauvegardées dans user_data');
+      
       UserData userObj = UserData();
       userObj.saveLoginData("UserData", jsonEncode(socialLoginModel.toJson()));
       loginModel = LoginModel.fromJson(socialLoginModel.toJson());
@@ -1038,8 +1257,55 @@ class AuthController extends GetxController implements GetxService {
       return;
     }
 
+    // Vérifier si l'utilisateur est déjà un vendor/host
+    final userRoleValue = userRole.value.toLowerCase().trim();
+    bool isAlreadyVendor = userRoleValue == 'vendor' || userRoleValue == 'host';
+
+    print('🔄 [SWITCH_ROLE] Rôle utilisateur: $userRoleValue');
+    print('🔄 [SWITCH_ROLE] Est déjà vendor: $isAlreadyVendor');
+    print('🔄 [SWITCH_ROLE] isHostMode actuel: ${isHostMode.value}');
+
+    // Si l'utilisateur est déjà un vendor, on ne fait pas d'appel API
+    // On change simplement la variable locale isHostMode
+    if (isAlreadyVendor) {
+      print('✅ [SWITCH_ROLE] Utilisateur déjà vendor - Changement local uniquement');
+      
+      // Inverser isHostMode
+      isHostMode.value = !isHostMode.value;
+      
+      // Synchroniser avec la variable globale et le stockage
+      GetStorage().write('isHostMode', isHostMode.value);
+      
+      // Synchroniser avec la variable globale isHostMode (accessible via work_space.dart)
+      // Note: La variable globale est importée via work_space.dart qui importe custom_active_module_id_widget.dart
+      // La variable globale isHostMode est déjà synchronisée car elle est réactive
+      
+      print('🔄 [SWITCH_ROLE] Nouveau isHostMode: ${isHostMode.value}');
+      
+      // Naviguer vers le dashboard host si on passe en mode host
+      if (isHostMode.value) {
+        if (webPlateForm) {
+          Get.offAllNamed(WebRoutes.buttomHost);
+        } else {
+          Get.offAll(() => const BottomHost(initialIndex: 0));
+        }
+        print('✅ [SWITCH_ROLE] Navigation vers dashboard host');
+      } else {
+        // Naviguer vers le dashboard user si on sort du mode host
+        if (webPlateForm) {
+          Get.offAllNamed(WebRoutes.homeMain);
+        } else {
+          Get.offAll(() => const HomeMain(initialIndex: 0));
+        }
+        print('✅ [SWITCH_ROLE] Navigation vers dashboard user');
+      }
+      
+      showToastMessage('Mode changé avec succès'.tr);
+      return;
+    }
+
+    // Si l'utilisateur n'est pas encore vendor, faire l'appel API pour devenir vendor
     // Déterminer le rôle actuel basé sur isHostMode
-    // Si isHostMode == true, l'utilisateur est vendor, sinon user
     String currentRole = isHostMode.value ? 'vendor' : 'user';
     String newRole = currentRole == 'vendor' ? 'user' : 'vendor';
 
@@ -1057,23 +1323,42 @@ class AuthController extends GetxController implements GetxService {
       closeLoading();
 
       if (response != null && response['status'] == 200) {
-        // Mettre à jour isHostMode localement
+        // Mettre à jour isHostMode localement et globalement
         bool newHostMode = newRole == 'vendor';
         isHostMode.value = newHostMode;
         GetStorage().write('isHostMode', newHostMode);
+        // Synchroniser avec la variable globale isHostMode (accessible via work_space.dart)
+        // Note: La variable globale est importée via work_space.dart qui importe custom_active_module_id_widget.dart
 
         // Mettre à jour le loginModel si nécessaire
         if (loginModel != null && response['data'] != null) {
           // Optionnel: mettre à jour le modèle avec les nouvelles données
           loginModel = LoginModel.fromJson(response);
+          
+          // Sauvegarder TOUT l'objet dans 'user_data' pour inclure le rôle
+          GetStorage().write('user_data', jsonEncode(response));
+          print('💾 [SWITCH_ROLE] Données sauvegardées dans user_data');
+          
           UserData userObj = UserData();
           userObj.saveLoginData("UserData", jsonEncode(response));
         }
 
         showToastMessage(response['message'] ?? 'Rôle changé avec succès'.tr);
 
-        // Rediriger vers le bon dashboard en utilisant SwitchSplashScreen
-        Get.offAll(() => SwitchSplashScreen(isHostMode: newHostMode));
+        // Rediriger vers le bon dashboard
+        if (newHostMode) {
+          if (webPlateForm) {
+            Get.offAllNamed(WebRoutes.buttomHost);
+          } else {
+            Get.offAll(() => const BottomHost(initialIndex: 0));
+          }
+        } else {
+          if (webPlateForm) {
+            Get.offAllNamed(WebRoutes.homeMain);
+          } else {
+            Get.offAll(() => const HomeMain(initialIndex: 0));
+          }
+        }
       } else {
         showErrorToastMessage(response?['error'] ?? 'Erreur lors du changement de rôle'.tr);
       }
@@ -1086,7 +1371,21 @@ class AuthController extends GetxController implements GetxService {
       isHostMode.value = newHostMode;
       GetStorage().write('isHostMode', newHostMode);
       showToastMessage('Mode changé avec succès'.tr);
-      Get.offAll(() => SwitchSplashScreen(isHostMode: newHostMode));
+      
+      // Naviguer vers le bon dashboard
+      if (newHostMode) {
+        if (webPlateForm) {
+          Get.offAllNamed(WebRoutes.buttomHost);
+        } else {
+          Get.offAll(() => const BottomHost(initialIndex: 0));
+        }
+      } else {
+        if (webPlateForm) {
+          Get.offAllNamed(WebRoutes.homeMain);
+        } else {
+          Get.offAll(() => const HomeMain(initialIndex: 0));
+        }
+      }
     }
   }
 }
