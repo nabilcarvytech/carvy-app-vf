@@ -597,7 +597,9 @@ const Map<String, String> frFR = {
   "Do you want to delete your property?":
       "Souhaitez-vous supprimer votre annonce ?",
   "Become a User": "Devenir utilisateur",
-  "Become a Host": "Devenir hôte",
+  "Become a Host": "Session vendeur",
+  "Session client": "Session client",
+  "Session vendeur": "Session vendeur",
   "Upload your place photos": "Téléchargez les photos de votre véhicule",
   "Front Image": "Image avant",
   "Change": "Modifier",
@@ -820,6 +822,20 @@ const Map<String, String> frFR = {
   "Check-Out": "Départ",
   "Check-In": "Arrivée",
   "Delete": "Supprimer",
+  "Confirmation": "Confirmation",
+  "Are you sure you want to delete this vehicle? This action requires administrator validation.": "Êtes-vous sûr de vouloir supprimer ce véhicule ? Cette action nécessite la validation d'un administrateur.",
+  "Your deletion request has been sent to the administrator.": "Votre demande de suppression a été envoyée à l'administrateur.",
+  "Deletion Request": "Demande de suppression",
+  "Are you sure? This request will be sent to the administrator for final validation.": "Êtes-vous sûr ? Cette demande sera envoyée à l'administrateur pour validation finale.",
+  "Success": "Succès",
+  "Error": "Erreur",
+  "Error during deletion request": "Erreur lors de la demande de suppression",
+  "Deletion Confirmation": "Confirmation de suppression",
+  "Do you really want to request the deletion of this vehicle? This action will need to be validated by an administrator.": "Voulez-vous vraiment demander la suppression de ce véhicule ? Cette action devra être validée par un administrateur.",
+  "Confirm Request": "Confirmer la demande",
+  "Request sent! The vehicle will be deleted after admin validation.": "Demande envoyée ! Le véhicule sera supprimé après validation de l'admin.",
+  "Connection error. Please check your internet connection.": "Erreur de connexion. Veuillez vérifier votre connexion internet.",
+  "Cannot delete this vehicle because a booking is in progress.": "Impossible de supprimer ce véhicule car une réservation est en cours.",
   "Vehicle Details": "Détails du véhicule",
   "Vehicle Model": "Modèle du véhicule",
   "Vehicle Year": "Année du véhicule",
@@ -891,7 +907,7 @@ const Map<String, String> frFR = {
   "rent_space":
       "Transformez votre espace libre en revenu. Publiez votre studio, bureau ou entrepôt et commencez à gagner !",
   "Become a Rent": "Devenir locataire",
-  "Become a Lead": "Devenir hôte",
+  "Become a Lead": "Session vendeur",
   "Orders": "Commandes",
   "Financial Report": "Rapport financier",
   "Bank Account": "Compte bancaire",
@@ -1252,5 +1268,14 @@ const Map<String, String> frFR = {
   "80% deduction will apply if canceled within 12 hours of the rental start time.":
       "Une déduction de 80% sera appliquée si l'annulation est faite dans les 12 heures précédant le début de la location.",
   "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
-      "Une déduction de 50% sera appliquée si l'annulation est faite entre 12 et 24 heures avant le début de la location."
+      "Une déduction de 50% sera appliquée si l'annulation est faite entre 12 et 24 heures avant le début de la location.",
+  "Caution": "Caution",
+  "Important": "Important",
+  "Gérée par Carvy": "Gérée par Carvy",
+  "Gérée par l'agence": "Gérée par l'agence",
+  "J'ai lu et j'accepte ": "J'ai lu et j'accepte ",
+  "la politique d'annulation": "la politique d'annulation",
+  "Note": "Note",
+  "Smoking Allowed": "Fumer autorisé",
+  "International Travel Allowed": "Voyage international autorisé"
 };

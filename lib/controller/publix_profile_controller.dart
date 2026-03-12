@@ -15,123 +15,89 @@ class PublicProfileController extends GetxController implements GetxService {
   Future<void> getDataPublicProfile(userid) async {
     try {
       isLoading.value = true;
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var response = await httpGet(Config.getUserProfile, {"userid": userid});
-
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // MOCK: Static user profile data
-      var response = {
-        "status": 200,
-        "message": "User profile retrieved successfully",
-        "error": "",
-        "data": {
-          "name": "John Doe",
-          "profile_image": "https://example.com/profile.jpg",
-          "profile_background": "https://example.com/background.jpg",
-          "intro_text": "Experienced host with 5 years of hosting",
-          "total_reviews_on_items": 25,
-          "average_rating_on_items": 4.5,
-          "years_of_hosting": "5",
-          "languages": "English, French",
-          "livecity": "Los Angeles",
-          "age": "35",
-          "join_in": "2020-01-01",
-          "verified_identity": "1",
-          "verified_email": "1",
-          "verified_phone": "1"
+      update(); // Force l'affichage du loader
+      
+      print("🚀 [PROFIL] Récupération des infos pour userid: $userid");
+      
+      // 1. Appel API Profil
+      try {
+        var responseProfile = await httpGet(Config.getUserProfile, {"userid": userid});
+        if (responseProfile != null) {
+          print("✅ [PROFIL] Données brutes reçues: $responseProfile");
+          if (responseProfile['status'] == 200) {
+            getUserProfile = GetUserProfile.fromJson(responseProfile);
+            print("✅ [PROFIL] Profil parsé avec succès");
+          } else {
+            print("❌ [PROFIL] Status != 200: ${responseProfile['status']}, message: ${responseProfile['message']}");
+            getUserProfile = null;
+          }
+        } else {
+          print("❌ [PROFIL] La réponse de l'API est nulle");
+          getUserProfile = null;
         }
-      };
-      // ========== END MOCK DATA ==========
-      getUserProfile = GetUserProfile.fromJson(response);
+      } catch (e, stackTrace) {
+        print("🚨 [CRASH PROFIL] Erreur lors de l'appel API Profil: $e");
+        print("🚨 [STACKTRACE PROFIL]: $stackTrace");
+        getUserProfile = null;
+      }
 
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var response2 =
-      //     await httpGet(Config.getVendorItemReviews, {"userid": userid});
-
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // MOCK: Static vendor item reviews data
-      var response2 = {
-        "status": 200,
-        "message": "Vendor item reviews retrieved successfully",
-        "error": "",
-        "data": {
-          "reviews": [
-            {
-              "item_id": "101",
-              "item_name": "Toyota Camry 2023",
-              "guest_response": {
-                "guest_name": "Alice Johnson",
-                "guest_rating": "5",
-                "guest_message": "Excellent vehicle!",
-                "guest_profile": "https://example.com/guest1.jpg",
-                "guest_id": "10"
-              },
-              "host_response": {
-                "host_name": "John Doe",
-                "host_rating": "5",
-                "host_message": "Great guest!",
-                "host_profile": "https://example.com/host.jpg",
-                "host_id": userid
-              },
-              "created_at": "2025-01-10T10:00:00.000Z"
-            }
-          ],
-          "offset": 0
+      // 2. Appel API Avis
+      try {
+        var responseReviews = await httpGet(Config.getVendorItemReviews, {"userid": userid});
+        if (responseReviews != null) {
+          print("✅ [AVIS] Données brutes reçues: $responseReviews");
+          if (responseReviews['status'] == 200) {
+            getVendorItemsReviews = GetVendorItemsReviews.fromJson(responseReviews);
+            print("✅ [AVIS] Avis parsés avec succès");
+          } else {
+            print("❌ [AVIS] Status != 200: ${responseReviews['status']}");
+            getVendorItemsReviews = null;
+          }
+        } else {
+          print("❌ [AVIS] La réponse de l'API est nulle");
+          getVendorItemsReviews = null;
         }
-      };
-      // ========== END MOCK DATA ==========
-      getVendorItemsReviews = GetVendorItemsReviews.fromJson(response2);
+      } catch (e, stackTrace) {
+        print("🚨 [CRASH AVIS] Erreur lors de l'appel API Avis: $e");
+        print("🚨 [STACKTRACE AVIS]: $stackTrace");
+        getVendorItemsReviews = null;
+      }
 
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var response3 = await httpGet(Config.getUseritems, {"userid": userid});
-
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // MOCK: Static user items data
-      var response3 = {
-        "status": 200,
-        "message": "User items retrieved successfully",
-        "error": "",
-        "data": {
-          "items": [
-            {
-              "id": 101,
-              "name": "Toyota Camry 2023",
-              "item_rating": "4.5",
-              "mobile": "+1234567890",
-              "status": "1",
-              "person_allowed": "5",
-              "price": "50.00",
-              "address": "123 Main Street, Los Angeles",
-              "state_region": "California",
-              "zip_postal_code": "90001",
-              "city": "Los Angeles",
-              "latitude": "34.0522",
-              "longitude": "-118.2437",
-              "item_type_id": "1",
-              "image": "https://example.com/camry-front.jpg",
-              "item_info":
-                  "{\"host_id\":\"$userid\",\"service_type\":\"booking\",\"make_type\":\"Toyota\",\"model\":\"Camry\",\"year\":\"2023\",\"transmission\":\"Automatic\",\"seat_capicity\":\"5\",\"host_first_name\":\"John\",\"review_data\":[],\"features_data\":[],\"gallery_image_urls\":[]}",
-              "is_in_wishlist": false,
-              "item_type": "Sedan",
-              "distance": "0"
-            }
-          ],
-          "offset": 0
+      // 3. Appel API Véhicules
+      try {
+        var responseItems = await httpGet(Config.getUseritems, {"userid": userid});
+        if (responseItems != null) {
+          print("✅ [VÉHICULES] Données brutes reçues: $responseItems");
+          if (responseItems['status'] == 200) {
+            getUserItems = ItemModel.fromJson(responseItems);
+            print("✅ [VÉHICULES] Véhicules parsés avec succès");
+          } else {
+            print("❌ [VÉHICULES] Status != 200: ${responseItems['status']}");
+            getUserItems = null;
+          }
+        } else {
+          print("❌ [VÉHICULES] La réponse de l'API est nulle");
+          getUserItems = null;
         }
-      };
-      // ========== END MOCK DATA ==========
-      getUserItems = ItemModel.fromJson(response3);
-    } catch (e) {
-      //
+      } catch (e, stackTrace) {
+        print("🚨 [CRASH VÉHICULES] Erreur lors de l'appel API Véhicules: $e");
+        print("🚨 [STACKTRACE VÉHICULES]: $stackTrace");
+        getUserItems = null;
+      }
+      
+      print("✅ [PROFIL] Chargement terminé - Profil: ${getUserProfile != null}, Avis: ${getVendorItemsReviews != null}, Véhicules: ${getUserItems != null}");
+    } catch (e, stackTrace) {
+      print("🚨 [CRASH PROFIL] Erreur critique dans getDataPublicProfile: $e");
+      print("🚨 [STACKTRACE]: $stackTrace");
+      // En cas d'erreur globale, on laisse les modèles à null
+      getUserProfile = null;
+      getVendorItemsReviews = null;
+      getUserItems = null;
     } finally {
+      // Quoi qu'il arrive, on arrête le chargement pour débloquer l'UI
       isLoading.value = false;
       update();
+      print("🔄 [PROFIL] isLoading mis à false, UI débloquée");
     }
   }
 
@@ -140,52 +106,33 @@ class PublicProfileController extends GetxController implements GetxService {
   num offset = 0;
   var isLoadingReviewScreen = false.obs;
   Future getDataPublicProfileReview(userid) async {
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // httpGet(Config.getVendorItemReviews,
-    //     {"userid": userid, "offset": "$offset"}).then((response) {
+    try {
+      isLoadingReviewScreen.value = true;
 
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
+      final response = await httpGet(Config.getVendorItemReviews,
+          {"userid": userid, "offset": "$offset"});
 
-    // MOCK: Static vendor item reviews data with pagination
-    var response = {
-      "status": 200,
-      "message": "Vendor item reviews retrieved successfully",
-      "error": "",
-      "data": {
-        "reviews": [
-          {
-            "item_id": "101",
-            "item_name": "Toyota Camry 2023",
-            "guest_response": {
-              "guest_name": "Alice Johnson",
-              "guest_rating": "5",
-              "guest_message": "Excellent vehicle! Very clean and comfortable.",
-              "guest_profile": "https://example.com/guest1.jpg",
-              "guest_id": "10"
-            },
-            "host_response": {
-              "host_name": "John Doe",
-              "host_rating": "5",
-              "host_message": "Great guest! Highly recommend.",
-              "host_profile": "https://example.com/host.jpg",
-              "host_id": userid
-            },
-            "created_at": "2025-01-10T10:00:00.000Z"
-          }
-        ],
-        "offset": offset + 1
+      if (response != null && response['status'] == 200) {
+        getVendorItemsReviewsScreen =
+            GetVendorItemsReviews.fromJson(response);
+
+        final reviews = getVendorItemsReviewsScreen?.data?.reviews;
+        if (reviews != null && reviews.isNotEmpty) {
+          list.addAll(reviews);
+        }
+        final newOffset = getVendorItemsReviewsScreen?.data?.offset;
+        if (newOffset != null) {
+          offset = newOffset;
+        }
       }
-    };
-    // ========== END MOCK DATA ==========
-    if (response != null) {
-      getVendorItemsReviewsScreen = GetVendorItemsReviews.fromJson(response);
-      list.addAll(getVendorItemsReviewsScreen!.data!.reviews!);
-      offset = getVendorItemsReviewsScreen!.data!.offset!;
+    } catch (e) {
+      // On ignore l'erreur pour ne pas bloquer le pull-to-refresh.
+    } finally {
+      refreshController.loadComplete();
+      refreshController.refreshCompleted();
+      isLoadingReviewScreen.value = false;
+      update();
     }
-    refreshController.loadComplete();
-    refreshController.refreshCompleted();
-    update();
   }
 
   @override

@@ -96,7 +96,7 @@ class Data {
 
 class Items {
   Items({
-    num? id,
+    String? id,
     String? title,
     String? description,
     // String? bedrooms,
@@ -175,36 +175,39 @@ class Items {
   }
 
   Items.fromJson(dynamic json) {
-    _id = json['id'];
-    _title = json['title'];
-    _description = json['description'];
-    // _bedrooms = json['bedrooms'];
-    // _beds = json['beds'];
-    // _bathroom = json['bathroom'];
-    // _itemSqft = json['item_sqft'];
-    _itemRating = json['item_rating'];
-    _mobile = json['mobile'];
-    _status = json['status'];
-    _personAllowed = json['person_allowed'];
-    _price = json['price'];
-    _address = json['address'];
-    _stateRegion = json['state_region'];
-    _zipPostalCode = json['zip_postal_code'];
-    _city = json['city_name'];
-    _country = json['country'];
-    _latitude = json['latitude'];
-    _longitude = json['longitude'];
-    _weeklyDiscount = json['weekly_discount'];
-    _weeklyDiscountType = json['weekly_discount_type'];
-    _monthlyDiscount = json['monthly_discount'];
-    _monthlyDiscountType = json['monthly_discount_type'];
-    _itemTypeId = json['item_type_id'];
-    _amenitiesId = json['features_id'];
-    _placeId = json['place_id'];
-    _itemInfo = json['item_info'];
+    // FIX DU PARSING : Rendre tous les champs optionnels pour éviter les crashes si un champ est null
+    // Gérer à la fois 'id' et '_id' (MongoDB utilise '_id' par défaut)
+    // Priorité: _id (MongoDB) > id (standard) > chaîne vide
+    _id = json['_id']?.toString() ?? json['id']?.toString() ?? "";
+    _title = json['title']?.toString();
+    _description = json['description']?.toString();
+    // _bedrooms = json['bedrooms']?.toString();
+    // _beds = json['beds']?.toString();
+    // _bathroom = json['bathroom']?.toString();
+    // _itemSqft = json['item_sqft']?.toString();
+    _itemRating = json['item_rating']?.toString();
+    _mobile = json['mobile']?.toString();
+    _status = json['status']?.toString();
+    _personAllowed = json['person_allowed']?.toString();
+    _price = json['price']?.toString();
+    _address = json['address']?.toString();
+    _stateRegion = json['state_region']?.toString();
+    _zipPostalCode = json['zip_postal_code']?.toString();
+    _city = json['city_name']?.toString();
+    _country = json['country']?.toString();
+    _latitude = json['latitude']?.toString();
+    _longitude = json['longitude']?.toString();
+    _weeklyDiscount = json['weekly_discount']?.toString();
+    _weeklyDiscountType = json['weekly_discount_type']?.toString();
+    _monthlyDiscount = json['monthly_discount']?.toString();
+    _monthlyDiscountType = json['monthly_discount_type']?.toString();
+    _itemTypeId = json['item_type_id']?.toString();
+    _amenitiesId = json['features_id']?.toString();
+    _placeId = json['place_id']?.toString();
+    _itemInfo = json['item_info']?.toString();
 
-    _bookingPoliciesId = json['booking_policies_id'];
-    _itemType = json['item_type'];
+    _bookingPoliciesId = json['booking_policies_id'] is num ? json['booking_policies_id'] : null;
+    _itemType = json['item_type']?.toString();
     _frontImage = json['front_image'] != null
         ? FrontImage.fromJson(json['front_image'])
         : null;
@@ -212,25 +215,37 @@ class Items {
         ? FrontImageDoc.fromJson(json['front_image_doc'])
         : null;
 
-    if (json['gallery'] != null) {
+    if (json['gallery'] != null && json['gallery'] is List) {
       _gallery = [];
       json['gallery'].forEach((v) {
-        _gallery?.add(Gallery.fromJson(v));
+        try {
+          _gallery?.add(Gallery.fromJson(v));
+        } catch (e) {
+          // Ignorer les éléments de galerie invalides
+        }
       });
+    } else {
+      _gallery = null;
     }
-    _availableDates = json['available_dates'];
+    _availableDates = json['available_dates']?.toString();
 
     _notAvailableDates = json['not_available_dates'];
 
-    if (json['booked_dates'] != null) {
+    if (json['booked_dates'] != null && json['booked_dates'] is List) {
       _bookedDates = [];
       json['booked_dates'].forEach((v) {
-        _bookedDates?.add(BookedDates.fromJson(v));
+        try {
+          _bookedDates?.add(BookedDates.fromJson(v));
+        } catch (e) {
+          // Ignorer les dates réservées invalides
+        }
       });
+    } else {
+      _bookedDates = null;
     }
     _metaData = json['metaData'] is String ? json['metaData'] : null;
   }
-  num? _id;
+  String? _id;
   String? _title;
   String? _description;
   // String? _bedrooms;
@@ -267,7 +282,7 @@ class Items {
   List<BookedDates>? _bookedDates;
   String? _metaData;
 
-  num? get id => _id;
+  String? get id => _id;
   String? get title => _title;
   String? get description => _description;
   // String? get bedrooms => _bedrooms;
@@ -370,7 +385,7 @@ class Items {
 
 class Gallery {
   Gallery({
-    num? id,
+    String? id,
     String? modelType,
     // num? modelId,
     dynamic modelId,
@@ -413,7 +428,8 @@ class Gallery {
   }
 
   Gallery.fromJson(dynamic json) {
-    _id = json['id'];
+    // Gérer à la fois 'id' et '_id' (MongoDB utilise '_id' par défaut)
+    _id = json['id']?.toString() ?? json['_id']?.toString();
     _modelType = json['model_type'];
     _modelId = json['model_id'];
     _uuid = json['uuid'];
@@ -433,7 +449,7 @@ class Gallery {
     _originalUrl = json['original_url'];
     _previewUrl = json['preview_url'];
   }
-  num? _id;
+  String? _id;
   String? _modelType;
   dynamic _modelId;
   String? _uuid;
@@ -456,7 +472,7 @@ class Gallery {
   String? _originalUrl;
   String? _previewUrl;
 
-  num? get id => _id;
+  String? get id => _id;
   String? get modelType => _modelType;
   dynamic get modelId => _modelId;
   String? get uuid => _uuid;
@@ -519,7 +535,7 @@ class Gallery {
 
 class FrontImage {
   FrontImage({
-    num? id,
+    String? id,
     dynamic modelType,
     // num? modelId,
     dynamic modelId,
@@ -571,7 +587,8 @@ class FrontImage {
   }
 
   FrontImage.fromJson(dynamic json) {
-    _id = json['id'];
+    // Gérer à la fois 'id' et '_id' (MongoDB utilise '_id' par défaut)
+    _id = json['id']?.toString() ?? json['_id']?.toString();
     _modelType = json['model_type'].toString();
     _modelId = json['model_id'].toString();
     _uuid = json['uuid'];
@@ -591,7 +608,7 @@ class FrontImage {
     _originalUrl = json['original_url'];
     _previewUrl = json['preview_url'];
   }
-  num? _id;
+  String? _id;
   dynamic _modelType;
   // num? _modelId;
   dynamic _modelId;
@@ -618,7 +635,7 @@ class FrontImage {
   String? _originalUrl;
   String? _previewUrl;
 
-  num? get id => _id;
+  String? get id => _id;
   dynamic get modelType => _modelType;
 
   dynamic get modelId => _modelId;
@@ -680,7 +697,7 @@ class FrontImage {
 
 class FrontImageDoc {
   FrontImageDoc({
-    num? id,
+    String? id,
     dynamic modelType,
     // num? modelId,
     dynamic modelId,
@@ -732,7 +749,8 @@ class FrontImageDoc {
   }
 
   FrontImageDoc.fromJson(dynamic json) {
-    _id = json['id'];
+    // Gérer à la fois 'id' et '_id' (MongoDB utilise '_id' par défaut)
+    _id = json['id']?.toString() ?? json['_id']?.toString();
     _modelType = json['model_type'].toString();
     _modelId = json['model_id'].toString();
     _uuid = json['uuid'];
@@ -752,7 +770,7 @@ class FrontImageDoc {
     _originalUrl = json['original_url'];
     _previewUrl = json['preview_url'];
   }
-  num? _id;
+  String? _id;
   dynamic _modelType;
   // num? _modelId;
   dynamic _modelId;
@@ -779,7 +797,7 @@ class FrontImageDoc {
   String? _originalUrl;
   String? _previewUrl;
 
-  num? get id => _id;
+  String? get id => _id;
   dynamic get modelType => _modelType;
 
   dynamic get modelId => _modelId;

@@ -200,8 +200,8 @@ class ItemTypes {
   }
 
   ItemTypes.fromJson(dynamic json) {
-    // Support both "id" and MongoDB-style "_id" as Strings
-    _id = json['id']?.toString() ?? json['_id']?.toString();
+    // Gérer MongoDB _id en priorité, puis id standard
+    _id = json['_id']?.toString() ?? json['id']?.toString();
     _name = json['name'];
     _description = json['description'];
     _status = json['status'];
@@ -229,4 +229,14 @@ class ItemTypes {
     map['image'] = _image;
     return map;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ItemTypes &&
+          runtimeType == other.runtimeType &&
+          _id == other._id;
+
+  @override
+  int get hashCode => _id?.hashCode ?? 0;
 }

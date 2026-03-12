@@ -109,15 +109,6 @@ class Reasons {
     // Convert to String and log for debugging
     _orderCancellationId = idValue?.toString();
     
-    print('🔍 [CANCEL_DEBUG] Parsing cancellation reason:');
-    print('🔍 [CANCEL_DEBUG]   Raw _id: ${json['_id']}');
-    print('🔍 [CANCEL_DEBUG]   Raw id: ${json['id']}');
-    print('🔍 [CANCEL_DEBUG]   Raw sId: ${json['sId']}');
-    print('🔍 [CANCEL_DEBUG]   Raw order_cancellation_id: ${json['order_cancellation_id']}');
-    print('🔍 [CANCEL_DEBUG]   Final selected ID: $_orderCancellationId');
-    print('🔍 [CANCEL_DEBUG]   ID length: ${_orderCancellationId?.length ?? 0}');
-    print('🔍 [CANCEL_DEBUG]   Reason text: ${json['reason']}');
-    
     _reason = json['reason'];
     _userType = json['user_type'];
     _status = json['status'];

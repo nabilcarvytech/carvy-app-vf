@@ -165,12 +165,50 @@ class ItemDetailsController extends GetxController implements GetxService {
                     print('✅ SUCCESS : Catégorie détectée (${rootType}) et injectée dans ItemInfo');
                     
                     // Passer ce itemData à ItemInfo.fromJson(itemData)
-                    itemInfo = ItemInfo.fromJson(itemData);
+                    final parsedItemInfo = ItemInfo.fromJson(itemData);
+                    
+                    // Sécurité : Extraire cancellation_reason du JSON et l'assigner à cancellationReasonTitle si nécessaire
+                    // Vérifier d'abord dans response['data']['ItemDetails'], puis dans itemData
+                    final itemDetailsJson = response['data']?['ItemDetails'];
+                    final cancellationReasonFromJson = itemDetailsJson?['cancellation_reason'] ?? 
+                                                       itemDetailsJson?['cancellation_reason_title'] ?? 
+                                                       itemData['cancellation_reason'] ?? 
+                                                       itemData['cancellation_reason_title'];
+                    
+                    // S'assurer que cancellationReason est bien assigné
+                    if (cancellationReasonFromJson != null) {
+                      parsedItemInfo.cancellationReasonTitle = cancellationReasonFromJson.toString();
+                      parsedItemInfo.cancellationReason = cancellationReasonFromJson;
+                      debugPrint('✅ [FIX] cancellationReasonTitle assigné depuis JSON: ${parsedItemInfo.cancellationReasonTitle}');
+                    } else if (parsedItemInfo.cancellationReasonTitle == null) {
+                      // Fallback si toujours null
+                      parsedItemInfo.cancellationReasonTitle = 'Politique standard';
+                      debugPrint('⚠️ [FIX] cancellationReasonTitle était null, valeur par défaut assignée');
+                    }
+                    
+                    // Récupérer cancellation_rules depuis ItemDetails et l'assigner à cancellationReasonDescription
+                    final cancellationRules = itemDetails.cancellationRules ?? [];
+                    if (cancellationRules.isNotEmpty) {
+                      parsedItemInfo.cancellationReasonDescription = cancellationRules.map((rule) => rule.toString()).toList();
+                      debugPrint('✅ [FIX] cancellationReasonDescription assigné depuis cancellation_rules: ${parsedItemInfo.cancellationReasonDescription?.length} règles');
+                    } else if (parsedItemInfo.cancellationReasonDescription == null || parsedItemInfo.cancellationReasonDescription!.isEmpty) {
+                      // Si cancellationReasonDescription est vide, créer une liste à partir du titre
+                      if (parsedItemInfo.cancellationReasonTitle != null && parsedItemInfo.cancellationReasonTitle.toString().isNotEmpty) {
+                        parsedItemInfo.cancellationReasonDescription = [parsedItemInfo.cancellationReasonTitle.toString()];
+                        debugPrint('✅ [FIX] cancellationReasonDescription créé depuis cancellationReasonTitle');
+                      }
+                    }
+                    
+                    // Mettre à jour itemInfo dans le controller (c'est cet objet qui sera transmis)
+                    itemInfo = parsedItemInfo;
                     
                     // Stocker dans itemInfoDetails pour compatibilité
                     itemInfoDetails = itemData;
                     
                     debugPrint("✅ getdataVehicle() - itemInfo decoded successfully");
+                    debugPrint("✅ [FIX] itemInfo.cancellationReasonTitle final: ${itemInfo?.cancellationReasonTitle}");
+                    debugPrint("✅ [FIX] itemInfo.cancellationReason final: ${itemInfo?.cancellationReason}");
+                    debugPrint("✅ [FIX] itemInfo object updated in controller");
                   } catch (e) {
                     debugPrint("❌ getdataVehicle() - Error decoding itemInfo JSON: $e");
                   }

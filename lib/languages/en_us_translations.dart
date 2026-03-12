@@ -591,6 +591,8 @@ const Map<String, String> enUs = {
   "Do you want to delete your property?": "Do you want to delete your listing?",
   "Become a User": "Become a User",
   "Become a Host": "Become a Host",
+  "Session client": "Client Session",
+  "Session vendeur": "Vendor Session",
   "Upload your place photos": "Upload your Vehicle Photos",
   "Front Image": "Front Image",
   "Change": "Change",
@@ -1049,5 +1051,14 @@ const Map<String, String> enUs = {
   "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
       "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.",
   "First driver license": "First driver license",
-  "Second driver license": "Second driver license"
+  "Second driver license": "Second driver license",
+  "Caution": "Deposit",
+  "Important": "Important",
+  "Gérée par Carvy": "Managed by Carvy",
+  "Gérée par l'agence": "Managed by the agency",
+  "J'ai lu et j'accepte ": "I have read and accept ",
+  "la politique d'annulation": "the cancellation policy",
+  "Note": "Note",
+  "Smoking Allowed": "Smoking Allowed",
+  "International Travel Allowed": "International Travel Allowed"
 };

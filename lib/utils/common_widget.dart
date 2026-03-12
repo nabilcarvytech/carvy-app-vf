@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
@@ -47,8 +48,10 @@ import '../view/booking/e_reciept.dart';
 import '../view/chat/conversation_screen.dart';
 import '../view/itemdetail/vehicle/vehicle_detail_screen.dart';
 import '../view/wishlist/wish_list_screen.dart';
+
 import '../work_space.dart';
 
+// --- GLOBAL FUNCTIONS ---
 Widget commonlyUserlogoAlert() {
   return Center(
     child: ClipOval(
@@ -71,11 +74,202 @@ Widget commonlyUserlogo() {
   );
 }
 
+class CommonWidgets {
+  // FONCTION STATIQUE POUR OUVRIR LA MODALE OTP
+  // FONCTION STATIQUE POUR OUVRIR LA MODALE OTP
+  static void showOtpBottomSheet(BuildContext context, String bookingId) {
+    print('📌 [UI] Tentative d\'affichage de la modale OTP maintenant');
+    final BookingController bookingController = Get.find<BookingController>();
+
+    showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: Container(
+            color: Colors.white,
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Enter OTP'.tr,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Please enter the 4-digit code to validate the vehicle reception.'.tr,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 30),
+                Pinput(
+                  length: 4,
+                  controller: bookingController.otpController,
+                  defaultPinTheme: PinTheme(
+                    width: 56,
+                    height: 56,
+                    textStyle: const TextStyle(
+                      fontSize: 22,
+                      color: Color.fromRGBO(30, 60, 87, 1),
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(19),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                  ),
+                  focusedPinTheme: PinTheme(
+                    width: 56,
+                    height: 56,
+                    textStyle: const TextStyle(
+                      fontSize: 22,
+                      color: Color.fromRGBO(30, 60, 87, 1),
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(19),
+                      border: Border.all(color: themeColor),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (bookingController.otpController.text.length == 4) {
+                        Navigator.pop(context); // Fermer la modale avant l'appel API
+                        bookingController.updateItemReceivedStatus(
+                          bookingId: bookingId,
+                          otp: bookingController.otpController.text,
+                        );
+                      } else {
+                        Get.snackbar(
+                          "Error",
+                          "Please enter a valid 4-digit OTP",
+                          snackPosition: SnackPosition.TOP,
+                          backgroundColor: Colors.red,
+                          colorText: Colors.white,
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeColor,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Valider'.tr,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static Widget commonlyUserlogoAlert() {
+    return Center(
+      child: ClipOval(
+          child: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(color: getColorBasedOnActiveModuleid()),
+        child: Image.asset('assets/images/small-app-logo.jpg', fit: BoxFit.fill),
+      )),
+    );
+  }
+
+  static Widget commonlyUserlogo() {
+    return ClipOval(
+      child: Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(color: getColorBasedOnActiveModuleid()),
+          child: Image.asset('assets/images/app-logo-car.jpg', fit: BoxFit.fill)),
+    );
+  }
+}
+
 Widget splashLogo() {
-  return Image.asset(
-    'assets/images/spl-logo.png',
-    width: 300,
-  );
+  try {
+    return Image.asset(
+      'assets/images/spl-logo.png',
+      width: 300,
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('⚠️ [SPLASH] Erreur lors du chargement de l\'image: $error');
+        // Retourner un widget de fallback si l'image ne peut pas être chargée
+        return Container(
+          width: 300,
+          height: 300,
+          decoration: BoxDecoration(
+            color: themeColor,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              'Carvy',
+              style: TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  } catch (e) {
+    debugPrint('⚠️ [SPLASH] Erreur dans splashLogo: $e');
+    // Retourner un widget de fallback en cas d'erreur
+    return Container(
+      width: 300,
+      height: 300,
+      decoration: BoxDecoration(
+        color: themeColor,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          'Carvy',
+          style: TextStyle(
+            fontSize: 48,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class LocationItem {
@@ -1000,6 +1194,7 @@ myBookingListWidget(
   String listType,
   onItemCancelled,
 ) {
+  BookingController bookingController = Get.find();
   innerMethod(context, index) async {
     if (btnText == "Cancel") {
       showLoading();
@@ -1252,7 +1447,6 @@ myBookingListWidget(
     }
   }
 
-  BookingController bookingController = Get.find();
   bookingController.clearBookingData();
   return ListView.builder(
       shrinkWrap: true,
@@ -1264,7 +1458,24 @@ myBookingListWidget(
         String address = itemData[0]['address'] ?? 'N/A'.tr;
         dynamic latitude = itemData[0]['latitude'] ?? 'N/A'.tr;
         dynamic longitude = itemData[0]['longitude'] ?? 'N/A'.tr;
-        dynamic image = itemData[0]['image'] ?? 'N/A'.tr;
+        
+        // Priorité 1: Utiliser propImg qui contient l'URL complète depuis le backend
+        // Priorité 2: Utiliser itemData[0]['image'] avec fallback intelligent
+        String? image;
+        if (list[index].propImg != null && list[index].propImg!.isNotEmpty && list[index].propImg != 'N/A') {
+          image = list[index].propImg;
+          // ========== LOG CRITIQUE POUR DÉBOGUER L'URL DANS LE WIDGET ==========
+          print('🖼️ [DEBUG IMAGE] [WIDGET] Image depuis propImg: $image');
+        } else {
+          dynamic itemDataImage = itemData[0]['image'];
+          if (itemDataImage != null && itemDataImage.toString().isNotEmpty && itemDataImage.toString() != 'N/A') {
+            image = itemDataImage.toString();
+            // ========== LOG CRITIQUE POUR DÉBOGUER L'URL DANS LE WIDGET ==========
+            print('🖼️ [DEBUG IMAGE] [WIDGET] Image depuis itemData: $image');
+          } else {
+            print('🖼️ [DEBUG IMAGE] [WIDGET] Aucune image trouvée (propImg et itemData sont null/vides)');
+          }
+        }
         String? totalNights =
             "${list[index].currencyCode} ${list[index].total} for ${list[index].totalNight} day";
         Map<String, dynamic> itemInfoMap = jsonDecode(itemData[0]['item_info']);
@@ -1374,144 +1585,147 @@ myBookingListWidget(
           }
         });
 
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (!otpSheetOpened &&
-              openOtpAfterImageSubmit == true &&
-              listType == "UpComing") {
-            otpSheetOpened = true;
-            showModalBottomSheet<String>(
-              context: context,
-              isScrollControlled: true,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              builder: (context) {
-                return Padding(
-                  padding: EdgeInsets.only(
-                    left: 20,
-                    right: 20,
-                    top: 20,
-                    bottom: MediaQuery.of(context).viewInsets.bottom,
-                  ),
-                  child: StatefulBuilder(
-                    builder: (context, setBottomSheetState) {
-                      return SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Enter OTP'.tr,
-                              style: TextStyle(
-                                fontSize: 18,
+        void showOtpBottomSheet(BuildContext context, int index) {
+          print('📌 [UI] Tentative d\'affichage de la modale OTP maintenant');
+          showModalBottomSheet<String>(
+            context: context,
+            isScrollControlled: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (context) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: StatefulBuilder(
+                  builder: (context, setBottomSheetState) {
+                    return SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Enter OTP'.tr,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            "Enter the pickup OTP given by the vendor".tr,
+                            style: regular02.copyWith(
+                              color: getColorBasedOnActiveModuleid(),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Pinput(
+                            length: 4,
+                            controller: bookingController.otpController,
+                            keyboardType: TextInputType.number,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            defaultPinTheme: PinTheme(
+                              width: 50,
+                              height: 50,
+                              textStyle: const TextStyle(
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "Enter the pickup OTP given by the vendor".tr,
-                              style: regular02.copyWith(
-                                color: getColorBasedOnActiveModuleid(),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: getColorBasedOnActiveModuleid()),
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            Pinput(
-                              length: 4,
-                              controller: bookingController.otpController,
-                              keyboardType: TextInputType.number,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              defaultPinTheme: PinTheme(
-                                width: 50,
-                                height: 50,
-                                textStyle: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                      color: getColorBasedOnActiveModuleid()),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            CustomsButtons(
-                              text: "Submit".tr,
-                              backgroundColor: getColorBasedOnActiveModuleid(),
-                              onPressed: () async {
-                                if (bookingController
-                                    .otpController.text.isEmpty) {
-                                  showErrorToastMessage(
-                                      "Please fill the OTP".tr);
-                                  return;
-                                }
-                                try {
-                                  final value = await bookingController
-                                      .updateItemReceivedStatus(
-                                    bookingId: list[index].id.toString(),
-                                  );
-                                  print("OTP Verified: $value");
-                                  if (value == "yes") {
-                                    list[index].isItemReceivedSetter = "1";
-                                    generalController.myBookingTabIndex.value =
-                                        1;
+                          ),
+                          const SizedBox(height: 20),
+                          CustomsButtons(
+                            text: "Submit".tr,
+                            backgroundColor: getColorBasedOnActiveModuleid(),
+                            onPressed: () async {
+                              if (bookingController
+                                  .otpController.text.isEmpty) {
+                                showErrorToastMessage(
+                                    "Please fill the OTP".tr);
+                                return;
+                              }
+                              try {
+                                final value = await bookingController
+                                    .updateItemReceivedStatus(
+                                  bookingId: list[index].id.toString(),
+                                );
+                                print("OTP Verified: $value");
+                                if (value == "yes") {
+                                  list[index].isItemReceivedSetter = "1";
+                                  generalController.myBookingTabIndex.value =
+                                      1;
 
-                                    openOtpAfterImageSubmit = false;
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const HomeMain(initialIndex: 2),
-                                      ),
-                                    );
-                                  } else {
-                                    setBottomSheetState(() {});
-                                  }
-                                } catch (error) {
-                                  print("Error in OTP verification: $error");
-                                  showErrorToastMessage(
-                                      "OTP verification failed.");
+                                  bookingController.openOtpAfterImageSubmit.value = false;
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const HomeMain(initialIndex: 2),
+                                    ),
+                                  );
+                                } else {
+                                  setBottomSheetState(() {});
                                 }
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            );
+                              } catch (error) {
+                                print("Error in OTP verification: $error");
+                                showErrorToastMessage(
+                                    "OTP verification failed.");
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        }
+
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (bookingController.openOtpAfterImageSubmit.value) {
+            Future.delayed(Duration(milliseconds: 500), () {
+              showOtpBottomSheet(context, index);
+              bookingController.openOtpAfterImageSubmit.value = false;
+            });
           }
         });
         return Padding(
           padding:
               const EdgeInsets.only(left: 13, right: 13, bottom: 10, top: 10),
           child: GestureDetector(
+            // behavior: deferToChild permet aux widgets enfants (comme le bouton chat) 
+            // d'avoir la priorité sur les clics
+            behavior: HitTestBehavior.deferToChild,
             onTap: () {
-              if (webPlateForm) {
-                Get.toNamed(WebRoutes.customerEreciept, arguments: {
-                  "bookings": list[index],
-                  "fromPropBooking": fromPropBooking,
-                })?.then((value) {
-                  list[index].statusSetter = value;
-                  setState(() {});
-                });
-              } else {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (builder) => EReceiptScreen(
-                              bookings: list[index],
-                              fromPropBooking: fromPropBooking,
-                              doorStepPrice: doorStepPrice ?? "",
-                            ))).then((value) {
-                  if (value != null) {
-                    list[index].statusSetter = value;
-                    setState(() {});
-                  }
-                });
-              }
+              // Navigation vers les détails du véhicule avec toutes les données
+              // (même navigation que celle qui fonctionnait sur l'image)
+              showPopUpScreen(
+                  context,
+                  VehicleDetailSScreen(
+                    id: list.elementAt(index).itemid,
+                    itemInfo: itemInfoData!,
+                    rating: list[index].rating,
+                    title: list[index].propTitle,
+                    address: address,
+                    latitute: latitude,
+                    longtitute: longitude,
+                    frontImage: image,
+                    itemType: proType,
+                    isWishList: false,
+                    chatafterBooking: true,
+                    price: list[index].perNight,
+                  ));
             },
             child: Container(
               decoration: BoxDecoration(
@@ -1532,26 +1746,8 @@ myBookingListWidget(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      showPopUpScreen(
-                          context,
-                          VehicleDetailSScreen(
-                            id: list.elementAt(index).itemid,
-                            itemInfo: itemInfoData!,
-                            rating: list[index].rating,
-                            title: list[index].propTitle,
-                            address: address,
-                            latitute: latitude,
-                            longtitute: longitude,
-                            frontImage: image,
-                            itemType: proType,
-                            isWishList: false,
-                            chatafterBooking: true,
-                            price: list[index].perNight,
-                          ));
-                    },
-                    child: Stack(
+                  // Suppression du GestureDetector de l'image - le conteneur principal gère maintenant le clic
+                  Stack(
                       children: [
                         Column(
                           children: [
@@ -1619,7 +1815,6 @@ myBookingListWidget(
                               ),
                       ],
                     ),
-                  ),
                   const SizedBox(
                     height: 5,
                   ),
@@ -2707,7 +2902,7 @@ myBookingListWidget(
                                                                             print("OTP Verified: $value");
                                                                             if (value ==
                                                                                 "yes") {
-                                                                              openOtpAfterImageSubmit = false;
+                                                                              bookingController.openOtpAfterImageSubmit.value = false;
                                                                               list[index].isItemReceivedSetter = "1";
                                                                               generalController.myBookingTabIndex.value = 1;
                                                                               print("alok");
@@ -2961,6 +3156,35 @@ myBookingListWidget(
                                                   : const SizedBox()
                                           : const SizedBox(),
                             ),
+                            listType == 'UpComing' && list[index].status.toString().toUpperCase() == 'CONFIRMED'
+                                ? Expanded(
+                                    flex: 1,
+                                    child: InkWell(
+                                      onTap: () {
+                                        print('🚀 [DEBUG] Accès forcé aux photos pour le booking: ${list[index].id}');
+                                        
+                                        // On ignore toutes les conditions et on navigue direct
+                                        Get.to(() => VehiclePhotoesBooking(
+                                          id: list[index].id.toString(),
+                                        ));
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(right: 10),
+                                        child: Container(
+                                          height: 49,
+                                          alignment: Alignment.center,
+                                          padding: const EdgeInsets.only(left: 10, right: 10, top: 0, bottom: 0),
+                                          decoration: BoxDecoration(
+                                            border: Border.all(color: Colors.red),
+                                            borderRadius: BorderRadius.circular(13),
+                                            color: Colors.red,
+                                          ),
+                                          child: Text("CONFIRMER RÉCEPTION", style: boldstyle(context).copyWith(color: Colors.white, fontSize: 14)),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : const SizedBox(),
                             Obx(
                               () => bookingController.dropoffshowHise.value ==
                                       true
@@ -3322,24 +3546,43 @@ Widget myNetworkImage(String? image, [bool? shoeIcononError]) {
 }
 
 Widget myNetworkImageWithShimmer(String? image) {
-  if (image != null && Uri.tryParse(image) != null) {
-    return Image.network(
-      image,
+  if (image != null && image.isNotEmpty && image != 'N/A') {
+    // Utiliser la fonction utilitaire publique pour construire l'URL complète
+    String finalUrl = Config.getFullImageUrl(image);
+    
+    // ========== LOG CRITIQUE POUR DÉBOGUER L'URL FINALE ==========
+    print('🖼️ [DEBUG IMAGE] URL finale utilisée: $finalUrl');
+    print('🖼️ [DEBUG IMAGE] URL originale: $image');
+
+    return CachedNetworkImage(
+      imageUrl: finalUrl,
       fit: BoxFit.cover,
-      loadingBuilder: (BuildContext context, Widget child,
-          ImageChunkEvent? loadingProgress) {
-        if (loadingProgress == null) {
-          return child;
-        } else {
-          return shimmerContainer();
-        }
-      },
-      errorBuilder: (context, exception, stackTrace) {
-        return getErrorImage();
+      placeholder: (context, url) => shimmerContainer(),
+      errorWidget: (context, url, error) {
+        // ========== ERROR BUILDER DÉTAILLÉ POUR DIAGNOSTIQUER LES ERREURS ==========
+        print('🔴 [IMAGE ERROR] URL qui a échoué: $url');
+        print('🔴 [IMAGE ERROR] Type d\'erreur: ${error.runtimeType}');
+        print('🔴 [IMAGE ERROR] Message d\'erreur: $error');
+        print('🔴 [IMAGE ERROR] StackTrace: ${StackTrace.current}');
+        
+        return Center(
+          child: Icon(
+            Icons.directions_car,
+            color: Colors.grey,
+            size: 40,
+          ),
+        );
       },
     );
   } else {
-    return getErrorImage();
+    print('🖼️ [DEBUG IMAGE] Image est null, vide ou N/A');
+    return Center(
+      child: Icon(
+        Icons.directions_car,
+        color: Colors.grey,
+        size: 40,
+      ),
+    );
   }
 }
 
@@ -4055,6 +4298,20 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
     constraints: const BoxConstraints.expand(width: double.infinity),
     context: context,
     builder: (BuildContext context) {
+      // Normaliser la liste : si elle est vide, créer une liste à partir du titre
+      List<String> rulesList = [];
+      if (list != null && list is List && list.isNotEmpty) {
+        rulesList = list.map<String>((item) {
+          if (item is String) {
+            return item;
+          }
+          return item.toString();
+        }).toList();
+      } else if (title != null && title.isNotEmpty) {
+        // Fallback : utiliser le titre comme premier point si la liste est vide
+        rulesList = [title];
+      }
+      
       return Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: Dimensions.paddingSizeDefault,
@@ -4082,29 +4339,63 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
               ],
             ),
             const SizedBox(height: 25),
-            Text(title!.tr,
-                style: boldstyle(context).copyWith(
-                    color: notifires.getGrey2Whitecolor, fontSize: 24)),
-            const SizedBox(
-              height: 15,
+            // Titre "Politique d'annulation" en gras (style Title)
+            Text(
+              "Politique d'annulation".tr,
+              style: boldstyle(context).copyWith(
+                color: notifires.getGrey2Whitecolor,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
+            const SizedBox(height: 20),
+            // Liste des règles avec icônes
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
-                  children: [
-                    for (var x in list)
-                      Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 10),
-                            child: featuresbox(
-                                txt: _getCancellationPolicyTranslation('$x'),
-                                image: "$x"),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: rulesList.isEmpty
+                      ? [
+                          // Si aucune règle n'est disponible
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: Colors.grey,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  "Aucune politique spécifique définie.".tr,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 10),
-                        ],
-                      ),
-                  ],
+                        ]
+                      : rulesList.map((rule) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.done_all,
+                                  color: Colors.blue,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _getCancellationPolicyTranslation(rule),
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                 ),
               ),
             ),

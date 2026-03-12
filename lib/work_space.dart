@@ -195,22 +195,56 @@ getUserDataLocallyToHandleTheState() async {
                 loginModel!.data!.profileImage!['url'];
           }
           if (loginModel!.data!.token == null) {
-            showErrorToastMessage("Token now found! login again".tr);
+            // Sécurisation : Vérifier que le contexte est disponible avant d'afficher le toast
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (Get.context != null) {
+                showErrorToastMessage("Token now found! login again".tr);
+              }
+            });
           } else if (loginModel!.data!.phone == null) {
-            showErrorToastMessage("Complete Your Profile".tr);
-            Get.to(() => const GoogleUpdate());
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (Get.context != null) {
+                showErrorToastMessage("Complete Your Profile".tr);
+                try {
+                  Get.to(() => const GoogleUpdate());
+                } catch (e) {
+                  debugPrint('⚠️ [WORK_SPACE] Erreur lors de la navigation: $e');
+                }
+              }
+            });
           }
         } else {
-          showErrorToastMessage("Token now found! login again".tr);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (Get.context != null) {
+              showErrorToastMessage("Token now found! login again".tr);
+            }
+          });
         }
       } catch (e) {
-        showErrorToastMessage("Token now found! login again".tr);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (Get.context != null) {
+            showErrorToastMessage("Token now found! login again".tr);
+          }
+        });
       }
     } else {
-      showErrorToastMessage("Token now found! login again".tr);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (Get.context != null) {
+          showErrorToastMessage("Token now found! login again".tr);
+        }
+      });
     }
   }
-  getFCMToken();
+  // Sécurisation : Appeler getFCMToken de manière asynchrone sans bloquer
+  // Utiliser un délai pour éviter les appels trop tôt au démarrage
+  Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      getFCMToken();
+    } catch (e) {
+      debugPrint('⚠️ [WORK_SPACE] Erreur lors de l\'appel getFCMToken: $e');
+      // Ne pas bloquer l'application si getFCMToken échoue
+    }
+  });
 }
 
 AddBankAccount addbankAccountController = Get.find();

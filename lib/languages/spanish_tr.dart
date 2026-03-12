@@ -1244,5 +1244,14 @@ const Map<String, String> esES = {
   "80% deduction will apply if canceled within 12 hours of the rental start time.":
       "Se aplicará una deducción del 80% si se cancela dentro de las 12 horas anteriores al inicio del alquiler.",
   "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
-      "Se aplicará una deducción del 50% si se cancela entre 12 y 24 horas antes del inicio del alquiler."
+      "Se aplicará una deducción del 50% si se cancela entre 12 y 24 horas antes del inicio del alquiler.",
+  "Caution": "Depósito",
+  "Important": "Importante",
+  "Gérée par Carvy": "Gestionado por Carvy",
+  "Gérée par l'agence": "Gestionado por la agencia",
+  "J'ai lu et j'accepte ": "He leído y acepto ",
+  "la politique d'annulation": "la política de cancelación",
+  "Note": "Nota",
+  "Smoking Allowed": "Fumar permitido",
+  "International Travel Allowed": "Viaje internacional permitido"
 };

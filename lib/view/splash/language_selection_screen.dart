@@ -200,58 +200,103 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     return Scaffold(
       backgroundColor: whiteColor,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Contenu scrollable
-            Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Spacer(flex: 2),
                     // Titre
                     Text(
-                      "Select Your Language",
-                      style: heading1(context).copyWith(
-                        fontSize: 28,
+                'Select Your Language',
+                style: TextStyle(
+                  fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: notifires.getwhiteblackcolor,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 10),
+              const SizedBox(height: 8),
+              // Sous-titre
                     Text(
-                      "Choose your preferred language to continue",
-                      style: heading2Grey1(context),
+                'Choose your preferred language to continue',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 50),
-                    // Liste des langues avec ListTile
-                    Expanded(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: languages.length,
-                        physics: const BouncingScrollPhysics(),
-                        separatorBuilder: (context, index) => const SizedBox(height: 16),
-                        itemBuilder: (context, index) {
-                          final language = languages[index];
+              const SizedBox(height: 40),
+              
+              // Boutons de langue (4 langues affichées directement)
+              ...languages.map((language) {
                           final isSelected = selectedLocale?.languageCode == language.locale.languageCode &&
                               selectedLocale?.countryCode == language.locale.countryCode;
                           
-                          return InkWell(
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildLanguageButton(
+                    flag: language.flag,
+                    name: language.name,
+                    locale: language.locale,
+                    isSelected: isSelected,
                             onTap: () {
                               setState(() {
                                 selectedLocale = language.locale;
                               });
                             },
+                  ),
+                );
+              }).toList(),
+              
+              // Spacer pour pousser le bouton en bas
+              const Spacer(),
+              
+              // Bouton Continue
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _continueToOnboarding,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: vehicalThemColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                  child: const Text(
+                    'Continue',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildLanguageButton({
+    required String flag,
+    required String name,
+    required Locale locale,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
                             borderRadius: BorderRadius.circular(12),
                             child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? vehicalThemColor.withOpacity(0.1)
-                                    : notifires.getbgcolor,
+              : Colors.grey.withOpacity(0.05),
                                 border: Border.all(
                                   color: isSelected
                                       ? vehicalThemColor
@@ -260,67 +305,33 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
+        child: Row(
+          children: [
+            // Drapeau
+            Text(
+              flag,
+              style: const TextStyle(fontSize: 24),
                                 ),
-                                leading: Text(
-                                  language.flag,
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                  ),
-                                ),
-                                title: Text(
-                                  language.name,
-                                  style: heading2(context).copyWith(
+            const SizedBox(width: 16),
+            // Nom de la langue
+            Expanded(
+              child: Text(
+                name,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                                     color: notifires.getwhiteblackcolor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                trailing: Radio<Locale>(
-                                  value: language.locale,
-                                  groupValue: selectedLocale,
-                                  activeColor: vehicalThemColor,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      selectedLocale = value;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const Spacer(),
-                  ],
                 ),
               ),
             ),
-            // Bouton Continue fixé en bas
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: whiteColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: CustomsButtons(
-                  text: "Continue",
-                  backgroundColor: vehicalThemColor,
-                  onPressed: _continueToOnboarding,
-                ),
-              ),
+            // Radio bouton
+            Radio<Locale>(
+              value: locale,
+              groupValue: selectedLocale,
+              activeColor: vehicalThemColor,
+              onChanged: (value) {
+                onTap();
+              },
             ),
           ],
         ),

@@ -49,6 +49,13 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
   List<String> avialblePrice = [];
   dynamic futurePrice;
   dynamic bookedPrice;
+  String defaultVehiclePrice = "0";
+  String vehicleBasePrice = "0"; // Prix de base du véhicule
+  String currency = "MAD";
+  // Map pour stocker les prix par date (clé: "yyyy-MM-dd", valeur: prix)
+  Map<String, String> datePrices = {};
+  // Map pour stocker les prix personnalisés depuis le backend (clé: "yyyy-MM-dd", valeur: prix)
+  Map<String, dynamic> finalCustomPricesMap = {};
 
   int toggle = 1;
 
@@ -64,110 +71,17 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
   MyItemsModel? myItemsModelHost;
   List<Items> list = [];
   num offset = 0;
-  num? lastItemId;
+  String? lastItemId;
   Items? lastItems;
+  Items? initialitems;
 
   itemDataApi() async {
     try {
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var response = await httpPost(Config.myItems, {"offset": "$offset"});
-      
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // MOCK: Static my-items data
-      Map<String, dynamic> mockMyItemsResponse = {
-        "status": 200,
-        "message": "My items retrieved successfully",
-        "error": "",
-        "data": {
-          "host_status": "1",
-          "checkLimit": 10,
-          "offset": offset + 2,
-          "limit": "10",
-          "items": [
-            {
-              "id": 101,
-              "title": "Toyota Camry 2023",
-              "description": "Clean and comfortable sedan perfect for city driving",
-              "item_rating": "4.5",
-              "mobile": "+1234567890",
-              "status": "1",
-              "person_allowed": "5",
-              "price": "50.00",
-              "address": "123 Main Street, Los Angeles",
-              "state_region": "California",
-              "zip_postal_code": "90001",
-              "city_name": "Los Angeles",
-              "country": "USA",
-              "latitude": "34.0522",
-              "longitude": "-118.2437",
-              "weekly_discount": "10",
-              "weekly_discount_type": "percent",
-              "monthly_discount": "15",
-              "monthly_discount_type": "percent",
-              "item_type_id": "1",
-              "features_id": "[1,2,3]",
-              "place_id": "ChIJE9on3F3HwoAR9AhGJW_fL-I",
-              "booking_policies_id": 1,
-              "item_type": "Sedan",
-              "front_image": {
-                "id": 1,
-                "model_type": "Item",
-                "model_id": "101",
-                "uuid": "abc123",
-                "collection_name": "front_image",
-                "name": "camry-front",
-                "file_name": "camry-front.jpg",
-                "mime_type": "image/jpeg",
-                "disk": "public",
-                "conversions_disk": "public",
-                "size": "500000",
-                "order_column": "1",
-                "created_at": "2024-01-01T00:00:00.000Z",
-                "updated_at": "2024-01-01T00:00:00.000Z",
-                "url": "https://example.com/host-camry-front.jpg",
-                "thumbnail": "https://example.com/host-camry-front-thumb.jpg",
-                "preview": "https://example.com/host-camry-front-preview.jpg",
-                "original_url": "https://example.com/host-camry-front-original.jpg",
-                "preview_url": "https://example.com/host-camry-front-preview.jpg"
-              },
-              "front_image_doc": null,
-              "gallery": [
-                {
-                  "id": 1,
-                  "model_type": "Item",
-                  "model_id": "101",
-                  "uuid": "gallery1",
-                  "collection_name": "gallery",
-                  "name": "camry-gallery-1",
-                  "file_name": "camry-gallery-1.jpg",
-                  "mime_type": "image/jpeg",
-                  "disk": "public",
-                  "conversions_disk": "public",
-                  "size": "400000",
-                  "order_column": "1",
-                  "created_at": "2024-01-01T00:00:00.000Z",
-                  "updated_at": "2024-01-01T00:00:00.000Z",
-                  "url": "https://example.com/host-camry-gallery-1.jpg",
-                  "thumbnail": "https://example.com/host-camry-gallery-1-thumb.jpg",
-                  "preview": "https://example.com/host-camry-gallery-1-preview.jpg",
-                  "original_url": "https://example.com/host-camry-gallery-1-original.jpg",
-                  "preview_url": "https://example.com/host-camry-gallery-1-preview.jpg"
-                }
-              ],
-              "available_dates": null,
-              "not_available_dates": null,
-              "booked_dates": null,
-              "item_info": "{\"host_id\":\"1\",\"service_type\":\"booking\",\"review_data\":[],\"features_data\":[],\"gallery_image_urls\":[]}",
-              "metaData": "{}"
-            }
-          ]
-        }
-      };
-      
-      var response = mockMyItemsResponse;
-      // ========== END MOCK DATA ==========
+      // ========== APPEL API RÉEL - Liste des véhicules ==========
+      print('📡 [CALENDAR_DIAG] Chargement de mes véhicules depuis le backend...');
+      var response = await httpPost(Config.myItems, {"offset": "$offset"});
+      print('📥 [CALENDAR_DIAG] Réponse brute myItems: ${jsonEncode(response)}');
+      // ========== END APPEL API RÉEL ==========
 
       if (response != null) {
         myItemsModelHost = MyItemsModel.fromJson(response);
@@ -178,110 +92,380 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
 
           if (list.isNotEmpty) {
             lastItems = list.last;
-            lastItemId = lastItems!.id!;
+            lastItemId = lastItems?.id ?? '';
 
-            // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-            // var response = await httpGet(
-            //   Config.getItemDates,
-            //   {"item_id": (initialitems?.id ?? lastItemId).toString()},
-            // );
-            
-            // MOCK: Simulate network delay
-            await Future.delayed(const Duration(seconds: 1));
-            
-            // MOCK: Static calendar dates data
-            Map<String, dynamic> mockGetItemDatesResponse = {
-              "status": 200,
-              "message": "Item dates retrieved successfully",
-              "error": "",
-              "data": {
-                "ItemDates": {
-                  "price": "50.00",
-                  "available_dates": [
-                    {"date": "2025-12-20", "price": "50.00"},
-                    {"date": "2025-12-21", "price": "50.00"},
-                    {"date": "2025-12-22", "price": "55.00"},
-                    {"date": "2025-12-23", "price": "55.00"},
-                    {"date": "2025-12-24", "price": "60.00"}
-                  ],
-                  "not_available_dates": [
-                    {"date": "2025-12-25"},
-                    {"date": "2025-12-26"},
-                    {"date": "2025-12-27"}
-                  ],
-                  "booked_dates": [
-                    {"date": "2025-12-28", "price": "60.00"},
-                    {"date": "2025-12-29", "price": "60.00"}
-                  ]
-                }
-              }
-            };
-            
-            var response = mockGetItemDatesResponse;
-            // ========== END MOCK DATA ==========
+            // ========== APPEL API RÉEL - Dates du calendrier ==========
+            // IMPORTANT: L'ID est passé dans l'URL (ex: /get-item-dates/123)
+            String itemId = (initialitems?.id ?? lastItemId).toString();
+            String endpointWithId = "${Config.getItemDates}/$itemId";
+            print('📡 [CALENDAR_DIAG] Chargement des dates du calendrier pour l\'ID: $itemId');
+            var response = await httpGet(endpointWithId, {});
+            print('📥 [CALENDAR_DIAG] Réponse brute getItemDates: ${jsonEncode(response)}');
+            // ========== END APPEL API RÉEL ==========
 
             if (response != null) {
-              calendarItemId = CalendarItemId.fromJson(response);
-              if (calendarItemId != null && calendarItemId!.data != null) {
-                itemDates = calendarItemId!.data!.itemDates;
-
-                if (itemDates != null) {
-                  if (itemDates!.notAvailableDates != null) {
-                    String jsonString =
-                        jsonEncode(itemDates!.notAvailableDates!);
-                    List jsonList = jsonDecode(jsonString);
-
-                    if (jsonList.isNotEmpty) {
-                      for (var x in jsonList) {
-                        notAvailableDates.add(PickerDateRange(
-                          DateTime.tryParse(x['date']),
-                          DateTime.tryParse(x['date']),
-                        ));
-                      }
-                    }
-                  }
-
-                  if (itemDates!.availableDates != null) {
-                    String jsonString = jsonEncode(itemDates!.availableDates!);
-                    List jsonList = jsonDecode(jsonString);
-
-                    if (jsonList.isNotEmpty) {
-                      for (var x in jsonList) {
-                        availableDates.add(PickerDateRange(
-                          DateTime.tryParse(x['date']),
-                          DateTime.tryParse(x['date']),
-                        ));
-                        avialblePrice.add(x['price']);
-                      }
-                    }
-                  }
-
-                  if (itemDates!.bookedDates != null) {
-                    String jsonString = jsonEncode(itemDates!.bookedDates!);
-                    List jsonList = jsonDecode(jsonString);
-
-                    if (jsonList.isNotEmpty) {
-                      for (var x in jsonList) {
-                        bookedDates.add(PickerDateRange(
-                          DateTime.tryParse(x['date']),
-                          DateTime.tryParse(x['date']),
-                        ));
-                        bookedPrice = x['price'];
-                      }
-                    }
-                  }
-
-                  if (itemDates!.availableDates != null) {
-                    String jsonString = jsonEncode(itemDates!.availableDates!);
-                    List jsonList = jsonDecode(jsonString);
-
-                    if (jsonList.isNotEmpty) {
-                      for (var x in jsonList) {
-                        futurePrice = x['price'];
-                      }
-                    }
+              // ========== FORCER LA LECTURE DU PRIX PERSONNALISÉ ==========
+              // On récupère le corps de la réponse (response est déjà un Map décodé)
+              // Si response est déjà un Map, on l'utilise directement
+              Map<String, dynamic> responseData;
+              if (response is Map<String, dynamic>) {
+                responseData = response;
+              } else {
+                // Si c'est une String, on la décode
+                responseData = json.decode(response.toString());
+              }
+              
+              // On descend dans data -> custom_prices
+              if (responseData['data'] != null && responseData['data']['custom_prices'] != null) {
+                final Map<String, dynamic> rawCustomPrices = responseData['data']['custom_prices'] as Map<String, dynamic>;
+                
+                // On vide et on remplit manuellement la Map de prix
+                finalCustomPricesMap.clear();
+                rawCustomPrices.forEach((key, value) {
+                  finalCustomPricesMap[key] = value.toString();
+                });
+                print('🚀 [FORCE_MAP] Mapping manuel réussi : ${finalCustomPricesMap.length} prix ajoutés');
+                print('🚀 [FORCE_MAP] Test 2026-03-11 : ${finalCustomPricesMap["2026-03-11"]}');
+                
+                // Afficher quelques exemples
+                if (finalCustomPricesMap.isNotEmpty) {
+                  var firstFew = finalCustomPricesMap.entries.take(5);
+                  print('🚀 [FORCE_MAP] Exemples de prix chargés:');
+                  for (var entry in firstFew) {
+                    print('   - ${entry.key}: ${entry.value}');
                   }
                 }
+                
+                // Force le rafraîchissement immédiat
+                setState(() {});
+                print('🔄 [FORCE_MAP] setState() appelé après mapping manuel');
+              } else {
+                print('❌ [FORCE_MAP] custom_prices introuvable dans responseData');
+                if (responseData['data'] == null) {
+                  print('❌ [FORCE_MAP] responseData[\'data\'] est null');
+                } else {
+                  print('❌ [FORCE_MAP] responseData[\'data\'][\'custom_prices\'] est null');
+                  print('❌ [FORCE_MAP] Clés dans data: ${responseData['data'].keys}');
+                }
+              }
+              
+              // ========== LOG DE LA RÉPONSE BRUTE ==========
+              print('📥 [CALENDAR_DIAG] Réponse brute complète: ${jsonEncode(response)}');
+              print('📥 [CALENDAR_DIAG] Structure de la réponse: ${response.runtimeType}');
+              
+              // ========== PARSING DIRECT DEPUIS response['data'] ==========
+              // Accéder directement à response['data']['available_dates'] sans passer par ItemDates
+              if (response['data'] != null) {
+                var data = response['data'];
+                
+                // ========== RÉCUPÉRATION DU PRIX PAR DÉFAUT ET DE LA DEVISE ==========
+                if (data['price'] != null) {
+                  defaultVehiclePrice = data['price'].toString();
+                  vehicleBasePrice = data['price'].toString(); // Stocker aussi dans vehicleBasePrice
+                  print('💰 [CALENDAR_DIAG] Prix par défaut récupéré: $defaultVehiclePrice');
+                } else {
+                  print('⚠️ [CALENDAR_DIAG] Prix par défaut non trouvé dans la réponse');
+                }
+                
+                if (data['currency'] != null) {
+                  currency = data['currency'].toString();
+                  print('💰 [CALENDAR_DIAG] Devise récupérée: $currency');
+                } else {
+                  // Utiliser MAD par défaut si la devise n'est pas fournie
+                  currency = "MAD";
+                  print('⚠️ [CALENDAR_DIAG] Devise non trouvée, utilisation de MAD par défaut');
+                }
+                
+                // ========== NETTOYAGE DES LISTES AVANT REMPLISSAGE ==========
+                notAvailableDates.clear();
+                availableDates.clear();
+                bookedDates.clear();
+                avialblePrice.clear();
+                datePrices.clear(); // Vider aussi la Map des prix
+                finalCustomPricesMap.clear(); // Vider aussi la Map des prix personnalisés
+                print('🧹 [CALENDAR_DIAG] Listes vidées avant remplissage');
+                
+                // ========== REMPLISSAGE DE finalCustomPricesMap DEPUIS response.data['custom_prices'] ==========
+                // Accéder à response['data']['custom_prices'] (équivalent à response.data['custom_prices'] en Dart)
+                if (response['data'] != null && response['data']['custom_prices'] != null) {
+                  finalCustomPricesMap.clear();
+                  
+                  // Récupérer custom_prices depuis response.data
+                  dynamic customPricesRaw = response['data']['custom_prices'];
+                  
+                  // Vérifier le type et convertir en Map
+                  if (customPricesRaw is Map) {
+                    customPricesRaw.forEach((key, value) {
+                      finalCustomPricesMap[key.toString()] = value.toString();
+                    });
+                    
+                    // IMPORTANT : Log de vérification
+                    print('✅ [FLUTTER_SYNC] Map mise à jour avec ${finalCustomPricesMap.length} prix');
+                    
+                    // Afficher quelques exemples pour debug
+                    if (finalCustomPricesMap.isNotEmpty) {
+                      var firstFew = finalCustomPricesMap.entries.take(3);
+                      print('💰 [FLUTTER_SYNC] Exemples de prix chargés:');
+                      for (var entry in firstFew) {
+                        print('   - ${entry.key}: ${entry.value}');
+                      }
+                    }
+                    
+                    // Force le rafraîchissement : Appeler setState dès que la Map est remplie
+                    setState(() {});
+                    print('🔄 [FLUTTER_SYNC] setState() appelé après remplissage de finalCustomPricesMap');
+                  } else {
+                    print('⚠️ [FLUTTER_SYNC] custom_prices n\'est pas une Map, type: ${customPricesRaw.runtimeType}');
+                  }
+                } else {
+                  print('❌ [FLUTTER_SYNC] custom_prices est introuvable dans response[\'data\']');
+                  if (response['data'] == null) {
+                    print('❌ [FLUTTER_SYNC] response[\'data\'] est null');
+                  } else {
+                    print('❌ [FLUTTER_SYNC] response[\'data\'][\'custom_prices\'] est null');
+                    print('❌ [FLUTTER_SYNC] Clés disponibles dans response[\'data\']: ${response['data'].keys}');
+                  }
+                }
+                
+                // ========== PARSING DES DATES DISPONIBLES ==========
+                if (data['available_dates'] != null && data['available_dates'] is List) {
+                  List availableDatesRaw = data['available_dates'];
+                  print('📊 [CALENDAR_DIAG] Nombre de dates disponibles reçues: ${availableDatesRaw.length}');
+                  
+                  for (var item in availableDatesRaw) {
+                    // item peut être un Map ou une String selon le format
+                    String? dateStr;
+                    dynamic price;
+                    
+                    if (item is Map) {
+                      dateStr = item['date']?.toString();
+                      price = item['price'];
+                    } else if (item is String) {
+                      dateStr = item;
+                      price = null;
+                    }
+                    
+                    print('📅 [CALENDAR_DIAG] Date brute reçue (available): $dateStr (type: ${dateStr.runtimeType}), prix: $price');
+                    
+                    if (dateStr != null && dateStr.isNotEmpty) {
+                      DateTime? parsedDate = DateTime.tryParse(dateStr);
+                      if (parsedDate == null) {
+                        print('⚠️ [CALENDAR_DIAG] Échec du parsing de la date: $dateStr');
+                        continue;
+                      }
+                      // Normaliser la date (sans heure)
+                      DateTime normalizedDate = DateTime(
+                        parsedDate.year,
+                        parsedDate.month,
+                        parsedDate.day,
+                      );
+                      availableDates.add(PickerDateRange(
+                        normalizedDate,
+                        normalizedDate,
+                      ));
+                      // Normaliser la date au format yyyy-MM-dd (format exact)
+                      String dateFormatted = DateFormat('yyyy-MM-dd').format(normalizedDate);
+                      
+                      // Extraire et stocker le prix personnalisé dans customPrices
+                      // Transformation propre du prix en String
+                      String priceToUse;
+                      if (price != null) {
+                        // Convertir le prix en String proprement (gérer double, int, String)
+                        String priceStr = price.toString().trim();
+                        // Nettoyer le prix (enlever les espaces, vérifier que ce n'est pas "0" ou vide)
+                        if (priceStr.isNotEmpty && priceStr != "0" && priceStr != "0.0" && priceStr != "0.00") {
+                          priceToUse = priceStr;
+                          // Stocker aussi dans finalCustomPricesMap si pas déjà présent
+                          if (!finalCustomPricesMap.containsKey(dateFormatted)) {
+                            finalCustomPricesMap[dateFormatted] = priceToUse;
+                            print('💰 [MAP_DATA] Date: $dateFormatted | Prix stocké dans finalCustomPricesMap: ${finalCustomPricesMap[dateFormatted]} | Type: ${price.runtimeType}');
+                          }
+                        } else {
+                          print('⚠️ [CALENDAR_DIAG] Prix invalide (0 ou vide) pour la date $dateStr');
+                          priceToUse = defaultVehiclePrice;
+                          // Ne pas stocker dans customPrices si c'est le prix par défaut
+                        }
+                      } else {
+                        print('⚠️ [CALENDAR_DIAG] Prix null pour la date $dateStr, utilisation du prix par défaut: $defaultVehiclePrice');
+                        priceToUse = defaultVehiclePrice;
+                      }
+                      avialblePrice.add(priceToUse);
+                      
+                      // Stocker aussi dans datePrices pour compatibilité
+                      datePrices[dateFormatted] = priceToUse;
+                      print('✅ [CALENDAR_DIAG] Date disponible ajoutée: $dateFormatted, prix: $priceToUse');
+                    } else {
+                      print('⚠️ [CALENDAR_DIAG] Date disponible null ou vide');
+                    }
+                  }
+                  print('✅ [CALENDAR_DIAG] Total dates disponibles ajoutées: ${availableDates.length}');
+                  print('✅ [CALENDAR_DIAG] Total prix ajoutés: ${avialblePrice.length}');
+                } else {
+                  print('⚠️ [CALENDAR_DIAG] available_dates est null ou n\'est pas une liste');
+                }
+                
+                // ========== PARSING DES DATES NON DISPONIBLES ==========
+                if (data['not_available_dates'] != null && data['not_available_dates'] is List) {
+                  List notAvailableDatesRaw = data['not_available_dates'];
+                  print('📊 [CALENDAR_DIAG] Nombre de dates non disponibles reçues: ${notAvailableDatesRaw.length}');
+                  
+                  for (var item in notAvailableDatesRaw) {
+                    String? dateStr;
+                    if (item is Map) {
+                      dateStr = item['date']?.toString();
+                    } else if (item is String) {
+                      dateStr = item;
+                    }
+                    
+                    print('📅 [CALENDAR_DIAG] Date brute reçue (notAvailable): $dateStr');
+                    
+                    if (dateStr != null && dateStr.isNotEmpty) {
+                      DateTime? parsedDate = DateTime.tryParse(dateStr);
+                      if (parsedDate == null) {
+                        print('⚠️ [CALENDAR_DIAG] Échec du parsing de la date: $dateStr');
+                        continue;
+                      }
+                      DateTime normalizedDate = DateTime(
+                        parsedDate.year,
+                        parsedDate.month,
+                        parsedDate.day,
+                      );
+                      notAvailableDates.add(PickerDateRange(
+                        normalizedDate,
+                        normalizedDate,
+                      ));
+                      String dateFormatted = DateFormat('yyyy-MM-dd').format(normalizedDate);
+                      print('✅ [CALENDAR_DIAG] Date non disponible ajoutée: $dateFormatted');
+                    }
+                  }
+                  print('✅ [CALENDAR_DIAG] Total dates non disponibles ajoutées: ${notAvailableDates.length}');
+                } else {
+                  print('⚠️ [CALENDAR_DIAG] not_available_dates est null ou n\'est pas une liste');
+                }
+                
+                // ========== PARSING DES DATES RÉSERVÉES ==========
+                if (data['booked_dates'] != null && data['booked_dates'] is List) {
+                  List bookedDatesRaw = data['booked_dates'];
+                  print('📊 [CALENDAR_DIAG] Nombre de dates réservées reçues: ${bookedDatesRaw.length}');
+                  
+                  for (var item in bookedDatesRaw) {
+                    String? dateStr;
+                    dynamic price;
+                    if (item is Map) {
+                      dateStr = item['date']?.toString();
+                      price = item['price'];
+                    } else if (item is String) {
+                      dateStr = item;
+                      price = null;
+                    }
+                    
+                    print('📅 [CALENDAR_DIAG] Date brute reçue (booked): $dateStr, prix: $price');
+                    
+                    if (dateStr != null && dateStr.isNotEmpty) {
+                      DateTime? parsedDate = DateTime.tryParse(dateStr);
+                      if (parsedDate == null) {
+                        print('⚠️ [CALENDAR_DIAG] Échec du parsing de la date réservée: $dateStr');
+                        continue;
+                      }
+                      DateTime normalizedDate = DateTime(
+                        parsedDate.year,
+                        parsedDate.month,
+                        parsedDate.day,
+                      );
+                      bookedDates.add(PickerDateRange(
+                        normalizedDate,
+                        normalizedDate,
+                      ));
+                      if (price != null) {
+                        bookedPrice = price.toString();
+                      }
+                      String dateFormatted = DateFormat('yyyy-MM-dd').format(normalizedDate);
+                      print('✅ [CALENDAR_DIAG] Date réservée ajoutée: $dateFormatted');
+                    }
+                  }
+                  print('✅ [CALENDAR_DIAG] Total dates réservées ajoutées: ${bookedDates.length}');
+                } else {
+                  print('⚠️ [CALENDAR_DIAG] booked_dates est null ou n\'est pas une liste');
+                }
+                
+                // ========== EXTRACTION DES PRIX PERSONNALISÉS DEPUIS D'AUTRES SOURCES ==========
+                // Vérifier s'il y a une liste séparée de prix personnalisés
+                List<String> possiblePriceKeys = ['custom_prices', 'customPrices', 'special_prices', 'specialPrices', 'prices'];
+                for (String key in possiblePriceKeys) {
+                  if (data[key] != null) {
+                    if (data[key] is Map) {
+                      Map priceMap = data[key];
+                      print('💰 [CHECK] Prix personnalisés trouvés dans la clé (Map): $key');
+                      priceMap.forEach((dateKey, priceValue) {
+                        String dateStr = dateKey.toString();
+                        // Transformation propre du prix en String
+                        String priceStr = priceValue?.toString().trim() ?? "";
+                        if (dateStr.isNotEmpty && priceStr.isNotEmpty && priceStr != "0" && priceStr != "0.0" && priceStr != "0.00") {
+                          DateTime? parsedDate = DateTime.tryParse(dateStr);
+                          if (parsedDate != null) {
+                            String normalizedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+                            finalCustomPricesMap[normalizedDate] = priceStr;
+                            print('💰 [MAP_DATA] Prix personnalisé ajouté (Map): $normalizedDate -> $priceStr | Type original: ${priceValue.runtimeType}');
+                          } else if (dateStr.length == 10 && dateStr.contains('-')) {
+                            finalCustomPricesMap[dateStr] = priceStr;
+                            print('💰 [MAP_DATA] Prix personnalisé ajouté (format direct): $dateStr -> $priceStr');
+                          }
+                        }
+                      });
+                    } else if (data[key] is List) {
+                      List priceList = data[key];
+                      print('💰 [CHECK] Prix personnalisés trouvés dans la clé (List): $key');
+                      for (var item in priceList) {
+                        if (item is Map) {
+                          String? dateStr = item['date']?.toString();
+                          // Transformation propre du prix en String : item['price'].toString()
+                          String? priceStr = item['price']?.toString().trim();
+                          if (dateStr != null && dateStr.isNotEmpty && 
+                              priceStr != null && priceStr.isNotEmpty && priceStr != "0" && priceStr != "0.0" && priceStr != "0.00") {
+                            DateTime? parsedDate = DateTime.tryParse(dateStr);
+                            if (parsedDate != null) {
+                              String normalizedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+                              finalCustomPricesMap[normalizedDate] = priceStr;
+                              print('💰 [MAP_DATA] Prix personnalisé ajouté (List): $normalizedDate -> $priceStr | Type original: ${item['price'].runtimeType}');
+                            }
+                          }
+                        }
+                      }
+                    }
+                    break; // Sortir après avoir trouvé les prix
+                  }
+                }
+                
+                // ========== LOG FINAL DES LISTES REMPLIES ==========
+                print('✅ [CALENDAR_DIAG] Listes mises à jour: ${availableDates.length} dates disponibles trouvées');
+                print('✅ [CALENDAR_DIAG] Listes mises à jour: ${notAvailableDates.length} dates non disponibles trouvées');
+                print('✅ [CALENDAR_DIAG] Listes mises à jour: ${bookedDates.length} dates réservées trouvées');
+                print('✅ [CALENDAR_DIAG] Prix personnalisés chargés dans finalCustomPricesMap: ${finalCustomPricesMap.length}');
+                if (finalCustomPricesMap.isNotEmpty) {
+                  var firstFew = finalCustomPricesMap.entries.take(3);
+                  print('💰 [UI_CHECK] Exemples de prix personnalisés:');
+                  for (var entry in firstFew) {
+                    print('   - ${entry.key}: ${entry.value}');
+                  }
+                }
+                
+                // ========== RÉCUPÉRATION DU PRIX FUTUR ==========
+                if (availableDates.isNotEmpty && avialblePrice.isNotEmpty) {
+                  String lastPrice = avialblePrice.last;
+                  // Utiliser le prix par défaut si le dernier prix est 0 ou vide
+                  futurePrice = (lastPrice != "0" && lastPrice.isNotEmpty) ? lastPrice : defaultVehiclePrice;
+                } else {
+                  // Si aucune date disponible, utiliser le prix par défaut
+                  futurePrice = defaultVehiclePrice;
+                }
+                print('💰 [CALENDAR_DIAG] Prix futur défini: $futurePrice');
+                
+                // ========== FORCER LE REFRESH ==========
+                print('🔄 [CALENDAR_DIAG] Forçage du refresh de l\'UI...');
+                setState(() {});
+                print('✅ [CALENDAR_DIAG] Refresh effectué - Le calendrier devrait maintenant afficher toutes les dates');
+              } else {
+                print('⚠️ [CALENDAR_DIAG] response[\'data\'] est null');
               }
             }
           }
@@ -320,17 +504,40 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
         }
 
         Duration totalRange = endDate.difference(startDate);
-        List aList = [];
+        List<Map<String, dynamic>> aList = [];
 
         for (int i = 0; i <= totalRange.inDays; i++) {
-          aList.add(jsonEncode({
-            "date": DateFormat("yyyy-MM-dd")
-                .parse("${x['date'].startDate.add(Duration(days: i))}")
-                .toString()
-                .split(" ")[0],
-            "status": x['status'],
-            "price": x['value']
-          }));
+          DateTime dateTime = x['date'].startDate.add(Duration(days: i));
+          // Utiliser DateFormat().format() pour générer la string de date proprement
+          String formattedDate = DateFormat('yyyy-MM-dd').format(dateTime);
+          
+          // Récupérer le prix depuis x['value'] ou depuis textEditingControllerFuturePrice
+          String priceValue = x['value']?.toString() ?? "";
+          
+          // Si le prix n'est pas dans x['value'], essayer depuis le TextFormField
+          if (priceValue.isEmpty || priceValue == "0" || priceValue == "null") {
+            String priceFromField = addItemsHostController.textEditingControllerFuturePrice.text;
+            if (priceFromField.isNotEmpty && priceFromField != "0") {
+              priceValue = priceFromField;
+            } else {
+              // Si toujours vide, utiliser le prix par défaut
+              priceValue = defaultVehiclePrice;
+            }
+          }
+          
+          // S'assurer que le prix est une string valide
+          if (priceValue.isEmpty || priceValue == "0" || priceValue == "null") {
+            priceValue = defaultVehiclePrice;
+          }
+          
+          // Ajouter un simple objet Map avec le format attendu par le backend
+          aList.add({
+            "date": formattedDate,
+            "status": x['status'] ?? "Available",
+            "price": priceValue
+          });
+          
+          print('💰 [SUBMIT] Date: $formattedDate, Status: ${x['status']}, Price: $priceValue');
         }
 
         myNewDateAndStatusListAvailable.add(aList);
@@ -340,18 +547,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
       for (var x in selectedNotAvailableRange) {
         DateTime startDate = x['date'].startDate ?? DateTime.now();
         DateTime endDate = x['date'].endDate ?? DateTime.now();
-        DateTime today = DateTime.now();
-        DateTime currentDateOnly = DateTime(today.year, today.month, today.day);
-        DateTime startDateOnly =
-            DateTime(startDate.year, startDate.month, startDate.day);
-        DateTime endDateOnly =
-            DateTime(endDate.year, endDate.month, endDate.day);
 
-        if (startDateOnly == currentDateOnly ||
-            endDateOnly == currentDateOnly) {
-          showErrorToastMessage("Can't block the current date");
-          return;
-        }
         if (endDate.isAfter(maxDate)) {
           showErrorToastMessage(
               "The selected date range must be within the current date to the next 120 days.");
@@ -359,61 +555,124 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
         }
 
         Duration totalRange = endDate.difference(startDate);
-        List aList = [];
+        List<Map<String, dynamic>> aList = [];
 
         for (int i = 0; i <= totalRange.inDays; i++) {
-          aList.add(jsonEncode({
-            "date": DateFormat("yyyy-MM-dd")
-                .parse("${x['date'].startDate.add(Duration(days: i))}")
-                .toString()
-                .split(" ")[0],
+          DateTime dateTime = x['date'].startDate.add(Duration(days: i));
+          // Utiliser DateFormat().format() pour générer la string de date proprement
+          String formattedDate = DateFormat('yyyy-MM-dd').format(dateTime);
+          
+          // Ajouter un simple objet Map (pas de jsonEncode ici)
+          aList.add({
+            "date": formattedDate,
             "status": x['status'],
-            "price": "0".toString()
-          }));
+            "price": "0"
+          });
         }
         myNewDateAndStatusListNotAvailable.add(aList);
       }
     }
 
     showLoading();
-    Map map = {
-      "availability_dates": addItemsHostController.isChecked1.value
-          ? myNewDateAndStatusListAvailable.toString()
-          : myNewDateAndStatusListNotAvailable.toString(),
-      "id": (initialitems?.id ?? lastItemId).toString(),
-    };
-
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpPost(Config.addEditCalender, map);
     
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // MOCK: Static success response for calendar update
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Calendar updated successfully",
-      "error": "",
-      "data": {
-        "id": (initialitems?.id ?? lastItemId).toString(),
-        "updated": true
+    // ========== PRÉPARATION DES DONNÉES AU FORMAT JSON STRING ==========
+    // Aplatir les listes de listes en une seule liste simple d'objets
+    List<Map<String, dynamic>> flatList = [];
+    if (addItemsHostController.isChecked1.value) {
+      for (var subList in myNewDateAndStatusListAvailable) {
+        flatList.addAll(subList);
       }
+    } else {
+      for (var subList in myNewDateAndStatusListNotAvailable) {
+        flatList.addAll(subList);
+      }
+    }
+    
+    // Un seul jsonEncode sur la liste plate d'objets
+    String availabilityDatesJson = jsonEncode(flatList);
+    print('📤 [DATE_FORMAT] Format final envoyé: $availabilityDatesJson');
+    
+    // Extraire start_date et end_date de la liste plate
+    String? startDate;
+    String? endDate;
+    if (flatList.isNotEmpty) {
+      // Trier les dates pour trouver la première et la dernière
+      List<String> dates = flatList.map((item) => item['date'] as String).toList()..sort();
+      startDate = dates.first;
+      endDate = dates.last;
+    }
+    
+    // Déterminer item_id avec plusieurs fallbacks
+    String? itemIdValue = initialitems?.id?.toString() ?? 
+                         lastItemId?.toString() ?? 
+                         addItemsHostController.itemHostId?.toString();
+    
+    // Validation : vérifier que item_id n'est pas null ou vide
+    if (itemIdValue == null || itemIdValue.isEmpty || itemIdValue == 'null') {
+      closeLoading();
+      showErrorToastMessage("Erreur: L'ID du véhicule est manquant. Veuillez sélectionner un véhicule.");
+      print('❌ [CALENDAR_DIAG] item_id est manquant ou invalide');
+      return;
+    }
+    
+    Map map = {
+      "availability_dates": availabilityDatesJson,
+      "item_id": itemIdValue,
     };
     
-    var response = mockResponse;
-    // ========== END MOCK DATA ==========
+    // Ajouter start_date et end_date si disponibles
+    if (startDate != null && endDate != null) {
+      map["start_date"] = startDate;
+      map["end_date"] = endDate;
+    }
+
+    // ========== APPEL API RÉEL - Sauvegarde du calendrier ==========
+    print('📡 [CALENDAR_DIAG] Envoi des modifications du calendrier au backend...');
+    print('📤 [CALENDAR_DIAG] item_id utilisé: $itemIdValue');
+    print('📤 [CALENDAR_DIAG] Données envoyées: ${jsonEncode(map)}');
+    var response = await httpPost(Config.addEditCalender, map);
+    print('📥 [CALENDAR_DIAG] Réponse brute addEditCalender: ${jsonEncode(response)}');
+    // ========== END APPEL API RÉEL ==========
     
     closeLoading();
+    
+    // ========== TRAITEMENT DE LA RÉPONSE ==========
     if (response != null) {
-      if (response['status'] == 200) {
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (builder) => const BottomHost(initialIndex: 1)));
+      // Vérifier si la réponse est un succès (status 200 ou success: true)
+      bool isSuccess = (response['status'] == 200 || 
+                       response['status'] == 201 || 
+                       response['success'] == true);
+      
+      if (isSuccess) {
+        // Afficher un message de succès
+        showToastMessage('Calendrier mis à jour !');
+        print('✅ [CALENDAR_DIAG] Calendrier mis à jour avec succès');
+        
+        // Vider la liste selectedDates pour nettoyer l'interface
+        selectedDates.clear();
+        selectedAvailableRange.clear();
+        selectedNotAvailableRange.clear();
+        myNewDateAndStatusListAvailable.clear();
+        myNewDateAndStatusListNotAvailable.clear();
+        print('🧹 [CALENDAR_DIAG] Listes vidées après succès');
+        
+        // Recharger le calendrier pour afficher les nouvelles dates
+        print('🔄 [CALENDAR_DIAG] Rechargement du calendrier...');
+        await itemDataApi();
+        print('✅ [CALENDAR_DIAG] Calendrier rechargé - Les dates bloquées doivent maintenant apparaître en Rouge');
+        
+        // Forcer le refresh de l'UI
+        setState(() {});
       } else {
-        showErrorToastMessage(response['error']);
+        // Afficher l'erreur si la réponse n'est pas un succès
+        String errorMessage = response['error'] ?? 
+                             response['message'] ?? 
+                             'Erreur lors de la mise à jour du calendrier';
+        showErrorToastMessage(errorMessage);
       }
-    } else {}
+    } else {
+      showErrorToastMessage('Erreur: Aucune réponse du serveur');
+    }
   }
 
   Future<void> fetchDataCalendar() async {
@@ -738,107 +997,177 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                                 Color textColor = blackColor;
                                 String cellPrice = '';
 
+                                // Normaliser la date de la cellule (sans heure) pour comparaison
+                                DateTime cellDateNormalized = DateTime(
+                                  cellDetails.date.year,
+                                  cellDetails.date.month,
+                                  cellDetails.date.day,
+                                );
+                                
+                                // Format de date pour les logs (yyyy-MM-dd)
+                                String cellDateFormatted = DateFormat('yyyy-MM-dd').format(cellDateNormalized);
+                                
+                                // Print spécifique pour le 17 février
+                                if (cellDetails.date.month == 2 && cellDetails.date.day == 17) {
+                                  print('📅 [FEB_17_DEBUG] Date cellule: $cellDateFormatted');
+                                  print('📅 [FEB_17_DEBUG] notAvailableDates count: ${notAvailableDates.length}');
+                                  print('📅 [FEB_17_DEBUG] availableDates count: ${availableDates.length}');
+                                  print('📅 [FEB_17_DEBUG] bookedDates count: ${bookedDates.length}');
+                                  if (notAvailableDates.isNotEmpty) {
+                                    print('📅 [FEB_17_DEBUG] Première date non disponible: ${DateFormat('yyyy-MM-dd').format(notAvailableDates.first.startDate!)}');
+                                  }
+                                }
+
+                                // Fonction helper pour comparer uniquement les dates (sans heures)
+                                bool isSameDate(DateTime date1, DateTime date2) {
+                                  return date1.year == date2.year &&
+                                         date1.month == date2.month &&
+                                         date1.day == date2.day;
+                                }
+
                                 bool isNotAvailableDate = false;
                                 bool isBookedDate = false;
                                 bool isAvailableDate = false;
                                 bool isSelectedDate = false;
+                                
+                                // 1. Vérifier les dates réservées (VERT)
                                 isBookedDate = bookedDates.any((range) {
-                                  return range.startDate != null &&
-                                      range.endDate != null &&
-                                      (cellDetails.date
-                                                  .isAfter(range.startDate!) &&
-                                              cellDetails.date
-                                                  .isBefore(range.endDate!) ||
-                                          cellDetails.date.isAtSameMomentAs(
-                                              range.startDate!) ||
-                                          cellDetails.date.isAtSameMomentAs(
-                                              range.endDate!));
+                                  if (range.startDate == null || range.endDate == null) return false;
+                                  DateTime rangeStartNormalized = DateTime(
+                                    range.startDate!.year,
+                                    range.startDate!.month,
+                                    range.startDate!.day,
+                                  );
+                                  DateTime rangeEndNormalized = DateTime(
+                                    range.endDate!.year,
+                                    range.endDate!.month,
+                                    range.endDate!.day,
+                                  );
+                                  return isSameDate(cellDateNormalized, rangeStartNormalized) ||
+                                         isSameDate(cellDateNormalized, rangeEndNormalized) ||
+                                         (cellDateNormalized.isAfter(rangeStartNormalized) &&
+                                          cellDateNormalized.isBefore(rangeEndNormalized));
                                 });
 
                                 if (isBookedDate) {
                                   cellColor = greentext;
                                   textColor = whiteColor;
-                                  cellPrice = '$currency $bookedPrice';
-                                } else {
+                                  // Utiliser le prix réservé si disponible, sinon le prix par défaut
+                                  String priceToDisplay = (bookedPrice != null && bookedPrice.toString() != "0" && bookedPrice.toString().isNotEmpty) 
+                                      ? bookedPrice.toString() 
+                                      : defaultVehiclePrice;
+                                  cellPrice = '$currency $priceToDisplay';
+                                  if (cellDetails.date.month == 2 && cellDetails.date.day == 17) {
+                                    print('📅 [FEB_17_DEBUG] ✅ Date marquée en VERT (réservée)');
+                                  }
+                                } 
+                                // 2. Vérifier si la date est disponible (BLEU)
+                                else {
                                   // Check if the date is available
                                   isAvailableDate = availableDates.any((range) {
-                                    return range.startDate != null &&
-                                        range.endDate != null &&
-                                        (cellDetails.date.isAfter(
-                                                    range.startDate!) &&
-                                                cellDetails.date
-                                                    .isBefore(range.endDate!) ||
-                                            cellDetails.date.isAtSameMomentAs(
-                                                range.startDate!) ||
-                                            cellDetails.date.isAtSameMomentAs(
-                                                range.endDate!));
+                                    if (range.startDate == null || range.endDate == null) return false;
+                                    DateTime rangeStartNormalized = DateTime(
+                                      range.startDate!.year,
+                                      range.startDate!.month,
+                                      range.startDate!.day,
+                                    );
+                                    DateTime rangeEndNormalized = DateTime(
+                                      range.endDate!.year,
+                                      range.endDate!.month,
+                                      range.endDate!.day,
+                                    );
+                                    return isSameDate(cellDateNormalized, rangeStartNormalized) ||
+                                           isSameDate(cellDateNormalized, rangeEndNormalized) ||
+                                           (cellDateNormalized.isAfter(rangeStartNormalized) &&
+                                            cellDateNormalized.isBefore(rangeEndNormalized));
                                   });
 
                                   if (isAvailableDate) {
                                     cellColor = themeColor;
                                     textColor = whiteColor;
 
-                                    int index =
-                                        availableDates.indexWhere(
-                                            (range) =>
-                                                range.startDate != null &&
-                                                range.endDate != null &&
-                                                (cellDetails.date.isAfter(
-                                                            range.startDate!) &&
-                                                        cellDetails.date
-                                                            .isBefore(range
-                                                                .endDate!) ||
-                                                    cellDetails.date
-                                                        .isAtSameMomentAs(
-                                                            range.startDate!) ||
-                                                    cellDetails.date
-                                                        .isAtSameMomentAs(
-                                                            range.endDate!)));
-
-                                    if (index != -1 &&
-                                        index < avialblePrice.length) {
-                                      var dataForDate = avialblePrice[index];
-                                      cellPrice = "$currency $dataForDate";
-                                    }
-                                  } else {
-                                    isNotAvailableDate =
-                                        notAvailableDates.any((range) {
-                                      return range.startDate != null &&
-                                          range.endDate != null &&
-                                          (cellDetails.date.isAfter(
-                                                      range.startDate!) &&
-                                                  cellDetails.date.isBefore(
-                                                      range.endDate!) ||
-                                              cellDetails.date.isAtSameMomentAs(
-                                                  range.startDate!) ||
-                                              cellDetails.date.isAtSameMomentAs(
-                                                  range.endDate!));
+                                    int index = availableDates.indexWhere((range) {
+                                      if (range.startDate == null || range.endDate == null) return false;
+                                      DateTime rangeStartNormalized = DateTime(
+                                        range.startDate!.year,
+                                        range.startDate!.month,
+                                        range.startDate!.day,
+                                      );
+                                      DateTime rangeEndNormalized = DateTime(
+                                        range.endDate!.year,
+                                        range.endDate!.month,
+                                        range.endDate!.day,
+                                      );
+                                      return isSameDate(cellDateNormalized, rangeStartNormalized) ||
+                                             isSameDate(cellDateNormalized, rangeEndNormalized) ||
+                                             (cellDateNormalized.isAfter(rangeStartNormalized) &&
+                                              cellDateNormalized.isBefore(rangeEndNormalized));
                                     });
 
-                                    if (isNotAvailableDate) {
+                                    // Assure-toi que la variable dateKey est formatée en yyyy-MM-dd
+                                    String dateKey = DateFormat('yyyy-MM-dd').format(cellDateNormalized);
+                                    
+                                    // Utilise cette logique exacte pour le texte
+                                    String priceToDisplay = finalCustomPricesMap[dateKey]?.toString() ?? vehicleBasePrice;
+                                    
+                                    // Log de rendu
+                                    print('🎨 [RENDER] Date: $dateKey | Prix: $priceToDisplay');
+                                    
+                                    cellPrice = "$currency $priceToDisplay";
+                                    print('🔵 [COLOR_DIAG] Date marquée en BLEU (disponible): $cellDateFormatted');
+                                    if (cellDetails.date.month == 2 && cellDetails.date.day == 17) {
+                                      print('📅 [FEB_17_DEBUG] ✅ Date marquée en BLEU (disponible)');
+                                    }
+                                  } 
+                                  // 3. Si la date N'EST PAS dans availableDates, elle DOIT être ROUGE
+                                  else {
+                                    // Vérifier si c'est une date passée (on ne les colore pas en rouge)
+                                    bool isPastDate = cellDateNormalized.isBefore(DateTime.now());
+                                    
+                                    if (!isPastDate) {
+                                      // Date future qui n'est pas disponible = ROUGE
                                       cellColor = Colors.red;
                                       textColor = whiteColor;
+                                      // Afficher le prix par défaut pour les dates bloquées
+                                      cellPrice = "$currency $defaultVehiclePrice";
+                                      print('🔴 [COLOR_DIAG] Date marquée en ROUGE (non disponible - pas dans availableDates): $cellDateFormatted');
+                                      if (cellDetails.date.month == 2 && cellDetails.date.day == 17) {
+                                        print('📅 [FEB_17_DEBUG] ✅ Date marquée en ROUGE (non disponible - pas dans availableDates)');
+                                      }
+                                    } else {
+                                      // Date passée = blanc par défaut
+                                      if (cellDetails.date.month == 2 && cellDetails.date.day == 17) {
+                                        print('📅 [FEB_17_DEBUG] ⚠️ Date passée (blanc par défaut)');
+                                      }
                                     }
                                   }
-
-                                  isSelectedDate = selectedDates.any((range) {
-                                    return range.startDate != null &&
-                                        range.endDate != null &&
-                                        (cellDetails.date.isAfter(
-                                                    range.startDate!) &&
-                                                cellDetails.date
-                                                    .isBefore(range.endDate!) ||
-                                            cellDetails.date.isAtSameMomentAs(
-                                                range.startDate!) ||
-                                            cellDetails.date.isAtSameMomentAs(
-                                                range.endDate!));
-                                  });
-                                  if (isSelectedDate) {
-                                    cellColor = orangeColor;
-                                    textColor = whiteColor;
-                                    cellPrice = '';
-                                  }
                                 }
+
+                                // 4. Vérifier si la date est sélectionnée (ORANGE) - indépendant des autres statuts
+                                isSelectedDate = selectedDates.any((range) {
+                                  if (range.startDate == null || range.endDate == null) return false;
+                                  DateTime rangeStartNormalized = DateTime(
+                                    range.startDate!.year,
+                                    range.startDate!.month,
+                                    range.startDate!.day,
+                                  );
+                                  DateTime rangeEndNormalized = DateTime(
+                                    range.endDate!.year,
+                                    range.endDate!.month,
+                                    range.endDate!.day,
+                                  );
+                                  return isSameDate(cellDateNormalized, rangeStartNormalized) ||
+                                         isSameDate(cellDateNormalized, rangeEndNormalized) ||
+                                         (cellDateNormalized.isAfter(rangeStartNormalized) &&
+                                          cellDateNormalized.isBefore(rangeEndNormalized));
+                                });
+                                
+                                if (isSelectedDate) {
+                                  cellColor = orangeColor;
+                                  textColor = whiteColor;
+                                  cellPrice = '';
+                                }
+                                
                                 return Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Container(
@@ -1068,16 +1397,14 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                      list[index].title!.length > 40
-                                          ? list[index].title!.substring(0, 39)
-                                          : list[index].title!,
+                                      (list[index].title ?? 'Sans titre').length > 40
+                                          ? (list[index].title ?? 'Sans titre').substring(0, 39)
+                                          : (list[index].title ?? 'Sans titre'),
                                       style: heading3Grey1(context)),
                                   Text(
-                                    list[index].description!.length > 25
-                                        ? list[index]
-                                            .description!
-                                            .substring(0, 24)
-                                        : list[index].description!,
+                                    (list[index].description ?? '').length > 25
+                                        ? (list[index].description ?? '').substring(0, 24)
+                                        : (list[index].description ?? ''),
                                     style: regular2(context),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,

@@ -12,7 +12,12 @@ class GetUserProfile {
   }
 
   GetUserProfile.fromJson(dynamic json) {
-    _status = json['status'];
+    // Sécurisation du parsing numérique : Node.js peut envoyer des nombres sous forme de String
+    _status = json['status'] != null
+        ? (json['status'] is num
+            ? json['status']
+            : num.tryParse(json['status'].toString()))
+        : null;
     _message = json['message'];
     _data = json['data'] != null ? Data.fromJson(json['data']) : null;
     _error = json['error'];
@@ -91,8 +96,20 @@ class Data {
     _profileImage = json['profile_image'];
     _profileBackground = json['profile_background'];
     _introText = json['intro_text'];
-    _totalReviewsOnItems = json['total_reviews_on_items'];
-    _averageRatingOnItems = json['average_rating_on_items'];
+    
+    // Sécurisation du parsing numérique : Node.js peut envoyer des nombres sous forme de String
+    _totalReviewsOnItems = json['total_reviews_on_items'] != null
+        ? (json['total_reviews_on_items'] is num
+            ? json['total_reviews_on_items']
+            : num.tryParse(json['total_reviews_on_items'].toString()))
+        : null;
+    
+    _averageRatingOnItems = json['average_rating_on_items'] != null
+        ? (json['average_rating_on_items'] is num
+            ? json['average_rating_on_items']
+            : num.tryParse(json['average_rating_on_items'].toString()))
+        : null;
+    
     _yearsOfHosting = json['years_of_hosting'];
     _languages = json['languages'];
     _liveCity = json['livecity'];

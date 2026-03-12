@@ -145,12 +145,60 @@ class _EditCalenderOnThirdStepCommonState
     }
 
     showLoading();
+    
+    // Extraire start_date et end_date des ranges sélectionnés
+    String? startDate;
+    String? endDate;
+    List<DateTime> allStartDates = [];
+    List<DateTime> allEndDates = [];
+    
+    if (addItemsHostController.isChecked1.value && selectedAvailableRange.isNotEmpty) {
+      for (var x in selectedAvailableRange) {
+        DateTime rangeStart = x['date'].startDate ?? DateTime.now();
+        DateTime rangeEnd = x['date'].endDate ?? DateTime.now();
+        allStartDates.add(rangeStart);
+        allEndDates.add(rangeEnd);
+      }
+    } else if (addItemsHostController.isChecked2.value && selectedNotAvailableRange.isNotEmpty) {
+      for (var x in selectedNotAvailableRange) {
+        DateTime rangeStart = x['date'].startDate ?? DateTime.now();
+        DateTime rangeEnd = x['date'].endDate ?? DateTime.now();
+        allStartDates.add(rangeStart);
+        allEndDates.add(rangeEnd);
+      }
+    }
+    
+    if (allStartDates.isNotEmpty && allEndDates.isNotEmpty) {
+      // Trouver la première date (la plus ancienne) et la dernière date (la plus récente)
+      DateTime earliestStart = allStartDates.reduce((a, b) => a.isBefore(b) ? a : b);
+      DateTime latestEnd = allEndDates.reduce((a, b) => a.isAfter(b) ? a : b);
+      startDate = DateFormat('yyyy-MM-dd').format(earliestStart);
+      endDate = DateFormat('yyyy-MM-dd').format(latestEnd);
+    }
+    
+    // Déterminer item_id avec validation
+    String? itemIdValue = item?.id?.toString() ?? addItemsHostController.itemHostId?.toString();
+    
+    // Validation : vérifier que item_id n'est pas null ou vide
+    if (itemIdValue == null || itemIdValue.isEmpty || itemIdValue == 'null') {
+      closeLoading();
+      showErrorToastMessage("Erreur: L'ID du véhicule est manquant. Veuillez sélectionner un véhicule.");
+      print('❌ [CALENDAR_DIAG] item_id est manquant ou invalide');
+      return;
+    }
+    
     Map map = {
       "availability_dates": addItemsHostController.isChecked1.value
           ? myNewDateAndStatusListAvailable.toString()
           : myNewDateAndStatusListNotAvailable.toString(),
-      "id": (item?.id ?? addItemsHostController.itemHostId).toString()
+      "item_id": itemIdValue
     };
+    
+    // Ajouter start_date et end_date si disponibles
+    if (startDate != null && endDate != null) {
+      map["start_date"] = startDate;
+      map["end_date"] = endDate;
+    }
 
     // ========== MOCK DATA - OLD API CALL COMMENTED ==========
     // var response = await httpPost(Config.addEditCalender, map);

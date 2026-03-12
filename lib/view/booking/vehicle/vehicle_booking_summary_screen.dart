@@ -65,6 +65,9 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
   BookingController bookingController = Get.find();
 
   ItemDetailsController vehicleDetailController = Get.find();
+  
+  // État de validation de la politique d'annulation
+  bool isPolicyAccepted = false;
 
   getData(coupon, wallet) async {
     setState(() {});
@@ -191,10 +194,28 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                 constraints: const BoxConstraints.expand(
                                     width: double.infinity, height: 50.0),
                                 child: ElevatedButton(
-                                    onPressed: bookingController
-                                            .isProcessingBooking.value
+                                    onPressed: (bookingController
+                                            .isProcessingBooking.value || !isPolicyAccepted)
                                         ? null
                                         : () {
+                                            // Afficher un message si la politique n'est pas acceptée
+                                            if (!isPolicyAccepted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text("Veuillez accepter la politique d'annulation avant de continuer.".tr),
+                                                  backgroundColor: Colors.orange,
+                                                  duration: const Duration(seconds: 3),
+                                                  action: SnackBarAction(
+                                                    label: "OK".tr,
+                                                    textColor: Colors.white,
+                                                    onPressed: () {
+                                                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                                    },
+                                                  ),
+                                                ),
+                                              );
+                                              return;
+                                            }
                                             KycController kycController =
                                                 Get.find();
                                             final kycStatus = kycController
@@ -304,8 +325,10 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             right: 5,
                                             top: 10,
                                             bottom: 10),
-                                        backgroundColor:
-                                            getColorBasedOnActiveModuleid(),
+                                        backgroundColor: isPolicyAccepted
+                                            ? getColorBasedOnActiveModuleid()
+                                            : Colors.grey, // Gris quand désactivé
+                                        disabledBackgroundColor: Colors.grey,
                                         elevation: 0,
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
@@ -780,73 +803,124 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                 ),
                               ),
                             ),
+                            // ========== NOUVELLE SECTION "Vérifier la disponibilité" ==========
                             Padding(
-                              padding:
-                                  const EdgeInsets.only(left: 20, right: 20),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: notifires.getboxcolor,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 8,
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      width: Get.size.width,
-                                      decoration: BoxDecoration(
-                                        color: notifires.getboxcolor,
-                                        borderRadius: BorderRadius.circular(12),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 8.0, horizontal: 20.0),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  // Logique récupérée de l'ancien IconButton stylo
+                                  setdefultData();
+                                  showPopUpScreen(
+                                      context,
+                                      VehicleCheckAvailability(
+                                        idFeatured: widget.idFeatured,
+                                        itemDetails: widget.itemDetails,
+                                        address: widget.address,
+                                        frontImage: widget.frontImage,
+                                        title: widget.title,
+                                        rating: widget.rating,
+                                        itemType: widget.itemType,
+                                        price: widget.price,
+                                        cleanvalue: true,
+                                      ));
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: notifires.getboxcolor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: notifires.getGrey4Whitecolor
+                                            .withOpacity(0.3)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 5,
+                                        offset: const Offset(0, 2),
                                       ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 20,
-                                          right: 20,
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: getColorBasedOnActiveModuleid()
+                                              .withOpacity(0.1),
+                                          shape: BoxShape.circle,
                                         ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
+                                        child: Icon(
+                                          Icons.calendar_month,
+                                          color: getColorBasedOnActiveModuleid(),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Text(
+                                          "Check Availability".tr,
+                                          style: heading3(context).copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 16,
+                                        color: notifires.getGrey3Whitecolor,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // ========== SECTION "Votre voyage" (masquée si pas de dates) ==========
+                            Obx(() {
+                              final hasDatesSelected = bookingController
+                                          .startDate.value.isNotEmpty &&
+                                      bookingController.endDate.value.isNotEmpty;
+                              
+                              return Visibility(
+                                visible: hasDatesSelected,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: 20, right: 20),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: notifires.getboxcolor,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 8,
+                                          offset: Offset(0, 0),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: Get.size.width,
+                                          decoration: BoxDecoration(
+                                            color: notifires.getboxcolor,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(
+                                              left: 20,
+                                              right: 20,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
+                                                // ========== TITRE "Votre voyage" (sans l'icône stylo) ==========
                                                 Text(
                                                   "Your Trip".tr,
                                                   style: heading2(context),
                                                 ),
-                                                IconButton(
-                                                    onPressed: () {
-                                                      setdefultData();
-                                                      showPopUpScreen(
-                                                          context,
-                                                          VehicleCheckAvailability(
-                                                            idFeatured: widget
-                                                                .idFeatured,
-                                                            itemDetails: widget
-                                                                .itemDetails,
-                                                            address:
-                                                                widget.address,
-                                                            frontImage: widget
-                                                                .frontImage,
-                                                            title: widget.title,
-                                                            rating:
-                                                                widget.rating,
-                                                            itemType:
-                                                                widget.itemType,
-                                                            price: widget.price,
-                                                            cleanvalue: true,
-                                                          ));
-                                                    },
-                                                    icon: Icon(Icons.edit))
-                                              ],
-                                            ),
                                             const SizedBox(
                                               height: 10,
                                             ),
@@ -1644,72 +1718,110 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                     Padding(
                                       padding: const EdgeInsets.only(
                                           left: 15, right: 15),
-                                      child: GestureDetector(
-                                        onTap: () {
-                                          cancellationPolicyBottomSheet(
-                                              context,
-                                              widget.itemDetails!
-                                                  .cancellationReasonTitle,
-                                              widget.itemDetails!
-                                                  .cancellationReasonDescription);
-                                        },
-                                        child: Card(
-                                          color: notifires.getBoxColor,
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(
-                                                top: 20, bottom: 20),
-                                            child: Row(
-                                              children: [
-                                                const SizedBox(
-                                                  width: 20,
-                                                ),
-                                                SvgPicture.asset(
-                                                  "assets/images/hash.svg",
-                                                  colorFilter: ColorFilter.mode(
-                                                    getColorBasedOnActiveModuleid(),
-                                                    BlendMode.srcIn,
+                                      child: Card(
+                                        color: notifires.getBoxColor,
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                              top: 20, bottom: 20),
+                                          child: Row(
+                                            children: [
+                                              const SizedBox(
+                                                width: 20,
+                                              ),
+                                              // Checkbox professionnelle avec design moderne
+                                              Checkbox(
+                                                value: isPolicyAccepted,
+                                                onChanged: (bool? value) {
+                                                  setState(() {
+                                                    isPolicyAccepted = value ?? false;
+                                                    print('🔐 [VALIDATION] Politique acceptée : $isPolicyAccepted');
+                                                    debugPrint('🔐 [VALIDATION] Politique acceptée : $isPolicyAccepted');
+                                                  });
+                                                },
+                                                activeColor: getColorBasedOnActiveModuleid(),
+                                                checkColor: Colors.white,
+                                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                visualDensity: VisualDensity.compact,
+                                              ),
+                                              const SizedBox(
+                                                width: 8,
+                                              ),
+                                              Expanded(
+                                                child: RichText(
+                                                  text: TextSpan(
+                                                    style: regular3(context).copyWith(
+                                                      color: getColorBasedOnActiveModuleid(),
+                                                    ),
+                                                    children: [
+                                                      TextSpan(
+                                                        text: "J'ai lu et j'accepte ".tr,
+                                                      ),
+                                                      WidgetSpan(
+                                                        child: GestureDetector(
+                                                          onTap: () {
+                                                            // Ouvrir la modale de détails de la politique
+                                                            String policy = widget.itemDetails?.cancellationReasonTitle ?? 
+                                                                           widget.itemDetails?.cancellationReason ?? 
+                                                                           'Non spécifiée';
+                                                            print('✅ [FIX_CONFIRMED] Policy chargée: $policy');
+                                                            debugPrint('✅ [FIX_CONFIRMED] Policy chargée: $policy');
+                                                            
+                                                            cancellationPolicyBottomSheet(
+                                                                context,
+                                                                policy,
+                                                                widget.itemDetails!
+                                                                    .cancellationReasonDescription);
+                                                          },
+                                                          child: Text(
+                                                            "la politique d'annulation".tr,
+                                                            style: regular3(context).copyWith(
+                                                              color: getColorBasedOnActiveModuleid(),
+                                                              decoration: TextDecoration.underline,
+                                                              decorationColor: getColorBasedOnActiveModuleid(),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
-                                                const SizedBox(
-                                                  width: 10,
-                                                ),
-                                                Text(
-                                                  "Cancellation Policy".tr,
-                                                  style: regular3(context).copyWith(
-                                                      color:
-                                                          getColorBasedOnActiveModuleid()),
-                                                ),
-                                                const Spacer(),
-                                                InkWell(
-                                                  onTap: () {
-                                                    rulesbuttomSheet(
-                                                      context,
-                                                      title:
-                                                          "${widget.itemDetails!.cancellationReasonTitle}",
-                                                      list: widget.itemDetails!
-                                                              .cancellationReasonDescription ??
-                                                          [],
-                                                    );
-                                                  },
-                                                  child: vehicleDetailController
-                                                          .cancellationLoading
-                                                      ? const SizedBox(
-                                                          height: 25,
-                                                          width: 25,
-                                                          child:
-                                                              CircularProgressIndicator())
-                                                      : Icon(
-                                                          Icons
-                                                              .arrow_forward_ios,
-                                                          color: grey3,
-                                                          size: 14,
-                                                        ),
-                                                ),
-                                                const SizedBox(
-                                                  width: 20,
-                                                )
-                                              ],
-                                            ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              InkWell(
+                                                onTap: () {
+                                                  // Tester tous les champs possibles
+                                                  String policy = widget.itemDetails?.cancellationReasonTitle ?? 
+                                                                 widget.itemDetails?.cancellationReason ?? 
+                                                                 'Non spécifiée';
+                                                  print('✅ [FIX_CONFIRMED] Policy chargée: $policy');
+                                                  debugPrint('✅ [FIX_CONFIRMED] Policy chargée: $policy');
+                                                  
+                                                  rulesbuttomSheet(
+                                                    context,
+                                                    title: policy,
+                                                    list: widget.itemDetails!
+                                                            .cancellationReasonDescription ??
+                                                        [],
+                                                  );
+                                                },
+                                                child: vehicleDetailController
+                                                        .cancellationLoading
+                                                    ? const SizedBox(
+                                                        height: 25,
+                                                        width: 25,
+                                                        child:
+                                                            CircularProgressIndicator())
+                                                    : Icon(
+                                                        Icons
+                                                            .arrow_forward_ios,
+                                                        color: grey3,
+                                                        size: 14,
+                                                      ),
+                                              ),
+                                              const SizedBox(
+                                                width: 20,
+                                              )
+                                            ],
                                           ),
                                         ),
                                       ),
@@ -1790,7 +1902,9 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                 ),
                               ),
                             ),
-                            SizedBox(
+                              );
+                            }),
+                            const SizedBox(
                               height: 20,
                             ),
                             Padding(
@@ -1820,7 +1934,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             color: themeColor, size: 18),
                                         const SizedBox(width: 10),
                                         Text(
-                                          "Note",
+                                          "Note".tr,
                                           style: TextStyle(
                                             color: blackColor,
                                             fontSize: 16,
@@ -1831,14 +1945,14 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                     ),
                                     const SizedBox(height: 12),
                                     noteItem(
-                                      label: "Smoking Allowed",
+                                      label: "Smoking Allowed".tr,
                                       value:
                                           widget.itemDetails!.smokingStatus ==
                                               '1',
                                     ),
                                     const SizedBox(height: 8),
                                     noteItem(
-                                      label: "International Travel Allowed",
+                                      label: "International Travel Allowed".tr,
                                       value: widget.itemDetails!
                                               .internationalTravel ==
                                           '1',

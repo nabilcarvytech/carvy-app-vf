@@ -25,12 +25,18 @@ import 'package:carvy/view/host/initial_host_common_screen.dart';
 import 'package:carvy/view/host/orders/orders_screen.dart';
 import 'package:carvy/view/host/switch_splash_screen.dart';
 import 'package:carvy/view/host/vehiclehost/editvehicle/edit_vehicle_home_screen.dart';
+import 'package:carvy/view/host/vehiclehost/editvehicle/clean_edit_vehicle_screen.dart';
+import 'package:carvy/view/host/vehiclehost/editvehicle/standalone_edit_screen.dart';
+import 'package:carvy/view/host/vehiclehost/editvehicle/edit_vehicle_tab_screen.dart';
 import 'package:carvy/view/host/wallet/finance_screen.dart';
+import 'package:carvy/view/vehicle/add_vehicle_screen.dart';
 import 'package:carvy/work_space.dart';
 import '../../model/vehicle_home_model.dart';
 import '../itemdetail/vehicle/vehicle_detail_screen.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:carvy/view/auth/login_screen.dart';
+import 'package:carvy/controller/home_controller.dart';
+import 'package:carvy/controller/vehicle_controller.dart';
 
 class DashBoardScreen extends StatefulWidget {
   final ScreenMode mode;
@@ -51,6 +57,7 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
   num offset = 0;
   GeneralDataModel? generalDataModel;
   AddItemsHostController addItemsHostController = Get.find();
+  final VehicleController vehicleController = Get.find<VehicleController>();
   bool showTimeOut = false;
   final ScrollController scrollController = ScrollController();
   final GlobalKey vehicleListKey = GlobalKey();
@@ -72,6 +79,8 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
     initialitems = null;
     await Future.delayed(const Duration(milliseconds: 800), () async {
       await getdashBoardData();
+      // Charger les véhicules depuis VehicleController
+      await vehicleController.fetchMyVehicles();
       await getData();
     });
   }
@@ -144,6 +153,117 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
     setState(() {});
     refreshController.loadComplete();
     refreshController.refreshCompleted();
+  }
+
+  // Méthode helper pour récupérer l'image du véhicule
+  // Supporte à la fois l'ancien format (frontImage) et le nouveau format (images array)
+  Widget _getVehicleImage(dynamic vehicle) {
+    // Nouveau format Node.js : images est un tableau de strings (URLs)
+    if (vehicle is Map<String, dynamic>) {
+      final images = vehicle['images'];
+      if (images != null && images is List && images.isNotEmpty) {
+        final firstImageUrl = images[0] is String ? images[0] : images[0]['url']?.toString();
+        if (firstImageUrl != null && firstImageUrl.isNotEmpty) {
+          return Image.network(
+            firstImageUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) {
+                return child;
+              }
+              return shimmerContainer();
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return getErrorImageForBoth(
+                vehicle['vehicleType']?.toString() ?? vehicle['itemType']?.toString() ?? '',
+              );
+            },
+          );
+        }
+      }
+    }
+    
+    // Ancien format Laravel : frontImage avec thumbnail
+    try {
+      if (vehicle.frontImage?.thumbnail != null) {
+        return Image.network(
+          vehicle.frontImage!.thumbnail!,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) {
+              return child;
+            }
+            return shimmerContainer();
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return getErrorImageForBoth(
+              vehicle.itemType?.toString() ?? '',
+            );
+          },
+        );
+      }
+    } catch (e) {
+      // Ignorer les erreurs d'accès aux propriétés
+    }
+    
+    // Fallback : image d'erreur
+    return getErrorImageForBoth(
+      vehicle is Map<String, dynamic> 
+        ? (vehicle['itemType']?.toString() ?? vehicle['vehicleType']?.toString() ?? '')
+        : (vehicle.itemType?.toString() ?? ''),
+    );
+  }
+
+  // Méthode helper pour récupérer la transmission
+  // Supporte à la fois l'ancien format (itemInfo) et le nouveau format (specs)
+  String _getTransmission(dynamic vehicle, dynamic itemInfoData) {
+    // Nouveau format Node.js : specs.transmission
+    if (vehicle is Map<String, dynamic>) {
+      final specs = vehicle['specs'];
+      if (specs != null && specs is Map<String, dynamic>) {
+        final transmission = specs['transmission']?.toString();
+        if (transmission != null && transmission.isNotEmpty && transmission != 'null') {
+          return transmission;
+        }
+      }
+    }
+    
+    // Ancien format Laravel : itemInfoData.transmission
+    try {
+      if (itemInfoData != null && itemInfoData.transmission != null) {
+        return itemInfoData.transmission.toString();
+      }
+    } catch (e) {
+      // Ignorer les erreurs d'accès aux propriétés
+    }
+    
+    return 'N/A';
+  }
+
+  // Méthode helper pour récupérer le nombre de sièges
+  // Supporte à la fois l'ancien format (itemInfo) et le nouveau format (specs)
+  String _getSeats(dynamic vehicle, dynamic itemInfoData) {
+    // Nouveau format Node.js : specs.seats
+    if (vehicle is Map<String, dynamic>) {
+      final specs = vehicle['specs'];
+      if (specs != null && specs is Map<String, dynamic>) {
+        final seats = specs['seats']?.toString();
+        if (seats != null && seats.isNotEmpty && seats != 'null') {
+          return seats;
+        }
+      }
+    }
+    
+    // Ancien format Laravel : itemInfoData.seatCapicity
+    try {
+      if (itemInfoData != null && itemInfoData.seatCapicity != null) {
+        return itemInfoData.seatCapicity.toString();
+      }
+    } catch (e) {
+      // Ignorer les erreurs d'accès aux propriétés
+    }
+    
+    return '0';
   }
 
   List<Map<String, String>> items = [];
@@ -366,38 +486,32 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
     setState(() {});
   }
 
-  deleteMethod(index) async {
-    showLoading();
-    
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpPost(Config.deleteItem, {"id": list[index].id.toString()});
-    
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-    
-    // MOCK: Static success response for deleting an item
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Vehicle deleted successfully",
-      "error": "",
-      "data": {
-        "id": list[index].id.toString(),
-        "deleted": true
-      }
-    };
-    
-    var response = mockResponse;
-    // ========== END MOCK DATA ==========
-    
-    closeLoading();
-    if (response != null) {
-      if (response['status'] == 200) {
-        showToastMessage(response['message']);
-        onRefresh();
-        setState(() {});
+  // Méthode qui accepte soit un index (int) soit un ID (String)
+  deleteMethod(dynamic indexOrId) async {
+    try {
+      String? vehicleId;
+      
+      // Si c'est un index (int), récupérer le véhicule
+      if (indexOrId is int) {
+        final vehicle = vehicleController.myVehiclesItems[indexOrId];
+        vehicleId = vehicle.id?.toString() ?? vehicle.toJson()['_id']?.toString();
+      } else if (indexOrId is String) {
+        // Si c'est déjà un ID (String), l'utiliser directement
+        vehicleId = indexOrId;
       } else {
-        showErrorToastMessage(response['error']);
+        showErrorToastMessage('Paramètre invalide pour deleteMethod');
+        return;
       }
+      
+      if (vehicleId == null || vehicleId.isEmpty) {
+        showErrorToastMessage('ID du véhicule introuvable');
+        return;
+      }
+      
+      // Appeler uniquement la fonction deleteVehicleRequest du contrôleur
+      await addItemsHostController.deleteVehicleRequest(vehicleId);
+    } catch (e) {
+      showErrorToastMessage('Erreur lors de la demande de suppression: $e');
     }
   }
 
@@ -411,6 +525,8 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
     list = [];
     setState(() {});
     offset = 0;
+    // Rafraîchir depuis VehicleController
+    vehicleController.fetchMyVehicles();
     getData();
     getdashBoardData();
   }
@@ -516,12 +632,7 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                           .tr);
                                   return;
                                 }
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const InitialHostCommonScreen()),
-                                );
+                                Get.to(() => const AddVehicleScreen());
                               },
                               child: Container(
                                 height: 60,
@@ -961,8 +1072,7 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                               "You have reached the limit for publishing items. Please contact the admin for further assistance.");
                                           return;
                                         }
-                                        Get.to(() =>
-                                            const InitialHostCommonScreen());
+                                        Get.to(() => const AddVehicleScreen());
                                       },
                                       child: Icon(
                                         Icons.add,
@@ -974,104 +1084,293 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                         width: Dimensions.paddingSizeLarge)
                                   ],
                                 ),
-                                list.isEmpty
-                                    ? Addproperty(
-                                        title: "You don't have any List".tr,
-                                        subTitle: staticContantforHost(),
-                                        btnTxt: "Add New List".tr,
-                                        onTap: () {
-                                          if (showerrorWhenloginwithOtherDevice ==
-                                              "token not match") {
-                                            showErrorToastMessage(
-                                                "Please login again");
+                                Obx(() {
+                                  // Utiliser controller.myVehiclesItems au lieu de la liste locale
+                                  final vehiclesList = vehicleController.myVehiclesItems;
+                                  final isLoading = vehicleController.isLoadingMyVehicles.value;
+                                  
+                                  // Gestion du Loader : s'affiche uniquement si la liste est vide ET en chargement
+                                  if (isLoading && vehiclesList.isEmpty) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 250),
+                                      child: Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    );
+                                  }
+                                  
+                                  if (vehiclesList.isEmpty) {
+                                    return Addproperty(
+                                      title: "You don't have any List".tr,
+                                      subTitle: staticContantforHost(),
+                                      btnTxt: "Add New List".tr,
+                                      onTap: () {
+                                        if (showerrorWhenloginwithOtherDevice ==
+                                            "token not match") {
+                                          showErrorToastMessage(
+                                              "Please login again");
 
-                                            return;
-                                          }
-                                          if (checkItemPiblicationLimit
-                                                  .toString() ==
-                                              "0") {
-                                            showErrorToastMessage(
-                                                "You have reached the limit for publishing items. Please contact the admin for further assistance.");
-                                            return;
-                                          }
-                                          Get.to(() =>
-                                              const InitialHostCommonScreen());
+                                          return;
+                                        }
+                                        if (checkItemPiblicationLimit
+                                                .toString() ==
+                                            "0") {
+                                          showErrorToastMessage(
+                                              "You have reached the limit for publishing items. Please contact the admin for further assistance.");
+                                          return;
+                                        }
+                                        Get.to(() =>
+                                            const InitialHostCommonScreen());
+                                      },
+                                    );
+                                  }
+                                  
+                                  return GridView.builder(
+                                    padding: const EdgeInsets.all(8),
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    shrinkWrap: true,
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 1,
+                                      crossAxisSpacing: 8,
+                                      mainAxisExtent: 335,
+                                      mainAxisSpacing: 8,
+                                    ),
+                                    itemCount: vehiclesList.length,
+                                    itemBuilder: (context, index) {
+                                      ItemInfo? itemInfoData;
+                                      String? jsonString =
+                                          vehiclesList[index].itemInfo;
+                                      if (jsonString != null && jsonString.isNotEmpty) {
+                                        try {
+                                          final Map<String, dynamic> itemInfoJson = json.decode(jsonString);
+                                          itemInfoData = ItemInfo.fromJson(itemInfoJson);
+                                        } catch (e) {
+                                          // Ignorer les erreurs de parsing
+                                        }
+                                      }
+                                      return VehicleItemCard(
+                                        vehicle: vehiclesList[index],
+                                        itemInfoData: itemInfoData,
+                                        notifires: notifires,
+                                        onDelete: () {
+                                          deleteMethod(index);
                                         },
-                                      )
-                                    : GridView.builder(
-                                        padding: const EdgeInsets.all(8),
-                                        physics:
-                                            const NeverScrollableScrollPhysics(),
-                                        shrinkWrap: true,
-                                        gridDelegate:
-                                            const SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 1,
-                                          crossAxisSpacing: 8,
-                                          mainAxisExtent: 335,
-                                          mainAxisSpacing: 8,
-                                        ),
-                                        itemCount: list.length,
-                                        itemBuilder: (context, index) {
-                                          ItemInfo? itemInfoData;
-                                          String? jsonString =
-                                              list[index].itemInfo;
-                                          if (jsonString != null) {
-                                            itemInfoData = ItemInfo.fromJson(
-                                                json.decode(jsonString));
-                                          }
-                                          return VehicleItemCard(
-                                            list: list,
-                                            index: index,
-                                            itemInfoData: itemInfoData,
-                                            notifires: notifires,
-                                            stateSetter: setState,
-                                            onDelete: () {
-                                              showDeleteDialog(context, index);
-                                            },
-                                            onEdit: () {
-                                              Get.to(
-                                                const EditVehicleHomeScreen(
-                                                    mode: ScreenMode.edit),
-                                              )?.then((value) {
-                                                myItemsModels = null;
-                                                offset = 0;
-                                                list.clear();
-                                                setState(() {
-                                                  getData();
-                                                });
-                                              });
-                                              if (widget.mode ==
-                                                  ScreenMode.edit) {
-                                                item = list[index];
+                                        onEdit: () async {
+                                          // Afficher un loader pendant la récupération des détails
+                                          showLoading();
+                                          
+                                          try {
+                                            // Récupérer l'ID du véhicule - Utiliser item.id (MongoDB) et non un ID temporaire
+                                            final vehicle = vehiclesList[index];
+                                            
+                                            // 🔍 DEBUG : Log de l'objet brut AVANT toute manipulation
+                                            try {
+                                              final vehicleJson = vehicle.toJson();
+                                              debugPrint('📋 [OBJET_BRUT] JSON complet: ${vehicleJson.toString()}');
+                                              debugPrint('📋 [OBJET_BRUT] Clés disponibles: ${vehicleJson.keys.toList()}');
+                                            } catch (e) {
+                                              debugPrint('❌ [OBJET_BRUT] Erreur lors de la conversion en JSON: $e');
+                                            }
+                                            
+                                            // 🔍 DEBUG : Vérifier l'ID avant utilisation
+                                            debugPrint('🔍 [DEBUG_EDIT] Véhicule sélectionné: ${vehicle.title ?? vehicle.id}');
+                                            debugPrint('🔍 [DEBUG_EDIT] ID du véhicule (vehicle.id): ${vehicle.id}');
+                                            debugPrint('🔍 [DEBUG_EDIT] Type de l\'ID: ${vehicle.id?.runtimeType}');
+                                            debugPrint('🔍 [DEBUG_EDIT] Index dans la liste: $index');
+                                            debugPrint('🔍 [DEBUG_EDIT] Taille de la liste: ${vehiclesList.length}');
+                                            
+                                            // Essayer plusieurs sources pour l'ID
+                                            String? vehicleId = vehicle.id?.toString();
+                                            
+                                            // Si l'ID est null, vide, ou "null", essayer de récupérer depuis le JSON brut
+                                            if (vehicleId == null || vehicleId.isEmpty || vehicleId == "null") {
+                                              debugPrint('⚠️ [DEBUG_EDIT] ID null ou vide, tentative de récupération alternative...');
+                                              // Tentative de récupération directe dans le map si le modèle a échoué
+                                              try {
+                                                final vehicleJson = vehicle.toJson();
+                                                // Priorité: _id (MongoDB) > id (standard)
+                                                vehicleId = vehicleJson['_id']?.toString() ?? 
+                                                            vehicleJson['id']?.toString();
+                                                
+                                                // Si toujours null, essayer de chercher dans les clés avec différentes variantes
+                                                if (vehicleId == null || vehicleId.isEmpty || vehicleId == "null") {
+                                                  debugPrint('⚠️ [DEBUG_EDIT] ID toujours null après toJson(), recherche dans toutes les clés...');
+                                                  for (var key in vehicleJson.keys) {
+                                                    if (key.toLowerCase().contains('id') && vehicleJson[key] != null) {
+                                                      final candidateId = vehicleJson[key].toString();
+                                                      if (candidateId.isNotEmpty && candidateId != "null" && candidateId.length >= 10) {
+                                                        vehicleId = candidateId;
+                                                        debugPrint('✅ [DEBUG_EDIT] ID trouvé dans la clé "$key": $vehicleId');
+                                                        break;
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                                
+                                                debugPrint('🔍 [DEBUG_EDIT] ID depuis toJson() (secours): $vehicleId');
+                                              } catch (e) {
+                                                debugPrint('❌ [DEBUG_EDIT] Erreur lors de la récupération depuis toJson(): $e');
                                               }
-                                            },
-                                            onVehicleDetails: () {
-                                              showPopUpScreen(
-                                                context,
-                                                VehicleDetailSScreen(
-                                                  id: list[index].id,
-                                                  itemInfo: itemInfoData,
-                                                  rating:
-                                                      list[index].itemRating,
-                                                  title: list[index].title,
-                                                  address: list[index].address,
-                                                  latitute:
-                                                      list[index].latitude,
-                                                  longtitute:
-                                                      list[index].longitude,
-                                                  frontImage: list[index]
-                                                          .frontImage
-                                                          ?.url ??
-                                                      "",
-                                                  itemType:
-                                                      list[index].itemType,
-                                                  price: list[index].price,
+                                            }
+                                            
+                                            debugPrint('🔍 [DEBUG_EDIT] ID final utilisé: "$vehicleId"');
+                                            
+                                            // Vérifier si l'ID est valide (MongoDB ObjectId = 24 caractères, minimum 10)
+                                            final bool hasValidId = vehicleId != null && 
+                                                                     vehicleId.isNotEmpty && 
+                                                                     vehicleId != 'null' && 
+                                                                     vehicleId != 'nu' && 
+                                                                     vehicleId.trim().isNotEmpty &&
+                                                                     vehicleId.length >= 10 &&
+                                                                     !vehicleId.contains('-A-') &&
+                                                                     !vehicleId.contains('temp') &&
+                                                                     !vehicleId.contains('mock');
+                                            
+                                            if (!hasValidId) {
+                                              // ⚠️ ID manquant ou invalide : Afficher un message d'erreur
+                                              debugPrint('⚠️ [WARNING] ID manquant ou invalide: "$vehicleId"');
+                                              closeLoading();
+                                              showErrorToastMessage('ID du véhicule invalide. Impossible de modifier ce véhicule.');
+                                              return;
+                                            }
+                                            
+                                            // ✅ ID valide : Naviguer vers l'écran d'édition avec onglets (identique à l'ajout)
+                                            debugPrint('✅ [EDIT_TAB] Navigation vers EditVehicleTabScreen avec ID: $vehicleId');
+                                            closeLoading();
+                                            
+                                            // Navigation vers l'écran d'édition avec onglets (même structure que l'ajout)
+                                            Get.to(
+                                              () => EditVehicleTabScreen(
+                                                vehicleId: vehicleId!,
+                                              ),
+                                            )?.then((value) {
+                                              vehicleController.fetchMyVehicles();
+                                              setState(() {});
+                                            });
+                                            
+                                            // ========== ANCIEN CODE (COMMENTÉ) ==========
+                                            // Ancienne navigation vers CleanEditVehicleScreen (V2 temporaire)
+                                            /*
+                                            debugPrint('✅ [CLEAN_EDIT] Navigation vers CleanEditVehicleScreen avec ID: $vehicleId');
+                                            closeLoading();
+                                            Get.to(
+                                              () => CleanEditVehicleScreen(
+                                                vehicleId: vehicleId!,
+                                              ),
+                                            )?.then((value) {
+                                              vehicleController.fetchMyVehicles();
+                                              setState(() {});
+                                            });
+                                            if (!hasValidId) {
+                                              // ⚠️ ID manquant ou invalide : Utiliser les données locales directement
+                                              debugPrint('⚠️ [WARNING] ID manquant, utilisation des données locales');
+                                              debugPrint('⚠️ [WARNING] vehicleId: "$vehicleId"');
+                                              
+                                              // Stocker le véhicule local
+                                              addItemsHostController.item = vehicle;
+                                              
+                                              // Remplir le formulaire avec les données locales (sans appel API)
+                                              await addItemsHostController.populateFields(vehicle);
+                                              
+                                              closeLoading(); // Fermer le loader en cas de succès
+                                              
+                                              // Naviguer vers l'écran d'édition
+                                              Get.to(
+                                                EditVehicleHomeScreen(
+                                                  mode: ScreenMode.edit,
                                                 ),
-                                              );
-                                            },
+                                              )?.then((value) {
+                                                vehicleController.fetchMyVehicles();
+                                                setState(() {});
+                                              });
+                                            } else {
+                                              // ✅ ID valide : Récupérer les détails complets depuis le serveur
+                                              debugPrint('✅ [DEBUG_EDIT] ID validé, récupération des détails...');
+                                              
+                                              // Récupérer les détails complets du véhicule depuis le serveur
+                                              var detailedVehicle = await addItemsHostController.fetchVehicleDetails(vehicleId!);
+                                              
+                                              if (detailedVehicle != null) {
+                                                // Stocker le véhicule détaillé
+                                                addItemsHostController.item = detailedVehicle;
+                                                
+                                                // Remplir le formulaire avec les vraies données complètes
+                                                await addItemsHostController.populateFields(detailedVehicle);
+                                                
+                                                closeLoading(); // Fermer le loader en cas de succès
+                                                
+                                                // Naviguer vers l'écran d'édition
+                                                Get.to(
+                                                  EditVehicleHomeScreen(
+                                                    vehicleId: vehicleId,
+                                                    mode: ScreenMode.edit,
+                                                  ),
+                                                )?.then((value) {
+                                                  vehicleController.fetchMyVehicles();
+                                                  setState(() {});
+                                                });
+                                              } else {
+                                                // Échec de l'API : Utiliser les données locales comme fallback
+                                                debugPrint('⚠️ [WARNING] Échec de l\'API, utilisation des données locales');
+                                                addItemsHostController.item = vehicle;
+                                                await addItemsHostController.populateFields(vehicle);
+                                                closeLoading();
+                                                
+                                                Get.to(
+                                                  EditVehicleHomeScreen(
+                                                    mode: ScreenMode.edit,
+                                                  ),
+                                                )?.then((value) {
+                                                  vehicleController.fetchMyVehicles();
+                                                  setState(() {});
+                                                });
+                                              }
+                                            }
+                                            */
+                                            // ========== FIN ANCIEN CODE ==========
+                                          } catch (e) {
+                                            closeLoading(); // 4. CORRECTION DU LOADER : Fermer systématiquement en cas d'exception
+                                            debugPrint('❌ [DASHBOARD] Erreur lors de la récupération des détails: $e');
+                                            showErrorToastMessage('Erreur lors du chargement des détails');
+                                          }
+                                        },
+                                        onTap: () {
+                                          final vehicle = vehiclesList[index];
+                                          // Extraire les données disponibles depuis le véhicule
+                                          final vehicleId = vehicle.id?.toString() ?? '';
+                                          final vehicleTitle = vehicle.title;
+                                          final vehicleRating = vehicle.itemRating ?? "0";
+                                          final vehicleAddress = vehicle.address;
+                                          final vehicleCity = vehicle.city;
+                                          final vehicleLatitude = vehicle.latitude;
+                                          final vehicleLongitude = vehicle.longitude;
+                                          final vehicleImage = vehicle.frontImage?.thumbnail ?? vehicle.frontImage?.url;
+                                          final vehiclePrice = vehicle.price;
+                                          
+                                          showPopUpScreen(
+                                            context,
+                                            VehicleDetailSScreen(
+                                              id: vehicleId,
+                                              itemInfo: itemInfoData,
+                                              title: vehicleTitle,
+                                              rating: vehicleRating,
+                                              address: vehicleAddress,
+                                              city: vehicleCity,
+                                              latitute: vehicleLatitude,
+                                              longtitute: vehicleLongitude,
+                                              frontImage: vehicleImage,
+                                              itemType: vehicle.itemType,
+                                              price: vehiclePrice,
+                                              isWishList: false, // Items n'a pas isInWishlist
+                                            ),
                                           );
                                         },
-                                      ),
+                                      );
+                                    },
+                                  );
+                                }),
                                 const SizedBox(
                                   height: 70,
                                 ),
@@ -1099,12 +1398,23 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                   size: 75,
                   color: Colors.red,
                 ),
-                Text(
-                    'Do you want to delete ${list[index].title!.length > 15 ? list[index].title!.substring(0, 16) : list[index].title!}  ${staticContantforHostDeleteMsg()}?'
-                        .tr,
-                    textAlign: TextAlign.center,
-                    style: smallHeadigAirBd.copyWith(
-                        color: notifires.getwhiteblackcolor)),
+                Obx(() {
+                  final vehiclesList = vehicleController.myVehiclesItems;
+                  if (index >= vehiclesList.length) {
+                    return Text(
+                      'Do you want to delete this vehicle?'.tr,
+                      textAlign: TextAlign.center,
+                      style: smallHeadigAirBd.copyWith(
+                          color: notifires.getwhiteblackcolor));
+                  }
+                  final title = vehiclesList[index].title ?? '';
+                  return Text(
+                      'Do you want to delete ${title.length > 15 ? title.substring(0, 16) : title}  ${staticContantforHostDeleteMsg()}?'
+                          .tr,
+                      textAlign: TextAlign.center,
+                      style: smallHeadigAirBd.copyWith(
+                          color: notifires.getwhiteblackcolor));
+                }),
               ],
             ),
           ),
@@ -1232,26 +1542,240 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
 }
 
 class VehicleItemCard extends StatelessWidget {
-  final List<dynamic> list;
-  final int index;
+  final dynamic vehicle; // Nouveau paramètre : véhicule direct
+  final List<dynamic>? list; // Ancien paramètre : liste (pour compatibilité)
+  final int? index; // Ancien paramètre : index (pour compatibilité)
   final dynamic itemInfoData;
   final dynamic notifires;
-  final StateSetter stateSetter;
+  final StateSetter? stateSetter;
   final VoidCallback? onDelete; // Callback for Delete action
   final VoidCallback? onEdit; // Callback for Edit action
   final VoidCallback? onVehicleDetails; // Callback for Vehicle Details action
+  final VoidCallback? onTap; // Nouveau callback pour host_search_screen
 
   const VehicleItemCard({
     Key? key,
-    required this.list,
-    required this.index,
-    required this.itemInfoData,
-    required this.notifires,
-    required this.stateSetter,
+    this.vehicle,
+    this.list,
+    this.index,
+    this.itemInfoData,
+    this.notifires,
+    this.stateSetter,
     this.onDelete,
     this.onEdit,
     this.onVehicleDetails,
+    this.onTap,
   }) : super(key: key);
+  
+  // Getter pour récupérer le véhicule (nouveau format ou ancien format)
+  dynamic get _vehicle {
+    if (vehicle != null) return vehicle;
+    if (list != null && index != null && index! < list!.length) {
+      return list![index!];
+    }
+    return null;
+  }
+
+  // Méthode helper pour récupérer l'image du véhicule
+  Widget _getVehicleImage(dynamic vehicle) {
+    // Nouveau format Node.js : images est un tableau de strings (URLs)
+    if (vehicle is Map<String, dynamic>) {
+      final images = vehicle['images'];
+      if (images != null && images is List && images.isNotEmpty) {
+        final firstImageUrl = images[0] is String ? images[0] : images[0]['url']?.toString();
+        if (firstImageUrl != null && firstImageUrl.isNotEmpty) {
+          return Image.network(
+            firstImageUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) {
+                return child;
+              }
+              return shimmerContainer();
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return getErrorImageForBoth(
+                vehicle['vehicleType']?.toString() ?? vehicle['itemType']?.toString() ?? '',
+              );
+            },
+          );
+        }
+      }
+    }
+    
+    // Ancien format Laravel : frontImage avec thumbnail
+    try {
+      if (vehicle.frontImage?.thumbnail != null) {
+        return Image.network(
+          vehicle.frontImage!.thumbnail!,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) {
+              return child;
+            }
+            return shimmerContainer();
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return getErrorImageForBoth(
+              vehicle.itemType?.toString() ?? '',
+            );
+          },
+        );
+      }
+    } catch (e) {
+      // Ignorer les erreurs d'accès aux propriétés
+    }
+    
+    // Fallback : image d'erreur
+    return getErrorImageForBoth(
+      vehicle is Map<String, dynamic> 
+        ? (vehicle['itemType']?.toString() ?? vehicle['vehicleType']?.toString() ?? '')
+        : (vehicle.itemType?.toString() ?? ''),
+    );
+  }
+
+  // Méthode helper pour récupérer la transmission
+  String _getTransmission(dynamic vehicle, dynamic itemInfoData) {
+    // Nouveau format Node.js : specs.transmission
+    if (vehicle is Map<String, dynamic>) {
+      final specs = vehicle['specs'];
+      if (specs != null && specs is Map<String, dynamic>) {
+        final transmission = specs['transmission']?.toString();
+        if (transmission != null && transmission.isNotEmpty && transmission != 'null') {
+          return transmission;
+        }
+      }
+    }
+    
+    // Ancien format Laravel : itemInfoData.transmission
+    try {
+      if (itemInfoData != null && itemInfoData.transmission != null) {
+        return itemInfoData.transmission.toString();
+      }
+    } catch (e) {
+      // Ignorer les erreurs d'accès aux propriétés
+    }
+    
+    return 'N/A';
+  }
+
+  // Méthode helper pour récupérer le nombre de sièges
+  String _getSeats(dynamic vehicle, dynamic itemInfoData) {
+    // Nouveau format Node.js : specs.seats
+    if (vehicle is Map<String, dynamic>) {
+      final specs = vehicle['specs'];
+      if (specs != null && specs is Map<String, dynamic>) {
+        final seats = specs['seats']?.toString();
+        if (seats != null && seats.isNotEmpty && seats != 'null') {
+          return seats;
+        }
+      }
+    }
+    
+    // Ancien format Laravel : itemInfoData.seatCapicity
+    try {
+      if (itemInfoData != null && itemInfoData.seatCapicity != null) {
+        return itemInfoData.seatCapicity.toString();
+      }
+    } catch (e) {
+      // Ignorer les erreurs d'accès aux propriétés
+    }
+    
+    return '5';
+  }
+
+  // Méthode helper pour récupérer la devise
+  String _getCurrency() {
+    try {
+      final homeController = Get.find<HomeController>();
+      // data est une List<Data>, on accède directement au premier élément
+      if (homeController.currencyModel?.data != null && homeController.currencyModel!.data!.isNotEmpty) {
+        // Retourner le symbole de la première devise ou 'MAD' par défaut
+        return homeController.currencyModel!.data![0].currencySymbol?.toString() ?? 'MAD';
+      }
+    } catch (e) {
+      // Ignorer les erreurs
+    }
+    return 'MAD';
+  }
+
+  // Méthode helper pour récupérer le prix
+  String _getPrice(dynamic vehicle) {
+    if (vehicle is Map<String, dynamic>) {
+      final pricing = vehicle['pricing'];
+      if (pricing != null && pricing is Map<String, dynamic>) {
+        final basePrice = pricing['basePrice']?.toString();
+        if (basePrice != null && basePrice.isNotEmpty) {
+          return basePrice;
+        }
+      }
+      // Fallback sur price direct
+      final price = vehicle['price']?.toString();
+      if (price != null && price.isNotEmpty) {
+        return price;
+      }
+    }
+    // Ancien format
+    try {
+      if (vehicle.price != null) {
+        return vehicle.price.toString();
+      }
+    } catch (e) {
+      // Ignorer les erreurs
+    }
+    return '0';
+  }
+
+  // Helper pour récupérer le titre
+  String _getTitle(dynamic vehicle) {
+    if (vehicle == null) return 'N/A';
+    if (vehicle is Map) {
+      return vehicle['title']?.toString() ?? 'N/A';
+    }
+    try {
+      return vehicle.title?.toString() ?? 'N/A';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  // Helper pour récupérer l'adresse
+  String _getAddress(dynamic vehicle) {
+    if (vehicle == null) return 'N/A';
+    if (vehicle is Map) {
+      final address = vehicle['address']?.toString() ?? 'N/A';
+      return address.length > 20 ? address.substring(0, 19) : address;
+    }
+    try {
+      final address = vehicle.address?.toString() ?? 'N/A';
+      return address.length > 20 ? address.substring(0, 19) : address;
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  // Helper pour récupérer le statut
+  String _getStatus(dynamic vehicle) {
+    if (vehicle == null) return '1';
+    if (vehicle is Map) {
+      return vehicle['status']?.toString() ?? '1';
+    }
+    try {
+      return vehicle.status?.toString() ?? '1';
+    } catch (e) {
+      return '1';
+    }
+  }
+
+  // Helper pour récupérer le type de carburant
+  String _getFuelType(dynamic itemInfoData) {
+    if (itemInfoData == null) return 'N/A';
+    try {
+      return itemInfoData.fuelType?.toString() ?? 'N/A';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1259,7 +1783,7 @@ class VehicleItemCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 5),
       child: InkWell(
         child: Card(
-          color: notifires.getboxcolor,
+          color: notifires?.getboxcolor ?? Colors.grey[200],
           elevation: 2,
           shadowColor: grey4,
           child: Column(
@@ -1269,27 +1793,33 @@ class VehicleItemCard extends StatelessWidget {
                 children: [
                   InkWell(
                     onTap: () {
-                      if (list[index].status == "0") {
+                      final v = _vehicle;
+                      if (v == null) return;
+                      
+                      // Gérer le nouveau format (Items) et l'ancien format (Map)
+                      final status = v is Map ? v['status'] : (v.status?.toString() ?? '1');
+                      if (status == "0") {
                         showErrorToastMessage("items is not published!");
                         return;
                       }
-                      onVehicleDetails
-                          ?.call();
+                      
+                      // Utiliser onTap si disponible (nouveau format), sinon onVehicleDetails
+                      if (onTap != null) {
+                        onTap?.call();
+                      } else {
+                        onVehicleDetails?.call();
+                      }
                     },
                     child: Container(
                       width: double.maxFinite,
                       height: 155,
                       decoration: BoxDecoration(
-                        color: notifires.getBoxColor,
+                        color: notifires?.getBoxColor ?? Colors.grey,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: list[index].frontImage?.thumbnail == null
-                            ? getErrorImageForBoth(
-                                list[index].itemType.toString())
-                            : myNetworkImageWithShimmer(
-                                "${list[index].frontImage!.thumbnail}"),
+                        child: _getVehicleImage(_vehicle),
                       ),
                     ),
                   ),
@@ -1311,10 +1841,13 @@ class VehicleItemCard extends StatelessWidget {
                           width: 9,
                         ),
                         Center(
-                          child: Text('${itemInfoData?.vehicleType ?? 'Sans Matricule'}',
-                              style: regular2(context).copyWith(
-                                fontSize: 11,
-                              )),
+                          child: Text(
+                            itemInfoData?.vehicleType?.toString() ?? 
+                            itemInfoData?.type?.toString() ?? 
+                            'Sans Matricule',
+                            style: regular2(context).copyWith(
+                              fontSize: 11,
+                            )),
                         ),
                       ],
                     ),
@@ -1325,16 +1858,14 @@ class VehicleItemCard extends StatelessWidget {
                     child: Row(
                       children: [
                         Text(
-                          list[index].title!.length > 15
-                              ? list[index].title!.substring(0, 16)
-                              : list[index].title!,
+                          _getTitle(_vehicle),
                           style: heading3Grey1(context).copyWith(
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const Spacer(),
                         Text(
-                          ("$currency ${list[index].price}/day"),
+                          ("${_getCurrency()} ${_getPrice(_vehicle)}/day"),
                           style: boldstyle(context).copyWith(
                             fontSize: 13,
                             // color: notifires.getTextColor
@@ -1360,10 +1891,7 @@ class VehicleItemCard extends StatelessWidget {
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
-                        (list[index].address != null &&
-                                list[index].address!.length > 20)
-                            ? list[index].address!.substring(0, 19)
-                            : (list[index].address ?? "N/A"),
+                        _getAddress(_vehicle),
                         overflow: TextOverflow.ellipsis,
                         style: regular3(context).copyWith(
                           fontSize: 12,
@@ -1376,7 +1904,7 @@ class VehicleItemCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
-                        color: list[index].status == "0"
+                        color: _getStatus(_vehicle) == "0"
                             ? Colors.redAccent.shade200
                             : Colors.green,
                         borderRadius: BorderRadius.circular(4),
@@ -1390,7 +1918,7 @@ class VehicleItemCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            list[index].status == "0"
+                            _getStatus(_vehicle) == "0"
                                 ? "UnPublish".tr
                                 : "Publish".tr,
                             style: regular(context).copyWith(color: whiteColor),
@@ -1415,10 +1943,10 @@ class VehicleItemCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          itemInfoData.transmission.toString(),
+                          _getTransmission(_vehicle, itemInfoData),
                           style: regular3(context).copyWith(
                             fontSize: 12,
-                            color: notifires.getGrey3Whitecolor,
+                            color: notifires?.getGrey3Whitecolor ?? Colors.grey,
                           ),
                         )
                       ],
@@ -1427,12 +1955,12 @@ class VehicleItemCard extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.event_seat,
-                          color: notifires.getGrey3Whitecolor,
+                          color: notifires?.getGrey3Whitecolor ?? Colors.grey,
                           size: 16,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          "${itemInfoData.seatCapicity.toString()} Seats",
+                          "${_getSeats(_vehicle, itemInfoData)} Seats",
                           style: regular3(context).copyWith(
                             fontSize: 12,
                           ),
@@ -1443,12 +1971,12 @@ class VehicleItemCard extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.local_gas_station,
-                          color: notifires.getGrey3Whitecolor,
+                          color: notifires?.getGrey3Whitecolor ?? Colors.grey,
                           size: 16,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          itemInfoData.fuelType.toString(),
+                          _getFuelType(itemInfoData),
                           style: regular3(context).copyWith(
                             fontSize: 12,
                           ),

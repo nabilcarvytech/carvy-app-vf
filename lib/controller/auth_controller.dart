@@ -1082,6 +1082,16 @@ class AuthController extends GetxController implements GetxService {
           "🧹 [Auth] Old Bearer Token flushed. Ready for User Token generation.");
       // ------------------------------
       userId = socialLoginModel.data!.id!;
+      // Lier l'utilisateur à OneSignal avec External User ID
+      try {
+        print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
+        await OneSignal.login(userId.toString());
+        String? pushToken = OneSignal.User.pushSubscription.id;
+        print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
+        print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
+      } catch (e) {
+        print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
+      }
       database.child(userId.toString()).set({
         "userId": userId.toString(),
         "playerId": oneSiginalplayerid ?? "null",

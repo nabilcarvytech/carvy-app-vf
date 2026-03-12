@@ -13,8 +13,9 @@ import 'package:carvy/work_space.dart';
 
 class EditVehicleHomeScreen extends StatefulWidget {
   final ScreenMode? mode;
+  final String? vehicleId;
 
-  const EditVehicleHomeScreen({super.key, this.mode});
+  const EditVehicleHomeScreen({super.key, this.mode, this.vehicleId});
 
   @override
   State<EditVehicleHomeScreen> createState() => _EditVehicleHomeScreenState();
@@ -27,10 +28,20 @@ class _EditVehicleHomeScreenState extends State<EditVehicleHomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.mode == ScreenMode.edit) {
-        addItemsHostController.fetchItemData();
-        addItemsHostController.getDataItemType();
-        addItemsHostController.getVehicleDataMakeModelforEditinitial(
-            addItemsHostController.selectedVehicleType);
+        // populateFields a déjà été appelé avant la navigation depuis host_search_screen.dart
+        // On s'assure juste que les données sont chargées si nécessaire
+        // NE PAS appeler fetchItemData() car elle appelle cleanTextController() et écrase les données
+        if (addItemsHostController.vehicleListItemType.isEmpty) {
+          addItemsHostController.getDataItemType();
+        }
+        if (addItemsHostController.selectedVehicleType != null && 
+            addItemsHostController.selectedVehicleType!.isNotEmpty) {
+          // En mode édition, on réutilise exactement la même API que l'ajout
+          // pour charger toutes les marques et modèles
+          addItemsHostController.getVehicleDataMakeModel();
+        }
+        // Forcer une mise à jour pour rafraîchir l'UI
+        addItemsHostController.update();
       }
     });
   }

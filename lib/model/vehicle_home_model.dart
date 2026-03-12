@@ -79,7 +79,8 @@ class ItemType {
   });
   factory ItemType.fromJson(Map<String, dynamic> json) {
     return ItemType(
-      id: json['id']?.toString() ?? json['_id']?.toString(),
+      // Gérer MongoDB _id en priorité, puis id standard
+      id: json['_id']?.toString() ?? json['id']?.toString(),
       name: json['name'],
       description: json['description'],
       status: json['status'],
@@ -134,12 +135,7 @@ class ItemsData {
   }
 
   factory ItemsData.fromJson(Map<String, dynamic> json) {
-    // DEBUG: suivre ce qui arrive pour la localisation côté home
-    print("🏠 [HOME] PARSING ITEM ${json['id'] ?? json['_id']}:");
-    print("   - Raw JSON city: '${json['city']}'");
-    print("   - Raw JSON address: '${json['address']}'");
-    print("   - Raw JSON vehicleLocation: '${json['vehicleLocation']}'");
-
+    // Logs supprimés pour optimiser le parsing de 22+ véhicules
     final dynamic vehicleLocation = json['vehicleLocation'];
     final dynamic legacyLocation = json['location'];
 
@@ -194,6 +190,59 @@ class ItemsData {
   static fromItem(item) {}
 }
 
+/// Fonction helper pour parser cancellationReasonDescription qui peut être :
+/// - null
+/// - String
+/// - List<String>
+/// - List<Map> (objets avec des propriétés comme 'description', 'text', 'reason', etc.)
+List<dynamic> _parseCancellationReasonDescription(dynamic jsonValue) {
+  if (jsonValue == null) {
+    return [];
+  }
+  
+  // Si c'est une String, la convertir en List avec un seul élément
+  if (jsonValue is String) {
+    return jsonValue.isEmpty ? [] : [jsonValue];
+  }
+  
+  // Si c'est une List
+  if (jsonValue is List) {
+    if (jsonValue.isEmpty) {
+      return [];
+    }
+    
+    // Vérifier le type du premier élément pour déterminer le format
+    final firstElement = jsonValue.first;
+    
+    // Si c'est déjà une List de Strings, retourner directement
+    if (firstElement is String) {
+      return List<String>.from(jsonValue);
+    }
+    
+    // Si c'est une List d'objets (Map), extraire les textes
+    if (firstElement is Map) {
+      return jsonValue.map<dynamic>((item) {
+        // Essayer différentes clés communes pour extraire le texte
+        if (item is Map) {
+          return item['description']?.toString() ?? 
+                 item['text']?.toString() ?? 
+                 item['reason']?.toString() ?? 
+                 item['content']?.toString() ??
+                 item['message']?.toString() ??
+                 item.toString();
+        }
+        return item.toString();
+      }).toList();
+    }
+    
+    // Sinon, convertir chaque élément en String
+    return jsonValue.map<dynamic>((item) => item.toString()).toList();
+  }
+  
+  // Si c'est un autre type, le convertir en String et le mettre dans une List
+  return [jsonValue.toString()];
+}
+
 class ItemInfo {
   dynamic serviceType;
   List<dynamic>? rules;
@@ -219,6 +268,7 @@ class ItemInfo {
   dynamic monthlyDiscount;
   dynamic monthlyDiscountType;
   dynamic cancellationReasonTitle;
+  dynamic cancellationReason; // Clé JSON: 'cancellation_reason'
   List<dynamic>? cancellationReasonDescription;
   List<Feature>? featuresData;
   dynamic hostId;
@@ -262,6 +312,7 @@ class ItemInfo {
     this.monthlyDiscount,
     this.monthlyDiscountType,
     this.cancellationReasonTitle,
+    this.cancellationReason,
     this.cancellationReasonDescription,
     this.featuresData,
     this.hostId,
@@ -278,12 +329,17 @@ class ItemInfo {
   });
 
   factory ItemInfo.fromJson(Map<String, dynamic> json) {
-    print('DEBUG MODEL: Type reçu du JSON = ${json['type']}');
+    // Gérer le type avec plusieurs fallbacks pour éviter null
+    final typeValue = json['type']?.toString() ?? 
+                      json['vehicleType']?.toString() ?? 
+                      json['item_type']?.toString() ?? 
+                      'CAR';
+    // Log supprimé pour optimiser le parsing de 21+ véhicules
     return ItemInfo(
       serviceType: json['service_type'],
       rules: List<String>.from(json['rules'] ?? []),
-      vehicleType: json['vehicleType'],
-      type: json['type']?.toString() ?? 'CAR',
+      vehicleType: json['vehicleType']?.toString() ?? json['item_type']?.toString() ?? 'CAR',
+      type: typeValue,
       makeType: json['make_type'],
       model: json['model'],
       year: json['year'],
@@ -305,13 +361,10 @@ class ItemInfo {
       weeklyDiscountType: json['weekly_discount_type'],
       monthlyDiscount: json['monthly_discount'],
       monthlyDiscountType: json['monthly_discount_type'],
-      cancellationReasonTitle: json['cancellation_reason_title'],
-      cancellationReasonDescription:
-          (json['cancellation_reason_description'] is List)
-              ? List<String>.from(json['cancellation_reason_description'] ?? [])
-              : (json['cancellation_reason_description'] is String)
-                  ? [json['cancellation_reason_description']]
-                  : [],
+      cancellationReasonTitle: json['cancellation_reason_title'] ?? json['cancellation_reason'],
+      cancellationReason: json['cancellation_reason'], // Mapper la clé JSON 'cancellation_reason'
+      cancellationReasonDescription: _parseCancellationReasonDescription(
+          json['cancellation_reason_description']),
       featuresData: (json['features_data'] as List<dynamic>?)
           ?.map((featureJson) => Feature.fromJson(featureJson))
           .toList(),

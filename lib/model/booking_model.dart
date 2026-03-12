@@ -282,7 +282,6 @@ class Bookings {
       // MongoDB envoie des IDs sous forme de String (ex: '694e...')
       // Le backend envoie _id (avec underscore), pas id
       _id = json['_id']?.toString() ?? json['id']?.toString();
-      print('🆔 [Bookings.fromJson] Parsing Booking ID: ${_id} (depuis _id: ${json['_id']}, id: ${json['id']})');
       
       // ========== CHAMPS IDENTIFIANTS (String) ==========
       // Tous les IDs MongoDB sont des String
@@ -310,11 +309,9 @@ class Bookings {
       
       // ========== TOTAL (String mais peut être num) ==========
       if (json['total'] != null) {
-        print('💰 [Bookings.fromJson] Total type: ${json['total'].runtimeType}, Valeur: ${json['total']}');
         _total = safeToString(json['total']);
       } else {
         _total = null;
-        print('⚠️ [Bookings.fromJson] Total est null');
       }
       
       // ========== AUTRES CHAMPS FINANCIERS (String) ==========
@@ -331,6 +328,13 @@ class Bookings {
       _paymentMethod = safeToString(json['payment_method']);
       _paymentStatus = safeToString(json['payment_status']);
       _propImg = safeToString(json['image']);
+      // ========== LOG CRITIQUE POUR DÉBOGUER L'URL D'IMAGE ==========
+      if (_propImg != null && _propImg!.isNotEmpty) {
+        print('🖼️ [DEBUG IMAGE] Raw URL: $_propImg');
+        print('🖼️ [DEBUG IMAGE] URL Type: ${_propImg!.startsWith('http') ? "URL complète" : _propImg!.startsWith('/') ? "Chemin relatif (commence par /)" : "Chemin relatif ou nom de fichier"}');
+      } else {
+        print('🖼️ [DEBUG IMAGE] Raw URL: null ou vide');
+      }
       _propTitle = safeToString(json['item_title']);
       _note = json['note'];
       _rating = safeToString(json['rating']);
@@ -384,7 +388,6 @@ class Bookings {
       
       // ========== 2. PARSING DE item_data (Sièges et Type) ==========
       _itemData = json['item_data'];
-      print('📦 [Bookings.fromJson] item_data brut reçu: ${_itemData} (type: ${_itemData?.runtimeType})');
       
       // Décodage spécifique de item_data avec try-catch
       if (_itemData != null && _itemData.toString().isNotEmpty) {
@@ -396,18 +399,10 @@ class Bookings {
           }
           
           if (itemDataToDecode is List && itemDataToDecode.isNotEmpty) {
-            print('✅ [Bookings.fromJson] item_data décodé avec succès. Taille: ${itemDataToDecode.length}');
             Map<String, dynamic> firstItem = itemDataToDecode[0];
-            print('📍 [Bookings.fromJson] Adresse extraite: ${firstItem['address']}');
-            print('⭐ [Bookings.fromJson] Rating extrait: ${firstItem['item_rating']}');
             
             // Extraction de item_type depuis item_data[0]
             dynamic itemType = firstItem['item_type'];
-            if (itemType != null) {
-              print('✅ [Bookings.fromJson] item_type trouvé dans item_data[0]: $itemType');
-            } else {
-              print('⚠️ [Bookings.fromJson] item_type manquant dans item_data[0]');
-            }
             
             // Extraction de number_of_seats depuis item_info
             if (firstItem.containsKey('item_info')) {
@@ -418,45 +413,25 @@ class Bookings {
                 // item_info peut être une String JSON ou un Map
                 if (itemInfoRaw is String) {
                   itemInfoMap = Map<String, dynamic>.from(jsonDecode(itemInfoRaw));
-                  print('✅ [Bookings.fromJson] item_info décodé depuis String JSON');
                 } else if (itemInfoRaw is Map) {
                   itemInfoMap = Map<String, dynamic>.from(itemInfoRaw);
-                  print('✅ [Bookings.fromJson] item_info est déjà un Map');
                 }
                 
                 if (itemInfoMap != null) {
                   // Extraction de number_of_seats
                   dynamic numberOfSeats = itemInfoMap['number_of_seats'];
-                  if (numberOfSeats != null) {
-                    print('✅ [Bookings.fromJson] number_of_seats trouvé dans item_info: $numberOfSeats');
-                  } else {
-                    print('⚠️ [Bookings.fromJson] number_of_seats manquant dans item_info');
-                    print('   Clés disponibles dans item_info: ${itemInfoMap.keys.toList()}');
-                  }
                   
                   // Extraction de transmission
                   dynamic transmission = itemInfoMap['transmission'] ?? itemInfoMap['transmission_type'];
-                  if (transmission != null) {
-                    print('✅ [Bookings.fromJson] transmission trouvé dans item_info: $transmission');
-                  }
                 }
               } catch (e) {
-                print('❌ [Bookings.fromJson] Erreur lors du décodage de item_info: $e');
+                // Ignorer les erreurs de décodage silencieusement
               }
-            } else {
-              print('⚠️ [Bookings.fromJson] item_info manquant dans item_data[0]');
             }
-          } else if (itemDataToDecode is Map) {
-            print('✅ [Bookings.fromJson] item_data est un Map. Adresse: ${itemDataToDecode['address']}');
           }
         } catch (e, stackTrace) {
-          print('❌ [Bookings.fromJson] ERREUR de décodage item_data: $e');
-          print('❌ [Bookings.fromJson] StackTrace: $stackTrace');
-          print('❌ [Bookings.fromJson] item_data qui a causé l\'erreur: $_itemData');
           // Continuer même si le décodage échoue
         }
-      } else {
-        print('⚠️ [Bookings.fromJson] item_data est null ou vide');
       }
       
     } catch (e, stackTrace) {

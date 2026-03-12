@@ -76,7 +76,8 @@ class Makes {
   });
 
   Makes.fromJson(Map<String, dynamic> json) {
-    id = json['id']?.toString() ?? json['_id']?.toString();
+    // Forcer l'utilisation de _id (MongoDB) en priorité
+    id = json['_id']?.toString() ?? json['id']?.toString() ?? '';
     makeName = json['name'];
     description = json['description'];
     status = json['status'];
@@ -112,4 +113,14 @@ class Makes {
     }
     return data;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Makes &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

@@ -298,9 +298,8 @@ class AgencyController extends GetxController implements GetxService {
 
       // Construire l'URL complète
       // Utiliser /api/auth/agency/register comme demandé
-      // Config.baseurl est 'http://10.0.2.2:5000/api/v1/'
-      // On veut 'http://10.0.2.2:5000/api/auth/agency/register'
-      final String baseUrl = Config.baseurl.replaceAll('/api/v1/', '/api/');
+      // Utiliser Config.baseUrlWithoutV1 pour éviter /v1
+      final String baseUrl = Config.baseUrlWithoutV1;
       final String url = '${baseUrl}auth/agency/register';
 
       debugPrint('📤 [AGENCY_REGISTER] Envoi de la requête à: $url');
@@ -353,6 +352,62 @@ class AgencyController extends GetxController implements GetxService {
               'Une erreur est survenue lors de l\'inscription';
           showErrorToastMessage(errorMessage);
         }
+      } else if (response.statusCode == 400) {
+        // Gestion spécifique pour le status 400 (Validation failed)
+        try {
+          dynamic rawData = response.data;
+          debugPrint('🔍 [AGENCY_REGISTER] Status 400 - Type de rawData: ${rawData.runtimeType}');
+          
+          Map<String, dynamic> responseData;
+          if (rawData is Map) {
+            responseData = Map<String, dynamic>.from(rawData);
+          } else if (rawData is String) {
+            responseData = jsonDecode(rawData) as Map<String, dynamic>;
+          } else {
+            responseData = jsonDecode(rawData.toString()) as Map<String, dynamic>;
+          }
+          
+          debugPrint('🔍 [AGENCY_REGISTER] Status 400 - responseData parsé: $responseData');
+          debugPrint('🔍 [AGENCY_REGISTER] Status 400 - errors présent: ${responseData.containsKey('errors')}');
+          
+          String specificError = '';
+          
+          if (responseData['errors'] != null) {
+            // On récupère le premier message d'erreur trouvé dans l'objet 'errors'
+            var errorsMap = responseData['errors'] as Map<String, dynamic>;
+            debugPrint('🔍 [AGENCY_REGISTER] Status 400 - errorsMap: $errorsMap');
+            specificError = errorsMap.values.first.toString();
+            debugPrint('✅ [AGENCY_REGISTER] Status 400 - Message extrait: $specificError');
+          } else {
+            specificError = responseData['message']?.toString() ?? 'Erreur de validation';
+            debugPrint('⚠️ [AGENCY_REGISTER] Status 400 - Pas d\'errors, utilisation du message: $specificError');
+          }
+
+          // Affichage immédiat du message réel
+          debugPrint('📢 [AGENCY_REGISTER] Status 400 - Affichage du snackbar avec: $specificError');
+          
+          // Utiliser Get.snackbar ET showErrorToastMessage pour garantir l'affichage
+          Get.snackbar(
+            'Erreur d\'inscription',
+            specificError, // Affichera 'This email is already in use'
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 4),
+            margin: const EdgeInsets.all(16),
+            borderRadius: 8,
+            isDismissible: true,
+            dismissDirection: DismissDirection.horizontal,
+          );
+          
+          // Fallback avec toast pour garantir l'affichage
+          showErrorToastMessage(specificError);
+        } catch (parseError, stackTrace) {
+          // En cas d'erreur de parsing, utiliser le message par défaut
+          debugPrint('❌ [AGENCY_REGISTER] Status 400 - Erreur de parsing: $parseError');
+          debugPrint('❌ [AGENCY_REGISTER] Status 400 - StackTrace: $stackTrace');
+          showErrorToastMessage('Erreur de validation: ${parseError.toString()}');
+        }
       } else {
         showErrorToastMessage(
           'Erreur lors de l\'envoi de la requête (${response.statusCode})',
@@ -362,8 +417,67 @@ class AgencyController extends GetxController implements GetxService {
       isLoading.value = false;
       closeLoading();
       debugPrint('❌ [AGENCY_REGISTER] Erreur Dio: ${e.message}');
+      debugPrint('❌ [AGENCY_REGISTER] Status Code: ${e.response?.statusCode}');
       debugPrint('❌ [AGENCY_REGISTER] Erreur: ${e.response?.data}');
 
+      // Gestion spécifique pour le status 400 (Validation failed)
+      if (e.response?.statusCode == 400) {
+        try {
+          dynamic rawData = e.response!.data;
+          debugPrint('🔍 [AGENCY_REGISTER] Type de rawData: ${rawData.runtimeType}');
+          
+          Map<String, dynamic> responseData;
+          if (rawData is Map) {
+            responseData = Map<String, dynamic>.from(rawData);
+          } else if (rawData is String) {
+            responseData = jsonDecode(rawData) as Map<String, dynamic>;
+          } else {
+            responseData = jsonDecode(rawData.toString()) as Map<String, dynamic>;
+          }
+          
+          debugPrint('🔍 [AGENCY_REGISTER] responseData parsé: $responseData');
+          debugPrint('🔍 [AGENCY_REGISTER] errors présent: ${responseData.containsKey('errors')}');
+          
+          String specificError = '';
+          
+          if (responseData['errors'] != null) {
+            // On récupère le premier message d'erreur trouvé dans l'objet 'errors'
+            var errorsMap = responseData['errors'] as Map<String, dynamic>;
+            debugPrint('🔍 [AGENCY_REGISTER] errorsMap: $errorsMap');
+            specificError = errorsMap.values.first.toString();
+            debugPrint('✅ [AGENCY_REGISTER] Message extrait: $specificError');
+          } else {
+            specificError = responseData['message']?.toString() ?? 'Erreur de validation';
+            debugPrint('⚠️ [AGENCY_REGISTER] Pas d\'errors, utilisation du message: $specificError');
+          }
+
+          // Affichage immédiat du message réel
+          debugPrint('📢 [AGENCY_REGISTER] Affichage du snackbar avec: $specificError');
+          
+          // Utiliser Get.snackbar ET showErrorToastMessage pour garantir l'affichage
+          Get.snackbar(
+            'Erreur d\'inscription',
+            specificError, // Affichera 'This email is already in use'
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 4),
+            margin: const EdgeInsets.all(16),
+            borderRadius: 8,
+            isDismissible: true,
+            dismissDirection: DismissDirection.horizontal,
+          );
+          
+          // Fallback avec toast pour garantir l'affichage
+          showErrorToastMessage(specificError);
+        } catch (parseError, stackTrace) {
+          // En cas d'erreur de parsing, utiliser le message par défaut
+          debugPrint('❌ [AGENCY_REGISTER] Erreur de parsing: $parseError');
+          debugPrint('❌ [AGENCY_REGISTER] StackTrace: $stackTrace');
+          showErrorToastMessage('Erreur de validation: ${parseError.toString()}');
+        }
+      } else {
+        // Gestion des autres erreurs Dio
       String errorMessage = 'Une erreur est survenue lors de l\'inscription';
       if (e.response != null && e.response!.data != null) {
         final Map<String, dynamic>? errorData = e.response!.data is Map
@@ -379,6 +493,7 @@ class AgencyController extends GetxController implements GetxService {
       }
 
       showErrorToastMessage(errorMessage);
+      }
     } catch (e) {
       isLoading.value = false;
       closeLoading();

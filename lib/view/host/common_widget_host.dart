@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
@@ -303,7 +306,7 @@ class CustomDropdownHost extends StatefulWidget {
 
 class CustomDropdownHostState extends State<CustomDropdownHost> {
   String? selectedValue;
-  int? selectedId;
+  dynamic selectedId; // Changé de int? à dynamic pour supporter MongoDB String IDs
 
   @override
   void initState() {
@@ -331,11 +334,20 @@ class CustomDropdownHostState extends State<CustomDropdownHost> {
         selectedId = null;
       } else {
         String? result;
-        for (var element in widget.options) {
-          if (element.id.toString() == widget.selectedEditInitialValue) {
-            result = element.name;
-            selectedId = element.id;
-            break;
+        final initialValue = widget.selectedEditInitialValue;
+        // Ne chercher que si selectedEditInitialValue n'est pas null
+        if (initialValue != null && widget.options.isNotEmpty) {
+          for (var element in widget.options) {
+            // Sécuriser l'accès à element.id
+            final elementId = element.id;
+            if (elementId != null) {
+              final elementIdStr = elementId.toString();
+              if (elementIdStr == initialValue.toString()) {
+                result = element.name;
+                selectedId = element.id;
+                break;
+              }
+            }
           }
         }
         selectedValue = result;
@@ -344,79 +356,193 @@ class CustomDropdownHostState extends State<CustomDropdownHost> {
   }
 
   void _openBottomSheet(BuildContext context) {
+    AddItemsHostController addItemsHostController = Get.find();
+    
+    // 🚀 [EDIT_MAKE] LOGS MASSIFS - Ouverture du BottomSheet
+    debugPrint('🚀 [EDIT_MAKE] ==========================================');
+    debugPrint('🚀 [EDIT_MAKE] OUVERTURE DU BOTTOMSHEET');
+    debugPrint('🚀 [EDIT_MAKE] widget.options.length (passé en paramètre): ${widget.options.length}');
+    debugPrint('🚀 [EDIT_MAKE] widget.heading: ${widget.heading}');
+    
+    // Vérifier si c'est pour les marques (Make)
+    final bool isMakeBottomSheet = widget.heading?.toLowerCase().contains('make') == true ||
+                                   widget.heading?.toLowerCase().contains('marque') == true;
+    
+    if (isMakeBottomSheet) {
+      debugPrint('🚀 [EDIT_MAKE] Détection: BottomSheet pour les MARQUES');
+      debugPrint('🚀 [EDIT_MAKE] listMakesType.length dans le controller: ${addItemsHostController.listMakesType.length}');
+      debugPrint('🚀 [EDIT_MAKE] isMakeModel.value: ${addItemsHostController.isMakeModel.value}');
+    }
+    
     showModalBottomSheet(
       backgroundColor: notifires.getbgcolor,
       shape: const BeveledRectangleBorder(),
       context: context,
       builder: (BuildContext context) {
-        List<dynamic> filteredOptions = List.from(widget.options);
-
-        if (widget.removeAll == true) {
-          filteredOptions
-              .removeWhere((element) => element.name.contains("All"));
-        }
-
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              decoration: BoxDecoration(color: greyColor2.withOpacity(0.4)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              child: Row(
-                children: [
-                  Text(
-                    widget.heading ?? "",
-                    style: heading3Grey1(context),
-                  ),
-                  const Spacer(),
-                  InkWell(
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
-                    child: Icon(
-                      Icons.close,
-                      color: notifires.getwhiteblackcolor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView.separated(
-                itemCount: filteredOptions.length,
-                itemBuilder: (BuildContext context, int index) {
-                  bool isSelected = filteredOptions[index].id == selectedId;
+        // 🚀 [EDIT_MAKE] Utiliser GetBuilder pour lire directement depuis le controller si c'est pour les marques
+        if (isMakeBottomSheet) {
+          debugPrint('📦 [EDIT_MAKE] Construction du BottomSheet avec GetBuilder pour les marques');
+          return GetBuilder<AddItemsHostController>(
+            builder: (controller) {
+              // Utiliser listMakesType directement depuis le controller
+              List<dynamic> optionsToUse = controller.listMakesType;
+              
+              debugPrint('📦 [EDIT_MAKE] GetBuilder rebuild - listMakesType.length: ${optionsToUse.length}');
+              
+              if (optionsToUse.isEmpty) {
+                debugPrint('⚠️ [EDIT_MAKE] listMakesType est VIDE dans GetBuilder!');
+                debugPrint('⚠️ [EDIT_MAKE] isMakeModel.value: ${controller.isMakeModel.value}');
+                debugPrint('⚠️ [EDIT_MAKE] isLoadingEdit.value: ${controller.isLoadingEdit.value}');
+                
+                // Afficher un loader si en cours de chargement
+                if (controller.isMakeModel.value || controller.isLoadingEdit.value) {
                   return Container(
-                    color: isSelected ? Colors.transparent : Colors.transparent,
-                    child: ListTile(
-                      title: Text(
-                        filteredOptions[index].name,
-                        style: regular2(context),
+                    height: 200,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Chargement des marques...'.tr),
+                        ],
                       ),
-                      trailing: (widget.mode == ScreenMode.edit ||
-                              widget.mode == ScreenMode.add)
-                          ? (isSelected
-                              ? Icon(Icons.check, color: widget.checkmarkColor)
-                              : null)
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          selectedValue = filteredOptions[index].name;
-                          selectedId = filteredOptions[index].id;
-                        });
-                        widget.onSelected(filteredOptions[index].id.toString());
-                        Navigator.pop(context);
-                      },
                     ),
                   );
-                },
-                separatorBuilder: (BuildContext context, int index) =>
-                    const Divider(),
-              ),
-            ),
-          ],
-        );
+                }
+                
+                // Afficher un message si vide et pas en chargement
+                return Container(
+                  height: 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.warning, size: 48, color: Colors.orange),
+                        SizedBox(height: 16),
+                        Text('Aucune marque disponible'.tr),
+                        SizedBox(height: 8),
+                        Text('Vérifiez votre connexion ou réessayez'.tr, 
+                          style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              
+              debugPrint('✅ [EDIT_MAKE] listMakesType contient ${optionsToUse.length} marques - Affichage du BottomSheet');
+              
+              List<dynamic> filteredOptions = List.from(optionsToUse);
+              
+              if (widget.removeAll == true) {
+                filteredOptions
+                    .removeWhere((element) => element.name.contains("All"));
+              }
+              
+              return _buildBottomSheetContent(context, filteredOptions);
+            },
+          );
+        } else {
+          // Pour les autres dropdowns, utiliser widget.options comme avant
+          List<dynamic> filteredOptions = List.from(widget.options);
+          
+          if (widget.removeAll == true) {
+            filteredOptions
+                .removeWhere((element) => element.name.contains("All"));
+          }
+          
+          return _buildBottomSheetContent(context, filteredOptions);
+        }
       },
+    );
+  }
+  
+  // Méthode helper pour construire le contenu du BottomSheet
+  Widget _buildBottomSheetContent(BuildContext context, List<dynamic> filteredOptions) {
+    debugPrint('📦 [EDIT_MAKE] _buildBottomSheetContent - filteredOptions.length: ${filteredOptions.length}');
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          decoration: BoxDecoration(color: greyColor2.withOpacity(0.4)),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          child: Row(
+            children: [
+              Text(
+                widget.heading ?? "",
+                style: heading3Grey1(context),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                },
+                child: Icon(
+                  Icons.close,
+                  color: notifires.getwhiteblackcolor,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: filteredOptions.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.info_outline, size: 48, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text('Aucune option disponible'.tr),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  itemCount: filteredOptions.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    if (index >= filteredOptions.length) {
+                      debugPrint('⚠️ [EDIT_MAKE] Index $index hors limites (liste: ${filteredOptions.length})');
+                      return SizedBox.shrink();
+                    }
+                    
+                    bool isSelected = filteredOptions[index].id == selectedId;
+                    
+                    debugPrint('📋 [EDIT_MAKE] Item $index: ID=${filteredOptions[index].id}, Name=${filteredOptions[index].name}, isSelected=$isSelected');
+                    
+                    return Container(
+                      color: isSelected ? Colors.transparent : Colors.transparent,
+                      child: ListTile(
+                        title: Text(
+                          filteredOptions[index].name ?? 'N/A',
+                          style: regular2(context),
+                        ),
+                        trailing: (widget.mode == ScreenMode.edit ||
+                                widget.mode == ScreenMode.add)
+                            ? (isSelected
+                                ? Icon(Icons.check, color: widget.checkmarkColor)
+                                : null)
+                            : null,
+                        onTap: () {
+                          debugPrint('✅ [EDIT_MAKE] Marque sélectionnée: ${filteredOptions[index].name} (ID: ${filteredOptions[index].id})');
+                          setState(() {
+                            selectedValue = filteredOptions[index].name;
+                            selectedId = filteredOptions[index].id;
+                          });
+                          widget.onSelected(filteredOptions[index].id.toString());
+                          Navigator.pop(context);
+                        },
+                      ),
+                    );
+                  },
+                  separatorBuilder: (BuildContext context, int index) =>
+                      const Divider(),
+                ),
+        ),
+      ],
     );
   }
 
@@ -597,27 +723,35 @@ class CustomDropdownHostLocationState
   String? selectedValue;
   String? selectedCountryCode;
 
-  int? selectedId;
+  dynamic selectedId; // Changé de int? à dynamic pour supporter MongoDB String IDs
   String? valuePlace;
 
   String? getValue() {
     String? result;
     if (selectedId == null) {
-      for (var element in widget.options) {
-        if (element.id.toString() == widget.selectedEditInitialValue) {
-          setState(() {
-            result = element.name;
-          });
+      final initialValue = widget.selectedEditInitialValue;
+      if (initialValue != null && widget.options.isNotEmpty) {
+        for (var element in widget.options) {
+          final elementId = element.id;
+          if (elementId != null && elementId.toString() == initialValue.toString()) {
+            setState(() {
+              result = element.name;
+            });
+            break;
+          }
         }
       }
       return result;
     } else {
-      for (var element in widget.options) {
-        if (element.id.toString() == selectedId.toString()) {
-          setState(() {
-            result = element.name;
-          });
-          break;
+      if (widget.options.isNotEmpty) {
+        for (var element in widget.options) {
+          final elementId = element.id;
+          if (elementId != null && elementId.toString() == selectedId.toString()) {
+            setState(() {
+              result = element.name;
+            });
+            break;
+          }
         }
       }
       return result;
@@ -627,21 +761,29 @@ class CustomDropdownHostLocationState
   String? getCode() {
     String? countryCode;
     if (selectedId == null) {
-      for (var element in widget.options) {
-        if (element.id.toString() == widget.selectedEditInitialValue) {
-          setState(() {
-            countryCode = element.countryCode;
-          });
+      final initialValue = widget.selectedEditInitialValue;
+      if (initialValue != null && widget.options.isNotEmpty) {
+        for (var element in widget.options) {
+          final elementId = element.id;
+          if (elementId != null && elementId.toString() == initialValue.toString()) {
+            setState(() {
+              countryCode = element.countryCode;
+            });
+            break;
+          }
         }
       }
       return countryCode;
     } else {
-      for (var element in widget.options) {
-        if (element.id.toString() == selectedId.toString()) {
-          setState(() {
-            countryCode = element.countryCode;
-          });
-          break;
+      if (widget.options.isNotEmpty) {
+        for (var element in widget.options) {
+          final elementId = element.id;
+          if (elementId != null && elementId.toString() == selectedId.toString()) {
+            setState(() {
+              countryCode = element.countryCode;
+            });
+            break;
+          }
         }
       }
       return countryCode;
@@ -682,13 +824,19 @@ class CustomDropdownHostLocationState
               child: ListView.separated(
                 itemCount: widget.options.length,
                 itemBuilder: (BuildContext context, int index) {
-                  bool? isselected = widget.options[index].id.toString() ==
-                          widget.selectedEditInitialValue &&
+                  final option = widget.options[index];
+                  final optionId = option.id;
+                  final initialValue = widget.selectedEditInitialValue;
+                  
+                  bool? isselected = (optionId != null && 
+                          initialValue != null &&
+                          optionId.toString() == initialValue.toString()) &&
                       selectedId == null;
-                  bool isSelected = widget.options[index].id == selectedId;
-                  valuePlace = widget.options[index].id.toString() ==
-                          widget.selectedEditInitialValue
-                      ? widget.options[index].name
+                  bool isSelected = optionId != null && optionId == selectedId;
+                  valuePlace = (optionId != null && 
+                          initialValue != null &&
+                          optionId.toString() == initialValue.toString())
+                      ? option.name
                       : "";
 
                   return Container(
@@ -712,19 +860,21 @@ class CustomDropdownHostLocationState
                                   : null)
                               : null,
                       onTap: () {
-                        setState(() {
-                          selectedValue = widget.options[index].name;
-                          selectedCountryCode =
-                              widget.options[index].countryCode;
-                          selectedId = widget.options[index].id;
-                        });
-                        widget.onSelected([
-                          widget.options[index].id.toString(),
-                          widget.options[index].countryCode.toString(),
-                          widget.options[index].latitude ?? '', // Add latitude
-                          widget.options[index].longitude?.toString() ??
-                              '', // Add longitude
-                        ]);
+                        final option = widget.options[index];
+                        final optionId = option.id;
+                        if (optionId != null) {
+                          setState(() {
+                            selectedValue = option.name;
+                            selectedCountryCode = option.countryCode;
+                            selectedId = optionId;
+                          });
+                          widget.onSelected([
+                            optionId.toString(),
+                            option.countryCode?.toString() ?? '',
+                            option.latitude ?? '', // Add latitude
+                            option.longitude?.toString() ?? '', // Add longitude
+                          ]);
+                        }
 
                         Navigator.pop(context);
                       },
@@ -786,6 +936,7 @@ class CustomDropdownHostYears extends StatefulWidget {
   final Color? checkmarkColor;
   final String? heading;
   final ScreenMode? mode;
+  final int? selectedEditInitialValue; // Nouveau paramètre pour la valeur initiale
 
   const CustomDropdownHostYears(
       {super.key,
@@ -794,7 +945,8 @@ class CustomDropdownHostYears extends StatefulWidget {
       this.onSelected,
       this.checkmarkColor,
       this.hintText = 'Select One',
-      this.mode});
+      this.mode,
+      this.selectedEditInitialValue});
 
   @override
   CustomDropdownHostYearsState createState() => CustomDropdownHostYearsState();
@@ -802,9 +954,43 @@ class CustomDropdownHostYears extends StatefulWidget {
 
 class CustomDropdownHostYearsState extends State<CustomDropdownHostYears> {
   int? selectedYear;
-  AddItemsHostController addItemsHostController = Get.find();
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialiser avec la valeur passée en paramètre si disponible
+    if (widget.selectedEditInitialValue != null) {
+      selectedYear = widget.selectedEditInitialValue;
+    } else {
+      // Fallback vers l'ancien contrôleur si disponible (pour compatibilité)
+      try {
+        final addItemsHostController = Get.find<AddItemsHostController>();
+        final yearStr = addItemsHostController.selectedYear;
+        if (yearStr != null && yearStr.isNotEmpty) {
+          selectedYear = int.tryParse(yearStr);
+        }
+      } catch (e) {
+        // Le contrôleur n'existe pas, on continue avec null
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(CustomDropdownHostYears oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Mettre à jour si la valeur initiale change
+    if (widget.selectedEditInitialValue != oldWidget.selectedEditInitialValue) {
+      selectedYear = widget.selectedEditInitialValue;
+    }
+  }
 
   void _openBottomSheet(BuildContext context) {
+    // Sécuriser l'accès à years
+    final yearsList = widget.years ?? [];
+    if (yearsList.isEmpty) {
+      return; // Ne pas ouvrir le bottom sheet si la liste est vide
+    }
+
     showModalBottomSheet(
       useSafeArea: true,
       backgroundColor: notifires.getbgcolor,
@@ -841,11 +1027,11 @@ class CustomDropdownHostYearsState extends State<CustomDropdownHostYears> {
               ),
             Expanded(
               child: ListView.builder(
-                itemCount: widget.years!.length,
+                itemCount: yearsList.length,
                 itemBuilder: (BuildContext context, int index) {
-                  bool isSelected = widget.years![index] == selectedYear;
-                  bool isMark = widget.years![index].toString() ==
-                      addItemsHostController.selectedYear;
+                  final year = yearsList[index];
+                  bool isSelected = year == selectedYear;
+                  // Plus besoin de isMark car on utilise selectedEditInitialValue
 
                   return Container(
                     color: isSelected
@@ -853,16 +1039,13 @@ class CustomDropdownHostYearsState extends State<CustomDropdownHostYears> {
                         : Colors.transparent, 
                     child: ListTile(
                       title: Text(
-                        widget.years![index].toString(),
+                        year.toString(),
                         style: regular2(context),
                       ),
                       trailing: (widget.mode == ScreenMode.edit)
-                          ? (isMark && selectedYear == null
+                          ? (isSelected
                               ? Icon(Icons.check, color: widget.checkmarkColor)
-                              : isSelected
-                                  ? Icon(Icons.check,
-                                      color: widget.checkmarkColor)
-                                  : null)
+                              : null)
                           : (widget.mode == ScreenMode.add)
                               ? (isSelected
                                   ? Icon(Icons.check,
@@ -871,9 +1054,11 @@ class CustomDropdownHostYearsState extends State<CustomDropdownHostYears> {
                               : null,
                       onTap: () {
                         setState(() {
-                          selectedYear = widget.years![index];
+                          selectedYear = year;
                         });
-                        widget.onSelected!(widget.years![index]);
+                        if (widget.onSelected != null) {
+                          widget.onSelected!(year);
+                        }
                         Navigator.pop(context);
                       },
                     ),
@@ -901,21 +1086,13 @@ class CustomDropdownHostYearsState extends State<CustomDropdownHostYears> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              child: widget.mode == ScreenMode.add
-                  ? Text(
-                      selectedYear == null
-                          ? widget.hintText
-                          : selectedYear.toString(),
-                      style: regular2(context),
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : Text(
-                      selectedYear == null
-                          ? addItemsHostController.selectedYear.toString()
-                          : selectedYear.toString(),
-                      style: regular2(context),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              child: Text(
+                selectedYear == null
+                    ? widget.hintText
+                    : selectedYear.toString(),
+                style: regular2(context),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             Icon(
               Icons.arrow_drop_down,
@@ -955,81 +1132,178 @@ class CustomDropdownHostVehicleState extends State<CustomDropdownHostVehicle> {
   String? selectedValue;
 
   void _openBottomSheet(BuildContext context) {
+    // 🚀 [EDIT_MAKE] LOGS MASSIFS - Ouverture du BottomSheet Vehicle
+    debugPrint('🚀 [EDIT_MAKE] ==========================================');
+    debugPrint('🚀 [EDIT_MAKE] OUVERTURE DU BOTTOMSHEET (CustomDropdownHostVehicle)');
+    debugPrint('🚀 [EDIT_MAKE] widget.options.length (passé en paramètre): ${widget.options.length}');
+    debugPrint('🚀 [EDIT_MAKE] widget.heading: ${widget.heading}');
+    debugPrint('🚀 [EDIT_MAKE] listMakesType.length dans le controller: ${addItemsHostController.listMakesType.length}');
+    
+    // Vérifier si c'est pour les marques (Make)
+    final bool isMakeBottomSheet = widget.heading?.toLowerCase().contains('make') == true ||
+                                   widget.heading?.toLowerCase().contains('marque') == true;
+    
+    if (isMakeBottomSheet) {
+      debugPrint('🚀 [EDIT_MAKE] Détection: BottomSheet pour les MARQUES (CustomDropdownHostVehicle)');
+    }
+    
     showModalBottomSheet(
       useSafeArea: true,
       backgroundColor: notifires.getbgcolor,
       shape: const BeveledRectangleBorder(),
       context: context,
       builder: (BuildContext context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              decoration: BoxDecoration(color: greyColor2.withOpacity(0.4)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              child: Row(
-                children: [
-                  Text(
-                    widget.heading ?? "",
-                    style: heading3Grey1(context),
-                  ),
-                  const Spacer(),
-                  InkWell(
-                      onTap: (() {
-                        Navigator.pop(context);
-                      }),
-                      child: Icon(
-                        Icons.close,
-                        color: notifires.getwhiteblackcolor,
-                      ))
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView.separated(
-                itemCount: widget.options.length,
-                itemBuilder: (BuildContext context, int index) {
-                  bool isSelected = widget.options[index].name == selectedValue;
-
+        // 🚀 [EDIT_MAKE] Utiliser GetBuilder pour lire directement depuis le controller si c'est pour les marques
+        if (isMakeBottomSheet) {
+          debugPrint('📦 [EDIT_MAKE] Construction du BottomSheet avec GetBuilder pour les marques (CustomDropdownHostVehicle)');
+          return GetBuilder<AddItemsHostController>(
+            builder: (controller) {
+              // Utiliser listMakesType directement depuis le controller
+              List<dynamic> optionsToUse = controller.listMakesType;
+              
+              debugPrint('📦 [EDIT_MAKE] GetBuilder rebuild - listMakesType.length: ${optionsToUse.length}');
+              
+              if (optionsToUse.isEmpty) {
+                debugPrint('⚠️ [EDIT_MAKE] listMakesType est VIDE dans GetBuilder (CustomDropdownHostVehicle)!');
+                debugPrint('⚠️ [EDIT_MAKE] isMakeModel.value: ${controller.isMakeModel.value}');
+                debugPrint('⚠️ [EDIT_MAKE] isLoadingEdit.value: ${controller.isLoadingEdit.value}');
+                
+                // Afficher un loader si en cours de chargement
+                if (controller.isMakeModel.value || controller.isLoadingEdit.value) {
                   return Container(
-                    color: isSelected
-                        ? Colors.transparent
-                        : Colors.transparent, // Highlight the selected item
-                    child: ListTile(
-                      title: Text(
-                        widget.options[index].name,
-                        style: regular2(context),
+                    height: 200,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Chargement des marques...'.tr),
+                        ],
                       ),
-                      trailing: isSelected
-                          ? Icon(Icons.check,
-                              color: widget
-                                  .checkmarkColor) // Use the required checkmark color
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          selectedValue = widget.options[index].name;
-                        });
-                        widget.onSelected(widget.options[index].id.toString());
-
-                        Navigator.pop(context);
-                      },
                     ),
                   );
-                },
-                separatorBuilder: (BuildContext context, int index) =>
-                    const Divider(),
-              ),
-            ),
-            // ListTile(
-            //   title: Text('Cancel', textAlign: TextAlign.center),
-            //   onTap: () {
-            //     Navigator.pop(
-            //         context); // Close the bottom sheet when cancel is tapped
-            //   },
-            // ),
-          ],
-        );
+                }
+                
+                // Afficher un message si vide et pas en chargement
+                return Container(
+                  height: 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.warning, size: 48, color: Colors.orange),
+                        SizedBox(height: 16),
+                        Text('Aucune marque disponible'.tr),
+                        SizedBox(height: 8),
+                        Text('Vérifiez votre connexion ou réessayez'.tr, 
+                          style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              
+              debugPrint('✅ [EDIT_MAKE] listMakesType contient ${optionsToUse.length} marques - Affichage du BottomSheet (CustomDropdownHostVehicle)');
+              
+              return _buildBottomSheetContentVehicle(context, optionsToUse);
+            },
+          );
+        } else {
+          // Pour les autres dropdowns, utiliser widget.options comme avant
+          debugPrint('📦 [EDIT_MAKE] Utilisation de widget.options (pas pour les marques)');
+          return _buildBottomSheetContentVehicle(context, widget.options);
+        }
       },
+    );
+  }
+  
+  // Méthode helper pour construire le contenu du BottomSheet Vehicle
+  Widget _buildBottomSheetContentVehicle(BuildContext context, List<dynamic> options) {
+    debugPrint('📦 [EDIT_MAKE] _buildBottomSheetContentVehicle - options.length: ${options.length}');
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          decoration: BoxDecoration(color: greyColor2.withOpacity(0.4)),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          child: Row(
+            children: [
+              Text(
+                widget.heading ?? "",
+                style: heading3Grey1(context),
+              ),
+              const Spacer(),
+              InkWell(
+                  onTap: (() {
+                    Navigator.pop(context);
+                  }),
+                  child: Icon(
+                    Icons.close,
+                    color: notifires.getwhiteblackcolor,
+                  ))
+            ],
+          ),
+        ),
+        Expanded(
+          child: options.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.info_outline, size: 48, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text('Aucune option disponible'.tr),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  itemCount: options.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    if (index >= options.length) {
+                      debugPrint('⚠️ [EDIT_MAKE] Index $index hors limites (liste: ${options.length})');
+                      return SizedBox.shrink();
+                    }
+                    
+                    bool isSelected = options[index].name == selectedValue;
+                    
+                    debugPrint('📋 [EDIT_MAKE] Item $index: ID=${options[index].id}, Name=${options[index].name}, isSelected=$isSelected');
+
+                    return Container(
+                      color: isSelected
+                          ? Colors.transparent
+                          : Colors.transparent, // Highlight the selected item
+                      child: ListTile(
+                        title: Text(
+                          options[index].name ?? 'N/A',
+                          style: regular2(context),
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check,
+                                color: widget
+                                    .checkmarkColor) // Use the required checkmark color
+                            : null,
+                        onTap: () {
+                          debugPrint('✅ [EDIT_MAKE] Option sélectionnée: ${options[index].name} (ID: ${options[index].id})');
+                          setState(() {
+                            selectedValue = options[index].name;
+                          });
+                          widget.onSelected(options[index].id.toString());
+
+                          Navigator.pop(context);
+                        },
+                      ),
+                    );
+                  },
+                  separatorBuilder: (BuildContext context, int index) =>
+                      const Divider(),
+                ),
+        ),
+      ],
     );
   }
 
@@ -1426,6 +1700,7 @@ class CustomDropdownHost2 extends StatefulWidget {
   final Color checkmarkColor;
   final String? heading;
   final ScreenMode? mode;
+  final String? selectedEditInitialValue; // Nouveau paramètre pour la valeur initiale
   // Add the required color for the checkmark
 
   const CustomDropdownHost2({
@@ -1436,6 +1711,7 @@ class CustomDropdownHost2 extends StatefulWidget {
     required this.onSelected,
     required this.checkmarkColor, // Make this required
     this.hintText = 'Select One',
+    this.selectedEditInitialValue,
   });
 
   @override
@@ -1443,8 +1719,36 @@ class CustomDropdownHost2 extends StatefulWidget {
 }
 
 class CustomDropdownHost2State extends State<CustomDropdownHost2> {
-  AddItemsHostController addItemsHostController = Get.find();
   String? selectedValue;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialiser avec la valeur passée en paramètre si disponible
+    if (widget.selectedEditInitialValue != null && widget.selectedEditInitialValue!.isNotEmpty) {
+      selectedValue = widget.selectedEditInitialValue;
+    } else {
+      // Fallback vers l'ancien contrôleur si disponible (pour compatibilité)
+      try {
+        final addItemsHostController = Get.find<AddItemsHostController>();
+        final transmission = addItemsHostController.selectTransmission;
+        if (transmission != null && transmission.isNotEmpty) {
+          selectedValue = transmission;
+        }
+      } catch (e) {
+        // Le contrôleur n'existe pas, on continue avec null
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(CustomDropdownHost2 oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Mettre à jour si la valeur initiale change
+    if (widget.selectedEditInitialValue != oldWidget.selectedEditInitialValue) {
+      selectedValue = widget.selectedEditInitialValue;
+    }
+  }
 
   void _openBottomSheet(BuildContext context) {
     showModalBottomSheet(
@@ -1484,8 +1788,6 @@ class CustomDropdownHost2State extends State<CustomDropdownHost2> {
                 itemCount: widget.options.length,
                 itemBuilder: (BuildContext context, int index) {
                   bool isSelected = widget.options[index].name == selectedValue;
-                  bool isMark = widget.options[index].name ==
-                      addItemsHostController.selectTransmission;
 
                   return Container(
                     color: isSelected
@@ -1497,12 +1799,9 @@ class CustomDropdownHost2State extends State<CustomDropdownHost2> {
                         style: regular2(context),
                       ),
                       trailing: (widget.mode == ScreenMode.edit)
-                          ? (isMark
+                          ? (isSelected
                               ? Icon(Icons.check, color: widget.checkmarkColor)
-                              : isSelected
-                                  ? Icon(Icons.check,
-                                      color: widget.checkmarkColor)
-                                  : null)
+                              : null)
                           : (widget.mode == ScreenMode.add)
                               ? (isSelected
                                   ? Icon(Icons.check,
@@ -1563,9 +1862,7 @@ class CustomDropdownHost2State extends State<CustomDropdownHost2> {
                       overflow: TextOverflow.ellipsis,
                     )
                   : Text(
-                      addItemsHostController.selectTransmission ??
-                          selectedValue ??
-                          widget.hintText,
+                      selectedValue ?? widget.hintText,
                       style: regular2(context),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1995,212 +2292,356 @@ myBookingHostListWidget(
   StateSetter setState,
   bool fromPropBooking,
   String listType,
-  onItemCancelled,
-) {
+  onItemCancelled, {
+  VoidCallback? refreshData,
+}) {
+  // ========== VARIABLE DIGITAL SIGNATURE STATUS ==========
+  // Récupération du statut de la signature digitale depuis les settings généraux
+  // Par défaut, on considère qu'elle est active si non spécifié
+  String digitalsingnature = "Active"; // TODO: Récupérer depuis les settings généraux si nécessaire
+  // ========== END VARIABLE DIGITAL SIGNATURE STATUS ==========
+  
   innerMethod(BuildContext context, index) async {
     if (btnText == "Reject") {
       showLoading();
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var response =
-      //     await httpGet(Config.getCancelReasons, {"userType": "host"});
       
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // MOCK: Static cancellation reasons for Host
-      var response = {
-        "status": 200,
-        "message": "Cancel reasons retrieved successfully",
-        "error": "",
-        "data": {
-          "reasons": [
-            {
-              "order_cancellation_id": 1,
-              "reason": "Vehicle unavailable",
-              "user_type": "host",
-              "status": "1",
-              "created_at": "2024-01-01 10:00:00",
-              "updated_at": "2024-01-01 10:00:00"
-            },
-            {
-              "order_cancellation_id": 2,
-              "reason": "Guest behavior suspicion",
-              "user_type": "host",
-              "status": "1",
-              "created_at": "2024-01-01 10:00:00",
-              "updated_at": "2024-01-01 10:00:00"
-            },
-            {
-              "order_cancellation_id": 3,
-              "reason": "Unexpected maintenance",
-              "user_type": "host",
-              "status": "1",
-              "created_at": "2024-01-01 10:00:00",
-              "updated_at": "2024-01-01 10:00:00"
-            },
-            {
-              "order_cancellation_id": 4,
-              "reason": "Double booking error",
-              "user_type": "host",
-              "status": "1",
-              "created_at": "2024-01-01 10:00:00",
-              "updated_at": "2024-01-01 10:00:00"
+      // ========== APPEL API RÉEL - Récupération des raisons d'annulation ==========
+      try {
+        // ========== LOGS DE DIAGNOSTIC ==========
+        print('📡 [REJECT_DIAG] Tentative de récupération des motifs...');
+        String fullUrl = '${Config.baseurl}${Config.getCancelReasons}?userType=host';
+        print('🔗 [REJECT_DIAG] URL complète : $fullUrl');
+        
+        var response = await httpGet(Config.getCancelReasons, {"userType": "host"});
+        closeLoading();
+        
+        // ========== LOGS DE DIAGNOSTIC - Réponse reçue ==========
+        print('✅ [REJECT_DIAG] Réponse reçue du serveur !');
+        print('📦 [REJECT_DIAG] Data brute : $response');
+        
+        if (response != null && response['status'] == 200) {
+          CancellationReasonModel model =
+              CancellationReasonModel.fromJson(response);
+          
+          // ========== LOGS DE DIAGNOSTIC - Vérification de reasons ==========
+          if (model.data?.reasons == null || model.data!.reasons!.isEmpty) {
+            print('⚠️ [REJECT_DIAG] ATTENTION : La liste "reasons" est vide dans le JSON.');
+            print('📋 [REJECT_DIAG] Structure data reçue : ${model.data?.toJson()}');
+            print('📋 [REJECT_DIAG] Nombre de reasons : ${model.data?.reasons?.length ?? 0}');
+          } else {
+            print('✅ [REJECT_DIAG] Nombre de reasons trouvées : ${model.data!.reasons!.length}');
+            for (int i = 0; i < model.data!.reasons!.length; i++) {
+              print('📋 [REJECT_DIAG] Reason[$i]: id=${model.data!.reasons![i].orderCancellationId}, text="${model.data!.reasons![i].reason}"');
             }
-          ]
-        }
-      };
-      // ========== END MOCK DATA ==========
-      closeLoading();
-      if (response != null) {
-        CancellationReasonModel model =
-            CancellationReasonModel.fromJson(response);
-        await showModalBottomSheet(
-          showDragHandle: true,
-          enableDrag: true,
-          context: context,
-          builder: (context) {
-            return CustomBottomSheet(model: model);
-          },
-        ).then((value) async {
-          if (value != null) {
-            showDialog<void>(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  backgroundColor: notifires.getbgcolor,
-                  // title: Text('Are you sure?'.tr,style: TextStyle(color: CustomTheme.theamColor,fontSize: 16, fontFamily: FontStyles.gilroyMedium, fontWeight: FontWeight.w700),),
-                  content: SingleChildScrollView(
-                    child: ListBody(
-                      children: <Widget>[
-                        SizedBox(
-                            height: 100,
-                            child: Image.asset("assets/images/alert.png")),
-                        const SizedBox(
-                          height: 20,
-                        ),
-                        Icon(
-                          Icons.error,
-                          size: 32,
-                          color: getColorBasedOnActiveModuleid(),
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        Text(
-                          'Do you want to cancel this Order?'.tr,
-                          textAlign: TextAlign.center,
-                          style: regular2(context),
-                        ),
-                        // Text('Would you like to approve of this message?'),
-                      ],
-                    ),
-                  ),
-                  actions: <Widget>[
-                    Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                                child: InkWell(
-                                    onTap: () {
-                                      Navigator.pop(context);
-                                    },
-                                    child: Container(
-                                        margin: const EdgeInsets.only(
-                                            left: 8, right: 8),
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                            border: Border.all(
-                                                color: notifires.getBoxColor),
-                                            borderRadius:
-                                                BorderRadius.circular(10)),
-                                        child: Center(
-                                            child: Text(
-                                          "No".tr,
-                                          style: heading3Grey1(context),
-                                        ))))),
-                            Expanded(
-                                child: InkWell(
-                                    onTap: () async {
-                                      BookingController bookingController =
-                                          Get.find();
-                                      Navigator.pop(context);
-                                      showLoading();
-                                      
-                                      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-                                      // var resp = await httpPost(
-                                      //     Config.cancelBookingByHost, {
-                                      //   "booking_id": "${list[index].id}",
-                                      //   "cancellation_reasion": "$value"
-                                      // });
-                                      
-                                      // MOCK: Simulate network delay
-                                      await Future.delayed(const Duration(seconds: 1));
-                                      
-                                      // MOCK: Static cancel booking response
-                                      var resp = {
-                                        "status": 200,
-                                        "message": "Booking cancelled successfully",
-                                        "error": "",
-                                        "data": {
-                                          "booking_id": "${list[index].id}",
-                                          "status": "Declined",
-                                          "cancellation_reason": "$value"
-                                        }
-                                      };
-                                      // ========== END MOCK DATA ==========
-                                      
-                                      closeLoading();
-                                      if (resp['status'] == 200) {
-                                        bookingController
-                                            .updateBookingStatusIfExists(
-                                          bookingId: list[index].id.toString(),
-                                          hostId: list[index].userid.toString(),
-                                          userId: userId.toString(),
-                                          newStatus: "Declined",
-                                        );
-
-                                        showToastMessage(resp['message']);
-                                        onItemCancelled(index);
-                                        setState(() {});
-                                      } else {
-                                        showErrorToastMessage(resp['error']);
-                                      }
-                                    },
-                                    child: Container(
-                                        margin: const EdgeInsets.only(
-                                            left: 8, right: 8),
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                            border: Border.all(
-                                                color:
-                                                    getColorBasedOnActiveModuleid()),
-                                            color:
-                                                getColorBasedOnActiveModuleid(),
-                                            borderRadius:
-                                                BorderRadius.circular(10)),
-                                        child: Center(
-                                            child: Text(
-                                          "Yes".tr,
-                                          style: heading3(context).copyWith(
-                                            color: Colors.white,
-                                            // fontFamily:
-                                            // FontStyles.gilroyMedium,
-                                          ),
-                                        ))))),
-                          ],
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        )
-                      ],
-                    )
-                  ],
-                );
-              },
-            );
           }
-        });
+          await showModalBottomSheet(
+            showDragHandle: true,
+            enableDrag: true,
+            context: context,
+            builder: (context) {
+              return CustomBottomSheet(model: model);
+            },
+          ).then((value) async {
+            // ========== LOG DE VÉRIFICATION - Confirmation de sélection ==========
+            print('🔔 [REJECT_FLOW] Modal fermé avec valeur: $value');
+            if (value != null) {
+              print('✅ [REJECT_FLOW] Raison d\'annulation sélectionnée: $value');
+              print('🚀 [REJECT_FLOW] Démarrage du processus d\'annulation...');
+              
+              showDialog<void>(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    backgroundColor: notifires.getbgcolor,
+                    content: SingleChildScrollView(
+                      child: ListBody(
+                        children: <Widget>[
+                          SizedBox(
+                              height: 100,
+                              child: Image.asset("assets/images/alert.png")),
+                          const SizedBox(
+                            height: 20,
+                          ),
+                          Icon(
+                            Icons.error,
+                            size: 32,
+                            color: getColorBasedOnActiveModuleid(),
+                          ),
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          Text(
+                            'Do you want to cancel this Order?'.tr,
+                            textAlign: TextAlign.center,
+                            style: regular2(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    actions: <Widget>[
+                      Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                  child: InkWell(
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                      },
+                                      child: Container(
+                                          margin: const EdgeInsets.only(
+                                              left: 8, right: 8),
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                              border: Border.all(
+                                                  color: notifires.getBoxColor),
+                                              borderRadius:
+                                                  BorderRadius.circular(10)),
+                                          child: Center(
+                                              child: Text(
+                                            "No".tr,
+                                            style: heading3Grey1(context),
+                                          ))))),
+                              Expanded(
+                                  child: InkWell(
+                                      onTap: () async {
+                                        BookingController bookingController =
+                                            Get.find();
+                                        Navigator.pop(context);
+                                        
+                                        // ========== AFFICHAGE DU CIRCULAR PROGRESS INDICATOR ==========
+                                        BuildContext? dialogContextRef;
+                                        showDialog(
+                                          context: context,
+                                          barrierDismissible: false,
+                                          builder: (BuildContext dialogContext) {
+                                            dialogContextRef = dialogContext;
+                                            return WillPopScope(
+                                              onWillPop: () async => false,
+                                              child: Dialog(
+                                                backgroundColor: Colors.transparent,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(20),
+                                                  decoration: BoxDecoration(
+                                                    color: notifires.getbgcolor,
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                  child: Column(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      const CircularProgressIndicator(),
+                                                      const SizedBox(height: 16),
+                                                      Text(
+                                                        'Traitement en cours...'.tr,
+                                                        style: regular2(context),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                        
+                                        // ========== APPEL API RÉEL - Annulation de la réservation ==========
+                                        try {
+                                          // ========== PRÉPARATION DU BODY ==========
+                                          Map<String, dynamic> requestBody = {
+                                            "booking_id": "${list[index].id}",
+                                            "cancellation_reason": "$value"
+                                          };
+                                          
+                                          // ========== LOGS AVANT L'ENVOI ==========
+                                          print('📡 [FLUTTER_API_START] ========================================');
+                                          print('📡 [FLUTTER_API_START] Tentative d\'annulation de réservation');
+                                          print('📡 [FLUTTER_API_START] URL complète: ${Config.baseurl}${Config.cancelBookingByHost}');
+                                          print('📦 [FLUTTER_API_BODY] JSON Body: ${jsonEncode(requestBody)}');
+                                          print('📦 [FLUTTER_API_BODY] Booking ID: ${list[index].id}');
+                                          print('📦 [FLUTTER_API_BODY] Cancellation Reason ID: $value');
+                                          
+                                          // ========== APPEL HTTP AVEC GESTION D'ERREUR ==========
+                                          print('🚀 [FLUTTER_API_START] Appel httpPost imminent...');
+                                          dynamic resp;
+                                          try {
+                                            print('🚀 [FLUTTER_API_START] Exécution de httpPost maintenant...');
+                                            resp = await httpPost(
+                                              Config.cancelBookingByHost,
+                                              requestBody,
+                                            );
+                                            
+                                            // ========== LOGS APRÈS LA RÉPONSE ==========
+                                            print('📥 [FLUTTER_API_RESP] ========================================');
+                                            print('📥 [FLUTTER_API_RESP] Réponse reçue du serveur');
+                                            if (resp != null) {
+                                              print('📥 [FLUTTER_API_RESP] Status dans JSON: ${resp['status']}');
+                                              print('📥 [FLUTTER_API_RESP] Message: ${resp['message'] ?? 'N/A'}');
+                                              print('📥 [FLUTTER_API_RESP] Error: ${resp['error'] ?? 'N/A'}');
+                                              print('📦 [FLUTTER_API_DATA] Data complète: ${jsonEncode(resp)}');
+                                            } else {
+                                              print('⚠️ [FLUTTER_API_RESP] Réponse NULL reçue !');
+                                            }
+                                          } catch (networkError) {
+                                            // ========== LOGS D'ERREUR RÉSEAU ==========
+                                            print('❌ [FLUTTER_NETWORK_ERROR] ========================================');
+                                            print('❌ [FLUTTER_NETWORK_ERROR] Erreur réseau lors de l\'appel API');
+                                            print('❌ [FLUTTER_NETWORK_ERROR] Type d\'erreur: ${networkError.runtimeType}');
+                                            print('❌ [FLUTTER_NETWORK_ERROR] Message: $networkError');
+                                            
+                                            // Vérifier le type d'erreur spécifique
+                                            if (networkError is TimeoutException) {
+                                              print('❌ [FLUTTER_NETWORK_ERROR] Détail: Timeout - Le serveur n\'a pas répondu à temps');
+                                            } else if (networkError is SocketException) {
+                                              print('❌ [FLUTTER_NETWORK_ERROR] Détail: SocketException - Problème de connexion réseau');
+                                            } else if (networkError.toString().contains('404')) {
+                                              print('❌ [FLUTTER_NETWORK_ERROR] Détail: 404 - Endpoint non trouvé sur le serveur');
+                                            } else if (networkError.toString().contains('DNS')) {
+                                              print('❌ [FLUTTER_NETWORK_ERROR] Détail: DNS - Impossible de résoudre le nom de domaine');
+                                            }
+                                            
+                                            // Relancer l'erreur pour qu'elle soit gérée par le catch externe
+                                            rethrow;
+                                          }
+                                          
+                                          // Fermer le dialog de chargement avec vérification de sécurité
+                                          if (dialogContextRef != null && dialogContextRef!.mounted) {
+                                            Navigator.pop(dialogContextRef!);
+                                          }
+                                          
+                                          if (resp != null && resp['status'] == 200) {
+                                            // ========== MISE À JOUR FIREBASE AVEC PROTECTION ==========
+                                            try {
+                                              bookingController.updateBookingStatusIfExists(
+                                                bookingId: list[index].id.toString(),
+                                                hostId: list[index].userid.toString(),
+                                                userId: userId.toString(),
+                                                newStatus: "Declined",
+                                              );
+                                            } catch (firebaseError) {
+                                              // ========== LOGS DE DIAGNOSTIC - Erreur Firebase ==========
+                                              print('⚠️ [FIREBASE] Erreur lors de la mise à jour Firebase (non bloquant)');
+                                              print('📦 [FIREBASE] Type d\'erreur : ${firebaseError.runtimeType}');
+                                              print('📦 [FIREBASE] Message d\'erreur : $firebaseError');
+                                              print('📦 [FIREBASE] Booking ID: ${list[index].id}');
+                                              print('📦 [FIREBASE] Host ID: ${list[index].userid}');
+                                              print('📦 [FIREBASE] User ID: $userId');
+                                              // Continue l'exécution même si Firebase échoue
+                                            }
+
+                                            // ========== AFFICHAGE DU SNACKBAR DE SUCCÈS ==========
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    resp['message'] ?? 'Réservation refusée'.tr,
+                                                    style: const TextStyle(color: Colors.white),
+                                                  ),
+                                                  backgroundColor: Colors.green,
+                                                  duration: const Duration(seconds: 2),
+                                                ),
+                                              );
+                                            }
+                                            
+                                            // ========== RAFRAÎCHISSEMENT DES DONNÉES ==========
+                                            // Le rafraîchissement se fait même si Firebase a échoué
+                                            if (refreshData != null) {
+                                              refreshData();
+                                            } else {
+                                              onItemCancelled(index);
+                                              setState(() {});
+                                            }
+                                          } else {
+                                            // ========== AFFICHAGE DU MESSAGE D'ERREUR ==========
+                                            String errorMessage = resp?['error'] ?? 
+                                                                 resp?['message'] ?? 
+                                                                 'Une erreur est survenue'.tr;
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    errorMessage,
+                                                    style: const TextStyle(color: Colors.white),
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                  duration: const Duration(seconds: 3),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        } catch (error) {
+                                          // Fermer le dialog de chargement en cas d'erreur avec vérification de sécurité
+                                          if (dialogContextRef != null && dialogContextRef!.mounted) {
+                                            Navigator.pop(dialogContextRef!);
+                                          }
+                                          
+                                          // ========== LOGS DE DIAGNOSTIC - Erreur ==========
+                                          print('❌ [NETWORK] Erreur lors de l\'annulation de la réservation');
+                                          print('📦 [NETWORK] Type d\'erreur : ${error.runtimeType}');
+                                          print('📦 [NETWORK] Message d\'erreur : $error');
+                                          
+                                          // ========== AFFICHAGE DU MESSAGE D'ERREUR ==========
+                                          // Utiliser le contexte parent (context) pour le SnackBar car dialogContext peut être fermé
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Erreur de connexion: ${error.toString()}'.tr,
+                                                  style: const TextStyle(color: Colors.white),
+                                                ),
+                                                backgroundColor: Colors.red,
+                                                duration: const Duration(seconds: 3),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                      child: Container(
+                                          margin: const EdgeInsets.only(
+                                              left: 8, right: 8),
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                              border: Border.all(
+                                                  color:
+                                                      getColorBasedOnActiveModuleid()),
+                                              color:
+                                                  getColorBasedOnActiveModuleid(),
+                                              borderRadius:
+                                                  BorderRadius.circular(10)),
+                                          child: Center(
+                                              child: Text(
+                                            "Yes".tr,
+                                            style: heading3(context).copyWith(
+                                              color: Colors.white,
+                                            ),
+                                          ))))),
+                            ],
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          )
+                        ],
+                      )
+                    ],
+                  );
+                },
+              );
+            }
+          });
+        } else {
+          // ========== LOGS DE DIAGNOSTIC - Réponse invalide ==========
+          print('❌ [REJECT_DIAG] Réponse invalide ou erreur du serveur');
+          print('📦 [REJECT_DIAG] Status reçu : ${response?['status']}');
+          print('📦 [REJECT_DIAG] Message reçu : ${response?['message']}');
+          print('📦 [REJECT_DIAG] Error reçu : ${response?['error']}');
+          print('📦 [REJECT_DIAG] Réponse complète : $response');
+          showErrorToastMessage(response?['error'] ?? response?['message'] ?? 'Erreur lors de la récupération des raisons d\'annulation'.tr);
+        }
+      } catch (error) {
+        // ========== LOGS DE DIAGNOSTIC - Exception ==========
+        print('❌ [REJECT_DIAG] Exception lors de l\'appel API');
+        print('📦 [REJECT_DIAG] Type d\'erreur : ${error.runtimeType}');
+        print('📦 [REJECT_DIAG] Message d\'erreur : $error');
+        closeLoading();
+        showErrorToastMessage('Erreur de connexion: ${error.toString()}'.tr);
       }
     } else if (btnText == "Add Review".tr) {
       if (list[index].reviewStatus != null && list[index].reviewStatus != "0") {
@@ -2231,87 +2672,46 @@ myBookingHostListWidget(
     }
   }
 
-  Future<String> updateItemDeliverStatus({required String bookingId}) async {
-    showLoading();
-    var isItemDelivered;
-    String result;
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpPost(Config.updateItemDeliveredStatus,
-    //     {"booking_id": bookingId, "is_item_delivered": "1"});
-    
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-    
-    // MOCK: Static success response for marking item as delivered
-    Map<String, dynamic> response = {
-      "status": 200,
-      "message": "Vehicle marked as delivered successfully",
-      "error": "",
-      "data": {
-        "booking_extension": {
-          "booking_id": bookingId,
-          "is_item_delivered": "1",
-          "is_item_received": "1",
-          "is_item_returned": "0"
-        }
-      }
-    };
-    // ========== END MOCK DATA ==========
-    closeLoading();
-    if (response["status"] == 200) {
-      isItemDelivered =
-          response["data"]["booking_extension"]["is_item_delivered"];
-      showToastMessage(response["message"]);
-      result = isItemDelivered == "1" ? "no" : "yes";
-    } else {
-      showErrorToastMessage(response['error']);
-      result = "yes";
-    }
-    return result;
-  }
+  return VendorOrderListView(
+    list: list,
+    btnText: btnText,
+    setState: setState,
+    fromPropBooking: fromPropBooking,
+    listType: listType,
+    onItemCancelled: onItemCancelled,
+    refreshData: refreshData,
+    innerMethod: innerMethod,
+  );
+}
 
-  Future<String> updateItemReturnedStatus({required String bookingId}) async {
-    showLoading();
-    var isItemReturned;
-    String result;
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpPost(Config.updateItemReturnedStatus,
-    //     {"booking_id": bookingId, "is_item_returned": "1"});
-    
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-    
-    // MOCK: Static success response for marking item as returned
-    Map<String, dynamic> response = {
-      "status": 200,
-      "message": "Vehicle marked as returned successfully",
-      "error": "",
-      "data": {
-        "booking_extension": {
-          "booking_id": bookingId,
-          "is_item_returned": "1",
-          "is_item_delivered": "1",
-          "is_item_received": "1",
-          "drop_otp": ""
-        }
-      }
-    };
-    // ========== END MOCK DATA ==========
-    closeLoading();
-    if (response["status"] == 200) {
-      isItemReturned =
-          response["data"]["booking_extension"]["is_item_returned"];
-      showToastMessage(response["message"]);
-      result = isItemReturned == "1" ? "no" : "yes";
-    } else {
-      showErrorToastMessage(response['error']);
-      result = "yes";
-    }
-    return result;
-  }
+class VendorOrderListView extends StatelessWidget {
+  final List<Bookings> list;
+  final String btnText;
+  final StateSetter setState;
+  final bool fromPropBooking;
+  final String listType;
+  final Function(int) onItemCancelled;
+  final VoidCallback? refreshData;
+  final Function(BuildContext, int) innerMethod;
 
-  return ListView.builder(
-      shrinkWrap: true,
+  VendorOrderListView({
+    super.key,
+    required this.list,
+    required this.btnText,
+    required this.setState,
+    required this.fromPropBooking,
+    required this.listType,
+    required this.onItemCancelled,
+    this.refreshData,
+    required this.innerMethod,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final self = this;
+    return ListView.builder(
+      shrinkWrap: false,
+      physics: const BouncingScrollPhysics(),
       itemCount: list.length,
       itemBuilder: (context, index) {
         var itemData = jsonDecode(list[index].itemData);
@@ -2373,12 +2773,17 @@ myBookingHostListWidget(
                         showErrorToastMessage("User not found");
                         return;
                       }
+                      
+                      if (itemInfoData == null) {
+                        showErrorToastMessage("Item information not available");
+                        return;
+                      }
 
                       showPopUpScreen(
                           context,
                           VehicleDetailSScreen(
                             id: list.elementAt(index).id,
-                            itemInfo: itemInfoData!,
+                            itemInfo: itemInfoData,
                             rating: list[index].rating,
                             title: list[index].propTitle,
                             address: address,
@@ -2409,16 +2814,49 @@ myBookingHostListWidget(
                         Positioned(
                             left: 0,
                             top: 0,
-                            child: Container(
-                              padding: const EdgeInsets.only(
-                                  left: 8, right: 8, top: 4, bottom: 4),
-                              decoration: BoxDecoration(
-                                  color: getColorBasedOnActiveModuleid()
-                                      .withOpacity(.8),
-                                  borderRadius: BorderRadius.circular(12)),
-                              child: Text("#${list[index].token}",
-                                  style: regular2(context)
-                                      .copyWith(color: whiteColor)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.only(
+                                      left: 8, right: 8, top: 4, bottom: 4),
+                                  decoration: BoxDecoration(
+                                      color: getColorBasedOnActiveModuleid()
+                                          .withOpacity(.8),
+                                      borderRadius: BorderRadius.circular(12)),
+                                  child: Text("#${list[index].token}",
+                                      style: regular2(context)
+                                          .copyWith(color: whiteColor)),
+                                ),
+                                // Badge de statut pour l'onglet "À venir"
+                                if (listType == "UpComing" && 
+                                    list[index].status != null &&
+                                    (list[index].status!.toUpperCase() == 'PENDING' ||
+                                     list[index].status!.toUpperCase() == 'CONFIRMED'))
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: list[index].status!.toUpperCase() == 'PENDING'
+                                            ? orangeColor
+                                            : appgreen,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        list[index].status!.toUpperCase() == 'PENDING'
+                                            ? 'EN ATTENTE'
+                                            : 'CONFIRMÉ',
+                                        style: regular2(context).copyWith(
+                                          color: whiteColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             )),
                         listType == "Cancelled"
                             ? SizedBox()
@@ -2427,12 +2865,17 @@ myBookingHostListWidget(
                                 right: 10,
                                 child: InkWell(
                                   onTap: () {
+                                    final propTitle = list[index].propTitle ?? '';
+                                    if (propTitle.isEmpty) {
+                                      showErrorToastMessage("Title not available");
+                                      return;
+                                    }
                                     Get.to(() => ConversationScreen(
                                           bookingStatus:
                                               '${list[index].status}',
                                           bookingId: '${list[index].id}',
                                           image: image,
-                                          title: list[index].propTitle!,
+                                          title: propTitle,
                                           conversationId:
                                               "${list[index].userid}_${list[index].id}_${list[index].hostId}",
                                           from: "${list[index].userName}",
@@ -2489,7 +2932,7 @@ myBookingHostListWidget(
                                           style: regular2(context)
                                               .copyWith(color: whiteColor)),
                                     ))
-                                : const SizedBox(),
+                                : SizedBox(),
                       ],
                     ),
                   ),
@@ -2528,10 +2971,13 @@ myBookingHostListWidget(
                                 : Row(
                                     children: [
                                       Text(
-                                        (list[index].propTitle!.length > 20
-                                                ? '${list[index].propTitle!.substring(0, 19)}..'
-                                                : list[index].propTitle!)
-                                            .tr,
+                                        (() {
+                                          final propTitle = list[index].propTitle ?? '';
+                                          if (propTitle.isEmpty) return '';
+                                          return propTitle.length > 20
+                                              ? '${propTitle.substring(0, 19)}..'
+                                              : propTitle;
+                                        })().tr,
                                         style:
                                             heading3Grey1(context).copyWith(),
                                       ),
@@ -2566,59 +3012,14 @@ myBookingHostListWidget(
                                 const SizedBox(
                                   width: 5,
                                 ),
-                                Text(
-                                  (address.length > 30
-                                      ? '${address.substring(0, 29)}..'
-                                      : address),
-                                  style: regular2(context).copyWith(
-                                      overflow: TextOverflow.ellipsis),
-                                ),
-                                Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.only(
-                                      left: 8, right: 8, top: 4, bottom: 4),
-                                  decoration: BoxDecoration(
-                                      color:
-                                          list[index].status == "Confirmed" ||
-                                                  list[index].status == "Live"
-                                              ? greensColor
-                                              : list[index].status == "Pending"
-                                                  ? yellowColor
-                                                  : list[index].status ==
-                                                          "Completed"
-                                                      ? blueColor
-                                                      : redColor,
-                                      borderRadius: BorderRadius.circular(5)),
-                                  child: list[index].status == "Confirmed" ||
-                                          list[index].status == "Live" ||
-                                          list[index].status == "Pending" ||
-                                          list[index].status == "Declined" &&
-                                              listType == "UpComing" ||
-                                          listType == "Previous"
-                                      ? Text("${list[index].status}",
-                                          style: regular(context)
-                                              .copyWith(color: whiteColor))
-                                      : listType == 'Cancelled'
-                                          ? Container(
-                                              decoration: BoxDecoration(
-                                                  color: redColor,
-                                                  border: Border.all(
-                                                    color: redColor,
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          10)),
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.all(4.0),
-                                                child: Text(
-                                                    '${list[index].status}',
-                                                    style: regular(context)
-                                                        .copyWith(
-                                                            color: whiteColor)),
-                                              ),
-                                            )
-                                          : const SizedBox(),
+                                Expanded(
+                                  child: Text(
+                                    (address.length > 30
+                                        ? '${address.substring(0, 29)}..'
+                                        : address),
+                                    style: regular2(context).copyWith(
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
                                 )
                               ],
                             ),
@@ -2680,7 +3081,7 @@ myBookingHostListWidget(
                                   ),
                                 ),
                                 list[index].userName != null &&
-                                        list[index].userName!.isNotEmpty
+                                        (list[index].userName?.isNotEmpty ?? false)
                                     ? Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.end,
@@ -2693,10 +3094,15 @@ myBookingHostListWidget(
                                           ),
                                           const SizedBox(width: 10),
                                           InkWell(
-                                            onTap: () => launchUrl(Uri.parse(
-                                                'tel:${list[index].userPhoneCountry}${list[index].userNumber}')),
+                                            onTap: () {
+                                              final userNumber = list[index].userNumber ?? '';
+                                              final userPhoneCountry = list[index].userPhoneCountry ?? '';
+                                              if (userNumber.isNotEmpty) {
+                                                launchUrl(Uri.parse('tel:$userPhoneCountry$userNumber'));
+                                              }
+                                            },
                                             child: Text(
-                                              "${list[index].userPhoneCountry} ${list[index].userNumber!}",
+                                              "${list[index].userPhoneCountry ?? ''} ${list[index].userNumber ?? ''}",
                                               style: regular2(context),
                                             ),
                                           ),
@@ -2903,11 +3309,11 @@ myBookingHostListWidget(
                                         value:
                                             "${list[index].currencyCode} ${list[index].securityMoney}",
                                       )
-                                    : const SizedBox(),
+                                    : SizedBox(),
                                 list[index].cancelledCharge == null
-                                    ? const SizedBox()
+                                    ? SizedBox()
                                     : list[index].cancelledCharge == "0.00"
-                                        ? const SizedBox()
+                                        ? SizedBox()
                                         : eReceiptWidget(
                                             name: "Cancelled Charge".tr,
                                             value:
@@ -2935,634 +3341,281 @@ myBookingHostListWidget(
                         padding: const EdgeInsets.all(8.0),
                         child: Column(
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                list[index].status == "Confirmed"
-                                    ? const SizedBox()
-                                    : list[index].status == "Declined" &&
-                                            listType == "UpComing"
-                                        ? const SizedBox()
-                                        : list[index].status == "Confirmed" ||
-                                                list[index].status ==
-                                                        "Pending" &&
-                                                    listType == "UpComing"
-                                            ? Expanded(
-                                                child: InkWell(
-                                                  onTap: () async {
-                                                    if (list[index].userName ==
-                                                        null) {
-                                                      showErrorToastMessage(
-                                                          "user not found");
-                                                      return;
-                                                    }
-                                                    if (list[index].status ==
-                                                        "Confirmed") {
-                                                      return;
-                                                    }
-                                                    try {
-                                                      showLoading();
-                                                      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-                                                      // var responce =
-                                                      //     await httpPost(
-                                                      //         Config
-                                                      //             .getItemDetails,
-                                                      //         {
-                                                      //       "item_id":
-                                                      //           "${list[index].itemid}"
-                                                      //     });
-                                                      
-                                                      // MOCK: Simulate network delay
-                                                      await Future.delayed(const Duration(seconds: 1));
-                                                      
-                                                      // MOCK: Static item details response
-                                                      var responce = {
-                                                        "status": 200,
-                                                        "message": "Item details retrieved successfully",
-                                                        "error": "",
-                                                        "data": {
-                                                          "ItemDetails": {
-                                                            "item_id": int.tryParse("${list[index].itemid}") ?? 101,
-                                                            "title": "Toyota Camry 2023 - Premium Sedan",
-                                                            "price": "50.00",
-                                                            "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
-                                                            "item_rating": "4.5",
-                                                            "status": "1",
-                                                            "host_id": "1001"
-                                                          }
-                                                        }
-                                                      };
-                                                      // ========== END MOCK DATA ==========
-                                                      
-                                                      if (responce != null &&
-                                                          responce["status"] ==
-                                                              500) {
-                                                        closeLoading();
-                                                        showErrorToastMessage(
-                                                            responce[
-                                                                "message"]);
-                                                        return;
-                                                      } else {
-                                                        closeLoading();
-                                                      }
-                                                    } catch (e) {
-                                                      closeLoading();
-                                                      // Handle any exceptions
-                                                    }
-
-                                                    if (list[index].status ==
-                                                        "Pending") {
-                                                      WidgetsBinding.instance
-                                                          .addPostFrameCallback(
-                                                              (_) {
-                                                        showDialog<void>(
-                                                          context: context,
-                                                          builder: (BuildContext
-                                                              context) {
-                                                            return AlertDialog(
-                                                              backgroundColor:
-                                                                  notifires
-                                                                      .getboxcolor,
-                                                              content:
-                                                                  SingleChildScrollView(
-                                                                child: ListBody(
-                                                                  children: <Widget>[
-                                                                    const Icon(
-                                                                      Icons
-                                                                          .error,
-                                                                      size: 75,
-                                                                      color: Colors
-                                                                          .red,
-                                                                    ),
-                                                                    Text(
-                                                                      'Do you want to Accept this Order?'
-                                                                          .tr
-                                                                          .tr,
-                                                                      textAlign:
-                                                                          TextAlign
-                                                                              .center,
-                                                                      style: regular2(
-                                                                          context),
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                              ),
-                                                              actions: <Widget>[
-                                                                Column(
-                                                                  children: [
-                                                                    Row(
-                                                                      children: [
-                                                                        Expanded(
-                                                                          child:
-                                                                              InkWell(
-                                                                            onTap:
-                                                                                () {
-                                                                              Navigator.pop(context);
-                                                                            },
-                                                                            child:
-                                                                                Container(
-                                                                              margin: const EdgeInsets.only(left: 8, right: 8),
-                                                                              padding: const EdgeInsets.all(10),
-                                                                              decoration: BoxDecoration(
-                                                                                border: Border.all(
-                                                                                  color: notifires.getGrey2Whitecolor,
-                                                                                ),
-                                                                                borderRadius: BorderRadius.circular(10),
-                                                                              ),
-                                                                              child: Center(
-                                                                                child: Text(
-                                                                                  "No".tr,
-                                                                                  style: boldstyle(context),
-                                                                                ),
-                                                                              ),
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                        Expanded(
-                                                                          child:
-                                                                              InkWell(
-                                                                            onTap:
-                                                                                () async {
-                                                                              BookingController bookingController = Get.find();
-                                                                              Navigator.pop(context);
-                                                                              showLoading();
-                                                                              
-                                                                              // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-                                                                              // var resp = await httpPost(
-                                                                              //   Config.confirmBookingByHost,
-                                                                              //   {
-                                                                              //     "booking_id": "${list[index].id}"
-                                                                              //   },
-                                                                              // );
-                                                                              
-                                                                              // MOCK: Simulate network delay
-                                                                              await Future.delayed(const Duration(seconds: 1));
-                                                                              
-                                                                              // MOCK: Static confirm booking response
-                                                                              var resp = {
-                                                                                "status": 200,
-                                                                                "message": "Booking confirmed successfully",
-                                                                                "error": "",
-                                                                                "data": {
-                                                                                  "booking_id": "${list[index].id}",
-                                                                                  "status": "Confirmed"
-                                                                                }
-                                                                              };
-                                                                              // ========== END MOCK DATA ==========
-                                                                              
-                                                                              closeLoading();
-                                                                              if (resp['status'] == 200) {
-                                                                                showToastMessage(resp['message']);
-                                                                                list[index].statusSetter = "Confirmed";
-
-                                                                                bookingController.updateBookingStatusIfExists(
-                                                                                  bookingId: list[index].id.toString(),
-                                                                                  hostId: list[index].userid.toString(),
-                                                                                  userId: userId.toString(),
-                                                                                  newStatus: "Confirmed",
-                                                                                );
-
-                                                                                setState(() {});
-                                                                              } else {
-                                                                                showToastMessage(resp['error']);
-                                                                              }
-                                                                            },
-                                                                            child:
-                                                                                Container(
-                                                                              margin: const EdgeInsets.only(left: 8, right: 8),
-                                                                              padding: const EdgeInsets.all(10),
-                                                                              decoration: BoxDecoration(
-                                                                                border: Border.all(
-                                                                                  color: getColorBasedOnActiveModuleid(),
-                                                                                ),
-                                                                                color: getColorBasedOnActiveModuleid(),
-                                                                                borderRadius: BorderRadius.circular(10),
-                                                                              ),
-                                                                              child: Center(
-                                                                                child: Text(
-                                                                                  "Yes".tr,
-                                                                                  style: boldstyle(context).copyWith(
-                                                                                    color: Colors.white,
-                                                                                    fontWeight: FontWeight.bold,
-                                                                                  ),
-                                                                                ),
-                                                                              ),
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                      ],
-                                                                    ),
-                                                                    const SizedBox(
-                                                                      height: 8,
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                              ],
-                                                            );
-                                                          },
-                                                        );
-                                                      });
-                                                    }
-                                                  },
-                                                  child: Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            right: 10),
-                                                    child: Container(
-                                                      alignment:
-                                                          Alignment.center,
-                                                      padding:
-                                                          const EdgeInsets.only(
-                                                              top: 9,
-                                                              bottom: 9),
-                                                      decoration: BoxDecoration(
-                                                          border: Border.all(
-                                                              color: list[index]
-                                                                          .status ==
-                                                                      "Confirmed"
-                                                                  ? greensColor
-                                                                  : yellowColor),
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(10),
-                                                          color: list[index]
-                                                                      .status ==
-                                                                  "Confirmed"
-                                                              ? greensColor
-                                                              : yellowColor),
-                                                      child: Text(
-                                                          list[index].status ==
-                                                                  "Confirmed"
-                                                              ? "Confirmed".tr
-                                                              : "Accept".tr,
-                                                          style: boldstyle(
-                                                                  context)
-                                                              .copyWith(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  fontSize:
-                                                                      14)),
+                            Builder(
+                              builder: (context) {
+                                // ========== LOG DE DIAGNOSTIC ==========
+                                print('📑 [BUTTON_LOG] ID: ${list[index].id} | Status: ${list[index].status} | Affiche Accept: ${list[index].status?.toString().toUpperCase() == "PENDING"}');
+                                
+                                // ========== PRIORITÉ 1: Si status == "Pending", afficher [Accept] et [Reject] ==========
+                                if (list[index].status?.toString().toUpperCase() == "PENDING") {
+                                  return Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                    children: [
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: () {
+                                            // ========== BOUTON ACCEPT : Ouvre directement la popup de confirmation ==========
+                                            if (list[index].status?.toString().toUpperCase() == "PENDING") {
+                                              showDialog<void>(
+                                                context: context,
+                                                builder: (BuildContext context) {
+                                                  return AlertDialog(
+                                                    backgroundColor: notifires.getboxcolor,
+                                                    content: SingleChildScrollView(
+                                                      child: ListBody(
+                                                        children: <Widget>[
+                                                          const Icon(
+                                                            Icons.error,
+                                                            size: 75,
+                                                            color: Colors.red,
+                                                          ),
+                                                          Text(
+                                                            'Do you want to Accept this Order?'.tr,
+                                                            textAlign: TextAlign.center,
+                                                            style: regular2(context),
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ),
-                                                  ),
-                                                ),
-                                              )
-                                            : const SizedBox(),
-                                list[index].status == "Confirmed" &&
-                                        listType == "UpComing"
-                                    ? const SizedBox()
-                                    : list[index].status == "Declined"
-                                        ? const SizedBox()
-                                        : listType == 'UpComing' &&
-                                                isMatching == true
-                                            ? const SizedBox()
-                                            : listType == 'Cancelled'
-                                                ? const SizedBox()
-                                                : listType == 'Ongoing'
-                                                    ? const SizedBox()
-                                                    : list[index]
-                                                                .isItemReturned ==
-                                                            1
-                                                        ? Expanded(
-                                                            child: InkWell(
-                                                              onTap: () async {
-                                                                if (list[index]
-                                                                        .userName ==
-                                                                    null) {
-                                                                  showErrorToastMessage(
-                                                                      "host not found");
-                                                                  return;
-                                                                }
-
-                                                                try {
-                                                                  showLoading();
-                                                                  // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-                                                                  // var responce =
-                                                                  //     await httpPost(
-                                                                  //         Config
-                                                                  //             .getItemDetails,
-                                                                  //         {
-                                                                  //       "item_id":
-                                                                  //           "${list[index].itemid}"
-                                                                  //     });
-                                                                  
-                                                                  // MOCK: Simulate network delay
-                                                                  await Future.delayed(const Duration(seconds: 1));
-                                                                  
-                                                                  // MOCK: Static item details response (same structure as http_service.dart)
-                                                                  var responce = {
-                                                                    "status": 200,
-                                                                    "message": "Item details retrieved successfully",
-                                                                    "error": "",
-                                                                    "data": {
-                                                                      "ItemDetails": {
-                                                                        "item_id": int.tryParse("${list[index].itemid}") ?? 101,
-                                                                        "title": "Toyota Camry 2023 - Premium Sedan",
-                                                                        "price": "50.00",
-                                                                        "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
-                                                                        "item_rating": "4.5",
-                                                                        "status": "1",
-                                                                        "host_id": "1001"
-                                                                      }
-                                                                    }
-                                                                  };
-                                                                  // ========== END MOCK DATA ==========
-                                                                  
-                                                                  if (responce !=
-                                                                          null &&
-                                                                      responce[
-                                                                              "status"] ==
-                                                                          500) {
-                                                                    closeLoading();
-                                                                    showErrorToastMessage(
-                                                                        responce[
-                                                                            "message"]);
-                                                                    return;
-                                                                  } else {
-                                                                    closeLoading();
-                                                                  }
-                                                                } catch (e) {
-                                                                  closeLoading();
-                                                                  // Handle any exceptions
-                                                                }
-
-                                                                innerMethod(
-                                                                    context,
-                                                                    index);
-                                                              },
-                                                              child: Padding(
-                                                                padding:
-                                                                    const EdgeInsets
-                                                                        .only(
-                                                                        right:
-                                                                            10),
-                                                                child: Container(
-                                                                    alignment: Alignment.center,
-                                                                    padding: const EdgeInsets.only(
-                                                                      top: 10,
-                                                                      bottom:
-                                                                          10,
-                                                                    ),
+                                                    actions: <Widget>[
+                                                      Column(
+                                                        children: [
+                                                          Row(
+                                                            children: [
+                                                              Expanded(
+                                                                child: InkWell(
+                                                                  onTap: () {
+                                                                    Navigator.pop(context);
+                                                                  },
+                                                                  child: Container(
+                                                                    margin: const EdgeInsets.only(left: 8, right: 8),
+                                                                    padding: const EdgeInsets.all(10),
                                                                     decoration: BoxDecoration(
-                                                                      // color: btnText == "Cancel" ? RedColor:yelloColor,
-                                                                      color: btnText ==
-                                                                              "Cancelled"
-                                                                          ? const Color
-                                                                              .fromARGB(
-                                                                              128,
-                                                                              128,
-                                                                              128,
-                                                                              128)
-                                                                          : btnText == "Cancel"
-                                                                              ? Colors.red
-                                                                              : list[index].reviewStatus != null && list[index].reviewStatus != "0"
-                                                                                  ? Colors.blue
-                                                                                  : themeColor,
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(
-                                                                              10),
+                                                                      border: Border.all(
+                                                                        color: notifires.getGrey2Whitecolor,
+                                                                      ),
+                                                                      borderRadius: BorderRadius.circular(10),
                                                                     ),
                                                                     child: Center(
-                                                                        // child: Text("Cancel"),
-                                                                        child: Text(
-                                                                      list[index].reviewStatus != null &&
-                                                                              list[index].reviewStatus ==
-                                                                                  "1"
-                                                                          ? "View Review"
-                                                                              .tr
-                                                                          : "$btnText"
-                                                                              .tr,
-                                                                      style: boldstyle(context).copyWith(
-                                                                          color: Colors
-                                                                              .white,
-                                                                          fontWeight: FontWeight
-                                                                              .bold,
-                                                                          fontSize:
-                                                                              14),
-                                                                    ))),
+                                                                      child: Text(
+                                                                        "No".tr,
+                                                                        style: boldstyle(context),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
                                                               ),
-                                                            ),
-                                                          )
-                                                        : const SizedBox(),
-                                listType == "Ongoing"
-                                    ? const SizedBox()
-                                    : listType == 'Cancelled'
-                                        ? const SizedBox()
-                                        : Expanded(
-                                            child: InkWell(
-                                              onTap: () async {
-                                                if (list[index].userName ==
-                                                    null) {
-                                                  showErrorToastMessage(
-                                                      "user not found");
-                                                  return;
+                                                              Expanded(
+                                                                child: InkWell(
+                                                                  onTap: () async {
+                                                                    // ========== LOG CLIC SUR OUI ==========
+                                                                    print('🚀 [CONFIRM_FLOW] Clic sur OUI détecté pour le booking: ${list[index].id}');
+                                                                    
+                                                                    BookingController bookingController = Get.find();
+                                                                    Navigator.pop(context);
+                                                                    showLoading();
+                                                                    
+                                                                    // ========== APPEL API DE CONFIRMATION AVEC DIAGNOSTIC ==========
+                                                                    var resp = await bookingController.confirmBookingByHost(
+                                                                      bookingId: list[index].id.toString(),
+                                                                    );
+                                                                    
+                                                                    closeLoading();
+                                                                    if (resp != null && resp['status'] == 200) {
+                                                                      showToastMessage(resp['message']);
+                                                                      list[index].statusSetter = "Confirmed";
+
+                                                                      bookingController.updateBookingStatusIfExists(
+                                                                        bookingId: list[index].id.toString(),
+                                                                        hostId: list[index].userid.toString(),
+                                                                        userId: userId.toString(),
+                                                                        newStatus: "Confirmed",
+                                                                      );
+
+                                                                      setState(() {});
+                                                                    } else {
+                                                                      showToastMessage(resp?['error'] ?? 'Erreur lors de la confirmation');
+                                                                    }
+                                                                  },
+                                                                  child: Container(
+                                                                    margin: const EdgeInsets.only(left: 8, right: 8),
+                                                                    padding: const EdgeInsets.all(10),
+                                                                    decoration: BoxDecoration(
+                                                                      border: Border.all(
+                                                                        color: getColorBasedOnActiveModuleid(),
+                                                                      ),
+                                                                      color: getColorBasedOnActiveModuleid(),
+                                                                      borderRadius: BorderRadius.circular(10),
+                                                                    ),
+                                                                    child: Center(
+                                                                      child: Text(
+                                                                        "Yes".tr,
+                                                                        style: boldstyle(context).copyWith(
+                                                                          color: Colors.white,
+                                                                          fontWeight: FontWeight.bold,
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          const SizedBox(height: 8),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            }
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(right: 10),
+                                            child: Container(
+                                              alignment: Alignment.center,
+                                              padding: const EdgeInsets.only(top: 9, bottom: 9),
+                                              decoration: BoxDecoration(
+                                                border: Border.all(color: yellowColor),
+                                                borderRadius: BorderRadius.circular(10),
+                                                color: yellowColor,
+                                              ),
+                                              child: Text(
+                                                "Accept".tr,
+                                                style: boldstyle(context).copyWith(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: () async {
+                                            if (list[index].userName == null) {
+                                              showErrorToastMessage("user not found");
+                                              return;
+                                            }
+
+                                            try {
+                                              showLoading();
+                                              await Future.delayed(Duration(seconds: 1));
+                                              var responce = {
+                                                "status": 200,
+                                                "message": "Item details retrieved successfully",
+                                                "error": "",
+                                                "data": {
+                                                  "ItemDetails": {
+                                                    "item_id": int.tryParse("${list[index].itemid}") ?? 101,
+                                                    "title": "Toyota Camry 2023 - Premium Sedan",
+                                                    "price": "50.00",
+                                                    "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
+                                                    "item_rating": "4.5",
+                                                    "status": "1",
+                                                    "host_id": "1001"
+                                                  }
                                                 }
+                                              };
+                                              
+                                              if (responce != null && responce["status"] == 500) {
+                                                closeLoading();
+                                                showErrorToastMessage(responce["message"]);
+                                                return;
+                                              } else {
+                                                closeLoading();
+                                              }
+                                            } catch (e) {
+                                              closeLoading();
+                                            }
 
-                                                    try {
-                                                      showLoading();
-                                                      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-                                                      // var responce =
-                                                      //     await httpPost(
-                                                      //         Config
-                                                      //             .getItemDetails,
-                                                      //         {
-                                                      //       "item_id":
-                                                      //           "${list[index].itemid}"
-                                                      //     });
-                                                      
-                                                      // MOCK: Simulate network delay
-                                                      await Future.delayed(const Duration(seconds: 1));
-                                                      
-                                                      // MOCK: Static item details response
-                                                      var responce = {
-                                                        "status": 200,
-                                                        "message": "Item details retrieved successfully",
-                                                        "error": "",
-                                                        "data": {
-                                                          "ItemDetails": {
-                                                            "item_id": int.tryParse("${list[index].itemid}") ?? 101,
-                                                            "title": "Toyota Camry 2023 - Premium Sedan",
-                                                            "price": "50.00",
-                                                            "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
-                                                            "item_rating": "4.5",
-                                                            "status": "1",
-                                                            "host_id": "1001"
-                                                          }
-                                                        }
-                                                      };
-                                                      // ========== END MOCK DATA ==========
-                                                      
-                                                      if (responce != null &&
-                                                          responce["status"] ==
-                                                              500) {
-                                                        closeLoading();
-                                                        showErrorToastMessage(
-                                                            responce[
-                                                                "message"]);
-                                                        return;
-                                                      } else {
-                                                        closeLoading();
-                                                      }
-                                                    } catch (e) {
-                                                      closeLoading();
-                                                      // Handle any exceptions
-                                                    }
-
-                                                    innerMethod(context, index);
-                                                  },
-                                                  child: Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            right: 10),
-                                                    child: Container(
-                                                        alignment:
-                                                            Alignment.center,
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .only(
-                                                          top: 10,
-                                                          bottom: 10,
-                                                        ),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          // color: btnText == "Cancel" ? RedColor:yelloColor,
-                                                          color: btnText ==
-                                                                  "Cancelled"
-                                                              ? const Color
-                                                                  .fromARGB(128,
-                                                                  128, 128, 128)
-                                                              : btnText ==
-                                                                      "Reject"
-                                                                  ? Colors.red
-                                                                  : list[index].reviewStatus !=
-                                                                              null &&
-                                                                          list[index].reviewStatus !=
-                                                                              "0"
-                                                                      ? Colors
-                                                                          .blue
-                                                                      : themeColor,
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(10),
-                                                        ),
-                                                        child: Center(
-                                                            // child: Text("Cancel"),
-                                                            child: Text(
-                                                          list[index].reviewStatus !=
-                                                                      null &&
-                                                                  list[index]
-                                                                          .reviewStatus ==
-                                                                      "1"
-                                                              ? "View Review".tr
-                                                              : "$btnText".tr,
-                                                          style: boldstyle(
-                                                                  context)
-                                                              .copyWith(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  fontSize: 14),
-                                                        ))),
+                                            innerMethod(context, index);
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(right: 10),
+                                            child: Container(
+                                              alignment: Alignment.center,
+                                              padding: const EdgeInsets.only(top: 10, bottom: 10),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red,
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  "Reject".tr,
+                                                  style: boldstyle(context).copyWith(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
                                                   ),
                                                 ),
                                               ),
-                                list[index].status == "Confirmed"
-                                    ? listType == 'UpComing' &&
-                                            list[index].isItemDeliveredButton ==
-                                                "yes"
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }
+                                
+                                // ========== PRIORITÉ 2: Bouton Is Deliver? si status == "Confirmed" ==========
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    list[index].status?.toString().toUpperCase() == "CONFIRMED"
                                         ? Expanded(
                                             child: InkWell(
                                               onTap: () async {
                                                 print(digitalsingnature);
-                                                if (digitalsingnature ==
-                                                    "Active") {
-                                                  BookingController
-                                                      bookingController =
-                                                      Get.find();
+                                                if (digitalsingnature == "Active") {
+                                                  BookingController bookingController = Get.find();
 
                                                   try {
-                                                    final result =
-                                                        await bookingController
-                                                            .singnatureApi(
-                                                                list[index]
-                                                                    .id
-                                                                    .toString(),
-                                                                true);
+                                                    final result = await bookingController.singnatureApi(
+                                                        list[index].id.toString(),
+                                                        true);
 
-                                                    if (result != null &&
-                                                        result.success == 200) {
-                                                      if (result.data
-                                                              .vendorSigned ==
-                                                          0) {
-                                                        showModalBottomSheet<
-                                                            String>(
+                                                    if (result != null && result.success == 200) {
+                                                      if (result.data.vendorSigned == 0) {
+                                                        showModalBottomSheet<String>(
                                                           context: context,
-                                                          backgroundColor:
-                                                              notifires
-                                                                  .getbgcolor,
-                                                          isScrollControlled:
-                                                              true,
-                                                          shape:
-                                                              const RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .vertical(
-                                                              top: Radius
-                                                                  .circular(20),
+                                                          backgroundColor: notifires.getbgcolor,
+                                                          isScrollControlled: true,
+                                                          shape: const RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.vertical(
+                                                              top: Radius.circular(20),
                                                             ),
                                                           ),
                                                           builder: (context) {
                                                             return Padding(
-                                                              padding:
-                                                                  EdgeInsets
-                                                                      .only(
+                                                              padding: EdgeInsets.only(
                                                                 left: 20,
                                                                 right: 20,
                                                                 top: 20,
-                                                                bottom: MediaQuery.of(
-                                                                        context)
-                                                                    .viewInsets
-                                                                    .bottom,
+                                                                bottom: MediaQuery.of(context).viewInsets.bottom,
                                                               ),
-                                                              child:
-                                                                  StatefulBuilder(
-                                                                builder: (context,
-                                                                    setBottomSheetState) {
+                                                              child: StatefulBuilder(
+                                                                builder: (context, setBottomSheetState) {
                                                                   return SingleChildScrollView(
-                                                                    child:
-                                                                        Column(
-                                                                      mainAxisSize:
-                                                                          MainAxisSize
-                                                                              .min,
-                                                                      crossAxisAlignment:
-                                                                          CrossAxisAlignment
-                                                                              .start,
+                                                                    child: Column(
+                                                                      mainAxisSize: MainAxisSize.min,
+                                                                      crossAxisAlignment: CrossAxisAlignment.start,
                                                                       children: [
                                                                         Text(
-                                                                          'Vehicle Delivery Confirmation'
-                                                                              .tr,
-                                                                          style:
-                                                                              TextStyle(
-                                                                            fontSize:
-                                                                                18,
-                                                                            fontWeight:
-                                                                                FontWeight.bold,
+                                                                          'Vehicle Delivery Confirmation'.tr,
+                                                                          style: TextStyle(
+                                                                            fontSize: 18,
+                                                                            fontWeight: FontWeight.bold,
                                                                           ),
                                                                         ),
-                                                                        const SizedBox(
-                                                                            height:
-                                                                                12),
+                                                                        const SizedBox(height: 12),
                                                                         Column(
-                                                                          crossAxisAlignment:
-                                                                              CrossAxisAlignment.start,
+                                                                          crossAxisAlignment: CrossAxisAlignment.start,
                                                                           children: [
-                                                                            // Bullet points
                                                                             Text(
-                                                                              "Before proceeding with the vehicle delivery, you are required to sign the booking’s Terms & Conditions.\n\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:".tr,
+                                                                              "Before proceeding with the vehicle delivery, you are required to sign the booking's Terms & Conditions.\n\nThis step ensures full transparency between vendor and customer, protecting both parties from any disputes related to:".tr,
                                                                               style: regular02.copyWith(
                                                                                 color: getColorBasedOnActiveModuleid(),
                                                                               ),
@@ -3579,9 +3632,7 @@ myBookingHostListWidget(
                                                                                 color: getColorBasedOnActiveModuleid(),
                                                                               ),
                                                                             ),
-
                                                                             const SizedBox(height: 12),
-
                                                                             Text(
                                                                               "Signing the Terms & Conditions helps establish a clear agreement, ensuring a smooth and fair transaction.".tr,
                                                                               style: regular02.copyWith(
@@ -3590,9 +3641,7 @@ myBookingHostListWidget(
                                                                             ),
                                                                           ],
                                                                         ),
-                                                                        const SizedBox(
-                                                                            height:
-                                                                                20),
+                                                                        const SizedBox(height: 20),
                                                                         Row(
                                                                           children: [
                                                                             Expanded(
@@ -3625,9 +3674,7 @@ myBookingHostListWidget(
                                                                             ),
                                                                           ],
                                                                         ),
-                                                                        const SizedBox(
-                                                                            height:
-                                                                                10),
+                                                                        const SizedBox(height: 10),
                                                                       ],
                                                                     ),
                                                                   );
@@ -3640,37 +3687,28 @@ myBookingHostListWidget(
                                                         return;
                                                       }
 
-                                                      // Check if vendor has signed
-                                                      if (result.data
-                                                              .vendorSigned ==
-                                                          0) {
+                                                      if (result.data.vendorSigned == 0) {
                                                         showErrorToastMessage(
                                                           "${list[index].hostName} has not signed yet. Please wait for their signature before proceeding.",
                                                         );
                                                         return;
                                                       }
                                                     } else {
-                                                      showErrorToastMessage(
-                                                          "Failed to fetch signature data. Please try again.");
+                                                      showErrorToastMessage("Failed to fetch signature data. Please try again.");
                                                     }
                                                   } catch (e, stacktrace) {
                                                     print('Error in onTap: $e');
-                                                    print(
-                                                        'Stacktrace: $stacktrace');
-                                                    showErrorToastMessage(
-                                                        "An error occurred. Please try again.");
+                                                    print('Stacktrace: $stacktrace');
+                                                    showErrorToastMessage("An error occurred. Please try again.");
                                                   }
                                                 }
 
                                                 showDialog<void>(
                                                   context: context,
-                                                  builder:
-                                                      (BuildContext context) {
+                                                  builder: (BuildContext context) {
                                                     return AlertDialog(
-                                                      backgroundColor:
-                                                          notifires.getboxcolor,
-                                                      content:
-                                                          SingleChildScrollView(
+                                                      backgroundColor: notifires.getboxcolor,
+                                                      content: SingleChildScrollView(
                                                         child: ListBody(
                                                           children: <Widget>[
                                                             const Icon(
@@ -3679,13 +3717,9 @@ myBookingHostListWidget(
                                                               color: Colors.red,
                                                             ),
                                                             Text(
-                                                              'Do you want to deliver this vehicle?'
-                                                                  .tr,
-                                                              textAlign:
-                                                                  TextAlign
-                                                                      .center,
-                                                              style: regular2(
-                                                                  context),
+                                                              'Do you want to deliver this vehicle?'.tr,
+                                                              textAlign: TextAlign.center,
+                                                              style: regular2(context),
                                                             ),
                                                           ],
                                                         ),
@@ -3696,97 +3730,53 @@ myBookingHostListWidget(
                                                             Row(
                                                               children: [
                                                                 Expanded(
-                                                                  child:
-                                                                      InkWell(
+                                                                  child: InkWell(
                                                                     onTap: () {
-                                                                      Navigator.pop(
-                                                                          context);
+                                                                      Navigator.pop(context);
                                                                     },
-                                                                    child:
-                                                                        Container(
-                                                                      margin: const EdgeInsets
-                                                                          .only(
-                                                                          left:
-                                                                              8,
-                                                                          right:
-                                                                              8),
-                                                                      padding: const EdgeInsets
-                                                                          .all(
-                                                                          10),
-                                                                      decoration:
-                                                                          BoxDecoration(
-                                                                        border:
-                                                                            Border.all(
-                                                                          color:
-                                                                              notifires.getGrey2Whitecolor,
+                                                                    child: Container(
+                                                                      margin: const EdgeInsets.only(left: 8, right: 8),
+                                                                      padding: const EdgeInsets.all(10),
+                                                                      decoration: BoxDecoration(
+                                                                        border: Border.all(
+                                                                          color: notifires.getGrey2Whitecolor,
                                                                         ),
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(10),
+                                                                        borderRadius: BorderRadius.circular(10),
                                                                       ),
-                                                                      child:
-                                                                          Center(
-                                                                        child:
-                                                                            Text(
+                                                                      child: Center(
+                                                                        child: Text(
                                                                           "No".tr,
-                                                                          style:
-                                                                              boldstyle(context),
+                                                                          style: boldstyle(context),
                                                                         ),
                                                                       ),
                                                                     ),
                                                                   ),
                                                                 ),
                                                                 Expanded(
-                                                                  child:
-                                                                      InkWell(
-                                                                    onTap:
-                                                                        () async {
-                                                                      Navigator.pop(
-                                                                          context);
-                                                                      final value = await updateItemDeliverStatus(
-                                                                          bookingId: list[index]
-                                                                              .id
-                                                                              .toString());
-                                                                      list[index]
-                                                                              .isItemDeliveredSetter =
-                                                                          value;
-                                                                      setState(
-                                                                          () {});
+                                                                  child: InkWell(
+                                                                    onTap: () async {
+                                                                      Navigator.pop(context);
+                                                                      final value = await self.updateItemDeliverStatus(
+                                                                          bookingId: list[index].id.toString());
+                                                                      list[index].isItemDeliveredSetter = value;
+                                                                      setState(() {});
                                                                     },
-                                                                    child:
-                                                                        Container(
-                                                                      margin: const EdgeInsets
-                                                                          .only(
-                                                                          left:
-                                                                              8,
-                                                                          right:
-                                                                              8),
-                                                                      padding: const EdgeInsets
-                                                                          .all(
-                                                                          10),
-                                                                      decoration:
-                                                                          BoxDecoration(
-                                                                        border:
-                                                                            Border.all(
-                                                                          color:
-                                                                              getColorBasedOnActiveModuleid(),
+                                                                    child: Container(
+                                                                      margin: const EdgeInsets.only(left: 8, right: 8),
+                                                                      padding: const EdgeInsets.all(10),
+                                                                      decoration: BoxDecoration(
+                                                                        border: Border.all(
+                                                                          color: getColorBasedOnActiveModuleid(),
                                                                         ),
-                                                                        color:
-                                                                            getColorBasedOnActiveModuleid(),
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(10),
+                                                                        color: getColorBasedOnActiveModuleid(),
+                                                                        borderRadius: BorderRadius.circular(10),
                                                                       ),
-                                                                      child:
-                                                                          Center(
-                                                                        child:
-                                                                            Text(
-                                                                          "Yes"
-                                                                              .tr,
-                                                                          style:
-                                                                              boldstyle(context).copyWith(
-                                                                            color:
-                                                                                Colors.white,
-                                                                            fontWeight:
-                                                                                FontWeight.bold,
+                                                                      child: Center(
+                                                                        child: Text(
+                                                                          "Yes".tr,
+                                                                          style: boldstyle(context).copyWith(
+                                                                            color: Colors.white,
+                                                                            fontWeight: FontWeight.bold,
                                                                           ),
                                                                         ),
                                                                       ),
@@ -3795,9 +3785,7 @@ myBookingHostListWidget(
                                                                 ),
                                                               ],
                                                             ),
-                                                            const SizedBox(
-                                                              height: 8,
-                                                            ),
+                                                            const SizedBox(height: 8),
                                                           ],
                                                         ),
                                                       ],
@@ -3806,44 +3794,225 @@ myBookingHostListWidget(
                                                 );
                                               },
                                               child: Padding(
-                                                padding: const EdgeInsets.only(
-                                                    right: 10),
+                                                padding: const EdgeInsets.only(right: 10),
                                                 child: Container(
                                                   alignment: Alignment.center,
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                          top: 9, bottom: 9),
+                                                  padding: const EdgeInsets.only(top: 9, bottom: 9),
                                                   decoration: BoxDecoration(
-                                                      border: Border.all(
-                                                          color:
-                                                              getColorBasedOnActiveModuleid()),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              10),
-                                                      color:
-                                                          getColorBasedOnActiveModuleid()),
-                                                  child: Text("Is Deliver?".tr,
-                                                      style: boldstyle(context)
-                                                          .copyWith(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize: 14)),
+                                                    border: Border.all(color: getColorBasedOnActiveModuleid()),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                    color: getColorBasedOnActiveModuleid(),
+                                                  ),
+                                                  child: Text(
+                                                    "Is Deliver?".tr,
+                                                    style: boldstyle(context).copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                             ),
                                           )
-                                        : const SizedBox()
-                                    : const SizedBox(),
-                                list[index].status == "Completed"
-                                    ? listType == 'Previous' &&
-                                            list[index].isItemReturned == 1
-                                        ? SizedBox()
-                                        : const SizedBox()
-                                    : const SizedBox(),
-                              ],
+                                        // ========== Autres boutons conditionnels (Reject, Cancel, etc.) ==========
+                                        : list[index].status == "Declined"
+                                            ? SizedBox()
+                                            : listType == 'Cancelled'
+                                                ? SizedBox()
+                                                : listType == 'Ongoing'
+                                                    ? SizedBox()
+                                                    : list[index].isItemReturned == 1
+                                                        ? Expanded(
+                                                            child: InkWell(
+                                                              onTap: () async {
+                                                                if (list[index].userName == null) {
+                                                                  showErrorToastMessage("host not found");
+                                                                  return;
+                                                                }
+
+                                                                try {
+                                                                  showLoading();
+                                                                  await Future.delayed(Duration(seconds: 1));
+                                                                  var responce = {
+                                                                    "status": 200,
+                                                                    "message": "Item details retrieved successfully",
+                                                                    "error": "",
+                                                                    "data": {
+                                                                      "ItemDetails": {
+                                                                        "item_id": int.tryParse("${list[index].itemid}") ?? 101,
+                                                                        "title": "Toyota Camry 2023 - Premium Sedan",
+                                                                        "price": "50.00",
+                                                                        "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
+                                                                        "item_rating": "4.5",
+                                                                        "status": "1",
+                                                                        "host_id": "1001"
+                                                                      }
+                                                                    }
+                                                                  };
+                                                                  
+                                                                  if (responce != null && responce["status"] == 500) {
+                                                                    closeLoading();
+                                                                    showErrorToastMessage(responce["message"]);
+                                                                    return;
+                                                                  } else {
+                                                                    closeLoading();
+                                                                  }
+                                                                } catch (e) {
+                                                                  closeLoading();
+                                                                }
+
+                                                                innerMethod(context, index);
+                                                              },
+                                                              child: Padding(
+                                                                padding: const EdgeInsets.only(right: 10),
+                                                                child: Container(
+                                                                  alignment: Alignment.center,
+                                                                  padding: const EdgeInsets.only(top: 10, bottom: 10),
+                                                                  decoration: BoxDecoration(
+                                                                    color: btnText == "Cancelled"
+                                                                        ? const Color.fromARGB(128, 128, 128, 128)
+                                                                        : btnText == "Cancel"
+                                                                            ? Colors.red
+                                                                            : list[index].reviewStatus != null && list[index].reviewStatus != "0"
+                                                                                ? Colors.blue
+                                                                                : themeColor,
+                                                                    borderRadius: BorderRadius.circular(10),
+                                                                  ),
+                                                                  child: Center(
+                                                                    child: Text(
+                                                                      list[index].reviewStatus != null && list[index].reviewStatus == "1"
+                                                                          ? "View Review".tr
+                                                                          : "$btnText".tr,
+                                                                      style: boldstyle(context).copyWith(
+                                                                        color: Colors.white,
+                                                                        fontWeight: FontWeight.bold,
+                                                                        fontSize: 14,
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          )
+                                                        : listType == "Ongoing"
+                                                            ? SizedBox()
+                                                            : listType == 'Cancelled'
+                                                                ? SizedBox()
+                                                                : Expanded(
+                                                                    child: InkWell(
+                                                                      onTap: () async {
+                                                                        if (list[index].userName == null) {
+                                                                          showErrorToastMessage("user not found");
+                                                                          return;
+                                                                        }
+
+                                                                        try {
+                                                                          showLoading();
+                                                                          await Future.delayed(Duration(seconds: 1));
+                                                                          var responce = {
+                                                                            "status": 200,
+                                                                            "message": "Item details retrieved successfully",
+                                                                            "error": "",
+                                                                            "data": {
+                                                                              "ItemDetails": {
+                                                                                "item_id": int.tryParse("${list[index].itemid}") ?? 101,
+                                                                                "title": "Toyota Camry 2023 - Premium Sedan",
+                                                                                "price": "50.00",
+                                                                                "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
+                                                                                "item_rating": "4.5",
+                                                                                "status": "1",
+                                                                                "host_id": "1001"
+                                                                              }
+                                                                            }
+                                                                          };
+                                                                          
+                                                                          if (responce != null && responce["status"] == 500) {
+                                                                            closeLoading();
+                                                                            showErrorToastMessage(responce["message"]);
+                                                                            return;
+                                                                          } else {
+                                                                            closeLoading();
+                                                                          }
+                                                                        } catch (e) {
+                                                                          closeLoading();
+                                                                        }
+
+                                                                        innerMethod(context, index);
+                                                                      },
+                                                                      child: Padding(
+                                                                        padding: const EdgeInsets.only(right: 10),
+                                                                        child: Container(
+                                                                          alignment: Alignment.center,
+                                                                          padding: const EdgeInsets.only(top: 10, bottom: 10),
+                                                                          decoration: BoxDecoration(
+                                                                            color: btnText == "Cancelled"
+                                                                                ? const Color.fromARGB(128, 128, 128, 128)
+                                                                                : btnText == "Reject"
+                                                                                    ? Colors.red
+                                                                                    : list[index].reviewStatus != null && list[index].reviewStatus != "0"
+                                                                                        ? Colors.blue
+                                                                                        : themeColor,
+                                                                            borderRadius: BorderRadius.circular(10),
+                                                                          ),
+                                                                          child: Center(
+                                                                            child: Text(
+                                                                              list[index].reviewStatus != null && list[index].reviewStatus == "1"
+                                                                                  ? "View Review".tr
+                                                                                  : "$btnText".tr,
+                                                                              style: boldstyle(context).copyWith(
+                                                                                color: Colors.white,
+                                                                                fontWeight: FontWeight.bold,
+                                                                                fontSize: 14,
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                    // ========== Bouton Reciept - Affiché seulement pour "Confirmed" ou "Completed", masqué pour "Pending" ==========
+                                    list[index].status?.toString().toUpperCase() != "PENDING"
+                                        ? Expanded(
+                                            child: InkWell(
+                                              onTap: () {
+                                                Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                        builder: (builder) => HostEreciept(
+                                                              bookings: list[index],
+                                                              fromPropBooking: fromPropBooking,
+                                                              conformBooking: listType == "UpComing" ? "UpComing" : "",
+                                                            ))).then((value) {
+                                                  if (value != null) {
+                                                    list[index].statusSetter = value;
+                                                    setState(() {});
+                                                  }
+                                                });
+                                              },
+                                              child: Container(
+                                                height: 45,
+                                                alignment: Alignment.center,
+                                                padding: const EdgeInsets.only(left: 10, right: 10, top: 0, bottom: 0),
+                                                decoration: BoxDecoration(
+                                                  border: Border.all(color: greensColor),
+                                                  borderRadius: BorderRadius.circular(13),
+                                                  color: greensColor,
+                                                ),
+                                                child: Text(
+                                                  "Reciept".tr,
+                                                  style: boldstyle(context).copyWith(
+                                                    color: whiteColor,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        : SizedBox(),
+                                  ],
+                                );
+                              },
                             ),
                             SizedBox(
                               height: 10,
@@ -3886,50 +4055,7 @@ myBookingHostListWidget(
                                       ),
                                     ),
                                   )
-                                : const SizedBox(),
-                            listType != 'Cancelled' && listType != 'UpComing'
-                                ? SizedBox(
-                                    height: 10,
-                                  )
-                                : const SizedBox(),
-                            InkWell(
-                              onTap: () {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (builder) => HostEreciept(
-                                              bookings: list[index],
-                                              fromPropBooking: fromPropBooking,
-                                              conformBooking:
-                                                  listType == "UpComing"
-                                                      ? "UpComing"
-                                                      : "",
-                                            ))).then((value) {
-                                  if (value != null) {
-                                    list[index].statusSetter = value;
-                                    setState(() {});
-                                  }
-                                });
-                              },
-                              child: Container(
-                                height: 45,
-                                alignment: Alignment.center,
-                                padding: const EdgeInsets.only(
-                                    left: 10, right: 10, top: 0, bottom: 0),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: greensColor),
-                                  borderRadius: BorderRadius.circular(13),
-                                  color: greensColor,
-                                ),
-                                child: Text(
-                                  "Reciept".tr,
-                                  style: boldstyle(context).copyWith(
-                                    color: whiteColor,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ),
+                                : SizedBox(),
                           ],
                         ),
                       ),
@@ -3941,6 +4067,85 @@ myBookingHostListWidget(
           ),
         );
       });
+  }
+
+  Future<String> updateItemDeliverStatus({required String bookingId}) async {
+    showLoading();
+    var isItemDelivered;
+    String result = "yes"; // Valeur par défaut (affiche le bouton en cas d'erreur)
+    
+    try {
+      // ========== LOGS DE DIAGNOSTIC ==========
+      print('📡 [DELIVER_API] Envoi vers : ${Config.updateItemDeliveredStatus}');
+      print('📦 [DELIVER_API] Body : booking_id=$bookingId');
+      
+      // ========== APPEL API RÉEL ==========
+      var response = await httpPost(Config.updateItemDeliveredStatus,
+          {"booking_id": bookingId, "is_item_delivered": "1"});
+      
+      closeLoading();
+      
+      if (response != null && response["status"] == 200) {
+        isItemDelivered =
+            response["data"]["booking_extension"]["is_item_delivered"];
+        showToastMessage(response["message"] ?? "Vehicle marked as delivered successfully");
+        // Si is_item_delivered == "1", retourner "no" pour cacher le bouton
+        // Si is_item_delivered != "1", retourner "yes" pour afficher le bouton
+        result = isItemDelivered == "1" ? "no" : "yes";
+      } else {
+        String errorMsg = response?['error'] ?? response?['message'] ?? 'Unknown error';
+        showErrorToastMessage(errorMsg);
+        result = "yes"; // Garder le bouton visible en cas d'erreur
+      }
+    } catch (e) {
+      closeLoading();
+      print('❌ [DELIVER_ERROR] : $e');
+      showErrorToastMessage("Network error: ${e.toString()}");
+      result = "yes"; // Garder le bouton visible en cas d'erreur réseau
+    }
+    
+    return result;
+  }
+
+  Future<String> updateItemReturnedStatus({required String bookingId}) async {
+    showLoading();
+    var isItemReturned;
+    String result;
+    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
+    // var response = await httpPost(Config.updateItemReturnedStatus,
+    //     {"booking_id": bookingId, "is_item_returned": "1"});
+    
+    // MOCK: Simulate network delay
+    await Future.delayed(Duration(seconds: 1));
+    
+    // MOCK: Static success response for marking item as returned
+    Map<String, dynamic> response = {
+      "status": 200,
+      "message": "Vehicle marked as returned successfully",
+      "error": "",
+      "data": {
+        "booking_extension": {
+          "booking_id": bookingId,
+          "is_item_returned": "1",
+          "is_item_delivered": "1",
+          "is_item_received": "1",
+          "drop_otp": ""
+        }
+      }
+    };
+    // ========== END MOCK DATA ==========
+    closeLoading();
+    if (response["status"] == 200) {
+      isItemReturned =
+          response["data"]["booking_extension"]["is_item_returned"];
+      showToastMessage(response["message"]);
+      result = isItemReturned == "1" ? "no" : "yes";
+    } else {
+      showErrorToastMessage(response['error']);
+      result = "yes";
+    }
+    return result;
+  }
 }
 
 bottomSheetHostReviewed(rating, text) {
@@ -4171,7 +4376,7 @@ bottomSheetHostReview(id, count, bool fromPropBooking, Bookings bookings,
                   // });
                   
                   // MOCK: Simulate network delay
-                  await Future.delayed(const Duration(seconds: 1));
+                  await Future.delayed(Duration(seconds: 1));
                   
                   // MOCK: Static success response for submitting a review
                   Map<String, dynamic> response = {

@@ -1153,6 +1153,26 @@ void cancellationPolicyBottomSheet(BuildContext context, title, description) {
     // useSafeArea: false,
     context: context,
     builder: (BuildContext context) {
+      // Normaliser description : peut être une liste ou une string
+      List<String> rulesList = [];
+      if (description != null) {
+        if (description is List) {
+          rulesList = description.map<String>((item) {
+            if (item is String) {
+              return item;
+            }
+            return item.toString();
+          }).toList();
+        } else if (description is String && description.isNotEmpty) {
+          rulesList = [description];
+        }
+      }
+      
+      // Si la liste est vide et qu'on a un titre, utiliser le titre comme premier point
+      if (rulesList.isEmpty && title != null && title.toString().isNotEmpty) {
+        rulesList = [title.toString()];
+      }
+      
       return SizedBox(
         height: double.infinity,
         width: double.infinity,
@@ -1161,7 +1181,7 @@ void cancellationPolicyBottomSheet(BuildContext context, title, description) {
             horizontal: Dimensions.paddingSizeDefault,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 80),
               Row(
@@ -1182,19 +1202,67 @@ void cancellationPolicyBottomSheet(BuildContext context, title, description) {
                   )
                 ],
               ),
-              const SizedBox(height: 80),
-              Image.asset("assets/images/canclePolicy.png"),
+              const SizedBox(height: 25),
+              // Titre "Politique d'annulation" en gras
               Text(
-                textAlign: TextAlign.center,
-                "$title".tr,
+                "Politique d'annulation".tr,
                 style: boldstyle(context).copyWith(
-                    color: notifires.getGrey2Whitecolor, fontSize: 24),
+                  color: notifires.getGrey2Whitecolor,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(height: 10),
-              Text(
-                "$description".tr,
-                style: regular2(context).copyWith(
-                  color: notifires.getGrey3Whitecolor,
+              const SizedBox(height: 20),
+              // Liste des règles avec icônes
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: rulesList.isEmpty
+                        ? [
+                            // Si aucune règle n'est disponible
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.grey,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    "Aucune politique spécifique définie.".tr,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ]
+                        : rulesList.map((rule) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.done_all,
+                                    color: Colors.blue,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      rule.toString(),
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                  ),
                 ),
               ),
             ],

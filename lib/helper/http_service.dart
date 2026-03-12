@@ -66,7 +66,7 @@ Future<dynamic> httpGet(String path, Map<String, dynamic> data) async {
     // - not_available_dates: dates bloquées (ex: maintenance)
     // - booked_dates: dates déjà réservées
     Map<String, dynamic> mockResponse = {
-      "status": 200,
+      "status":00,
       "message": "Item dates retrieved successfully",
       "error": "",
       "data": {
@@ -336,6 +336,90 @@ Future<dynamic> httpGet(String path, Map<String, dynamic> data) async {
   return responseData;
 }
 
+/// Version de httpGet pour les routes admin qui n'ajoute pas les paramètres automatiques
+/// (token, module_id, latitude, longitude, etc.) dans l'URL
+/// Le token passe uniquement dans le Header Authorization
+/// Utilise adminBaseUrl (sans /v1) pour les routes admin
+Future<dynamic> httpGetAdmin(String path, Map<String, dynamic> params) async {
+  connectionLost = false;
+
+  Map<String, dynamic>? responseData;
+  try {
+    // Utiliser adminBaseUrl (sans /v1) pour les routes admin
+    String apiBaseUrl = Config.adminBaseUrl;
+    var url = apiBaseUrl + path;
+    
+    // Générer le bearer token si nécessaire
+    if (bearerToken.isEmpty) {
+      bearerToken = await generateToken() ?? "";
+      if (bearerToken.isEmpty) {
+        developer.log("❌ Failed to generate bearer token");
+        return {"error": "Token generation failed"};
+      }
+    }
+    
+    // Headers avec uniquement le token (pas de x-auth-token dans l'URL)
+    var headers = {
+      'Content-Type': 'application/json',
+      'Authorization': "Bearer $bearerToken",
+    };
+    
+    // Construire l'URL avec uniquement les params fournis (pas de params automatiques)
+    String queryString = '';
+    if (params.isNotEmpty) {
+      queryString = Uri(
+        queryParameters: params.map((key, value) => MapEntry(key, value.toString())),
+      ).query;
+    }
+    
+    var fullUrl = queryString.isNotEmpty ? '$url?$queryString' : url;
+
+    developer.log('🌐 [ADMIN] Api-Url: $fullUrl');
+    developer.log('📋 [ADMIN] Parameters: ${jsonEncode(params)}');
+    developer.log('🔑 [ADMIN] Bearer Token: ${bearerToken.substring(0, 20)}...');
+
+    final response = await http.get(Uri.parse(fullUrl), headers: headers);
+
+    responseData = jsonDecode(response.body);
+
+    if (response.statusCode == 498) {
+      developer.log('❌ [ADMIN] Token expired (498) — regenerating...');
+
+      final newToken = await generateToken();
+      if (newToken != null && newToken.isNotEmpty) {
+        bearerToken = newToken;
+        headers['Authorization'] = 'Bearer $newToken';
+
+        final retryResponse = await http.get(Uri.parse(fullUrl), headers: headers);
+        responseData = jsonDecode(retryResponse.body);
+
+        developer.log('🔁 [ADMIN] Retried Response: $responseData');
+      } else {
+        developer.log('❌ [ADMIN] Token regeneration failed');
+        return {'error': 'Token regeneration failed'};
+      }
+    }
+
+    developer.log('✅ [ADMIN] Response: $responseData');
+  } catch (err, stackTrace) {
+    if (err is http.ClientException ||
+        err is TimeoutException ||
+        err is SocketException) {
+      connectionLost = true;
+      developer.log('📡 [ADMIN] Connection error: $err', stackTrace: stackTrace);
+    } else if (err is FormatException) {
+      connectionLost = true;
+      developer.log('📜 [ADMIN] Format error in response: $err',
+          stackTrace: stackTrace);
+    } else {
+      developer.log('❗ [ADMIN] Unexpected error: $err', stackTrace: stackTrace);
+    }
+    return {'error': err.toString()};
+  }
+
+  return responseData;
+}
+
 bool shouldLogout = false;
 Future<dynamic> httpPost(path, data) async {
   // ========== EMERGENCY DEBUG: Logs au tout début pour détecter les échecs silencieux ==========
@@ -373,133 +457,33 @@ Future<dynamic> httpPost(path, data) async {
   // Voir lib/controller/booking_record_controller.dart pour l'implémentation
   // ========== END MOCK DATA ==========
 
-  // ========== MOCK DATA - vendor-booking-record API ==========
-  // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
-  if (path == Config.vendorbookingRecord) {
-    await Future.delayed(const Duration(seconds: 1));
-    String bookingType = data['type']?.toString() ?? 'upcoming';
-    num offset = int.tryParse(data['offset']?.toString() ?? '0') ?? 0;
-
-    // Normalize type: "Cancelled" -> "cancelled"
-    String normalizedType = bookingType.toLowerCase();
-    if (normalizedType == 'cancelled') {
-      normalizedType = 'cancelled';
-    }
-
-    // Generate mock booking based on type
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Vendor bookings retrieved successfully",
-      "error": "",
-      "data": {
-        "Bookings": _generateMockBookings(normalizedType),
-        "offset": offset + 10,
-        "limit": 10
-      }
-    };
-
-    developer.log(
-        "⚠️ MOCK MODE: Returning mock vendor-booking-record data for type: $bookingType");
-    return mockResponse;
-  }
+  // ========== MOCK DATA REMOVED - vendor-booking-record API now uses real backend ==========
+  // Le bloc MOCK a été supprimé définitivement pour activer la connexion au serveur Node.js réel
+  // Toutes les requêtes vendor-booking-record seront maintenant envoyées au serveur Node.js
   // ========== END MOCK DATA ==========
 
-  // ========== MOCK DATA - confirm-booking-by-host API ==========
-  // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
-  if (path == Config.confirmBookingByHost) {
-    await Future.delayed(const Duration(seconds: 1));
-
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Booking confirmed successfully",
-      "error": "",
-      "data": {
-        "booking_id": data["booking_id"]?.toString() ?? "",
-        "status": "Confirmed"
-      }
-    };
-
-    developer.log(
-        "⚠️ MOCK MODE: Returning mock confirm-booking-by-host for booking_id: ${data['booking_id']}");
-    return mockResponse;
-  }
+  // ========== MOCK DATA REMOVED - confirm-booking-by-host API now uses real backend ==========
+  // Le mock a été supprimé pour permettre l'envoi réel au serveur Node.js
+  // Toutes les requêtes confirm-booking-by-host seront maintenant envoyées au serveur Node.js
   // ========== END MOCK DATA ==========
 
-  // ========== MOCK DATA - cancel-booking-by-host API ==========
-  // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
-  if (path == Config.cancelBookingByHost) {
-    await Future.delayed(const Duration(seconds: 1));
-
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Booking cancelled successfully",
-      "error": "",
-      "data": {
-        "booking_id": data["booking_id"]?.toString() ?? "",
-        "status": "Declined",
-        "cancellation_reason": data["cancellation_reasion"]?.toString() ?? ""
-      }
-    };
-
-    developer.log(
-        "⚠️ MOCK MODE: Returning mock cancel-booking-by-host for booking_id: ${data['booking_id']}");
-    return mockResponse;
-  }
+  // ========== MOCK DATA REMOVED - cancel-booking-by-host API now uses real backend ==========
+  // Le mock a été supprimé pour permettre l'envoi réel au serveur Node.js
+  // Toutes les requêtes cancel-booking-by-host seront maintenant envoyées au serveur Node.js
   // ========== END MOCK DATA ==========
 
   // ========== MOCK DATA - update-item-received-status API ==========
   // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
-  if (path == Config.updateItemReceivedStatus) {
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Simule la mise à jour de l'état "item reçu" pour une réservation.
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Item received status updated successfully",
-      "error": "",
-      "data": {
-        "booking_extension": {
-          "booking_id": data["booking_id"]?.toString() ?? "1234567890",
-          "is_item_received": "1",
-          "pick_otp": data["pick_otp"]?.toString() ?? "",
-          "is_item_delivered": "1",
-          "is_item_returned": "0"
-        }
-      }
-    };
-
-    developer.log(
-        "⚠️ MOCK MODE: Returning mock update-item-received-status for booking_id: ${data['booking_id']}");
-    return mockResponse;
-  }
+  // ========== MOCK DATA REMOVED - update-item-received-status API ==========
+  // Mock removed to use real Node.js backend
+  // ========== END MOCK DATA ==========
   // ========== END MOCK DATA ==========
 
   // ========== MOCK DATA - update-item-returned-status API ==========
   // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
-  if (path == Config.updateItemReturnedStatus) {
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Simule la mise à jour de l'état "item retourné" pour une réservation.
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Item returned status updated successfully",
-      "error": "",
-      "data": {
-        "booking_extension": {
-          "booking_id": data["booking_id"]?.toString() ?? "1234567890",
-          "is_item_returned": "1",
-          "drop_otp": data["drop_otp"]?.toString() ?? "",
-          // on garde delivered/received à 1 pour simuler un flow complet
-          "is_item_delivered": "1",
-          "is_item_received": "1"
-        }
-      }
-    };
-
-    developer.log(
-        "⚠️ MOCK MODE: Returning mock update-item-returned-status for booking_id: ${data['booking_id']}");
-    return mockResponse;
-  }
+  // ========== MOCK DATA REMOVED - update-item-returned-status API ==========
+  // Mock removed to use real Node.js backend
+  // ========== END MOCK DATA ==========
   // ========== END MOCK DATA ==========
 
   // ========== MOCK DATA - booking-payment-success API ==========
@@ -526,29 +510,30 @@ Future<dynamic> httpPost(path, data) async {
   // ========== END MOCK DATA ==========
 
   // ========== MOCK DATA - upload-per-booking-images (addInteriorImage) API ==========
-  // TODO: REMOVE THIS MOCK AFTER NODE.JS BACKEND IMPLEMENTATION
-  if (path == Config.addInteriorImage) {
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Simule l'upload des images intérieures (per booking images).
-    // Le code Flutter vérifie uniquement 'success' == 200 et 'message'.
-    Map<String, dynamic> mockResponse = {
-      "success": 200,
-      "message": "Images uploaded successfully",
-      "error": "",
-      "data": {
-        "booking_id": data["booking_id"]?.toString() ?? "1234567890",
-        "uploaded_images_count":
-            (data["per_booking_images"]?.toString().isNotEmpty ?? false)
-                ? data["per_booking_images"].toString().split("##").length
-                : 0
-      }
-    };
-
-    developer.log(
-        "⚠️ MOCK MODE: Returning mock upload-per-booking-images for booking_id: ${data['booking_id']}");
-    return mockResponse;
-  }
+  // ✅ REMOVED: Now using real Node.js backend for addInteriorImage
+  // The request will be sent to the actual backend at: ${Config.baseurl}${Config.addInteriorImage}
+  // if (path == Config.addInteriorImage) {
+  //   await Future.delayed(const Duration(seconds: 1));
+  //
+  //   // Simule l'upload des images intérieures (per booking images).
+  //   // Le code Flutter vérifie uniquement 'success' == 200 et 'message'.
+  //   Map<String, dynamic> mockResponse = {
+  //     "success": 200,
+  //     "message": "Images uploaded successfully",
+  //     "error": "",
+  //     "data": {
+  //       "booking_id": data["booking_id"]?.toString() ?? "1234567890",
+  //       "uploaded_images_count":
+  //           (data["per_booking_images"]?.toString().isNotEmpty ?? false)
+  //               ? data["per_booking_images"].toString().split("##").length
+  //               : 0
+  //     }
+  //   };
+  //
+  //   developer.log(
+  //       "⚠️ MOCK MODE: Returning mock upload-per-booking-images for booking_id: ${data['booking_id']}");
+  //   return mockResponse;
+  // }
   // ========== END MOCK DATA ==========
 
 
@@ -577,6 +562,7 @@ Future<dynamic> httpPost(path, data) async {
     String apiBaseUrl = Config.baseurl;
     var url = apiBaseUrl + path;
     print("🚨 [STOP CHECK] 2b. Full URL constructed: $url");
+    print('🌐 [REAL_NETWORK] Tentative d\'envoi vers : ' + url);
 
     // Check if we have the User Token
     print("🚨 [STOP CHECK] 2c. Checking User Token (global variable)...");
@@ -668,6 +654,41 @@ Future<dynamic> httpPost(path, data) async {
       print('🚀 [FLUTTER_DEBUG] Headers: ${headers.keys.join(", ")}');
     }
 
+    // Debug print for cancel-booking-by-host
+    if (path == Config.cancelBookingByHost) {
+      print('🚀 [FLUTTER_DEBUG] About to send POST request to: $url');
+      print('🚀 [FLUTTER_DEBUG] Request body: ${jsonEncode(data)}');
+      print('🚀 [FLUTTER_DEBUG] Headers: ${headers.keys.join(", ")}');
+      print('🚀 [FLUTTER_DEBUG] Authorization header: Bearer ${bearerToken.length > 20 ? bearerToken.substring(0, 20) + "..." : bearerToken}');
+    }
+
+    // ========== APPEL RÉEL POUR confirm-booking-by-host ==========
+    if (path == Config.confirmBookingByHost) {
+      print('🌐 [REAL_CALL] Envoi réel au serveur Node.js');
+      print('🌐 [REAL_CALL] URL complète: http://10.0.2.2:5000/api/v1/confirm-booking-by-host');
+      print('🌐 [REAL_CALL] Body: ${jsonEncode(data)}');
+      // Vérification que le body contient bien booking_id et non item_id
+      if (data.containsKey('booking_id')) {
+        print('✅ [REAL_CALL] Body contient booking_id: ${data['booking_id']}');
+      } else {
+        print('⚠️ [REAL_CALL] ATTENTION: Body ne contient pas booking_id!');
+        print('⚠️ [REAL_CALL] Clés disponibles: ${data.keys.join(", ")}');
+      }
+    }
+    // ========== END APPEL RÉEL ==========
+
+    // ========== LOG DE SÉCURITÉ - Confirmation d'envoi réel au serveur ==========
+    print('🌍 [NETWORK] >>> ENVOI RÉEL AU SERVEUR NODE.JS : $url');
+    // ========== END LOG DE SÉCURITÉ ==========
+
+    // ========== LOGS VERBEUX POUR DÉBOGAGE ==========
+    print('🌐 [HTTP REQUEST] POST vers: $url');
+    print('🔐 [HTTP HEADERS] Content-Type: ${headers['Content-Type']}');
+    print('🔐 [HTTP HEADERS] x-auth-token: ${headers['x-auth-token'] != null ? (headers['x-auth-token']!.toString().length > 20 ? "${headers['x-auth-token']!.toString().substring(0, 20)}..." : headers['x-auth-token']) : "NULL"}');
+    print('🔐 [HTTP HEADERS] Authorization: ${headers['Authorization'] != null ? (headers['Authorization']!.toString().length > 30 ? "${headers['Authorization']!.toString().substring(0, 30)}..." : headers['Authorization']) : "NULL"}');
+    print('📝 [HTTP BODY] ${jsonEncode(data)}');
+    // ========== END LOGS VERBEUX ==========
+
     // First attempt
     result = await http.post(
       Uri.parse(url),
@@ -675,10 +696,36 @@ Future<dynamic> httpPost(path, data) async {
       body: jsonEncode(data),
     );
     
+    // ========== LOGS DE RÉPONSE ==========
+    print('📥 [HTTP RESPONSE] Status: ${result.statusCode}');
+    print('📄 [HTTP RESPONSE BODY] ${result.body}');
+    
+    // Logs spécifiques pour fcmUpdate (OneSignal)
+    if (path == Config.fcmUpdate) {
+      print('📥 [FLUTTER RESPONSE] Status: ${result.statusCode}');
+      print('📄 [FLUTTER RESPONSE BODY] ${result.body}');
+    }
+    
+    if (result.statusCode >= 400) {
+      print('❌ [HTTP ERROR] Erreur HTTP ${result.statusCode} détectée');
+      print('❌ [HTTP ERROR] Headers de réponse: ${result.headers}');
+      if (path == Config.fcmUpdate) {
+        print('❌ [FLUTTER ERROR] Erreur lors de l\'envoi du Player ID: Status ${result.statusCode}');
+      }
+    }
+    // ========== END LOGS DE RÉPONSE ==========
+    
     // Debug print for response
     if (path == Config.cancelBookingByUser) {
       print('🚀 [FLUTTER_DEBUG] Response status code: ${result.statusCode}');
       print('🚀 [FLUTTER_DEBUG] Response body: ${result.body}');
+    }
+
+    // Debug print for cancel-booking-by-host response
+    if (path == Config.cancelBookingByHost) {
+      print('🚀 [FLUTTER_DEBUG] Response status code: ${result.statusCode}');
+      print('🚀 [FLUTTER_DEBUG] Response body: ${result.body}');
+      print('🚀 [FLUTTER_DEBUG] Response headers: ${result.headers}');
     }
 
     // Check for 401 Unauthorized
@@ -708,6 +755,10 @@ Future<dynamic> httpPost(path, data) async {
 
         // Retry the request
         print("🚨 [Auto-Fix] Retrying request with new bearer token...");
+        print('🌐 [HTTP REQUEST] POST vers (RETRY): $url');
+        print('🔐 [HTTP HEADERS] (RETRY) Authorization: ${headers['Authorization'] != null ? (headers['Authorization']!.toString().length > 30 ? "${headers['Authorization']!.toString().substring(0, 30)}..." : headers['Authorization']) : "NULL"}');
+        print('📝 [HTTP BODY] (RETRY) ${jsonEncode(data)}');
+        
         result = await http.post(
           Uri.parse(url),
           headers: headers,
@@ -715,6 +766,15 @@ Future<dynamic> httpPost(path, data) async {
         );
 
         print("🚨 [Auto-Fix] Retry response status: ${result.statusCode}");
+        print('📥 [HTTP RESPONSE] (RETRY) Status: ${result.statusCode}');
+        print('📄 [HTTP RESPONSE BODY] (RETRY) ${result.body}');
+        
+        // Logs spécifiques pour fcmUpdate (OneSignal) lors du retry
+        if (path == Config.fcmUpdate) {
+          print('📥 [FLUTTER RESPONSE] (RETRY) Status: ${result.statusCode}');
+          print('📄 [FLUTTER RESPONSE BODY] (RETRY) ${result.body}');
+        }
+        
         print("🚨 [Auto-Fix] ========================================");
       } else {
         print("🚨 [Auto-Fix] ERROR: Failed to regenerate bearer token!");
@@ -738,12 +798,25 @@ Future<dynamic> httpPost(path, data) async {
         bearerToken = newToken;
 
         headers["Authorization"] = "Bearer $newToken";
+        print('🌐 [HTTP REQUEST] POST vers (RETRY 498): $url');
+        print('🔐 [HTTP HEADERS] (RETRY 498) Authorization: Bearer ${newToken.length > 30 ? "${newToken.substring(0, 30)}..." : newToken}');
+        print('📝 [HTTP BODY] (RETRY 498) ${jsonEncode(data)}');
+        
         var retryResult = await http.post(
           Uri.parse(url),
           headers: headers,
           body: jsonEncode(data),
         );
 
+        print('📥 [HTTP RESPONSE] (RETRY 498) Status: ${retryResult.statusCode}');
+        print('📄 [HTTP RESPONSE BODY] (RETRY 498) ${retryResult.body}');
+        
+        // Logs spécifiques pour fcmUpdate (OneSignal) lors du retry 498
+        if (path == Config.fcmUpdate) {
+          print('📥 [FLUTTER RESPONSE] (RETRY 498) Status: ${retryResult.statusCode}');
+          print('📄 [FLUTTER RESPONSE BODY] (RETRY 498) ${retryResult.body}');
+        }
+        
         responseData =
             json.decode(const Utf8Codec().decode(retryResult.bodyBytes));
         log("🔁 Retried Response: $responseData");
@@ -767,6 +840,183 @@ Future<dynamic> httpPost(path, data) async {
     return {"error": err.toString()};
   }
 }
+
+// ========== HTTP PUT METHOD ==========
+Future<dynamic> httpPut(String path, Map<String, dynamic> data) async {
+  try {
+    SearchControllerHome filterController = Get.find();
+    connectionLost = false;
+
+    // Get token and bearer token (same logic as httpPost)
+    String token = GetStorage().read("token") ?? "";
+    String bearerToken = GetStorage().read("bearerToken") ?? "";
+
+    if (bearerToken.isEmpty) {
+      bearerToken = await generateToken() ?? "";
+      if (bearerToken.isNotEmpty) {
+        GetStorage().write("bearerToken", bearerToken);
+      }
+    }
+
+    if (bearerToken.isEmpty) {
+      return {"error": "Bearer token generation failed"};
+    }
+
+    // Construct URL
+    String url = '${Config.baseurl}$path';
+    
+    // Construct Headers
+    var headers = {
+      'Content-Type': 'application/json',
+      'x-auth-token': token,
+      "Authorization": "Bearer $bearerToken",
+    };
+
+    // Add common data fields
+    data['token'] = token;
+    data['module_id'] = "2";
+    data['default_currency_code'] = generalDataModel?.data?.metaData?.generalDefaultCurrency ?? "";
+    data['selected_currency_code'] = currency;
+    data['item_type'] = "${filterController.globalItemType.value}";
+    data['latitude'] = latitudeGlobal;
+    data['longitude'] = longitudeGlobal;
+    data['time_zone'] = timeZoneOffset;
+    data['lang'] = globallanguage.toString().substring(0, 2);
+
+    log("Api-Url (PUT): $url");
+    log("Request Body (PUT):\n${const JsonEncoder.withIndent('  ').convert(data)}");
+
+    // Send PUT request
+    var result = await http.put(
+      Uri.parse(url),
+      headers: headers,
+      body: jsonEncode(data),
+    );
+
+    var responseData = json.decode(const Utf8Codec().decode(result.bodyBytes));
+
+    // Handle token expiration (same logic as httpPost)
+    if (responseData['ResponseCode'] == 419) {
+      loginExpireAlertoexitfromappt();
+      Future.delayed(const Duration(seconds: 3), () {
+        logout();
+      });
+    }
+    if (responseData['ResponseCode'] == 498) {
+      log("❌ Token expired (498) — regenerating...");
+      final newToken = await generateToken();
+      if (newToken != null) {
+        bearerToken = newToken;
+        headers["Authorization"] = "Bearer $newToken";
+        var retryResult = await http.put(
+          Uri.parse(url),
+          headers: headers,
+          body: jsonEncode(data),
+        );
+        responseData = json.decode(const Utf8Codec().decode(retryResult.bodyBytes));
+        log("🔁 Retried Response: $responseData");
+      } else {
+        return {"error": "Token regeneration failed"};
+      }
+    }
+    if (responseData['ResponseMsg'] == "The selected token is invalid.") {
+      loginExpireAlertoexitfromappt();
+      Future.delayed(const Duration(seconds: 3), () {
+        logout();
+      });
+    }
+    log("Response (PUT): $responseData");
+    return responseData;
+  } catch (err) {
+    print("❌ [httpPut] Error: $err");
+    if (err is FormatException) {
+      connectionLost = true;
+    }
+    return {"error": err.toString()};
+  }
+}
+// ========== END HTTP PUT METHOD ==========
+
+// ========== HTTP DELETE METHOD ==========
+Future<dynamic> httpDelete(String path) async {
+  connectionLost = false;
+  Map<String, dynamic>? responseData;
+  
+  try {
+    // Vérification du préfixe : Si le path commence par 'vehicles', utiliser baseUrlWithoutV1
+    // pour éviter le /v1/ dans l'URL finale
+    String apiBaseUrl;
+    if (path.startsWith('vehicles/')) {
+      apiBaseUrl = Config.baseUrlWithoutV1;
+      developer.log('🔧 [DELETE] Utilisation de baseUrlWithoutV1 pour la route vehicles');
+    } else {
+      apiBaseUrl = Config.baseurl;
+    }
+    var url = apiBaseUrl + path;
+    
+    // Générer le bearer token si nécessaire
+    if (bearerToken.isEmpty) {
+      bearerToken = await generateToken() ?? "";
+      if (bearerToken.isEmpty) {
+        developer.log("❌ Failed to generate bearer token");
+        return {"error": "Token generation failed"};
+      }
+    }
+    
+    var headers = {
+      'Content-Type': 'application/json',
+      'x-auth-token': token,
+      'Authorization': "Bearer $bearerToken",
+    };
+    
+    developer.log('🌐 [DELETE] Api-Url: $url');
+    
+    final response = await http.delete(Uri.parse(url), headers: headers);
+    
+    responseData = jsonDecode(response.body);
+    
+    if (responseData!['ResponseCode'] == 419) {
+      loginExpireAlertoexitfromappt();
+      Future.delayed(const Duration(seconds: 3), () {
+        logout();
+      });
+      return responseData;
+    }
+    
+    if (response.statusCode == 498) {
+      developer.log('❌ Token expired (498) — regenerating...');
+      final newToken = await generateToken();
+      if (newToken != null && newToken.isNotEmpty) {
+        bearerToken = newToken;
+        headers['Authorization'] = 'Bearer $newToken';
+        final retryResponse = await http.delete(Uri.parse(url), headers: headers);
+        responseData = jsonDecode(retryResponse.body);
+        developer.log('🔁 Retried Response: $responseData');
+      } else {
+        developer.log('❌ Token regeneration failed');
+        return {'error': 'Token regeneration failed'};
+      }
+    }
+    
+    developer.log('✅ [DELETE] Response: $responseData');
+  } catch (err, stackTrace) {
+    if (err is http.ClientException ||
+        err is TimeoutException ||
+        err is SocketException) {
+      connectionLost = true;
+      developer.log('📡 [DELETE] Connection error: $err', stackTrace: stackTrace);
+    } else if (err is FormatException) {
+      connectionLost = true;
+      developer.log('📜 [DELETE] Format error in response: $err', stackTrace: stackTrace);
+    } else {
+      developer.log('❗ [DELETE] Unexpected error: $err', stackTrace: stackTrace);
+    }
+    return {'error': err.toString()};
+  }
+  
+  return responseData;
+}
+// ========== END HTTP DELETE METHOD ==========
 
 Future<String?>? _tokenFuture;
 Future<String?> generateToken() async {
@@ -849,189 +1099,8 @@ Future<String?> generateToken() async {
   return await completer.future;
 }
 
-// ========== MOCK HELPER FUNCTION - booking-record ==========
-// TODO: REMOVE THIS FUNCTION AFTER NODE.JS BACKEND IMPLEMENTATION
-List<Map<String, dynamic>> _generateMockBookings(String type) {
-  // Base booking data structure
-  String status;
-  String checkIn;
-  String checkOut;
-
-  switch (type) {
-    case 'upcoming':
-      status = 'Pending';
-      checkIn = '2025-12-16';
-      checkOut = '2025-12-18';
-      break;
-    case 'ongoing':
-      status = 'Ongoing';
-      checkIn = DateTime.now()
-          .subtract(const Duration(days: 1))
-          .toString()
-          .split(' ')[0];
-      checkOut =
-          DateTime.now().add(const Duration(days: 2)).toString().split(' ')[0];
-      break;
-    case 'previous':
-      status = 'Completed';
-      checkIn = DateTime.now()
-          .subtract(const Duration(days: 10))
-          .toString()
-          .split(' ')[0];
-      checkOut = DateTime.now()
-          .subtract(const Duration(days: 8))
-          .toString()
-          .split(' ')[0];
-      break;
-    case 'cancelled':
-    case 'Cancelled':
-      status = 'Cancelled';
-      checkIn =
-          DateTime.now().add(const Duration(days: 5)).toString().split(' ')[0];
-      checkOut =
-          DateTime.now().add(const Duration(days: 7)).toString().split(' ')[0];
-      break;
-    default:
-      status = 'Pending';
-      checkIn = '2025-12-16';
-      checkOut = '2025-12-18';
-  }
-
-  return [
-    {
-      "id": DateTime.now().millisecondsSinceEpoch,
-      "itemid": "101",
-      "userid": "1",
-      "host_id": "1001",
-      "check_in": checkIn,
-      "check_out": checkOut,
-      "status": status,
-      "total_day": "2",
-      "per_day": "50.00",
-      "book_for": "",
-      "base_price": "100.00",
-      "cleaning_charge": "5.00",
-      "guest_charge": "0.00",
-      "service_charge": "10.00",
-      "security_money": "100.00",
-      "iva_tax": "12.50",
-      "total_guest": "1",
-      "doorstep_price": "0",
-      "total": "127.50",
-      "admin_commission": "10.00",
-      "vendor_commision": "90.00",
-      "currency_code": "MAD",
-      "cancellation_reasion": "",
-      "cancelled_charge": "",
-      "transaction": "",
-      "payment_method": "stripe",
-      "payment_status": "Paid",
-      "image": "https://example.com/camry.jpg",
-      "item_title": "Toyota Camry 2023",
-      "item_data": jsonEncode([
-        {
-          "item_id": 101,
-          "title": "Toyota Camry 2023",
-          "price": "50.00",
-          "description": "",
-          "bedrooms": "",
-          "beds": "",
-          "bathroom": "",
-          "item_sqft": "",
-          "item_rating": "4.5",
-          "mobile": "+1234567890",
-          "status": "1",
-          "person_allowed": "5",
-          "address": "123 Main Street, Los Angeles, CA 90001",
-          "state_region": "California",
-          "zip_postal_code": "90001",
-          "latitude": "34.0522",
-          "longitude": "-118.2437",
-          "is_verified": "1",
-          "is_featured": "1",
-          "weekly_discount": "10",
-          "weekly_discount_type": "percentage",
-          "monthly_discount": "15",
-          "monthly_discount_type": "percentage",
-          "item_type": "Sedan",
-          "cancellation_reason": "",
-          "bed_type": "",
-          "city": "Los Angeles",
-          "amenities": [
-            {
-              "id": 1,
-              "name": "GPS Navigation",
-              "image_url": "https://example.com/gps.png"
-            },
-            {
-              "id": 2,
-              "name": "Bluetooth",
-              "image_url": "https://example.com/bluetooth.png"
-            }
-          ],
-          "available_dates": [],
-          "host_id": "1001",
-          "host_player_id": "player_12345",
-          "host_first_name": "John",
-          "host_last_name": "Doe",
-          "host_email": "john.doe@example.com",
-          "host_phone": "+1234567890",
-          "host_profile_image": "https://example.com/profile.jpg",
-          "front_image_url": "https://example.com/camry.jpg",
-          "gallery_image_urls": [
-            "https://example.com/camry-1.jpg",
-            "https://example.com/camry-2.jpg"
-          ],
-          "reviews": [],
-          "total_reviews": 0,
-          "item_data": "",
-          "item_info": jsonEncode({
-            "host_id": "1001",
-            "make_type": "Toyota",
-            "model": "Camry",
-            "year": "2023",
-            "service_type": "booking"
-          }),
-          "is_in_wishlist": false
-        }
-      ]),
-      "wall_amt": "0.00",
-      "note": "",
-      "rating": "4.5",
-      "cancelled_by": "",
-      "created_at": DateTime.now()
-          .subtract(const Duration(days: 1))
-          .toString()
-          .split('.')[0],
-      "updated_at": DateTime.now().toString().split('.')[0],
-      "review_status": "0",
-      "review_rating": "",
-      "review": "",
-      "host_name": "John Doe",
-      "host_number": "+1234567890",
-      "host_email": "john.doe@example.com",
-      "host_phone_country": "+1",
-      "user_name": "User Test",
-      "user_number": "+212694492918",
-      "user_phone_country": "+212",
-      "user_email": "user@example.com",
-      "module": "2",
-      "token": "",
-      "start_time": "00:00",
-      "end_time": "11:30",
-      "booking_meta": "",
-      "is_item_delivered": 0,
-      "is_item_received": 0,
-      "is_item_returned": 0,
-      "is_item_delivered_button": "",
-      "is_item_returned_button": "",
-      "is_received_button": "",
-      "pick_otp": "",
-      "drop_otp": "",
-      "doorStep_address": "",
-      "booking_vehicle_images": null,
-      "signature_image": null
-    }
-  ];
-}
+// ========== MOCK HELPER FUNCTION REMOVED - _generateMockBookings() ==========
+// La fonction helper _generateMockBookings() a été supprimée définitivement
+// pour libérer de la mémoire et éviter toute confusion future.
+// Toutes les requêtes vendor-booking-record utilisent maintenant le serveur Node.js réel.
 // ========== END MOCK HELPER FUNCTION ==========

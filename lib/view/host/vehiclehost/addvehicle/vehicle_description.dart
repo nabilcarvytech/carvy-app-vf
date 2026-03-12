@@ -207,22 +207,6 @@ class _VehcileDescriptionScreenState extends State<VehcileDescriptionScreen> {
                       inputAlignment: TextAlign.left,
                     ),
                     const SizedBox(height: 15),
-                    LabelNames(labelname: 'Vehicle Description'.tr),
-                    const SizedBox(height: 10),
-                    TextFieldRefs(
-                      textInputAction: TextInputAction.done,
-                      txt: 'Enter Description'.tr,
-                      textEditingControllerCommon: widget.mode ==
-                              ScreenMode.edit
-                          ? addItemsHostController.textEditingControllerEditDesc
-                          : addItemsHostController.textEditingControllerDesc,
-                      inputType: TextInputType.multiline,
-                      minlines: 8,
-                      maxlength: 300,
-                      maxlines: null,
-                      inputAlignment: TextAlign.left,
-                    ),
-                    const SizedBox(height: 15),
                     LabelNames(labelname: 'License Plate Number'.tr),
                     const SizedBox(height: 10),
                     Row(
@@ -436,9 +420,6 @@ class _VehcileDescriptionScreenState extends State<VehcileDescriptionScreen> {
             titleController: widget.mode == ScreenMode.edit
                 ? addItemsHostController.textEditingControllerEditTitle
                 : addItemsHostController.textEditingControllerTitle,
-            descriptionController: widget.mode == ScreenMode.edit
-                ? addItemsHostController.textEditingControllerEditDesc
-                : addItemsHostController.textEditingControllerDesc,
             navigateToScreen: const VehiclePriceScreen(mode: ScreenMode.add),
           );
         },

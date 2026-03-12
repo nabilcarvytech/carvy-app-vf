@@ -153,15 +153,10 @@ class Data {
         String token = json['token'].toString();
         Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
         _role = decodedToken['role']?.toString();
-        print('💡 [JWT_FIX] Rôle récupéré du token : $_role');
       } catch (e) {
-        print('❌ [JWT_FIX] Erreur décodage token : $e');
         _role = null;
       }
     }
-    
-    print('🛠️ [MODEL_DEBUG] Rôle extrait du JSON: $_role');
-    print('🛠️ [FINAL_CHECK] JSON BRUT REÇU: $json');
   }
 
   String? _id;

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:core';
+import 'dart:async';
 import 'dart:math';
 import 'package:awesome_snackbar_content/awesome_snackbar_content.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -9,14 +10,17 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:carvy/controller/add_address_controller.dart';
 import 'package:carvy/controller/items_detail_controller.dart';
 import 'package:carvy/controller/kyc_controller.dart';
+import 'package:carvy/controller/push_notifications.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/digital_singnature_model.dart';
 import 'package:carvy/model/item_details_model.dart';
+import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import '../api/config.dart';
 import '../customwidget/miscellaneous_project_elements.dart';
@@ -58,6 +62,14 @@ class BookingController extends GetxController implements GetxService {
     }
   }
 
+  /// Gère l'ouverture automatique de l'écran OTP après upload d'images
+  void _handleOtpAfterImageSubmit() {
+    print('🚀 [WORKER] Exécution de _handleOtpAfterImageSubmit');
+    // Ici, vous pouvez ajouter la logique pour ouvrir l'écran OTP
+    // Par exemple : Get.to(() => OtpScreen());
+    // Ou notifier l'UI pour afficher une modal, etc.
+  }
+
   int numberofguest = 1;
   bool isChecked = false;
   RxBool isDateAvailale = false.obs;
@@ -81,6 +93,8 @@ class BookingController extends GetxController implements GetxService {
   bool addDoorStepPrice = false;
   dynamic idFeatured = "";
   RxString curreentStatus = "".obs;
+  RxBool openOtpAfterImageSubmit = false.obs;
+  RxString currentBookingIdForOtp = "".obs;
   List availableDatesPrice = [];
   List<DateTime> getDaysInBetween(DateTime startDate, DateTime endDate) {
     List<DateTime> days = [];
@@ -1125,6 +1139,21 @@ class BookingController extends GetxController implements GetxService {
               }
             });
           } else {
+            // Logs de débogage pour vérifier les politiques d'annulation
+            print('🛡️ [CHECK_POLICY] Title: ${itemDetail?.cancellationReasonTitle}');
+            print('🛡️ [CHECK_POLICY] Desc count: ${itemDetail?.cancellationReasonDescription?.length}');
+            debugPrint('🛡️ [CHECK_POLICY] Title: ${itemDetail?.cancellationReasonTitle}');
+            debugPrint('🛡️ [CHECK_POLICY] Desc count: ${itemDetail?.cancellationReasonDescription?.length}');
+            debugPrint('🛡️ [CHECK_POLICY] itemDetail is null: ${itemDetail == null}');
+            if (itemDetail != null) {
+              debugPrint('🛡️ [CHECK_POLICY] itemDetail.cancellationReasonTitle: ${itemDetail.cancellationReasonTitle}');
+              debugPrint('🛡️ [CHECK_POLICY] itemDetail.cancellationReasonDescription: ${itemDetail.cancellationReasonDescription}');
+            }
+            // Log spécifique juste avant la navigation vers PaymentScreen
+            print('🛡️ [DEBUG_CHECK] Title to send: ${itemDetail?.cancellationReasonTitle}');
+            debugPrint('🛡️ [DEBUG_CHECK] Title to send: ${itemDetail?.cancellationReasonTitle}');
+            debugPrint('🛡️ [DEBUG_CHECK] Description to send: ${itemDetail?.cancellationReasonDescription}');
+            debugPrint('🛡️ [DEBUG_CHECK] itemDetail object: ${itemDetail?.toString()}');
             Get.offAll(() => PaymentScreen(
                   title: tittle,
                   rating: rating,
@@ -1260,6 +1289,16 @@ class BookingController extends GetxController implements GetxService {
   /// [widgetVehicleId] : L'ID du véhicule depuis widget.idFeatured (fallback final)
   Future<void> processBooking(
       {dynamic vehicleId, dynamic widgetVehicleId}) async {
+    // 👇 AJOUT CRITIQUE : Synchronisation forcée du Player ID avant la réservation 👇
+    // On s'assure que le serveur connait l'appareil avant de continuer
+    try {
+      await ensurePlayerIdIsSynced();
+      debugPrint('✅ [processBooking] Synchronisation Player ID terminée');
+    } catch (e) {
+      debugPrint('⚠️ [processBooking] Erreur lors de la synchronisation Player ID: $e');
+      // Ne pas bloquer la réservation en cas d'erreur
+    }
+    
     // Prévenir les appels multiples
     if (isProcessingBooking.value) {
       debugPrint('⚠️ [processBooking] Déjà en cours, ignore l\'appel');
@@ -1423,6 +1462,14 @@ class BookingController extends GetxController implements GetxService {
       }
 
       // ========== 8. CONSTRUCTION DU BODY JSON ==========
+      // Récupération de l'ID OneSignal au moment de la réservation
+      String playerId = OneSignal.User.pushSubscription.id ?? "";
+      print('🚀 [FLUTTER AUDIT] ID OneSignal détecté: "$playerId"');
+      if (playerId.isEmpty) {
+        print('⚠️ [FLUTTER AUDIT] ATTENTION : L\'ID est vide ! La notification échouera.');
+      }
+      print('🛡️ [BOOKING] Injection du PlayerID: $playerId');
+
       Map<String, dynamic> requestBody = {
         "item_id": finalVehicleId.toString(),
         "check_in": checkInIso, // ISO 8601 String
@@ -1455,6 +1502,7 @@ class BookingController extends GetxController implements GetxService {
         "onlinepayment": paymentStatus ?? "",
         "doorStep_price": addDoorStepPrice.toString(),
         "doorStep_address": addDoorStepPrice ? doorStepAddress() : "",
+        "oneSignalPlayerId": playerId,
       };
 
       // ========== 9. CONSTRUCTION DE L'URL ==========
@@ -1850,6 +1898,12 @@ class BookingController extends GetxController implements GetxService {
 
   commonNavigateToBookingSummary(BuildContext context, idFeatured, itemDetails,
       address, frontimage, title, rating, itemtypes, price, addDoorStepPrice) {
+    // Log pour vérifier que itemDetails contient les données de cancellation_reason
+    print('🛡️ [NAV_BOOKING_SUMMARY] Title: ${itemDetails?.cancellationReasonTitle}');
+    print('🛡️ [NAV_BOOKING_SUMMARY] CancellationReason: ${itemDetails?.cancellationReason}');
+    print('🛡️ [NAV_BOOKING_SUMMARY] Description count: ${itemDetails?.cancellationReasonDescription?.length}');
+    debugPrint('🛡️ [NAV_BOOKING_SUMMARY] itemDetails is null: ${itemDetails == null}');
+    debugPrint('🛡️ [NAV_BOOKING_SUMMARY] Full itemDetails: ${itemDetails?.toString()}');
     chack == true;
     if (startDate.value.isEmpty || endDate.value.isEmpty) {
       showErrorToastMessage("Select date to continue".tr);
@@ -2756,85 +2810,67 @@ class BookingController extends GetxController implements GetxService {
   final TextEditingController dropOtpController = TextEditingController();
   var showhideisReturn = false.obs;
   var dropoffshowHise = false.obs;
-  Future<String> updateItemReceivedStatus({required String bookingId}) async {
+  Future<String> updateItemReceivedStatus({required String bookingId, String? otp}) async {
     showhideisReturn.value = false;
     showLoading();
     String result = "no";
     try {
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var response = await httpPost(Config.updateItemReceivedStatus, {
-      //   "booking_id": bookingId,
-      //   "is_item_received": "1",
-      //   "pick_otp": otpController.text
-      // });
+      print('🚀 [PICKUP_FLOW] Envoi du code Pickup au serveur...');
+      print('🚀 [DEBUG_FLUTTER] Envoi du Pickup OTP: $otp');
 
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // MOCK: Static success response
-      Map<String, dynamic> mockResponse = {
-        "status": 200,
-        "message": "Item received status updated successfully",
-        "error": "",
-        "data": {
-          "booking_extension": {"is_item_received": "1"}
-        }
+      var map = {
+        "booking_id": bookingId,
+        "is_item_received": "1",
+        "pick_otp": otp ?? otpController.text,
       };
 
-      var response = mockResponse;
-      // ========== END MOCK DATA ==========
+      // NOTE: User requested to use updateItemReturnedStatus endpoint for pickup flow logic
+      var response = await httpPost(Config.updateItemReturnedStatus, map);
+      print('📥 [OTP_SERVER_RESPONSE] Response: $response');
+
       closeLoading();
-      if (response["status"] == 200) {
+      if (response != null && response["status"] == 200) {
         String? isItemReceived =
             response["data"]["booking_extension"]["is_item_received"];
         if (isItemReceived == "1") {
           showhideisReturn.value = true;
           result = "yes";
+          showToastMessage(response["message"]);
           update();
         }
       } else {
-        showErrorToastMessage(response['error']);
+        print('❌ [OTP_ERROR] Erreur API : ${response != null ? response['error'] : 'Réponse nulle'}');
+        showErrorToastMessage(response != null ? response['error'] : "Erreur de connexion");
       }
     } catch (e) {
       closeLoading();
+      print("Error in OTP verification: $e");
       showErrorToastMessage("Something went wrong, please try again.");
     }
     update();
     return result;
   }
 
-  Future<String> updateItemDeliverStatus({required String bookingId}) async {
+  Future<String> updateItemDeliverStatus({required String bookingId, String? otp}) async {
     dropoffshowHise.value = false;
     showLoading();
     String result = "error";
     try {
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var response = await httpPost(Config.updateItemReturnedStatus, {
-      //   "booking_id": bookingId,
-      //   "is_item_returned": "1",
-      //   "drop_otp": dropOtpController.text,
-      // });
+      print('📡 [OTP_VALIDATION] Envoi OTP : $otp pour le booking : $bookingId');
 
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // MOCK: Static success response
-      Map<String, dynamic> mockResponse = {
-        "status": 200,
-        "message": "Item returned status updated successfully",
-        "error": "",
-        "data": {
-          "booking_extension": {
-            "is_item_returned": "1",
-            "is_item_delivered": "0"
-          }
-        }
+      var map = {
+        "booking_id": bookingId,
+        "is_item_returned": "1",
+        "drop_otp": otp ?? dropOtpController.text,
       };
 
-      var response = mockResponse;
-      // ========== END MOCK DATA ==========
+      var response = await httpPost(Config.updateItemReturnedStatus, map);
+      
+      print('📥 [OTP_SERVER_RESPONSE] Response: $response');
+
       closeLoading();
-      if (response["status"] == 200) {
+      
+      if (response != null && response["status"] == 200) {
         var isItemDelivered =
             response["data"]["booking_extension"]["is_item_delivered"];
         showToastMessage(response["message"]);
@@ -2842,7 +2878,8 @@ class BookingController extends GetxController implements GetxService {
         dropoffshowHise.value = true;
         update();
       } else {
-        showErrorToastMessage(response['error']);
+        print('❌ [OTP_ERROR] Erreur API : ${response != null ? response['error'] : 'Réponse nulle'}');
+        showErrorToastMessage(response != null ? response['error'] : "Erreur de connexion");
       }
     } catch (e) {
       closeLoading();
@@ -2869,27 +2906,87 @@ class BookingController extends GetxController implements GetxService {
     required String newStatus,
   }) async {
     try {
+      // ========== VALIDATION DES PARAMÈTRES ==========
+      if (bookingId.isEmpty || hostId.isEmpty || userId.isEmpty || newStatus.isEmpty) {
+        print("⚠️ [FIREBASE] Paramètres invalides - bookingId: $bookingId, hostId: $hostId, userId: $userId, newStatus: $newStatus");
+        return;
+      }
+
+      // ========== VALIDATION DES CHEMINS FIREBASE ==========
+      // Vérifier que les IDs ne contiennent pas de caractères invalides pour les chemins Firebase
+      final invalidChars = RegExp(r'[\.\$#\[\]/]');
+      if (invalidChars.hasMatch(bookingId) || invalidChars.hasMatch(hostId) || invalidChars.hasMatch(userId)) {
+        print("⚠️ [FIREBASE] IDs contiennent des caractères invalides pour Firebase - bookingId: $bookingId, hostId: $hostId, userId: $userId");
+        return;
+      }
+
       final database = FirebaseDatabase.instance.ref().child("chatList");
-      final currentUserChatRef =
-          database.child(userId).child("${bookingId}_$hostId");
-      final currentUserChatSnapshot = await currentUserChatRef.once();
-      final hostUserChatRef =
-          database.child(hostId).child("${bookingId}_$userId");
-      final hostUserChatSnapshot = await hostUserChatRef.once();
-      if (currentUserChatSnapshot.snapshot.exists) {
-        await currentUserChatRef.update({'bookingStatus': newStatus});
-        print("Updated booking status to $newStatus for user: $userId");
-      } else {
-        print("Chat node does not exist for user: $userId, skipping update");
+      
+      // ========== MISE À JOUR POUR L'UTILISATEUR ==========
+      try {
+        final currentUserChatRef =
+            database.child(userId).child("${bookingId}_$hostId");
+        
+        // Timeout pour éviter le freeze
+        final currentUserChatSnapshot = await currentUserChatRef.once().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            print("⚠️ [FIREBASE] Timeout lors de la lecture du chemin utilisateur: ${bookingId}_$hostId");
+            throw TimeoutException("Firebase read timeout for user chat");
+          },
+        );
+        
+        if (currentUserChatSnapshot.snapshot.exists) {
+          await currentUserChatRef.update({'bookingStatus': newStatus}).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              print("⚠️ [FIREBASE] Timeout lors de la mise à jour du statut pour l'utilisateur: $userId");
+              throw TimeoutException("Firebase update timeout for user chat");
+            },
+          );
+          print("✅ [FIREBASE] Updated booking status to $newStatus for user: $userId");
+        } else {
+          print("ℹ️ [FIREBASE] Chat node does not exist for user: $userId, skipping update");
+        }
+      } catch (e) {
+        print("❌ [FIREBASE] Erreur lors de la mise à jour pour l'utilisateur $userId: $e");
+        // Continue avec la mise à jour pour le host même si celle de l'utilisateur échoue
       }
-      if (hostUserChatSnapshot.snapshot.exists) {
-        await hostUserChatRef.update({'bookingStatus': newStatus});
-        print("Updated booking status to $newStatus for host: $hostId");
-      } else {
-        print("Chat node does not exist for host: $hostId, skipping update");
+
+      // ========== MISE À JOUR POUR LE HOST ==========
+      try {
+        final hostUserChatRef =
+            database.child(hostId).child("${bookingId}_$userId");
+        
+        // Timeout pour éviter le freeze
+        final hostUserChatSnapshot = await hostUserChatRef.once().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            print("⚠️ [FIREBASE] Timeout lors de la lecture du chemin host: ${bookingId}_$userId");
+            throw TimeoutException("Firebase read timeout for host chat");
+          },
+        );
+        
+        if (hostUserChatSnapshot.snapshot.exists) {
+          await hostUserChatRef.update({'bookingStatus': newStatus}).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              print("⚠️ [FIREBASE] Timeout lors de la mise à jour du statut pour le host: $hostId");
+              throw TimeoutException("Firebase update timeout for host chat");
+            },
+          );
+          print("✅ [FIREBASE] Updated booking status to $newStatus for host: $hostId");
+        } else {
+          print("ℹ️ [FIREBASE] Chat node does not exist for host: $hostId, skipping update");
+        }
+      } catch (e) {
+        print("❌ [FIREBASE] Erreur lors de la mise à jour pour le host $hostId: $e");
+        // Ne pas propager l'erreur pour éviter le freeze de l'application
       }
-    } catch (e) {
-      print("Error updating booking status: $e");
+    } catch (e, stackTrace) {
+      print("❌ [FIREBASE] Erreur générale lors de la mise à jour du statut de réservation: $e");
+      print("📋 [FIREBASE] Stack trace: $stackTrace");
+      // Ne pas propager l'erreur pour éviter le freeze de l'application
     }
   }
 
@@ -2989,5 +3086,45 @@ class BookingController extends GetxController implements GetxService {
       result = "yes";
     }
     return result;
+  }
+
+  // ========== FONCTION DE DIAGNOSTIC POUR CONFIRMER UNE RÉSERVATION ==========
+  Future<Map<String, dynamic>?> confirmBookingByHost({required String bookingId}) async {
+    print('--- 🔎 DIAGNOSTIC API START ---');
+    print('1️⃣ Destination: ${Config.confirmBookingByHost}');
+    print('2️⃣ Payload: {"booking_id": "$bookingId"}');
+    
+    try {
+      final response = await httpPost(
+        Config.confirmBookingByHost,
+        {"booking_id": bookingId},
+      );
+      
+      print('3️⃣ Response Type: ${response.runtimeType}');
+      print('4️⃣ Response Data: $response');
+      
+      if (response != null && response is Map) {
+        if (response['status'] == 200) {
+          print('✅ SUCCÈS LOGIQUE: Statut mis à jour dans l\'UI');
+          print('   - Message: ${response['message']}');
+          print('   - Data: ${response['data']}');
+        } else {
+          print('⚠️ ERREUR SERVEUR (JSON): ${response['message'] ?? response['error']}');
+          print('   - Status: ${response['status']}');
+          print('   - Error: ${response['error']}');
+        }
+      } else {
+        print('❌ ERREUR: Réponse invalide ou null');
+        print('   - Response: $response');
+      }
+      
+      print('--- 🔎 DIAGNOSTIC API END ---');
+      return response != null && response is Map ? Map<String, dynamic>.from(response) : null;
+    } catch (e) {
+      print('🚨 CRASH RÉSEAU/FLUTTER: $e');
+      print('   - StackTrace: ${StackTrace.current}');
+      print('--- 🔎 DIAGNOSTIC API END ---');
+      return null;
+    }
   }
 }

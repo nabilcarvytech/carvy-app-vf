@@ -36,6 +36,10 @@ class _PublicProfileState extends State<PublicProfile> {
   @override
   void initState() {
     super.initState();
+    // Charger les données du profil au démarrage
+    if (widget.userid != null && widget.userid!.isNotEmpty) {
+      publicProfileController.getDataPublicProfile(widget.userid);
+    }
   }
 
   stateSetter(fn) => setState(() {});
@@ -53,6 +57,49 @@ class _PublicProfileState extends State<PublicProfile> {
               if (controller.isLoading.isTrue) {
                 return publicProfileScreenShimmer();
               } else {
+                // Vérifier si les données sont disponibles, sinon afficher un message d'erreur
+                if (controller.getUserProfile == null) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: notifires.getGrey3Whitecolor,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "Erreur de chargement".tr,
+                            style: heading2(context),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Impossible de charger le profil. Veuillez réessayer.".tr,
+                            style: regular2(context).copyWith(
+                              color: notifires.getGrey3Whitecolor,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: () {
+                              // Réessayer le chargement
+                              controller.getDataPublicProfile(widget.userid);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: getColorBasedOnActiveModuleid(),
+                            ),
+                            child: Text("Réessayer".tr),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
                 return publicProfile(context, controller);
               }
             },

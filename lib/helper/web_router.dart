@@ -157,9 +157,13 @@ final getPagesforweb = [
       name: WebRoutes.forgetPasswordScreen, page: () => const ForgetPassword()),
   GetPage(
       name: WebRoutes.myBooking,
-      page: () => MyBooking(
-            fromPropBooking: false,
-          )),
+      page: () {
+        final arguments = Get.arguments as Map<String, dynamic>?;
+        return MyBooking(
+          fromPropBooking: arguments?['fromPropBooking'] ?? false,
+          initialTabIndex: arguments?['initialTabIndex'] as int?,
+        );
+      }),
   GetPage(name: WebRoutes.settingScreen, page: () => const SettingScreen()),
   GetPage(name: WebRoutes.yourReview, page: () => const YourReview()),
   GetPage(name: WebRoutes.walletScreen, page: () => const WalletScreen()),

@@ -25,8 +25,17 @@ class _VehicleTypeScreenState extends State<VehicleTypeScreen> {
   GetYearModel? yearListModel;
   void resetDependentFields() {
     setState(() {
+      // Réinitialiser les valeurs sélectionnées
       addItemsHostController.selectedMake = null;
       addItemsHostController.selectedModel = null;
+      
+      // Vider les listes pour forcer le rechargement (comme en mode Ajout)
+      addItemsHostController.listMakesType.clear();
+      addItemsHostController.listModelType.clear();
+      
+      // Activer le loader pour indiquer le chargement
+      addItemsHostController.isMakeModelonTap.value = true;
+      addItemsHostController.update();
     });
   }
 
@@ -45,17 +54,37 @@ class _VehicleTypeScreenState extends State<VehicleTypeScreen> {
     setState(() {});
   }
 
-  void filterModelTypes(String? selectedMake) {
-    if (selectedMake != null) {
-      MakeTypes? selectedMakeType = addItemsHostController.listMakesType
-          .firstWhereOrNull(
-              (makeType) => makeType.id.toString() == selectedMake);
-
-      if (selectedMakeType != null) {
+  /// Charge les modèles pour une marque via l'API séparée (identique à l'ajout)
+  /// Utilise exactement la même API que l'écran d'ajout
+  Future<void> filterModelTypes(String? selectedMake) async {
+    if (selectedMake != null && selectedMake.isNotEmpty) {
+      debugPrint('🔍 [FILTER_MODELS] Chargement des modèles pour la marque ID: $selectedMake');
+      
+      // Activer le loader pour indiquer le chargement
+      addItemsHostController.isMakeModelonTap.value = true;
+      addItemsHostController.update();
+      
+      try {
+        // Appeler l'API séparée des modèles (identique à l'ajout)
+        await addItemsHostController.getModelApi(selectedMake);
+        
+        debugPrint('✅ [FILTER_MODELS] ${addItemsHostController.listModelType.length} modèles chargés pour la marque $selectedMake');
+        
+        // Mettre à jour l'état local
         setState(() {
-          addItemsHostController.listModelType = selectedMakeType.models ?? [];
+          isMakeSelected = true;
         });
+      } catch (e) {
+        debugPrint('❌ [FILTER_MODELS] Erreur lors du chargement des modèles: $e');
+      } finally {
+        // Désactiver le loader
+        addItemsHostController.isMakeModelonTap.value = false;
+        addItemsHostController.update();
       }
+    } else {
+      debugPrint('⚠️ [FILTER_MODELS] selectedMake est null ou vide');
+      addItemsHostController.listModelType.clear();
+      addItemsHostController.update();
     }
   }
 
@@ -81,7 +110,8 @@ List<int> generateYearsList() {
         body: Center(
           child: SingleChildScrollView(
             child: Obx(
-              () => addItemsHostController.isMakeModel.value == true
+              () => addItemsHostController.isMakeModel.value == true || 
+                    addItemsHostController.isLoadingEdit.value == true
                   ? const Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -96,157 +126,170 @@ List<int> generateYearsList() {
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 25, vertical: 0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              LabelNames(labelname: "Vehicle Type".tr),
-                              const SizedBox(height: 10),
-                              CustomDropdownHost(
-                                mode: widget.mode,
-                                heading: "Choose Vehicle Type".tr,
-                                options:
-                                    addItemsHostController.vehicleListItemType,
-                                onSelected: (value) {
-                                  addItemsHostController.selectedVehicleType =
-                                      value;
-                                  resetDependentFields();
-                                  addItemsHostController
-                                      .getVehicleDataMakeModelforOnTap(value);
-                                },
-                                checkmarkColor: getColorBasedOnActiveModuleid(),
-                                selectedEditInitialValue:
-                                    addItemsHostController.selectedVehicleType,
-                              ),
-                              // ),
-                              const SizedBox(height: 10),
-                              LabelNames(labelname: "Make".tr),
-                              const SizedBox(
-                                height: 10,
-                              ),
+                          child: GetBuilder<AddItemsHostController>(
+                            builder: (controller) => Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                LabelNames(labelname: "Vehicle Type".tr),
+                                const SizedBox(height: 10),
+                                CustomDropdownHost(
+                                  mode: widget.mode,
+                                  heading: "Choose Vehicle Type".tr,
+                                  options: controller.vehicleListItemType,
+                                  onSelected: (value) {
+                                    controller.selectedVehicleType = value;
+                                    
+                                    // 1. Réinitialiser les champs dépendants (Make / Model + listes)
+                                    resetDependentFields();
+                                    
+                                    // 2. Recharger TOUTES les marques et modèles, sans filtre,
+                                    //    en réutilisant exactement la même API que l'écran d'ajout
+                                    controller.getVehicleDataMakeModel();
+                                    
+                                    // 3. Forcer la mise à jour de l'UI
+                                    controller.update();
+                                  },
+                                  checkmarkColor: getColorBasedOnActiveModuleid(),
+                                  selectedEditInitialValue: controller.selectedVehicleType,
+                                ),
+                                // ),
+                                const SizedBox(height: 10),
+                                LabelNames(labelname: "Make".tr),
+                                const SizedBox(
+                                  height: 10,
+                                ),
 
-                              CustomDropdownHost(
-                                clearDataonVehgicletype: addItemsHostController
-                                    .isMakeModelonTap.value,
-                                mode: widget.mode,
-                                heading: "Choose Make Type".tr,
-                                options: addItemsHostController.listMakesType,
-                                onSelected: (value) {
-                                  addItemsHostController.selectedMake = value;
-                                  isMakeSelected = true;
-                                  filterModelTypes(
-                                      addItemsHostController.selectedMake);
-                                },
-                                checkmarkColor: getColorBasedOnActiveModuleid(),
-                                selectedEditInitialValue:
-                                    addItemsHostController.selectedMake,
-                              ),
+                                // GetBuilder + Obx pour forcer le rafraîchissement quand selectedMake change
+                                GetBuilder<AddItemsHostController>(
+                                  builder: (controller) => Obx(() => CustomDropdownHost(
+                                    clearDataonVehgicletype: controller.isMakeModelonTap.value,
+                                    mode: widget.mode,
+                                    heading: "Choose Make Type".tr,
+                                    options: controller.listMakesType,
+                                    onSelected: (value) {
+                                      debugPrint('🔄 [MAKE_SELECTED] Marque sélectionnée: $value');
+                                      
+                                      // 1. Assigner la nouvelle marque
+                                      controller.selectedMake = value;
+                                      
+                                      // 2. Vider le modèle précédemment sélectionné (car il n'appartient plus à cette marque)
+                                      controller.selectedModel = null;
+                                      
+                                      // 3. Vider la liste des modèles pour forcer le refresh
+                                      controller.listModelType.clear();
+                                      
+                                      // 4. Charger les modèles via l'API séparée (identique à l'ajout)
+                                      // Cette fonction utilise EXACTEMENT la même API que l'écran d'ajout
+                                      if (value != null && value.isNotEmpty) {
+                                        filterModelTypes(value);
+                                      } else {
+                                        debugPrint('⚠️ [MAKE_SELECTED] value est null ou vide, impossible de charger les modèles');
+                                      }
+                                      
+                                      // 5. Forcer la mise à jour de l'UI du contrôleur
+                                      controller.update();
+                                    },
+                                    checkmarkColor: getColorBasedOnActiveModuleid(),
+                                    selectedEditInitialValue: controller.selectedMake,
+                                  )),
+                                ),
 
-                              const SizedBox(height: 10),
-                              LabelNames(labelname: "Model".tr),
-                              const SizedBox(height: 10),
+                                const SizedBox(height: 10),
+                                LabelNames(labelname: "Model".tr),
+                                const SizedBox(height: 10),
 
-                              CustomDropdownHost(
-                                clearDataonVehgicletype: addItemsHostController
-                                    .isMakeModelonTap.value,
-                                mode: widget.mode,
-                                heading: "Choose Model Type".tr,
-                                options: isMakeSelected ||
-                                        (addItemsHostController
-                                                .selectedMake?.isNotEmpty ??
-                                            false)
-                                    ? addItemsHostController
-                                        .listModelType // Ensure listModelType is not null
-                                    : [],
-                                onSelected: (value) {
-                                  addItemsHostController.selectedModel = value;
-                                },
-                                checkmarkColor: getColorBasedOnActiveModuleid(),
-                                selectedEditInitialValue:
-                                    addItemsHostController.selectedModel,
-                              ),
+                                // GetBuilder + Obx pour forcer le rafraîchissement quand selectedModel change
+                                GetBuilder<AddItemsHostController>(
+                                  builder: (controller) => Obx(() => CustomDropdownHost(
+                                    clearDataonVehgicletype: controller.isMakeModelonTap.value,
+                                    mode: widget.mode,
+                                    heading: "Choose Model Type".tr,
+                                    options: (controller.selectedMake != null && controller.selectedMake!.isNotEmpty)
+                                        ? (controller.listModelType) // Utiliser directement listModelType du contrôleur
+                                        : [],
+                                    onSelected: (value) {
+                                      controller.selectedModel = value;
+                                      controller.update();
+                                    },
+                                    checkmarkColor: getColorBasedOnActiveModuleid(),
+                                    selectedEditInitialValue: controller.selectedModel,
+                                  )),
+                                ),
 
-                              const SizedBox(height: 10),
-                              LabelNames(labelname: "Year".tr),
-                              const SizedBox(height: 10),
-                              CustomDropdownHostYears(
-                                mode: widget.mode,
-                                heading: "Choose Year".tr,
-                                years: generateYearsList(),
-                                onSelected: (year) {
-                                  addItemsHostController.selectedVechicleYear =
-                                      year;
-                                },
-                                checkmarkColor: getColorBasedOnActiveModuleid(),
-                                hintText: 'Select Year'.tr,
-                              ),
-                              const SizedBox(height: 10),
-                              LabelNames(labelname: "Transmissions".tr),
-                              const SizedBox(height: 10),
-                              CustomDropdownHost2(
-                                mode: widget.mode,
-                                heading: "Choose transmission".tr,
-                                options:
-                                    addItemsHostController.listTransmission,
-                                onSelected: (value) {
-                                  addItemsHostController.selectTransmission =
-                                      value;
-                                },
-                                checkmarkColor: getColorBasedOnActiveModuleid(),
-                              ),
-                              const SizedBox(height: 10),
-                              LabelNames(labelname: "Odometer".tr),
-                              const SizedBox(height: 10),
-                              CustomDropdownHost(
-                                mode: widget.mode,
-                                heading: "Choose odometer".tr,
-                                options:
-                                    addItemsHostController.listSpeedOdometer,
-                                onSelected: (value) {
-                                  addItemsHostController
-                                      .selectedOdometerId.value = value;
-                                },
-                                selectedEditInitialValue: addItemsHostController
-                                    .selectedOdometerId.value,
-                                checkmarkColor: getColorBasedOnActiveModuleid(),
-                              ),
-                              const SizedBox(height: 10),
+                                const SizedBox(height: 10),
+                                LabelNames(labelname: "Year".tr),
+                                const SizedBox(height: 10),
+                                CustomDropdownHostYears(
+                                  mode: widget.mode,
+                                  heading: "Choose Year".tr,
+                                  years: generateYearsList(),
+                                  onSelected: (year) {
+                                    controller.selectedVechicleYear = year;
+                                  },
+                                  checkmarkColor: getColorBasedOnActiveModuleid(),
+                                  hintText: 'Select Year'.tr,
+                                ),
+                                const SizedBox(height: 10),
+                                LabelNames(labelname: "Transmissions".tr),
+                                const SizedBox(height: 10),
+                                CustomDropdownHost2(
+                                  mode: widget.mode,
+                                  heading: "Choose transmission".tr,
+                                  options: controller.listTransmission,
+                                  onSelected: (value) {
+                                    controller.selectTransmission = value;
+                                  },
+                                  checkmarkColor: getColorBasedOnActiveModuleid(),
+                                ),
+                                const SizedBox(height: 10),
+                                LabelNames(labelname: "Odometer".tr),
+                                const SizedBox(height: 10),
+                                CustomDropdownHost(
+                                  mode: widget.mode,
+                                  heading: "Choose odometer".tr,
+                                  options: controller.listSpeedOdometer,
+                                  onSelected: (value) {
+                                    controller.selectedOdometerId.value = value;
+                                  },
+                                  selectedEditInitialValue: controller.selectedOdometerId.value,
+                                  checkmarkColor: getColorBasedOnActiveModuleid(),
+                                ),
+                                const SizedBox(height: 10),
 
-                              LabelNames(labelname: 'Fuel Type'.tr),
-                              const SizedBox(height: 10),
-                              CustomDropdownHost(
-                                mode: widget.mode,
-                                heading: "Select Fuel Type".tr,
-                                options: addItemsHostController.fuelTypeList,
-                                onSelected: (value) {
-                                  addItemsHostController
-                                      .selectedFueltypeid.value = value;
-                                },
-                                selectedEditInitialValue: addItemsHostController
-                                    .selectedFueltypeid.value,
-                                checkmarkColor: getColorBasedOnActiveModuleid(),
-                              ),
+                                LabelNames(labelname: 'Fuel Type'.tr),
+                                const SizedBox(height: 10),
+                                CustomDropdownHost(
+                                  mode: widget.mode,
+                                  heading: "Select Fuel Type".tr,
+                                  options: controller.fuelTypeList,
+                                  onSelected: (value) {
+                                    controller.selectedFueltypeid.value = value;
+                                  },
+                                  selectedEditInitialValue: controller.selectedFueltypeid.value,
+                                  checkmarkColor: getColorBasedOnActiveModuleid(),
+                                ),
 
-                              const SizedBox(height: 10),
-                              LabelNames(labelname: 'Number of Seats'.tr),
-                              const SizedBox(height: 10),
-                              TextFieldRefs(
-                                onTap: () {
-                                  addItemsHostController.numerictype = true;
-                                },
-                                onChange: (c) {
-                                  addItemsHostController.cleanNumericInput(
-                                      addItemsHostController.seatcapicity, c!);
-                                  return null;
-                                },
-                                textInputAction: TextInputAction.done,
-                                txt: 'Number of Seats'.tr,
-                                textEditingControllerCommon:
-                                    addItemsHostController.seatcapicity,
-                                inputType: TextInputType.name,
-                                inputAlignment: TextAlign.left,
-                              ),
-                              const SizedBox(height: 10),
-                            ],
+                                const SizedBox(height: 10),
+                                LabelNames(labelname: 'Number of Seats'.tr),
+                                const SizedBox(height: 10),
+                                TextFieldRefs(
+                                  onTap: () {
+                                    controller.numerictype = true;
+                                  },
+                                  onChange: (c) {
+                                    controller.cleanNumericInput(
+                                        controller.seatcapicity, c!);
+                                    return null;
+                                  },
+                                  textInputAction: TextInputAction.done,
+                                  txt: 'Number of Seats'.tr,
+                                  textEditingControllerCommon: controller.seatcapicity,
+                                  inputType: TextInputType.name,
+                                  inputAlignment: TextAlign.left,
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                            ),
                           ),
                         ),
                       ],

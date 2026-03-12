@@ -8,6 +8,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:carvy/api/config.dart';
+import 'package:carvy/controller/booking_controller.dart';
 import 'package:carvy/customwidget/form_elements.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_bar.dart';
@@ -166,29 +167,49 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
         "per_booking_images": galleryImage,
       };
 
-      var response = await httpPost(Config.addInteriorImage, map);
+      print('🚀 [API_SEND] Envoi de l\'image en Base64 pour le booking: ${widget.id}');
+      print('📊 [API_SEND] Nombre d\'images: ${imageListbase64.length}');
+      print('📊 [API_SEND] Taille des données: ${galleryImage.length} caractères');
+
+      dynamic response;
+      try {
+        response = await httpPost(Config.addInteriorImage, map);
+        print('📡 [RETOUR_API] Réponse reçue du serveur');
+        print('📝 [RETOUR_API] Type de réponse: ${response.runtimeType}');
+        print('📝 [RETOUR_API] Contenu complet: $response');
+      } catch (e) {
+        print('🚨 [ERREUR_RESEAU] Impossible de joindre le serveur: $e');
+        closeLoading();
+        showErrorToastMessage('Erreur réseau: Impossible de contacter le serveur');
+        return;
+      }
+
       closeLoading();
       if (response != null && response.containsKey('success')) {
         final successValue = response['success'].toString();
+        print('✅ [RETOUR_API] Code succès: $successValue');
         if (successValue == '200') {
+          print('🎉 [RETOUR_API] Upload réussi - ouverture OTP automatique');
+          BookingController bookingController = Get.find();
           showToastMessage(response['message']?.toString() ??
               'Images uploaded successfully');
-          openOtpAfterImageSubmit = true;
+          bookingController.currentBookingIdForOtp.value = widget.id;
+          bookingController.openOtpAfterImageSubmit.value = true;
           generalController.currentIndex.value = 0;
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (builder) => HomeMain(
-                        initialIndex: 2,
-                      )));
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Get.back(result: true);
+          });
         } else {
+          print('❌ [RETOUR_API] Échec upload - Code: $successValue');
           showErrorToastMessage(
               response['error']?.toString() ?? 'Failed to upload images');
         }
       } else {
+        print('❌ [RETOUR_API] Réponse invalide - Clés disponibles: ${response?.keys?.join(", ")}');
         showErrorToastMessage('Invalid response from server');
       }
     } catch (e) {
+      print('💥 [ERREUR_GENERALE] Erreur inattendue dans updateUploadImage: $e');
       closeLoading();
       showErrorToastMessage('Failed to upload images: $e');
     }

@@ -61,38 +61,24 @@ class Data {
         final rawItems = json['items'];
 
         if (rawItems is List) {
-          print("🔍 [SEARCH_PARSE] Found ${rawItems.length} items in raw list");
           for (var item in rawItems) {
             try {
               _items!.add(Items.fromJson(item));
             } catch (e, stack) {
-              print("❌ [SEARCH_PARSE] PARSING ERROR on item: $item");
-              print("❌ Error details: $e");
-              print("❌ Stack: $stack");
+              // Ignorer les erreurs de parsing silencieusement
             }
           }
         } else if (rawItems is Map<String, dynamic>) {
-          print(
-              "🔍 [SEARCH_PARSE] 'items' is a Map, iterating over its values");
           rawItems.forEach((key, value) {
             try {
               _items!.add(Items.fromJson(value));
             } catch (e, stack) {
-              print(
-                  "❌ [SEARCH_PARSE] PARSING ERROR on item key '$key': $value");
-              print("❌ Error details: $e");
-              print("❌ Stack: $stack");
+              // Ignorer les erreurs de parsing silencieusement
             }
           });
-        } else {
-          print(
-              "❌ [SEARCH_PARSE] Unexpected 'items' type: ${rawItems.runtimeType}");
         }
-
-        print("✅ [SEARCH_PARSE] Final List Size: ${_items?.length ?? 0}");
       } catch (e, stack) {
-        print("❌ [SEARCH_PARSE] GLOBAL ERROR in Data.fromJson: $e");
-        print("❌ Stack: $stack");
+        // Ignorer les erreurs globales silencieusement
       }
     }
 
@@ -187,16 +173,13 @@ class Items {
 
   Items.fromJson(dynamic json) {
     // DEBUG: suivre exactement ce qui arrive depuis le backend pour la localisation
-    print("🔍 PARSING ITEM ${json['id']}:");
-    print("   - Raw JSON city: '${json['city']}'");
-    print("   - Raw JSON address: '${json['address']}'");
-    print("   - Raw JSON vehicleLocation: '${json['vehicleLocation']}'");
-
     final dynamic vehicleLocation = json['vehicleLocation'];
     final dynamic legacyLocation = json['location'];
 
     // ID Mongo -> Toujours traité comme String
-    _id = json['id']?.toString();
+    // Gérer à la fois 'id' et '_id' (MongoDB utilise '_id' par défaut)
+    // Priorité: _id (MongoDB) > id (standard) > chaîne vide
+    _id = json['_id']?.toString() ?? json['id']?.toString() ?? "";
 
     // Nom / Titre du véhicule
     // Ancien backend: "name", Nouveau: "title"
@@ -257,12 +240,24 @@ class Items {
     _itemTypeId = json['item_type_id']?.toString() ?? '';
 
     // Image principale
-    // Si vide ou null, utiliser un placeholder sûr
+    // Priorité: image > front_image.url > front_image.thumbnail > placeholder
+    String? imageUrl;
     final rawImage = json['image']?.toString() ?? '';
-    if (rawImage.isEmpty) {
+    if (rawImage.isNotEmpty) {
+      imageUrl = rawImage;
+    } else if (json['front_image'] != null && json['front_image'] is Map) {
+      // Le backend renvoie front_image avec {url, thumbnail, preview}
+      final frontImage = json['front_image'] as Map;
+      imageUrl = frontImage['url']?.toString() ?? 
+                 frontImage['thumbnail']?.toString() ?? 
+                 frontImage['preview']?.toString();
+    }
+    
+    // Si toujours vide, utiliser un placeholder
+    if (imageUrl == null || imageUrl.isEmpty) {
       _image = "https://placehold.co/600x400/png";
     } else {
-      _image = rawImage;
+      _image = imageUrl;
     }
 
     // Informations détaillées (item_info)

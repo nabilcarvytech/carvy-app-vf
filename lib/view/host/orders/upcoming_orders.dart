@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -26,24 +27,54 @@ class UpcomingOrders extends StatefulWidget {
 
 class _UpcomingOrdersState extends State<UpcomingOrders> {
   RefreshController refreshController = RefreshController();
+  
+  // ========== VARIABLES DE PAGINATION ==========
+  bool isLoading = false;
+  bool hasMoreData = true;
+  bool isInitialLoad = true;
+  // ========== END VARIABLES DE PAGINATION ==========
+  
   @override
   void initState() {
     super.initState();
-    getData();
+    getData(isLoadMore: false);
   }
 
-  getData() async {
+  getData({bool isLoadMore = false}) async {
+    // ========== VÉRIFICATION PAGINATION ==========
+    // Ne pas appeler l'API si déjà en chargement ou s'il n'y a plus de données
+    if (isLoading) {
+      print('⚠️ [PAGINATION] Appel API ignoré : déjà en chargement');
+      return;
+    }
+    
+    // Si c'est un chargement supplémentaire mais qu'il n'y a plus de données
+    if (isLoadMore && !hasMoreData) {
+      print('⚠️ [PAGINATION] Appel API ignoré : plus de données disponibles');
+      refreshController.loadNoData();
+      return;
+    }
+    
+    // Si c'est un chargement initial, réinitialiser
+    if (!isLoadMore) {
+      offset = 0;
+      hasMoreData = true;
+    }
+    // ========== END VÉRIFICATION PAGINATION ==========
+    
     try {
+      isLoading = true;
+      
       Map<String, String> postData = {"type": "upcoming", "offset": '$offset'};
       
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var result = await httpPost(Config.vendorbookingRecord, postData);
+      // ========== APPEL API RÉEL ==========
+      print('📦 [ORDERS_DIAG] Appel API vendor-booking-record avec type: upcoming, offset: $offset, isLoadMore: $isLoadMore');
+      var result = await httpPost(Config.vendorbookingRecord, postData);
+      print('📦 [ORDERS_DIAG] Données reçues du serveur : ${jsonEncode(result)}');
+      // ========== END APPEL API RÉEL ==========
       
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // MOCK: Static vendor booking data using helper
-      var result = generateMockVendorBooking(type: "upcoming", offset: offset);
+      // ========== MOCK DATA - FALLBACK (si API échoue) ==========
+      // var result = generateMockVendorBooking(type: "upcoming", offset: offset);
       // ========== END MOCK DATA ==========
 
       if (result != null) {
@@ -52,10 +83,39 @@ class _UpcomingOrdersState extends State<UpcomingOrders> {
         if (bookingModel != null &&
             bookingModel!.data != null &&
             bookingModel!.data!.bookings != null) {
-          list.addAll(bookingModel!.data!.bookings!);
-          offset = bookingModel!.data!.offset!;
+          
+          List<Bookings>? newBookings = bookingModel!.data!.bookings;
+          int bookingsCount = newBookings?.length ?? 0;
+          
+          // ========== CONDITION D'ARRÊT ==========
+          // Si moins de 10 bookings reçus, il n'y a plus de données
+          if (bookingsCount < 10) {
+            hasMoreData = false;
+            print('📦 [PAGINATION] Moins de 10 bookings reçus ($bookingsCount), hasMoreData = false');
+          }
+          // ========== END CONDITION D'ARRÊT ==========
+          
+          if (isLoadMore) {
+            list.addAll(newBookings!);
+          } else {
+            list = List<Bookings>.from(newBookings!);
+          }
+          
+          // ========== GESTION DE L'OFFSET ==========
+          // Incrémenter l'offset uniquement après une réponse réussie
+          if (bookingModel!.data!.offset != null) {
+            offset = bookingModel!.data!.offset!;
+            print('📦 [PAGINATION] Offset mis à jour : $offset');
+          } else {
+            // Si offset n'est pas fourni, incrémenter manuellement
+            offset = offset + bookingsCount;
+            print('📦 [PAGINATION] Offset incrémenté manuellement : $offset');
+          }
+          // ========== END GESTION DE L'OFFSET ==========
         }
 
+        isInitialLoad = false;
+        
         if (mounted) {
           setState(() {});
         }
@@ -64,24 +124,39 @@ class _UpcomingOrdersState extends State<UpcomingOrders> {
       } else {
         // Handle the case where result is null
         // This could be due to network error or other issues
-
-        // You can add additional error handling here if needed
+        refreshController.loadFailed();
+        refreshController.refreshFailed();
       }
     } catch (error) {
       // Handle other potential errors here
+      print('❌ [PAGINATION] Erreur lors du chargement : $error');
+      refreshController.loadFailed();
+      refreshController.refreshFailed();
+    } finally {
+      isLoading = false;
     }
   }
 
   onLoading() {
-    getData();
+    // ========== VÉRIFICATION AVANT CHARGEMENT ==========
+    if (!hasMoreData) {
+      print('⚠️ [PAGINATION] onLoading ignoré : plus de données');
+      refreshController.loadNoData();
+      return;
+    }
+    // ========== END VÉRIFICATION ==========
+    getData(isLoadMore: true);
   }
 
   onRefresh() {
     bookingModel = null;
     list = [];
-    setState(() {});
     offset = 0;
-    getData();
+    hasMoreData = true;
+    isInitialLoad = true;
+    isLoading = false;
+    setState(() {});
+    getData(isLoadMore: false);
   }
 
   BookingModel? bookingModel;
@@ -109,7 +184,7 @@ class _UpcomingOrdersState extends State<UpcomingOrders> {
           controller: refreshController,
           onRefresh: onRefresh,
           onLoading: onLoading,
-          enablePullUp: offset == -1 ? false : true,
+          enablePullUp: hasMoreData && !isLoading,
           child: bookingModel == null
               ? myBookingScreenShimmer()
               : list.isEmpty
@@ -126,6 +201,7 @@ class _UpcomingOrdersState extends State<UpcomingOrders> {
                       widget.fromPropBooking,
                       "UpComing",
                       onItemCancelled,
+                      refreshData: onRefresh,
                     ),
         ));
   }

@@ -18,6 +18,7 @@ import '../controller/booking_record_controller.dart';
 import '../controller/items_detail_controller.dart';
 import '../controller/search_controller.dart';
 import '../controller/home_controller.dart';
+import '../controller/vehicle_controller.dart';
 
 init() async {
   Get.lazyPut(() => WishListController());
@@ -39,4 +40,5 @@ init() async {
   Get.lazyPut(() => AddAddressController());
   Get.lazyPut(() => KycController());
   Get.lazyPut(() => AgencyController());
+  Get.lazyPut(() => VehicleController());
 }

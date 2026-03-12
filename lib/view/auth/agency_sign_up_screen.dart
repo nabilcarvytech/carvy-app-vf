@@ -11,6 +11,7 @@ import 'package:carvy/customwidget/form_validation.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
+import 'package:carvy/view/auth/login_screen.dart';
 import 'package:carvy/work_space.dart';
 
 class AgencySignUpScreen extends StatefulWidget {
@@ -423,6 +424,29 @@ class _AgencySignUpScreenState extends State<AgencySignUpScreen> {
               validator: (value) {
                 return validatesPassword(value!);
               },
+            ),
+            const SizedBox(height: 30),
+            // Lien vers la connexion
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Vous avez déjà un compte ? ',
+                  style: regular3(context),
+                ),
+                InkWell(
+                  onTap: () {
+                    Get.to(() => LoginScreen());
+                  },
+                  child: Text(
+                    'Se connecter',
+                    style: regular2(context).copyWith(
+                      color: vehicalThemColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 40),
           ],

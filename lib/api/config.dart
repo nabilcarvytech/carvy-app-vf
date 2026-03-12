@@ -10,8 +10,13 @@ class Config {
   // ========== NEW NODE.JS BACKEND (LOCAL DEVELOPMENT) ==========
   //static const String baseurl = 'http://10.0.2.2:5000/api/v1/';
   //static const String baseurlForBearer = 'http://10.0.2.2:5000/api/v1/';
-  static const String baseurl = 'https://carvy.tech/api/v1/';
+  //static const String baseurl = 'https://carvy.tech/api/v1/';
   static const String baseurlForBearer = 'https://carvy.tech/api/v1/';
+  static const String baseurl = 'https://carvy.tech/api/v1/';
+  //static const String baseurlForBearer = 'https://carvy.tech/api/v1/';
+  // URL de base sans /v1 pour les routes admin (upload, vehicles, etc.)
+  static String get baseUrlWithoutV1 => baseurl.replaceAll('/api/v1/', '/api/');
+  static const String bookingImageBaseUrl = 'https://carvy.tech/uploads/bookings/';
   //static const String baseurl = 'https://admin.carvy.tech/api/v1/';
   //static const String baseurl = 'https://admin.carvy.tech/api/v1/';
 
@@ -47,7 +52,22 @@ class Config {
   static const String getItemsByLocation = 'getItemsByLocation';
   static const String amenities = 'amenities';
   static const String itemsType = 'get-all-categories';
-  static const String makeType = 'get-makes';
+  // 1. Mise à jour de l'URL : change makeType pour qu'il pointe vers : vehicle-reference/makes
+  static const String makeType = 'vehicle-reference/makes';
+  
+  // ========== VEHICLE REFERENCE ROUTES (Node.js Backend) - Routes publiques ==========
+  // Utiliser baseurlForBearer sans /v1 pour les routes admin
+  static String get adminBaseUrl => baseurlForBearer.replaceAll('/api/v1/', '/api/');
+  static const String vehicleReferenceMakes = 'vehicle-reference/makes';
+  static const String vehicleReferenceModels = 'vehicle-reference/models';
+  static const String vehicleReferenceFuelTypes = 'vehicle-reference/fuel-types';
+  static const String vehicleReferenceTypes = 'vehicle-reference/types';
+  static const String vehicleReferenceOdometers = 'vehicle-reference/odometers';
+  static const String vehicleReferenceRegions = 'vehicle-reference/regions';
+  static const String vehicleReferenceLocations = 'vehicle-reference/locations';
+  static const String vehicleReferenceFeatures = 'vehicle-reference/features';
+  static const String vehicleReferenceCancellationPolicies = 'vehicle-reference/cancellation-policies';
+  static const String vehicleReferenceRules = 'vehicle-reference/rules';
   static const String itemSearch = 'item-search';
   static const String staticPage = 'static-page';
   static const String getmessages = 'getmessages';
@@ -64,6 +84,7 @@ class Config {
   static const String editItem = 'edit-item';
   static const String getCancellationPolicies = 'get-cancellation-policies';
   static const String deleteItem = 'deleteItem';
+  static const String requestDeletion = 'request-deletion';
   static const String getCancelReasons = 'get-cancel-reasons';
   static const String cancelBookingByUser = 'cancel-booking-by-user';
   static const String cancelBookingByHost = 'cancel-booking-by-host';
@@ -125,9 +146,42 @@ class Config {
   static const String getPayoutType = 'get-payout-types';
   static const String getPayoutMethod = 'get-payout-methods';
   static const String addPaymentMethod = 'update-payout-method';
-  static const String addInteriorImage = 'upload-per-booking-images';
+  static const String addInteriorImage = 'add-interior-image';
   static const String generateToken = 'generate-token';
   static const String uploadSignature = 'upload-digital-signature';
   static const String getDigitalSingnature = 'get-digital-signature';
   static const String getPaymentMethods = 'payment-methods';
+  static const String uploadImages = 'upload/images';
+  static const String uploadDocuments = 'upload/documents';
+  static const String submitVehicle = 'vehicles';
+  static const String myVehicles = 'vehicles/owner';
+  static const String getVehicleDetails = 'vehicles'; // GET /api/v1/vehicles/:id
+  
+  /// Construit une URL complète pour une image à partir d'un chemin éventuellement relatif.
+  /// - Retourne une chaîne vide si `imagePath` est nul ou vide.
+  /// - Si `imagePath` est déjà une URL complète (http/https), elle est renvoyée telle quelle.
+  /// - Sinon, on la concatène avec le domaine de base dérivé de `baseurl`.
+  static String getFullImageUrl(String? imagePath) {
+    if (imagePath == null || imagePath.isEmpty) {
+      return '';
+    }
+
+    // Si l'URL est déjà complète, on la retourne telle quelle
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+
+    // Extraire le domaine de base à partir de `baseurl`
+    // ex: https://carvy.tech/api/v1/ -> https://carvy.tech
+    final String baseDomain =
+        baseurl.replaceAll('/api/v1/', '').replaceAll('/api/', '');
+
+    // Normaliser le chemin pour éviter les doubles slashs
+    String normalizedPath = imagePath;
+    if (normalizedPath.startsWith('/')) {
+      normalizedPath = normalizedPath.substring(1);
+    }
+
+    return '$baseDomain/$normalizedPath';
+  }
 }

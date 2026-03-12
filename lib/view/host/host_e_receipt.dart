@@ -65,8 +65,8 @@ class _HostErecieptState extends State<HostEreciept> {
       }
     }
     if (widget.bookings.doorStepAddress != null &&
-        widget.bookings.doorStepAddress!.isNotEmpty) {
-      String addressString = widget.bookings.doorStepAddress!.trim();
+        (widget.bookings.doorStepAddress ?? "").isNotEmpty) {
+      String addressString = (widget.bookings.doorStepAddress ?? "").trim();
       if (addressString.startsWith("[") && addressString.endsWith("]")) {
         if (addressString.length > 2) {
           String jsonString =
@@ -166,7 +166,7 @@ class _HostErecieptState extends State<HostEreciept> {
                                           };
                                           // ========== END MOCK DATA ==========
                                           closeLoading();
-                                          if (response != null) {
+                                          if (response['status'] == 200) {
                                             CancellationReasonModel model =
                                                 CancellationReasonModel
                                                     .fromJson(response);
@@ -568,7 +568,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 height: 7,
               ),
               Text(
-                widget.bookings.createdAt!.split(" ")[0],
+                widget.bookings.createdAt?.split(" ")[0] ?? '',
                 style: regular2(context),
               ),
               const SizedBox(
@@ -598,7 +598,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 height: 7,
               ),
               Text(
-                "#${widget.bookings.token}",
+                "#${widget.bookings.token ?? ""}",
                 style: regular2(context),
               ),
               const SizedBox(
@@ -618,7 +618,7 @@ class _HostErecieptState extends State<HostEreciept> {
               widget.bookings.transaction == ""
                   ? const SizedBox()
                   : Text(
-                      "#${widget.bookings.transaction}",
+                      "#${widget.bookings.transaction ?? ""}",
                       style: regular2(context),
                     ),
             ],
@@ -664,7 +664,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 height: 5,
               ),
               Text(
-                "${widget.bookings.propTitle}",
+                "${widget.bookings.propTitle ?? ""}",
                 style: regular2(context),
               ),
               const SizedBox(
@@ -675,7 +675,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 children: [
                   widget.bookings.module == "1"
                       ? Text(
-                          itemDetails!.beds == "1" ? "bed" : "beds",
+                          (itemDetails?.beds ?? "1") == "1" ? "bed" : "beds",
                           style: heading3Grey1(context),
                         )
                       : Text(
@@ -696,7 +696,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 children: [
                   widget.bookings.module == "1"
                       ? Text(
-                          "${itemDetails!.beds} ",
+                          "${itemDetails?.beds ?? ""} ",
                           style: regular2(context),
                         )
                       : Text(
@@ -704,9 +704,9 @@ class _HostErecieptState extends State<HostEreciept> {
                           style: regular2(context),
                         ),
                   widget.bookings.module == "1"
-                      ? Text("${widget.bookings.totalGuest}",
+                      ? Text("${widget.bookings.totalGuest ?? ""}",
                           style: regular2(context))
-                      : Text("${bookingController.vehicleModel}",
+                      : Text("${bookingController.vehicleModel ?? ""}",
                           style: regular2(context)),
                 ],
               ),
@@ -736,7 +736,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 children: [
                   widget.bookings.module == "1"
                       ? Text(
-                          "${itemDetails!.itemType}",
+                          "${itemDetails?.itemType ?? ""}",
                           style: regular2(context),
                         )
                       : Text(
@@ -798,7 +798,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 height: 5,
               ),
               Text(
-                bookingController.address.toString(),
+                bookingController.address?.toString() ?? "",
                 style: regular2(context),
               ),
             ],
@@ -859,11 +859,11 @@ class _HostErecieptState extends State<HostEreciept> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          "${widget.bookings.userName}",
+                          "${widget.bookings.userName ?? ""}",
                           style: regular2(context),
                         ),
                         Text(
-                          "${widget.bookings.userPhoneCountry} ${widget.bookings.userNumber}",
+                          "${widget.bookings.userPhoneCountry ?? ""} ${widget.bookings.userNumber ?? ""}",
                           style: regular2(context),
                         ),
                       ],
@@ -878,7 +878,7 @@ class _HostErecieptState extends State<HostEreciept> {
                     Row(
                       children: [
                         Text(
-                          widget.bookings.userEmail.toString(),
+                          widget.bookings.userEmail?.toString() ?? "",
                           style: regular2(context),
                         ),
                         const Spacer(),
@@ -887,14 +887,10 @@ class _HostErecieptState extends State<HostEreciept> {
                             : InkWell(
                                 onTap: () async {
                                   if (doorStepAddressModel != null &&
-                                      doorStepAddressModel!.doorstepLatitude !=
-                                          null &&
-                                      doorStepAddressModel!.doorstepLongitude !=
-                                          null) {
-                                    dynamic latitude =
-                                        doorStepAddressModel!.doorstepLatitude;
-                                    dynamic longitude =
-                                        doorStepAddressModel!.doorstepLongitude;
+                                      doorStepAddressModel?.doorstepLatitude != null &&
+                                      doorStepAddressModel?.doorstepLongitude != null) {
+                                    dynamic latitude = doorStepAddressModel?.doorstepLatitude ?? 0.0;
+                                    dynamic longitude = doorStepAddressModel?.doorstepLongitude ?? 0.0;
 
                                     String url = "";
 
@@ -959,7 +955,7 @@ class _HostErecieptState extends State<HostEreciept> {
                               ),
                               Expanded(
                                 child: Text(
-                                  "${doorStepAddressModel!.houseFloorNumber}${doorStepAddressModel!.buildingBlockNumber} ${doorStepAddressModel!.fullAddress}",
+                                  "${doorStepAddressModel?.houseFloorNumber ?? ""}${doorStepAddressModel?.buildingBlockNumber ?? ""} ${doorStepAddressModel?.fullAddress ?? ""}",
                                   maxLines: 4,
                                   overflow: TextOverflow.ellipsis,
                                   style: regular2(context),
@@ -1012,7 +1008,7 @@ class _HostErecieptState extends State<HostEreciept> {
                         height: 5,
                       ),
                       Text(
-                        "${DateTimeFormatter.to24HourFormat(widget.bookings.checkIn)}",
+                        "${DateTimeFormatter.to24HourFormat(widget.bookings.checkIn ?? "")}",
                         style: regular2(context),
                       ),
                       const SizedBox(
@@ -1031,7 +1027,7 @@ class _HostErecieptState extends State<HostEreciept> {
                         height: 5,
                       ),
                       Text(
-                   "${DateTimeFormatter.to24HourFormat(widget.bookings.checkOut)}",
+                   "${DateTimeFormatter.to24HourFormat(widget.bookings.checkOut ?? "")}",
                         style: regular2(context),
                       ),
                       const SizedBox(
@@ -1049,9 +1045,9 @@ class _HostErecieptState extends State<HostEreciept> {
                 height: 5,
               ),
               Text(
-                widget.bookings.totalNight == "1"
-                    ? "${widget.bookings.totalNight} ${"day".tr}"
-                    : "${widget.bookings.totalNight} ${"days".tr}",
+                (widget.bookings.totalNight ?? "1") == "1"
+                    ? "${widget.bookings.totalNight ?? "1"} ${"day".tr}"
+                    : "${widget.bookings.totalNight ?? "1"} ${"days".tr}",
                 style: regular2(context),
               ),
               const SizedBox(
@@ -1067,7 +1063,7 @@ class _HostErecieptState extends State<HostEreciept> {
                     width: 5,
                   ),
                   Text(
-                    "${loginModel!.data!.defaultCountry ?? ""} ",
+                    "${loginModel?.data?.defaultCountry ?? ""} ",
                     style: regular2(context),
                   ),
                 ],
@@ -1105,7 +1101,7 @@ class _HostErecieptState extends State<HostEreciept> {
                           ? "${"Amount".tr} (${widget.bookings.totalNight} ${"day".tr}${")".tr}"
                           : "${"Amount".tr} (${widget.bookings.totalNight} ${"days".tr}${")".tr}",
                       value:
-                          "${widget.bookings.currencyCode} ${widget.bookings.basePrice ?? ""}",
+                          "${widget.bookings.currencyCode ?? ""} ${widget.bookings.basePrice ?? widget.bookings.total ?? "0.00"}",
                     )
                   : const SizedBox(),
               const SizedBox(height: 5),
@@ -1114,7 +1110,7 @@ class _HostErecieptState extends State<HostEreciept> {
                   ? eReceiptWidget(
                       name: "Doorstep Price".tr,
                       value:
-                          "${widget.bookings.currencyCode} ${widget.bookings.doorStepPrice ?? ""}",
+                          "${widget.bookings.currencyCode ?? ""} ${widget.bookings.doorStepPrice ?? "0.00"}",
                     )
                   : const SizedBox(),
               const SizedBox(height: 5),
@@ -1122,7 +1118,7 @@ class _HostErecieptState extends State<HostEreciept> {
                   ? eReceiptWidget(
                       name: "Tax".tr,
                       value:
-                          "${widget.bookings.currencyCode} ${widget.bookings.ivaTax}",
+                          "${widget.bookings.currencyCode ?? ""} ${widget.bookings.ivaTax ?? "0.00"}",
                     )
                   : const SizedBox(),
               const SizedBox(height: 5),
@@ -1131,7 +1127,7 @@ class _HostErecieptState extends State<HostEreciept> {
                   ? eReceiptWidget(
                       name: "Service Charge".tr,
                       value:
-                          "${widget.bookings.currencyCode} ${widget.bookings.serviceCharge}",
+                          "${widget.bookings.currencyCode ?? ""} ${widget.bookings.serviceCharge ?? "0.00"}",
                     )
                   : const SizedBox(),
               const SizedBox(height: 5),
@@ -1140,7 +1136,7 @@ class _HostErecieptState extends State<HostEreciept> {
                   ? eReceiptWidget(
                       name: "Security Money".tr,
                       value:
-                          "${widget.bookings.currencyCode} ${widget.bookings.securityMoney}",
+                          "${widget.bookings.currencyCode ?? ""} ${widget.bookings.securityMoney ?? "0.00"}",
                     )
                   : const SizedBox(),
               const SizedBox(height: 5),
@@ -1150,13 +1146,13 @@ class _HostErecieptState extends State<HostEreciept> {
                   : eReceiptWidget(
                       name: "Cancelled Charge".tr,
                       value:
-                          "${widget.bookings.currencyCode} ${widget.bookings.cancelledCharge}",
+                          "${widget.bookings.currencyCode ?? ""} ${widget.bookings.cancelledCharge ?? "0.00"}",
                     ),
               const SizedBox(height: 5),
               eReceiptWidget(
                 name: "Total".tr,
                 value:
-                    "${widget.bookings.currencyCode} ${widget.bookings.total}",
+                    "${widget.bookings.currencyCode ?? ""} ${widget.bookings.total ?? "0.00"}",
               ),
             ],
           ),
@@ -1186,7 +1182,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 children: [
                   Text("Payment Status".tr, style: heading3Grey1(context)),
                   Text(
-                    "${widget.bookings.paymentStatus.toString() == "paid" ? "Paid" : widget.bookings.paymentStatus}"
+                    "${widget.bookings.paymentStatus?.toString() == "paid" ? "Paid" : widget.bookings.paymentStatus ?? ""}"
                         .tr,
                     style: regular2(context)
                         .copyWith(fontSize: 16, color: themeColor),
@@ -1199,7 +1195,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 children: [
                   Text("Booking Status".tr, style: heading3Grey1(context)),
                   Text(
-                    "${widget.bookings.status}".tr,
+                    "${widget.bookings.status ?? ""}".tr,
                     style: regular2(context)
                         .copyWith(fontSize: 16, color: themeColor),
                   ),
@@ -1211,7 +1207,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 children: [
                   Text("Payment Method".tr, style: heading3Grey1(context)),
                   Text(
-                    "${widget.bookings.paymentMethod}".tr,
+                    "${widget.bookings.paymentMethod ?? ""}".tr,
                     style: regular2(context)
                         .copyWith(fontSize: 16, color: themeColor),
                   ),
@@ -1222,30 +1218,54 @@ class _HostErecieptState extends State<HostEreciept> {
         ),
         const SizedBox(height: 10),
         imageUrls.isEmpty
-            ? SizedBox()
-            :
-            // Add Vehicle Images section
-            Text("Vehicle Interior Images".tr, style: heading2Grey1(context)),
-        const SizedBox(height: 10),
-        imageUrls.isEmpty
-            ? SizedBox()
-            : Container(
+            ? Container(
+                padding: const EdgeInsets.all(18),
                 width: double.maxFinite,
                 decoration: BoxDecoration(
                   color: notifires.getboxcolor,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: notifires.getGrey3Whitecolor.withOpacity(0.2),
-                      spreadRadius: 5,
-                      blurRadius: 15,
-                      offset: const Offset(5, 5),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.image_not_supported,
+                      size: 48,
+                      color: notifires.getGrey2Whitecolor,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      "No images available".tr,
+                      style: regular2(context).copyWith(
+                        color: notifires.getGrey2Whitecolor,
+                      ),
                     ),
                   ],
                 ),
-                child: FullScreenImageView(
-                  imagesList: imageUrls.isNotEmpty ? imageUrls : [],
-                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Vehicle Interior Images".tr, style: heading2Grey1(context)),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.maxFinite,
+                    decoration: BoxDecoration(
+                      color: notifires.getboxcolor,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: notifires.getGrey3Whitecolor.withOpacity(0.2),
+                          spreadRadius: 5,
+                          blurRadius: 15,
+                          offset: const Offset(5, 5),
+                        ),
+                      ],
+                    ),
+                    child: FullScreenImageView(
+                      imagesList: imageUrls,
+                    ),
+                  ),
+                ],
               ),
         const SizedBox(height: 100),
       ],

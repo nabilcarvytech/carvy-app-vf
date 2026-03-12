@@ -184,7 +184,14 @@ class _InitialScreenState extends State<InitialScreen> {
   @override
   Widget build(BuildContext context) {
     // IMPORTANT : aucune logique asynchrone / setState ici pour éviter les boucles
-    notifires = Provider.of<ColorNotifires>(context, listen: true);
+    // Sécurisation : Vérifier que le Provider est disponible avant de l'utiliser
+    try {
+      notifires = Provider.of<ColorNotifires>(context, listen: false);
+    } catch (e) {
+      debugPrint('⚠️ [INITIAL_SCREEN] ColorNotifires Provider not found: $e');
+      // Utiliser une valeur par défaut si le Provider n'est pas disponible
+      // Le Provider sera disponible après le premier frame
+    }
     return Scaffold(
       backgroundColor: themeColor,
       body: const SplashScreen(),

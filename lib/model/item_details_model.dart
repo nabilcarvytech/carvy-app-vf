@@ -194,7 +194,8 @@ class ItemDetails {
     _monthlyDiscount = json['monthly_discount']?.toString();
     _monthlyDiscountType = json['monthly_discount_type']?.toString();
     _itemType = json['item_type']?.toString();
-    _cancellationReason = json['cancellation_reason'];
+    // Mapper cancellation_reason avec fallback sur cancellation_reason_title
+    _cancellationReason = json['cancellation_reason'] ?? json['cancellation_reason_title'];
     _bedType = json['bed_type']?.toString();
     _city = json['city']?.toString();
     if (json['amenities'] != null) {

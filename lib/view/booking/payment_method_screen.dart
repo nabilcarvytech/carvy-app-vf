@@ -9,6 +9,7 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/work_space.dart';
+import 'package:carvy/api/config.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
   final String vehicleId;
@@ -32,17 +33,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     bookingController.fetchPaymentMethods();
   }
 
-  // Fonction pour nettoyer les URLs (remplacer localhost par 10.0.2.2 pour l'émulateur)
+  // Fonction pour nettoyer les URLs (utilise Config.baseurl au lieu d'URLs en dur)
   String cleanImageUrl(String? url) {
     if (url == null || url.isEmpty) return '';
     
-    // Remplacer localhost par 10.0.2.2 (IP spéciale de l'émulateur Android)
-    String finalUrl = url.replaceAll('localhost', '10.0.2.2');
-    finalUrl = finalUrl.replaceAll('127.0.0.1', '10.0.2.2');
+    // Utiliser l'URL de base depuis Config au lieu d'URLs en dur
+    String finalUrl = url;
     
-    // Si l'URL commence par /uploads, ajouter l'URL de base
-    if (finalUrl.startsWith('/uploads')) {
-      finalUrl = 'http://10.0.2.2:5000$finalUrl';
+    // Si l'URL commence par /uploads, construire l'URL complète depuis Config
+    if (finalUrl.startsWith('/uploads') || finalUrl.startsWith('/api/')) {
+      // Extraire le domaine de baseurl (sans /api/v1/)
+      final baseDomain = Config.baseurl.replaceAll('/api/v1/', '');
+      finalUrl = '$baseDomain$finalUrl';
     }
     
     // S'assurer que l'URL a un protocole

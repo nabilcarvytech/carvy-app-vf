@@ -7,6 +7,7 @@ import 'package:get/get_navigation/get_navigation.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:bot_toast/bot_toast.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:carvy/controller/push_notifications.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/get_data_read.dart';
@@ -70,6 +71,41 @@ void main() {
           debugPrint('🔔 [MAIN] Starting OneSignal initialization...');
           await setupOneSignal();
           debugPrint('✅ [MAIN] OneSignal initialized successfully');
+          
+          // Vérification au démarrage : si l'utilisateur est déjà connecté, mettre à jour OneSignal
+          try {
+            String? storedToken = GetStorage().read('token');
+            if (storedToken != null && storedToken.isNotEmpty) {
+              debugPrint('🚀 [MAIN] Utilisateur déjà connecté, mise à jour OneSignal...');
+              // Initialiser la variable globale token pour que fetchPlayerId puisse l'utiliser
+              token = storedToken;
+              debugPrint('🔑 [MAIN] Token global initialisé depuis le storage');
+              
+              // Attendre un peu que OneSignal et Firebase soient complètement prêts
+              Future.delayed(const Duration(seconds: 3), () async {
+                try {
+                  // Récupérer le FCM token
+                  var fcmToken = await FirebaseMessaging.instance.getToken();
+                  if (fcmToken != null && fcmToken.isNotEmpty) {
+                    debugPrint('✅ [MAIN] FCM Token récupéré, envoi du Player ID au backend...');
+                    await fetchPlayerId(fcmToken);
+                    debugPrint('✅ [MAIN] Player ID envoyé au backend avec succès');
+                  } else {
+                    debugPrint('⚠️ [MAIN] FCM Token est null, impossible d\'envoyer le Player ID');
+                  }
+                } catch (e, stackTrace) {
+                  debugPrint('❌ [MAIN] Erreur lors de la mise à jour OneSignal au démarrage: $e');
+                  debugPrint('❌ [MAIN] StackTrace: $stackTrace');
+                  // Ne pas bloquer l'application en cas d'erreur
+                }
+              });
+            } else {
+              debugPrint('ℹ️ [MAIN] Aucun token trouvé, utilisateur non connecté');
+            }
+          } catch (e) {
+            debugPrint('⚠️ [MAIN] Erreur lors de la vérification du token: $e');
+            // Ne pas bloquer l'application
+          }
         } catch (e, stackTrace) {
           debugPrint('🔴 ERROR: OneSignal init failed: $e');
           debugPrint('🔴 STACKTRACE: $stackTrace');

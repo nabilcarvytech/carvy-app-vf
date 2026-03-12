@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
+import 'package:carvy/controller/booking_controller.dart';
 import '../../controller/booking_record_controller.dart';
 import '../../customwidget/data_not_found.dart';
 import '../../customwidget/project_color.dart';
@@ -72,30 +73,45 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
 
   @override
   Widget build(BuildContext context) {
+    final bookingController = Get.find<BookingController>();
     return Scaffold(
-        backgroundColor: notifires.getbgcolor,
-        body: Obx(() => SmartRefresher(
-          controller: refreshController,
-          onRefresh: onRefresh,
-          onLoading: onLoading,
-          enablePullUp: bookingRecordController.offset == -1 ? false : true,
-          child: bookingRecordController.isLoading.value
-              ? myBookingScreenShimmer()
-              : bookingRecordController.bookingsList.isEmpty
-                  ? Center(
-                      child: buildNoDataWidget(
-                        context,
-                        "No Upcoming Booking Available".tr,
-                      ),
-                    )
-                  : myBookingListWidget(
-                      bookingRecordController.bookingsList,
-                      "Cancel",
-                      stateSetter,
-                      widget.fromPropBooking,
-                      "UpComing",
-                      onItemCancelled,
-                    ),
-        )));
+      backgroundColor: notifires.getbgcolor,
+      body: Stack(
+        children: [
+          Obx(() => SmartRefresher(
+                controller: refreshController,
+                onRefresh: onRefresh,
+                onLoading: onLoading,
+                enablePullUp: bookingRecordController.offset == -1 ? false : true,
+                child: bookingRecordController.isLoading.value
+                    ? myBookingScreenShimmer()
+                    : bookingRecordController.bookingsList.isEmpty
+                        ? Center(
+                            child: buildNoDataWidget(
+                              context,
+                              "No Upcoming Booking Available".tr,
+                            ),
+                          )
+                        : myBookingListWidget(
+                            bookingRecordController.bookingsList,
+                            "Cancel",
+                            stateSetter,
+                            widget.fromPropBooking,
+                            "UpComing",
+                            onItemCancelled,
+                          ),
+              )),
+          Obx(() {
+            if (bookingController.openOtpAfterImageSubmit.value) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                CommonWidgets.showOtpBottomSheet(context, bookingController.currentBookingIdForOtp.value);
+                bookingController.openOtpAfterImageSubmit.value = false;
+              });
+            }
+            return SizedBox.shrink();
+          }),
+        ],
+      ),
+    );
   }
 }

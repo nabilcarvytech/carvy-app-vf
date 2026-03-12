@@ -88,8 +88,12 @@ class Getodometer {
   }
 
   Getodometer.fromJson(dynamic json) {
-    _id = json['id'] is int ? json['id'] : int.tryParse(json['id'].toString());
-    _odometerSpeed = json['odometer'];
+    // Mapping MongoDB : utiliser _id en priorité
+    final idValue = json['_id'] ?? json['id'];
+    if (idValue != null) {
+      _id = idValue is int ? idValue : int.tryParse(idValue.toString());
+    }
+    _odometerSpeed = json['odometer'] ?? json['odometerSpeed'] ?? json['name'];
   }
 
   int? _id;

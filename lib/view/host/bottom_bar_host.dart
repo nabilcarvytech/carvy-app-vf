@@ -12,6 +12,7 @@ import 'package:carvy/view/host/calender/calendar_common_screen.dart';
 import 'package:carvy/view/host/orders/orders_screen.dart';
 import 'package:carvy/view/host/initial_host_common_screen.dart';
 import 'package:carvy/view/host/dash_board_screen.dart';
+import 'package:carvy/view/vehicle/add_vehicle_screen.dart';
 import 'package:carvy/view/myaccount/account_screen.dart';
 import 'package:carvy/work_space.dart';
 import '../../controller/global_scope_controller.dart';
@@ -160,7 +161,7 @@ class _BottomHostScreenState extends State<BottomHost>
                         return;
                       }
 
-                      Get.to(() => const InitialHostCommonScreen());
+                      Get.to(() => const AddVehicleScreen());
                     },
                     child: Container(
                       width: 50,

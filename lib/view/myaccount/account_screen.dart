@@ -174,6 +174,17 @@ class _AccounScreenState extends State<AccountScreen> {
                                             style: heading2Grey1(context),
                                           ),
                                         ),
+                                        Obx(
+                                          () => isHostMode.value == true
+                                              ? Text(
+                                                  "session agence",
+                                                  style: regular(context).copyWith(
+                                                    color: getColorBasedOnActiveModuleid(),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                )
+                                              : const SizedBox(),
+                                        ),
                                         Text(
                                           loginModel?.data?.country != null
                                               ? "${"Live in".tr} ${loginModel?.data?.country ?? ""}"
@@ -242,14 +253,16 @@ class _AccounScreenState extends State<AccountScreen> {
                                       if (webPlateForm) {
                                         Get.toNamed(WebRoutes.myBooking,
                                             arguments: {
-                                              "fromPropBooking": true
+                                              "fromPropBooking": false,
+                                              "initialTabIndex": generalController.myBookingTabIndex.value
                                             });
                                       } else {
                                         Navigator.push(
                                             context,
                                             MaterialPageRoute(
                                                 builder: (builder) => MyBooking(
-                                                      fromPropBooking: true,
+                                                      fromPropBooking: false,
+                                                      initialTabIndex: generalController.myBookingTabIndex.value,
                                                     )));
                                       }
                                     }

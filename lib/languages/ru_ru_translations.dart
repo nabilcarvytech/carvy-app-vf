@@ -1245,5 +1245,14 @@ const Map<String, String> ruRU = {
   "80% deduction will apply if canceled within 12 hours of the rental start time.":
       "Удержание 80% применяется при отмене в течение 12 часов до начала аренды.",
   "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
-      "Удержание 50% применяется при отмене за 12-24 часа до начала аренды."
+      "Удержание 50% применяется при отмене за 12-24 часа до начала аренды.",
+  "Caution": "Залог",
+  "Important": "Важно",
+  "Gérée par Carvy": "Управляется Carvy",
+  "Gérée par l'agence": "Управляется агентством",
+  "J'ai lu et j'accepte ": "Я прочитал и принимаю ",
+  "la politique d'annulation": "политику отмены",
+  "Note": "Примечание",
+  "Smoking Allowed": "Курение разрешено",
+  "International Travel Allowed": "Международные поездки разрешены"
 };

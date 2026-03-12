@@ -206,33 +206,31 @@ Widget switchToOwner(BuildContext context) {
       if (role == 'vendor' || role == 'host') {
         debugPrint('✅ [UI_MONITOR] Rôle partenaire détecté ($role) - Affichage du bouton de switch');
         
-        // Déterminer le rôle actuel basé sur isHostMode
-        // Si isHostMode == true, l'utilisateur est vendor, sinon user
-        String currentRole = isHostMode.value ? 'vendor' : 'user';
-        
-        // Déterminer le texte du bouton selon le rôle
-        String buttonText = currentRole == 'vendor' 
-            ? "Become a User".tr  // "Devenir locataire" si vendor
-            : "Become a Host".tr;  // "Devenir propriétaire" si user
-        
-        // Afficher le bouton de switch bleu
+        // Afficher le bouton de switch bleu avec texte dynamique selon isHostMode
         return generalController.hasGeneralData.value == true
             ? const SizedBox()
-            : SizedBox(
-                width: 290,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    // Appeler la fonction switchRole() au lieu de tobecomeHost()
-                    await authController.switchRole(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: getColorBasedOnActiveModuleid(),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      )),
-                  child: Text(
-                    buttonText,
-                    style: heading3(context).copyWith(color: whiteColor),
+            : Obx(
+                () => SizedBox(
+                  width: 290,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      // Appeler la fonction switchRole() au lieu de tobecomeHost()
+                      await authController.switchRole(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: getColorBasedOnActiveModuleid(),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        )),
+                    child: Text(
+                      // Texte dynamique : affiche l'action inverse du mode actuel
+                      // Si isHostMode == true (mode vendeur) → "Session client"
+                      // Si isHostMode == false (mode client) → "Session vendeur"
+                      isHostMode.value 
+                          ? "Session client".tr 
+                          : "Session vendeur".tr,
+                      style: heading3(context).copyWith(color: whiteColor),
+                    ),
                   ),
                 ),
               );

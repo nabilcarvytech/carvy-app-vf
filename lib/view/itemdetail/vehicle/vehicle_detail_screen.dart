@@ -295,232 +295,274 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                   right: 0,
                   bottom: 0,
                   top: 100,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: <Widget>[
-                        CustomImagesForDetails(
-                          imagesList:
-                              widget.itemInfo?.galleryImageUrls ?? [],
-                          frontImage: widget.frontImage ?? '',
-                        ),
-
-                        ListTile(
-                          contentPadding: const EdgeInsets.only(
-                              left: 12, right: 12, top: 10),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  widget.title != null
-                                      ? (widget.title?.length ?? 0) > 50
-                                          ? "${widget.title?.substring(0, 19) ?? "Chargement..."}..."
-                                          : (widget.title ?? "Chargement...")
-                                      : "Chargement...",
-                                  style: boldstyle(context).copyWith(
-                                      color: notifires.getwhiteblackcolor,
-                                      fontSize: 24),
-                                  maxLines: 2,
-                                ),
-                              ),
-                              const SizedBox(
-                                width: 20,
-                              ),
-                              Text(
-                                widget.rating ?? "No rating",
-                                style: boldstyle(context)
-                                    .copyWith(color: appyellow, fontSize: 18),
-                              ),
-                              const SizedBox(
-                                width: 5,
-                              ),
-                              Icon(
-                                Icons.star,
-                                color: appyellow,
-                                size: 20,
-                              )
-                            ],
+                  child: GetBuilder<ItemDetailsController>(
+                    builder: (controller) {
+                      // Utiliser les données du controller en priorité, avec fallback sur widget
+                      final itemDetails = controller.vehicleDetailModel?.data?.itemDetails;
+                      final currentItemInfo = controller.itemInfo ?? widget.itemInfo;
+                      
+                      // Récupérer les données pour l'affichage
+                      final displayTitle = itemDetails?.title ?? widget.title;
+                      final displayRating = itemDetails?.itemRating ?? widget.rating ?? "0";
+                      final displayAddress = itemDetails?.address ?? widget.address;
+                      final displayCity = itemDetails?.city ?? widget.city;
+                      final displayFrontImage = itemDetails?.frontImageUrl ?? widget.frontImage;
+                      final displayGalleryImages = itemDetails?.galleryImageUrls ?? currentItemInfo?.galleryImageUrls ?? [];
+                      
+                      // Gestion de l'état de chargement
+                      if (controller.isLoadingVehicle.value) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 250),
+                            child: CircularProgressIndicator(),
                           ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // SizedBox(height: 5,),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Icon(
-                                    Icons.location_on_outlined,
-                                    color: getColorBasedOnActiveModuleid(),
-                                    size: 20,
+                        );
+                      }
+                      
+                      if (controller.isLoadingVehicleNotFound.value) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 250),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.error_outline, size: 64, color: Colors.grey),
+                                SizedBox(height: 16),
+                                Text(
+                                  "Véhicule non trouvé".tr,
+                                  style: heading2(context),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  "Impossible de charger les détails du véhicule".tr,
+                                  style: regular2(context),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+                      
+                      return SingleChildScrollView(
+                        child: Column(
+                          children: <Widget>[
+                            CustomImagesForDetails(
+                              imagesList: displayGalleryImages,
+                              frontImage: displayFrontImage ?? '',
+                            ),
+
+                            ListTile(
+                              contentPadding: const EdgeInsets.only(
+                                  left: 12, right: 12, top: 10),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      displayTitle != null
+                                          ? (displayTitle.length > 50
+                                              ? "${displayTitle.substring(0, 50)}..."
+                                              : displayTitle)
+                                          : "Chargement...".tr,
+                                      style: boldstyle(context).copyWith(
+                                          color: notifires.getwhiteblackcolor,
+                                          fontSize: 24),
+                                      maxLines: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                    width: 20,
+                                  ),
+                                  Text(
+                                    displayRating,
+                                    style: boldstyle(context)
+                                        .copyWith(color: appyellow, fontSize: 18),
                                   ),
                                   const SizedBox(
                                     width: 5,
                                   ),
-                                  Expanded(
-                                    flex: 9,
-                                    child: Text(
-                                      ([widget.address, widget.city]
+                                  Icon(
+                                    Icons.star,
+                                    color: appyellow,
+                                    size: 20,
+                                  )
+                                ],
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // SizedBox(height: 5,),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Icon(
+                                        Icons.location_on_outlined,
+                                        color: getColorBasedOnActiveModuleid(),
+                                        size: 20,
+                                      ),
+                                      const SizedBox(
+                                        width: 5,
+                                      ),
+                                      Expanded(
+                                        flex: 9,
+                                        child: Text(
+                                          ([displayAddress, displayCity]
+                                                      .where((s) =>
+                                                          s != null && s.isNotEmpty)
+                                                      .join(" • "))
+                                                  .isNotEmpty
+                                              ? [displayAddress, displayCity]
                                                   .where((s) =>
                                                       s != null && s.isNotEmpty)
-                                                  .join(" • "))
-                                              .isNotEmpty
-                                          ? [widget.address, widget.city]
-                                              .where((s) =>
-                                                  s != null && s.isNotEmpty)
-                                              .join(" • ")
-                                          : "Unknown Location".tr,
-                                      style: regular3(context).copyWith(
-                                        fontSize: 12,
-                                        overflow: TextOverflow.visible,
+                                                  .join(" • ")
+                                              : "Unknown Location".tr,
+                                          style: regular3(context).copyWith(
+                                            fontSize: 12,
+                                            overflow: TextOverflow.visible,
+                                          ),
+                                          softWrap: true,
+                                          maxLines: null,
+                                        ),
                                       ),
-                                      softWrap: true,
-                                      maxLines: null,
-                                    ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
 
-                        const SizedBox(
-                          height: 10,
-                        ),
+                            const SizedBox(
+                              height: 10,
+                            ),
 
-                        GetBuilder<ItemDetailsController>(
-                          builder: (controller) {
-                            print(
-                                '🎨 UI RENDER: Valeur affichée dans le badge = ${controller.itemInfo?.type}');
-                            return Wrap(
+                            // Utiliser currentItemInfo qui est défini dans le GetBuilder parent
+                            Wrap(
                               spacing: 16,
                               runSpacing: 16,
                               children: [
                                 carItemBox(
                                   icon: Icons.car_rental,
                                   title: 'Vehicle Type'.tr,
-                                  desc: controller.itemInfo?.type ?? 'CAR',
+                                  desc: currentItemInfo?.type ?? itemDetails?.itemType ?? 'CAR',
                                 ),
-                                if (widget.itemInfo?.makeType != null)
+                                if (currentItemInfo?.makeType != null)
                                   carItemBox(
                                     icon: Icons.settings,
                                     title: 'Make'.tr,
-                                    desc: '${widget.itemInfo?.makeType}',
+                                    desc: '${currentItemInfo?.makeType}',
                                   ),
-                                if (widget.itemInfo?.model != null)
+                                if (currentItemInfo?.model != null)
                                   carItemBox(
                                     icon: Icons.star_border_outlined,
                                     title: 'Model'.tr,
-                                    desc: '${widget.itemInfo?.model}',
+                                    desc: '${currentItemInfo?.model}',
                                   ),
-                                if (widget.itemInfo?.year != null)
+                                if (currentItemInfo?.year != null)
                                   carItemBox(
                                     icon: Icons.calendar_month_outlined,
                                     title: 'Year'.tr,
-                                    desc: '${widget.itemInfo?.year}',
+                                    desc: '${currentItemInfo?.year}',
                                   ),
-                                if (widget.itemInfo?.transmission != null)
+                                if (currentItemInfo?.transmission != null)
                                   carItemBox(
                                     icon: Icons.track_changes,
                                     title: 'Transmission'.tr,
-                                    desc: '${widget.itemInfo?.transmission}',
+                                    desc: '${currentItemInfo?.transmission}',
                                   ),
-                                if (widget.itemInfo?.odometer != null)
+                                if (currentItemInfo?.odometer != null)
                                   carItemBox(
                                     icon: Icons.traffic_outlined,
                                     title: 'Odometer'.tr,
-                                    desc: '${widget.itemInfo?.odometer}',
+                                    desc: '${currentItemInfo?.odometer}',
                                   ),
-                                if (widget.itemInfo?.fuelType != null)
-                                  if (widget.itemInfo?.fuelType != null)
-                                    carItemBox(
-                                      icon: Icons.local_gas_station,
-                                      title: 'Fuel Type'.tr,
-                                      desc:
-                                          '${widget.itemInfo?.fuelType == "" ? "Petrol" : "${widget.itemInfo?.fuelType}"}',
-                                    ),
-                                if (widget.itemInfo?.seatCapicity != null)
+                                if (currentItemInfo?.fuelType != null)
+                                  carItemBox(
+                                    icon: Icons.local_gas_station,
+                                    title: 'Fuel Type'.tr,
+                                    desc:
+                                        '${currentItemInfo?.fuelType == "" ? "Petrol" : "${currentItemInfo?.fuelType}"}',
+                                  ),
+                                if (currentItemInfo?.seatCapicity != null)
                                   carItemBox(
                                     icon: Icons.event_seat,
                                     title: 'Seats'.tr,
-                                    desc: '${widget.itemInfo?.seatCapicity}',
+                                    desc: '${currentItemInfo?.seatCapicity}',
                                   ),
                                 carItemBox(
                                   icon: Icons.credit_card,
                                   title: 'Plate Number'.tr,
                                   desc: formatPlate(
-                                      controller.itemInfo?.platNumber),
+                                      currentItemInfo?.platNumber),
                                 ),
                                 carItemBox(
                                   icon: Icons.event,
                                   title: 'Minimum Rental Days'.tr,
                                   desc:
-                                      '${widget.itemInfo?.minRentalDays ?? "0"}',
+                                      '${currentItemInfo?.minRentalDays ?? "0"}',
                                 ),
                                 carItemBox(
                                   icon: Icons.person_2,
                                   title: 'Minimum Age'.tr,
                                   desc:
-                                      '${widget.itemInfo?.ageRistriction ?? "0"}',
+                                      '${currentItemInfo?.ageRistriction ?? "0"}',
                                 ),
                                 carItemBox(
                                   icon: Icons.verified_user,
                                   title: 'Insurance Coverage'.tr,
                                   desc:
-                                      '${widget.itemInfo?.insuranceCoverage ?? "0"}',
+                                      '${currentItemInfo?.insuranceCoverage ?? "0"}',
                                 ),
                               ],
-                            );
-                          },
-                        ),
+                            ),
 
-                        // Large Caution Card - Separate from grid
-                        GetBuilder<ItemDetailsController>(
-                          builder: (controller) {
-                            final depositValue = controller.vehicleDetailModel
-                                    ?.data?.itemDetails?.depositValue ??
-                                '';
-                            final depositManager = controller.vehicleDetailModel
-                                    ?.data?.itemDetails?.depositManager ??
-                                '';
+                            // Large Caution Card - Separate from grid
+                            GetBuilder<ItemDetailsController>(
+                              builder: (controller) {
+                                final depositValue = controller.vehicleDetailModel
+                                        ?.data?.itemDetails?.depositValue ??
+                                    '';
+                                final depositManager = controller.vehicleDetailModel
+                                        ?.data?.itemDetails?.depositManager ??
+                                    '';
 
-                            return CautionCard(
-                              depositValue: depositValue,
-                              depositManager: depositManager,
-                              context: context,
-                            );
-                          },
-                        ),
+                                return CautionCard(
+                                  depositValue: depositValue,
+                                  depositManager: depositManager,
+                                  context: context,
+                                );
+                              },
+                            ),
 
-                        const SizedBox(
-                          height: 20,
-                        ),
-                        const SizedBox(height: 5.0),
-                        ListTile(
-                          title: Padding(
-                            padding: const EdgeInsets.only(bottom: 5.0),
-                            child: Text('About the car'.tr,
-                                style: heading2(context)),
-                          ),
-                          subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.start,
+                            const SizedBox(
+                              height: 20,
+                            ),
+                            const SizedBox(height: 5.0),
+                            ListTile(
+                              title: Padding(
+                                padding: const EdgeInsets.only(bottom: 5.0),
+                                child: Text('About the car'.tr,
+                                    style: heading2(context)),
+                              ),
+                              subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    buildDescriptionWidget(),
-                                  ],
-                                ),
-                                const SizedBox(
-                                  height: 5,
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.start,
-                                  children: [
-                                    buildShowMoreButton(),
-                                  ],
-                                ),
-                              ]),
-                        ),
-                        (widget.itemInfo?.featuresData?.isEmpty ?? true)
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.start,
+                                      children: [
+                                        buildDescriptionWidget(currentItemInfo),
+                                      ],
+                                    ),
+                                    const SizedBox(
+                                      height: 5,
+                                    ),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.start,
+                                      children: [
+                                        buildShowMoreButton(currentItemInfo),
+                                      ],
+                                    ),
+                                  ]),
+                            ),
+                            (currentItemInfo?.featuresData?.isEmpty ?? true)
                             ? const SizedBox()
                             : Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -535,7 +577,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                       height: 7,
                                     ),
                                     for (var x
-                                        in (widget.itemInfo?.featuresData ?? [])
+                                        in (currentItemInfo?.featuresData ?? [])
                                             .take(6))
                                       Padding(
                                         padding: const EdgeInsets.only(
@@ -551,7 +593,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                           ],
                                         ),
                                       ),
-                                    if ((widget.itemInfo?.featuresData
+                                    if ((currentItemInfo?.featuresData
                                                 ?.length ??
                                             0) >
                                         6)
@@ -559,8 +601,8 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                         onTap: () {
                                           featuresBottomSheet(context,
                                               title: 'Vehicle Features'.tr,
-                                              list: widget
-                                                      .itemInfo?.featuresData ??
+                                              list: currentItemInfo
+                                                      ?.featuresData ??
                                                   []);
                                         },
                                         child: Row(
@@ -613,14 +655,14 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                 ),
                                 child: Stack(
                                   children: [
-                                    widget.latitute != null &&
-                                            widget.longtitute != null
+                                    (itemDetails?.latitude ?? widget.latitute) != null &&
+                                            (itemDetails?.longitude ?? widget.longtitute) != null
                                         ? GestureDetector(
                                             onTap: () {
                                               Get.to(() => FullMapScreen(
-                                                    latitude: widget.latitute,
+                                                    latitude: itemDetails?.latitude ?? widget.latitute,
                                                     longitude:
-                                                        widget.longtitute,
+                                                        itemDetails?.longitude ?? widget.longtitute,
                                                   ));
                                             },
                                             child: SizedBox(
@@ -671,12 +713,12 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                         borderRadius: BorderRadius.circular(8),
                                         child: InkWell(
                                           onTap: () {
-                                            if (widget.latitute != null &&
-                                                widget.longtitute != null) {
+                                            final lat = itemDetails?.latitude ?? widget.latitute;
+                                            final lng = itemDetails?.longitude ?? widget.longtitute;
+                                            if (lat != null && lng != null) {
                                               Get.to(() => FullMapScreen(
-                                                    latitude: widget.latitute,
-                                                    longitude:
-                                                        widget.longtitute,
+                                                    latitude: lat,
+                                                    longitude: lng,
                                                   ));
                                             }
                                           },
@@ -709,77 +751,77 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                           height: 15,
                         ),
 
-                        (widget.itemInfo?.reviewData?.isEmpty ?? true)
-                            ? const SizedBox()
-                            : buildDivider(),
-                        (widget.itemInfo?.reviewData?.isEmpty ?? true)
-                            ? const SizedBox()
-                            : const SizedBox(
-                                height: 15,
-                              ),
-                        (widget.itemInfo?.reviewData?.isEmpty ?? true)
-                            ? const SizedBox()
-                            : Row(
-                                children: [
-                                  Row(
+                            (currentItemInfo?.reviewData?.isEmpty ?? true)
+                                ? const SizedBox()
+                                : buildDivider(),
+                            (currentItemInfo?.reviewData?.isEmpty ?? true)
+                                ? const SizedBox()
+                                : const SizedBox(
+                                    height: 15,
+                                  ),
+                            (currentItemInfo?.reviewData?.isEmpty ?? true)
+                                ? const SizedBox()
+                                : Row(
                                     children: [
+                                      Row(
+                                        children: [
+                                          const SizedBox(
+                                            width: 20,
+                                          ),
+                                          Icon(
+                                            Icons.star,
+                                            color: orangeColor,
+                                            size: 24,
+                                          ),
+                                          const SizedBox(
+                                            width: 5,
+                                          ),
+                                          Text(
+                                            ' ${"Review".tr} (${itemDetails?.totalReviews ?? currentItemInfo?.totalReviews ?? "No review Here"})',
+                                            style: heading2(context),
+                                          ),
+                                        ],
+                                      ),
+                                      const Spacer(),
+                                      (currentItemInfo?.reviewData?.isEmpty ?? true)
+                                          ? const SizedBox()
+                                          : InkWell(
+                                              onTap: () {
+                                                Get.to(() => YourReview(
+                                                    id: widget.id.toString()));
+                                              },
+                                              child: Text(
+                                                "See All".tr,
+                                                style: regular3(context).copyWith(
+                                                  color:
+                                                      getColorBasedOnActiveModuleid(),
+                                                ),
+                                              ),
+                                            ),
                                       const SizedBox(
                                         width: 20,
                                       ),
-                                      Icon(
-                                        Icons.star,
-                                        color: orangeColor,
-                                        size: 24,
-                                      ),
-                                      const SizedBox(
-                                        width: 5,
-                                      ),
-                                      Text(
-                                        ' ${"Review".tr} (${widget.itemInfo?.totalReviews ?? "No review Here"})',
-                                        style: heading2(context),
-                                      ),
                                     ],
                                   ),
-                                  const Spacer(),
-                                  (widget.itemInfo?.reviewData?.isEmpty ?? true)
-                                      ? const SizedBox()
-                                      : InkWell(
-                                          onTap: () {
-                                            Get.to(() => YourReview(
-                                                id: widget.id.toString()));
-                                          },
-                                          child: Text(
-                                            "See All".tr,
-                                            style: regular3(context).copyWith(
-                                              color:
-                                                  getColorBasedOnActiveModuleid(),
-                                            ),
-                                          ),
-                                        ),
-                                  const SizedBox(
-                                    width: 20,
-                                  ),
-                                ],
-                              ),
 
-                        (widget.itemInfo?.reviewData?.isEmpty ?? true)
-                            ? const SizedBox()
-                            : SizedBox(
-                                height: 120,
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.only(left: 20, top: 10),
-                                  child: PageView.builder(
-                                    controller: vehiclePagereviewController,
-                                    onPageChanged: (index) {
-                                      vehicleCurrentPageNotifier.value = index;
-                                    },
-                                    itemCount:
-                                        widget.itemInfo?.reviewData?.length ?? 0,
-                                    physics: const BouncingScrollPhysics(),
-                                    itemBuilder: (context, index) {
-                                      final reviewData = widget.itemInfo?.reviewData ?? [];
-                                      final currentReview = (index < reviewData.length) ? reviewData[index] : null;
+                            (currentItemInfo?.reviewData?.isEmpty ?? true)
+                                ? const SizedBox()
+                                : SizedBox(
+                                    height: 120,
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsets.only(left: 20, top: 10),
+                                      child: PageView.builder(
+                                        controller: vehiclePagereviewController,
+                                        onPageChanged: (index) {
+                                          vehicleCurrentPageNotifier.value = index;
+                                        },
+                                        itemCount:
+                                            currentItemInfo?.reviewData?.length ?? 0,
+                                        physics: const BouncingScrollPhysics(),
+                                        itemBuilder: (context, index) {
+                                          final reviewData = currentItemInfo?.reviewData ?? [];
+                                          final currentReview = (index < reviewData.length) ? reviewData[index] : null;
                                       final guestProfileImage = currentReview?["guest_profile_image"];
                                       print(guestProfileImage);
                                       return Row(
@@ -894,27 +936,27 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                       widget.itemInfo?.reviewData?.length ?? 0,
                                       // Same as itemCount in PageView
                                       (index) {
-                                        return Container(
-                                          margin: const EdgeInsets.symmetric(
-                                              horizontal: 2.0),
-                                          width: 8.0,
-                                          height: 8.0,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: value == index
-                                                ? getColorBasedOnActiveModuleid()
-                                                : Colors.grey,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  );
-                                },
-                              ),
+                                            return Container(
+                                              margin: const EdgeInsets.symmetric(
+                                                  horizontal: 2.0),
+                                              width: 8.0,
+                                              height: 8.0,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: value == index
+                                                    ? getColorBasedOnActiveModuleid()
+                                                    : Colors.grey,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      );
+                                    },
+                                  ),
 
-                        const SizedBox(
-                          height: 20,
-                        ),
+                            const SizedBox(
+                              height: 20,
+                            ),
                         // Vehicle Rules Section - Matching Cancellation Policy style
                         Padding(
                           padding: const EdgeInsets.only(left: 12, right: 12),
@@ -1078,79 +1120,89 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                           height: 10,
                         ),
 
-                        GestureDetector(
-                          onTap: () {
-                            print(widget.itemInfo?.hostProfileImage);
-                            Get.to(() => PublicProfile(
-                                  userid: widget.itemInfo?.hostId?.toString() ?? "",
-                                  photo: widget.frontImage,
-                                  userName:
-                                      "${widget.itemInfo?.hostFirstName ?? ""} ${widget.itemInfo?.hostLastName ?? ""}".trim(),
-                                  profileImage:
-                                      widget.itemInfo?.hostProfileImage ?? "",
-                                ));
-                          },
-                          child: ListTile(
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(40),
-                              child: widget.itemInfo?.hostProfileImage != null &&
-                                      (widget.itemInfo?.hostProfileImage?.isNotEmpty ?? false)
-                                  ? Image.network(
-                                      "${widget.itemInfo?.hostProfileImage}",
-                                      height: 55,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) => Icon(
-                                        Icons.account_circle_rounded,
-                                        size: 55,
-                                        color: notifires.getgreycolor,
-                                      ),
-                                      loadingBuilder:
-                                          (context, child, loadingProgress) {
-                                        if (loadingProgress == null) {
-                                          return child;
-                                        }
-                                        return const Center(
-                                          child: CircularProgressIndicator(),
-                                        );
-                                      },
-                                    )
-                                  : Icon(
-                                      Icons.account_circle_rounded,
-                                      size: 55,
-                                      color: notifires.getgreycolor,
-                                    ),
-                            ),
-                            title: Text(
-                              "${"Hosted by".tr} ${"Verified Member".tr}",
-                              // 'Hosted by Marry',
-                              style: heading3Grey1(context),
-                            ),
-                            subtitle: Text('View profile'.tr,
-                                style: regular2(context).copyWith(
-                                  color: getColorBasedOnActiveModuleid(),
-                                )),
-                            trailing: widget.chatafterBooking == null
-                                ? const SizedBox()
-                                : widget.itemInfo?.hostId == null ||
-                                        widget.itemInfo?.hostId?.toString() ==
-                                            userId.toString()
+                            GestureDetector(
+                              onTap: () {
+                                final hostId = itemDetails?.hostId ?? currentItemInfo?.hostId;
+                                final hostProfileImage = itemDetails?.hostProfileImage ?? currentItemInfo?.hostProfileImage;
+                                final hostFirstName = itemDetails?.hostFirstName ?? currentItemInfo?.hostFirstName;
+                                final hostLastName = itemDetails?.hostLastName ?? currentItemInfo?.hostLastName;
+                                print(hostProfileImage);
+                                Get.to(() => PublicProfile(
+                                      userid: hostId?.toString() ?? "",
+                                      photo: displayFrontImage,
+                                      userName:
+                                          "${hostFirstName ?? ""} ${hostLastName ?? ""}".trim(),
+                                      profileImage: hostProfileImage ?? "",
+                                    ));
+                              },
+                              child: ListTile(
+                                leading: ClipRRect(
+                                  borderRadius: BorderRadius.circular(40),
+                                  child: (itemDetails?.hostProfileImage ?? currentItemInfo?.hostProfileImage) != null &&
+                                          ((itemDetails?.hostProfileImage ?? currentItemInfo?.hostProfileImage)?.isNotEmpty ?? false)
+                                      ? Image.network(
+                                          "${itemDetails?.hostProfileImage ?? currentItemInfo?.hostProfileImage}",
+                                          height: 55,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) => Icon(
+                                            Icons.account_circle_rounded,
+                                            size: 55,
+                                            color: notifires.getgreycolor,
+                                          ),
+                                          loadingBuilder:
+                                              (context, child, loadingProgress) {
+                                            if (loadingProgress == null) {
+                                              return child;
+                                            }
+                                            return const Center(
+                                              child: CircularProgressIndicator(),
+                                            );
+                                          },
+                                        )
+                                      : Icon(
+                                          Icons.account_circle_rounded,
+                                          size: 55,
+                                          color: notifires.getgreycolor,
+                                        ),
+                                ),
+                                title: Text(
+                                  // Utiliser le statut de vérification du véhicule si disponible
+                                  // TODO: dynamic verified status basé sur un flag host-level dédié si le backend l'expose
+                                  ((itemDetails?.isVerified ?? currentItemInfo?.isVerified)
+                                                  ?.toString() ==
+                                              '1')
+                                      ? "${"Hosted by".tr} ${"Verified Member".tr}"
+                                      : "Hosted by".tr,
+                                  style: heading3Grey1(context),
+                                ),
+                                subtitle: Text('View profile'.tr,
+                                    style: regular2(context).copyWith(
+                                      color: getColorBasedOnActiveModuleid(),
+                                    )),
+                                trailing: widget.chatafterBooking == null
                                     ? const SizedBox()
-                                    : GestureDetector(
-                                        onTap: () {},
-                                        child: SvgPicture.asset(
-                                            "assets/images/share.svg"),
-                                      ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        const SizedBox(
-                          height: 85,
-                        ),
+                                    : (itemDetails?.hostId ?? currentItemInfo?.hostId) == null ||
+                                            (itemDetails?.hostId ?? currentItemInfo?.hostId)?.toString() ==
+                                                userId.toString()
+                                        ? const SizedBox()
+                                        : GestureDetector(
+                                            onTap: () {},
+                                            child: SvgPicture.asset(
+                                                "assets/images/share.svg"),
+                                          ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const SizedBox(
+                              height: 85,
+                            ),
 
-                        // vehicleItemHorizontalView( notifires),
-                      ],
-                    ),
+                            // vehicleItemHorizontalView( notifires),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
                 Positioned(
@@ -1242,76 +1294,123 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                   child: Row(
                     children: [
                       // Prix uniquement (sans le texte qui cause l'overflow)
-                      Text(
-                        "$currency ${widget.price ?? "0"}",
-                        style: heading2(context)
-                            .copyWith(color: getColorBasedOnActiveModuleid()),
+                      GetBuilder<ItemDetailsController>(
+                        builder: (controller) {
+                          final displayPrice = controller.vehicleDetailModel?.data?.itemDetails?.price ?? widget.price ?? "0";
+                          return Text(
+                            "$currency $displayPrice",
+                            style: heading2(context)
+                                .copyWith(color: getColorBasedOnActiveModuleid()),
+                          );
+                        },
                       ),
                       const Spacer(),
-                      loginModel != null &&
-                              widget.itemInfo?.hostId?.toString() ==
-                                  userId.toString()
-                          ? const SizedBox()
-                          : widget.itemInfo?.serviceType?.toString() ==
-                                      "sale" ||
-                                  widget.itemInfo?.serviceType?.toString() ==
-                                      "rent"
-                              ? Row(
-                                  children: [
-                                    Container(
-                                      height: 40,
-                                      width: 40,
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: notifires.getGrey5Whitecolor,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: IconButton(
-                                        onPressed: () {
-                                          final phone = widget.itemInfo?.hostPhone ?? "";
-                                          if (phone.isNotEmpty) {
-                                            launchUrl(Uri.parse('tel:$phone'));
-                                          }
-                                        },
-                                        icon: Icon(Icons.call,
-                                            color:
-                                                getColorBasedOnActiveModuleid()),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 20),
-                                    Container(
-                                      height: 40,
-                                      width: 40,
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: notifires.getGrey5Whitecolor,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: IconButton(
-                                        onPressed: () {
-                                          final email = widget.itemInfo?.hostEmail ?? "";
-                                          if (email.isNotEmpty) {
-                                            launchUrl(Uri.parse('mailto:$email'));
-                                          }
-                                        },
-                                        icon: Icon(Icons.email,
-                                            color:
-                                                getColorBasedOnActiveModuleid()),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : widget.itemInfo?.serviceType?.toString() ==
-                                      "booking"
-                                  ? isHostMode.value == true
-                                      ? const SizedBox()
-                                      : SizedBox(
+                      GetBuilder<ItemDetailsController>(
+                        builder: (controller) {
+                          final currentItemInfo = controller.itemInfo ?? widget.itemInfo;
+                          final itemDetails = controller.vehicleDetailModel?.data?.itemDetails;
+                          final hostId = itemDetails?.hostId ?? currentItemInfo?.hostId;
+                          final serviceType = currentItemInfo?.serviceType?.toString() ?? itemDetails?.itemType;
+                          
+                          // ========== DEBUG BOUTON SUIVANT ==========
+                          final isOwner = loginModel != null && hostId?.toString() == userId.toString();
+                          final isHostModeActive = isHostMode.value;
+                          print('🔍 DEBUG BOUTON SUIVANT:');
+                          print('   - isOwner: $isOwner (hostId: $hostId, userId: $userId)');
+                          print('   - isHostMode: $isHostModeActive');
+                          print('   - serviceType: $serviceType');
+                          print('   - loginModel != null: ${loginModel != null}');
+                          
+                          // ========== FORCER L'AFFICHAGE POUR TESTS ==========
+                          // TEMPORAIRE : Le bouton s'affiche TOUJOURS pour les tests
+                          // TODO: Retirer cette modification après les tests
+                          return SizedBox(
+                            height: 40,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                await _handleNextButtonPress(context);
+                              },
+                              style: ButtonStyle(
+                                backgroundColor: WidgetStateProperty.all(
+                                    getColorBasedOnActiveModuleid()),
+                                shape: WidgetStateProperty.all(
+                                  RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                'Next'.tr,
+                                style: heading3(context).copyWith(
+                                    color: whiteColor,
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                            ),
+                          );
+                          
+                          // ========== CODE ORIGINAL (COMMENTÉ POUR TESTS) ==========
+                          /*
+                          return loginModel != null &&
+                                  hostId?.toString() ==
+                                      userId.toString()
+                              ? const SizedBox()
+                              : serviceType == "sale" ||
+                                      serviceType == "rent"
+                                  ? Row(
+                                      children: [
+                                        Container(
                                           height: 40,
-                                          child: ElevatedButton(
-                                            onPressed: () async {
-                                              await _handleNextButtonPress(
-                                                  context);
+                                          width: 40,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: notifires.getGrey5Whitecolor,
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: IconButton(
+                                            onPressed: () {
+                                              final phone = itemDetails?.hostPhone ?? currentItemInfo?.hostPhone ?? "";
+                                              if (phone.isNotEmpty) {
+                                                launchUrl(Uri.parse('tel:$phone'));
+                                              }
                                             },
+                                            icon: Icon(Icons.call,
+                                                color:
+                                                    getColorBasedOnActiveModuleid()),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 20),
+                                        Container(
+                                          height: 40,
+                                          width: 40,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: notifires.getGrey5Whitecolor,
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: IconButton(
+                                            onPressed: () {
+                                              final email = itemDetails?.hostEmail ?? currentItemInfo?.hostEmail ?? "";
+                                              if (email.isNotEmpty) {
+                                                launchUrl(Uri.parse('mailto:$email'));
+                                              }
+                                            },
+                                            icon: Icon(Icons.email,
+                                                color:
+                                                    getColorBasedOnActiveModuleid()),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : serviceType == "booking"
+                                      ? isHostMode.value == true
+                                          ? const SizedBox()
+                                          : SizedBox(
+                                              height: 40,
+                                              child: ElevatedButton(
+                                                onPressed: () async {
+                                                  await _handleNextButtonPress(
+                                                      context);
+                                                },
                                             style: ButtonStyle(
                                               backgroundColor:
                                                   WidgetStateProperty.all(
@@ -1329,10 +1428,13 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                                   color: whiteColor,
                                                   overflow:
                                                       TextOverflow.ellipsis),
-                                            ),
-                                          ),
-                                        )
-                                  : const SizedBox(),
+                                                ),
+                                              ),
+                                            )
+                                      : const SizedBox();
+                          */
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -1387,10 +1489,19 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
 
     // if allready filteres
     if (handleDirectBooking == true) {
+      // Utiliser itemInfo du controller qui a été mis à jour par getdataVehicle
+      final itemDetailToSend = vehicleDetailController.itemInfo ?? widget.itemInfo;
+      
+      // Debug : Juste AVANT le Get.to
+      print('🚀 [FINAL_SEND_CHECK] Title: ${itemDetailToSend?.cancellationReasonTitle?.toString() ?? 'null'}');
+      print('🚀 [FINAL_SEND_CHECK] CancellationReason: ${itemDetailToSend?.cancellationReason?.toString() ?? 'null'}');
+      debugPrint('🚀 [FINAL_SEND_CHECK] itemDetailToSend is null: ${itemDetailToSend == null}');
+      debugPrint('🚀 [FINAL_SEND_CHECK] Full itemDetailToSend: ${itemDetailToSend?.toString()}');
+      
       bookingController.commonNavigateToBookingSummary(
         context,
         widget.id,
-        widget.itemInfo,
+        itemDetailToSend,
         widget.address,
         widget.frontImage,
         widget.title,
@@ -1436,10 +1547,19 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
           bookingController.selectedStartTime.value = startTime;
           bookingController.selectedEndTime.value = endTime;
 
+          // Utiliser itemInfo du controller qui a été mis à jour par getdataVehicle
+          final itemDetailToSend = vehicleDetailController.itemInfo ?? widget.itemInfo;
+          
+          // Debug : Juste AVANT le Get.to
+          print('🚀 [FINAL_SEND_CHECK] Title: ${itemDetailToSend?.cancellationReasonTitle?.toString() ?? 'null'}');
+          print('🚀 [FINAL_SEND_CHECK] CancellationReason: ${itemDetailToSend?.cancellationReason?.toString() ?? 'null'}');
+          debugPrint('🚀 [FINAL_SEND_CHECK] itemDetailToSend is null: ${itemDetailToSend == null}');
+          debugPrint('🚀 [FINAL_SEND_CHECK] Full itemDetailToSend: ${itemDetailToSend?.toString()}');
+
           bookingController.commonNavigateToBookingSummary(
             context,
             widget.id,
-            widget.itemInfo,
+            itemDetailToSend,
             widget.address,
             widget.frontImage,
             widget.title,
@@ -1483,8 +1603,8 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
     });
   }
 
-  Widget buildDescriptionWidget() {
-    final description = (widget.itemInfo?.description ?? "");
+  Widget buildDescriptionWidget(ItemInfo? itemInfo) {
+    final description = (itemInfo?.description ?? vehicleDetailController.vehicleDetailModel?.data?.itemDetails?.description ?? "");
     return Expanded(
       child: Text(
         description,
@@ -1495,9 +1615,9 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
     );
   }
 
-  Widget buildShowMoreButton() {
+  Widget buildShowMoreButton(ItemInfo? itemInfo) {
     final description = Intl.message(
-      widget.itemInfo?.description ?? "",
+      itemInfo?.description ?? vehicleDetailController.vehicleDetailModel?.data?.itemDetails?.description ?? "",
       name: 'description',
       desc: 'Description of the property',
     );

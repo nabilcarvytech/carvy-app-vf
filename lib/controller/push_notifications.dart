@@ -157,8 +157,15 @@ void _handleMessage(RemoteMessage message) {
 }
 
 Future<void> setupOneSignal() async {
+  print('🕵️‍♂️ [FLUTTER START] setupOneSignal() appelé');
   try {
     print('🔔 [ONESIGNAL_DEBUG] App ID utilisé : ${Config.oneSiginalAppid}');
+    
+    // Configurer le niveau de log en mode debug
+    if (kDebugMode) {
+      OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+      print('✅ [ONESIGNAL_DEBUG] Log level set to verbose');
+    }
     
     // Initialiser OneSignal avec gestion d'erreur
     try {
@@ -182,6 +189,41 @@ Future<void> setupOneSignal() async {
     
     // Récupérer le token FCM avec gestion d'erreur
     await getFCMTokenInitialToSetThedata();
+    
+    // FORCE UPDATE: Vérifier si l'utilisateur est déjà connecté au lancement
+    try {
+      String? storedToken = GetStorage().read('token');
+      if (storedToken != null && storedToken.isNotEmpty) {
+        print('🚀 [SETUP] Utilisateur déjà connecté, mise à jour forcée du Player ID...');
+        // Initialiser la variable globale token pour que fetchPlayerId puisse l'utiliser
+        token = storedToken;
+        print('🔑 [SETUP] Token global initialisé depuis le storage');
+        
+        // Petit délai pour laisser OneSignal s'initialiser complètement
+        Future.delayed(const Duration(seconds: 2), () async {
+          try {
+            // Récupérer le FCM token (fetchPlayerId nécessite un FCM token, pas un token d'auth)
+            var fcmToken = await FirebaseMessaging.instance.getToken();
+            if (fcmToken != null && fcmToken.isNotEmpty) {
+              print('✅ [SETUP] FCM Token récupéré, envoi du Player ID au backend...');
+              await fetchPlayerId(fcmToken);
+              print('✅ [SETUP] Player ID envoyé au backend avec succès');
+            } else {
+              print('⚠️ [SETUP] FCM Token est null, impossible d\'envoyer le Player ID');
+            }
+          } catch (e, stackTrace) {
+            print('❌ [SETUP] Erreur lors de la mise à jour forcée du Player ID: $e');
+            print('❌ [SETUP] StackTrace: $stackTrace');
+            // Ne pas bloquer l'application en cas d'erreur
+          }
+        });
+      } else {
+        print('ℹ️ [SETUP] Pas de token utilisateur, attente du login.');
+      }
+    } catch (e) {
+      print('⚠️ [SETUP] Erreur lors de la vérification du token: $e');
+      // Ne pas bloquer l'application
+    }
   } catch (e, stackTrace) {
     print('❌ [ONESIGNAL_DEBUG] Error in setupOneSignal: $e');
     print('❌ [ONESIGNAL_DEBUG] StackTrace: $stackTrace');
@@ -227,19 +269,31 @@ Future<void> getFCMTokenInitialToSetThedata() async {
   }
 }
 
+// ⚠️ DÉSACTIVATION TEMPORAIRE : Éviter les appels FCM répétitifs qui causent "Permission denied"
+// Cette fonction sera réactivée une fois le problème de thread résolu
 Future<void> getFCMToken() async {
   try {
+    // Vérifier si le token existe déjà pour éviter les appels répétitifs
+    final existingToken = GetStorage().read('fcmToken');
+    if (existingToken != null && existingToken.isNotEmpty) {
+      debugPrint('🔕 [FCM] Token déjà existant, skip de l\'appel répétitif');
+      return;
+    }
+    
     var fcmToken = await FirebaseMessaging.instance.getToken();
     if (token.isEmpty || token == "") {
       return;
     }
     if (fcmToken != null) {
+      // Sauvegarder le token pour éviter les appels répétitifs
+      GetStorage().write('fcmToken', fcmToken);
       await OneSignal.login(fcmToken);
       await addTagWithKey(fcmToken);
       await fetchPlayerId(fcmToken);
     }
   } catch (error) {
-    //
+    debugPrint('❌ [FCM] Erreur dans getFCMToken: $error');
+    // Ne pas rethrow pour éviter les crashes
   }
 }
 
@@ -247,34 +301,161 @@ Future<void> addTagWithKey(String token) async {
   await OneSignal.User.addTagWithKey("FCMToken", token);
 }
 
+// Fonction de secours pour forcer l'envoi de l'ID avant une action critique (ex: réservation)
+Future<void> ensurePlayerIdIsSynced() async {
+  try {
+    print('🛡️ [FORCE SYNC] Vérification pré-réservation...');
+    
+    // 1. Récupération de l'ID (avec retry rapide)
+    var id = OneSignal.User.pushSubscription.id;
+    int retries = 0;
+    while ((id == null || id.isEmpty) && retries < 3) {
+      print('⏳ [FORCE SYNC] Tentative ${retries + 1}/3 pour récupérer l\'ID...');
+      await Future.delayed(const Duration(milliseconds: 500));
+      id = OneSignal.User.pushSubscription.id;
+      retries++;
+    }
+    
+    if (id == null || id.isEmpty) {
+      print('⚠️ [FORCE SYNC] Impossible de récupérer l\'ID OneSignal (Mobile).');
+      return;
+    }
+    
+    // 2. Vérifier si le token utilisateur existe
+    String? storedToken = GetStorage().read('token');
+    if (storedToken == null || storedToken.isEmpty) {
+      print('⚠️ [FORCE SYNC] Token utilisateur manquant, impossible d\'envoyer l\'ID');
+      return;
+    }
+    
+    // 3. Initialiser la variable globale token pour que l'appel API fonctionne
+    // Import de la variable globale token depuis work_space.dart
+    token = storedToken;
+    
+    // 4. Récupérer le FCM token et envoyer l'ID au backend
+    try {
+      var fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        print('🚀 [FORCE SYNC] Envoi immédiat de l\'ID: $id');
+        // Utiliser la même méthode que fetchPlayerId mais avec l'ID déjà récupéré
+        // On peut soit appeler fetchPlayerId directement, soit faire l'appel API ici
+        // Pour éviter la double récupération de l'ID, on fait l'appel API directement
+        try {
+          await httpPost(
+            Config.fcmUpdate,
+            {"fcm": fcmToken, "player_id": id},
+          );
+          print('✅ [FORCE SYNC] ID envoyé avec succès au backend');
+        } catch (apiError) {
+          print('❌ [FORCE SYNC] Erreur lors de l\'envoi de l\'ID: $apiError');
+          // Ne pas bloquer le processus de réservation en cas d'erreur
+        }
+      } else {
+        print('⚠️ [FORCE SYNC] FCM Token est null, impossible d\'envoyer l\'ID');
+      }
+    } catch (e) {
+      print('❌ [FORCE SYNC] Erreur lors de la récupération du FCM token: $e');
+    }
+  } catch (e) {
+    print('❌ [FORCE SYNC] Erreur silencieuse : $e');
+    // Ne pas bloquer le processus de réservation en cas d'erreur
+  }
+}
+
 Future<void> fetchPlayerId(fcmToken) async {
   try {
-    oneSiginalplayerid = OneSignal.User.pushSubscription.id;
+    // ========== LOGS DE DÉBOGAGE VERBEUX ==========
+    print('🕵️‍♂️ [FLUTTER FETCH] fetchPlayerId appelé avec token: ${token.isEmpty ? "VIDE" : "${token.substring(0, token.length > 10 ? 10 : token.length)}..."}');
+    print('🔑 [DEBUG FLUTTER] Token Auth actuel: ${GetStorage().read("token")}');
+    print('🔑 [DEBUG FLUTTER] Token global (work_space): ${token.isEmpty ? "VIDE" : "${token.substring(0, token.length > 20 ? 20 : token.length)}..."}');
+    
+    // Sécurité Token : Vérifier si userToken est vide avant d'appeler l'API
+    // Import de la variable globale token depuis work_space.dart
+    if (token.isEmpty || token == "") {
+      print('⚠️ [OneSignal] Token utilisateur vide, skip de l\'appel fcmUpdate');
+      print('⚠️ [OneSignal] L\'application continue vers le Dashboard sans bloquer');
+      return;
+    }
+    
+    // Récupération de l'ID OneSignal avec logique de retry détaillée
+    print('🏁 [DEBUG] Démarrage de la récupération ID...');
+    
+    // Vérifier le statut actuel
+    var status = OneSignal.User.pushSubscription.optedIn;
+    var id = OneSignal.User.pushSubscription.id;
+    print('🧐 [DEBUG] Statut initial - OptedIn: $status, ID: $id');
+    
+    int retries = 0;
+    while ((id == null || id.isEmpty) && retries < 10) {
+      retries++;
+      print('⏳ [DEBUG] Tentative $retries/10 : ID est toujours vide...');
+      await Future.delayed(const Duration(seconds: 1));
+      id = OneSignal.User.pushSubscription.id;
+      print('🔍 [DEBUG] Après attente de 1 seconde, ID récupéré: ${id ?? "NULL"}');
+    }
+    
+    if (id == null || id.isEmpty) {
+      print('💀 [DEBUG] ÉCHEC TOTAL : Impossible de récupérer l\'ID après 10 secondes.');
+      print('💀 [DEBUG] Le code s\'arrête ici - return sans envoyer au backend');
+      // C'est ici que ça s'arrête !
+      return;
+    }
+    
+    print('🎉 [DEBUG] SUCCÈS ! ID trouvé : $id');
+    print('📱 [FLUTTER ONESIGNAL] ID récupéré du SDK: $id');
+    oneSiginalplayerid = id;
     GetStorage().write('oneSiginalplayerid', oneSiginalplayerid);
-    if (oneSiginalplayerid != null) {
+    print('💾 [DEBUG] ID sauvegardé dans le storage');
+    
+    if (id != null && id.isNotEmpty) {
+      print('🚀 [FLUTTER SEND] Envoi vers API...');
       // Envoi du Player ID vers le backend Node.js
       print('📤 [OneSignal] Envoi du Player ID au backend...');
       print('📤 [OneSignal] FCM Token: ${fcmToken.substring(0, 20)}...');
       print('📤 [OneSignal] Player ID: $oneSiginalplayerid');
       
+      // ========== LOGS AVANT L'APPEL HTTP ==========
+      print('🚀 [FLUTTER SEND] Envoi vers ${Config.fcmUpdate} | Body: {"player_id": "$id"}');
+      print('📦 [DEBUG FLUTTER] Body complet: {"fcm": "$fcmToken", "player_id": "$id"}');
+      print('🌐 [DEBUG FLUTTER] URL complète sera: ${Config.baseurl}${Config.fcmUpdate}');
+      
       try {
         // Utilisation de httpPost pour mettre à jour le token FCM et le Player ID
-        await httpPost(
+        // Éviter le blocage : Même si l'appel échoue, l'application continue
+        var response = await httpPost(
           Config.fcmUpdate,
-          {"fcm": fcmToken, "player_id": oneSiginalplayerid},
+          {"fcm": fcmToken, "player_id": id},
         );
+        
+        // ========== LOGS APRÈS LA RÉPONSE ==========
+        print('✅ [DEBUG FLUTTER] Réponse du serveur reçue');
+        print('📊 [DEBUG FLUTTER] Type de réponse: ${response.runtimeType}');
+        if (response is Map) {
+          print('📊 [DEBUG FLUTTER] Status: ${response['status'] ?? response['ResponseCode'] ?? 'N/A'}');
+          print('📊 [DEBUG FLUTTER] Message: ${response['message'] ?? response['ResponseMsg'] ?? 'N/A'}');
+          if (response['error'] != null) {
+            print('❌ [DEBUG FLUTTER] Erreur: ${response['error']}');
+          }
+        } else {
+          print('📊 [DEBUG FLUTTER] Réponse complète: $response');
+        }
         print('✅ [OneSignal] Player ID envoyé avec succès au backend');
       } catch (apiError) {
         print('❌ [OneSignal] Erreur lors de l\'envoi du Player ID: $apiError');
+        print('❌ [DEBUG FLUTTER] Exception détaillée: $apiError');
+        print('⚠️ [OneSignal] L\'application continue vers le Dashboard malgré l\'erreur');
         // On continue même en cas d'erreur pour ne pas bloquer l'application
       }
       
       print('📱 [OneSignal] Player ID récupéré: $oneSiginalplayerid');
     } else {
+      print('❌ [DEBUG FLUTTER] STOP: L\'ID est null, on n\'envoie rien.');
       print('⚠️ [OneSignal] Player ID est null, impossible d\'envoyer au backend');
     }
   } catch (error) {
     print('❌ [OneSignal] Erreur lors de la récupération du Player ID: $error');
+    print('❌ [DEBUG FLUTTER] Exception dans fetchPlayerId: $error');
+    // Ne pas rethrow pour éviter les crashes
   }
 }
 
@@ -361,10 +542,44 @@ Future<void> showNotification() async {
   }
   OneSignal.Notifications.addClickListener((event) {
     if (markNotificationAsProcessed(event.notification.notificationId)) {
-      // Vérifier si c'est une notification KYC et rafraîchir le statut
+      // Extraire les données additionnelles de la notification
       final notification = event.notification;
       final additionalData = notification.additionalData;
       
+      // Log pour le debug
+      print('🔔 Notification cliquée avec données : $additionalData');
+      
+      // Gestion spécifique pour les notifications de type 'new_booking'
+      if (additionalData != null && additionalData['type'] == 'new_booking') {
+        String? bookingId = additionalData['bookingId']?.toString();
+        if (bookingId != null && bookingId.isNotEmpty) {
+          print('🔔 [OneSignal] Notification new_booking reçue pour bookingId: $bookingId');
+          
+          // Vérifier si l'utilisateur est connecté
+          if (token.isEmpty) {
+            showErrorToastMessage("Please Login first");
+            return;
+          }
+          
+          // Naviguer vers l'écran des commandes du vendeur (BottomHost)
+          // Les nouvelles réservations sont généralement dans l'onglet "Upcoming"
+          // Note: Pour naviguer directement vers HostEreciept (écran de détails),
+          // il faudrait faire un appel API pour récupérer les détails de la réservation
+          // avec le bookingId, puis naviguer vers HostEreciept avec l'objet Bookings complet
+          isHostMode.value = true;
+          Get.to(() => const BottomHost(initialIndex: 2));
+          generalController.currentIndexHost.value = 2;
+          generalController.tabControllerHost.index = 2;
+          bookingController.tabIndexOfMybooking = 0; // Onglet "Upcoming"
+          
+          print('✅ [OneSignal] Navigation vers l\'écran des commandes vendeur pour bookingId: $bookingId');
+          return;
+        } else {
+          print('⚠️ [OneSignal] bookingId manquant dans les données de notification');
+        }
+      }
+      
+      // Vérifier si c'est une notification KYC et rafraîchir le statut
       bool isKycNotification = false;
       
       // Vérifier les données additionnelles pour détecter une notification KYC
@@ -396,8 +611,10 @@ Future<void> showNotification() async {
         }
       }
       
-      handleNotificationClick(event.notification.additionalData!['route'],
-          event.notification.additionalData);
+      // Appeler la fonction de gestion des notifications existante
+      if (additionalData != null && additionalData['route'] != null) {
+        handleNotificationClick(additionalData['route'], additionalData);
+      }
     }
   });
 }

@@ -1209,5 +1209,14 @@ const Map<String, String> thTH = {
   "80% deduction will apply if canceled within 12 hours of the rental start time.":
       "จะหัก 80% หากยกเลิกภายใน 12 ชั่วโมงก่อนเวลาเริ่มเช่า",
   "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
-      "จะหัก 50% หากยกเลิกระหว่าง 12 ถึง 24 ชั่วโมงก่อนเวลาเริ่มเช่า"
+      "จะหัก 50% หากยกเลิกระหว่าง 12 ถึง 24 ชั่วโมงก่อนเวลาเริ่มเช่า",
+  "Caution": "เงินมัดจำ",
+  "Important": "สำคัญ",
+  "Gérée par Carvy": "จัดการโดย Carvy",
+  "Gérée par l'agence": "จัดการโดยเอเจนซี่",
+  "J'ai lu et j'accepte ": "ฉันได้อ่านและยอมรับ ",
+  "la politique d'annulation": "นโยบายการยกเลิก",
+  "Note": "หมายเหตุ",
+  "Smoking Allowed": "อนุญาตให้สูบบุหรี่",
+  "International Travel Allowed": "อนุญาตให้เดินทางระหว่างประเทศ"
 };

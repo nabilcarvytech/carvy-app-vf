@@ -134,6 +134,7 @@ const Map<String, String> arAR = {
   "Read": "قراءة",
   "Flexible": "مرن",
   "Contact host": "الاتصال بالوكالة",
+  
   "Message": "رسالة",
   "Show Less": "عرض أقل",
   "Show More": "عرض المزيد",
@@ -1203,5 +1204,14 @@ const Map<String, String> arAR = {
   "80% deduction will apply if canceled within 12 hours of the rental start time.":
       "سيتم خصم 80% إذا تم الإلغاء خلال 12 ساعة من وقت بدء الإيجار.",
   "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time.":
-      "سيتم خصم 50% إذا تم الإلغاء بين 12 و 24 ساعة قبل وقت بدء الإيجار."
+      "سيتم خصم 50% إذا تم الإلغاء بين 12 و 24 ساعة قبل وقت بدء الإيجار.",
+  "Caution": "الوديعة",
+  "Important": "مهم",
+  "Gérée par Carvy": "تديرها Carvy",
+  "Gérée par l'agence": "تديرها الوكالة",
+  "J'ai lu et j'accepte ": "لقد قرأت وأوافق على ",
+  "la politique d'annulation": "سياسة الإلغاء",
+  "Note": "ملاحظة",
+  "Smoking Allowed": "التدخين مسموح",
+  "International Travel Allowed": "السفر الدولي مسموح"
 };

@@ -287,6 +287,7 @@ class HomeController extends GetxController implements GetxService {
 
   CurrencyModel? currencyModel;
   RxBool currencyLoading = false.obs;
+  var currency = 'MAD'.obs; // Devise par défaut
   Future<void> getCurrency() async {
     currencyLoading.value = true;
     try {
@@ -325,6 +326,11 @@ class HomeController extends GetxController implements GetxService {
       };
 
       currencyModel = CurrencyModel.fromJson(response);
+      // Mettre à jour la devise par défaut
+      // data est une List<Data>, on accède directement au premier élément
+      if (currencyModel?.data != null && currencyModel!.data!.isNotEmpty) {
+        currency.value = currencyModel!.data![0].currencySymbol?.toString() ?? 'MAD';
+      }
       currencyLoading.value = false;
       update();
     } catch (e) {
@@ -427,14 +433,20 @@ class HomeController extends GetxController implements GetxService {
     // 1. On vérifie si un tri est actif
     String sortValue = Get.find<SearchControllerHome>().selectredeShortByvalue.value;
     
-    // 2. Si on a un tri (pas 'Nearest Location' par défaut) OU si on force, on ignore le cache
-    bool shouldSkipCache = sortValue != "Nearest Location" || forceRefresh;
+    // 2. Récupérer le filtre de catégorie (item_type)
+    SearchControllerHome filterController = Get.find<SearchControllerHome>();
+    String currentItemType = filterController.globalItemType.value;
+    print("🔵 [HOME_DATA] Current item_type filter: $currentItemType");
+    
+    // 3. Si on a un tri (pas 'Nearest Location' par défaut) OU un filtre de catégorie (pas '0') OU si on force, on ignore le cache
+    bool hasCategoryFilter = currentItemType != '0' && currentItemType.isNotEmpty;
+    bool shouldSkipCache = sortValue != "Nearest Location" || hasCategoryFilter || forceRefresh;
     
     var storedData = shouldSkipCache ? null : GetStorage().read("homeData");
     
     if (storedData == null) {
       if (shouldSkipCache) {
-        print("🚀 [HOME_DATA] Sort active or forced: Skipping cache and calling API");
+        print("🚀 [HOME_DATA] Sort active or category filter active or forced: Skipping cache and calling API");
       }
       print("🔵 [HOME_DATA] No cached data found, fetching from API...");
       try {
@@ -460,11 +472,22 @@ class HomeController extends GetxController implements GetxService {
         String currentLat = slatsearch ?? "";
         String currentLng = sLongSearch ?? "";
         
-        var response = await httpGet(Config.homeDataApi, {
+        // Construire le Map des paramètres pour l'API
+        Map<String, dynamic> apiParams = {
           "sort": mappedSortValue,
           "Slatitude": currentLat,
           "Slongitude": currentLng,
-        });
+        };
+        
+        // Ajouter le filtre item_type si une catégorie est sélectionnée (pas '0' = "Tous")
+        if (currentItemType != '0' && currentItemType.isNotEmpty) {
+          apiParams["item_type"] = currentItemType;
+          print("🔵 [HOME_DATA] Adding item_type filter: $currentItemType");
+        } else {
+          print("🔵 [HOME_DATA] No item_type filter (showing all categories)");
+        }
+        
+        var response = await httpGet(Config.homeDataApi, apiParams);
 
         print("🔵 [HOME_DATA] Response received from API");
         print("🔵 [HOME_DATA] Response type: ${response.runtimeType}");

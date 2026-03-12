@@ -229,7 +229,14 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
                                                                         child: InkWell(
                                                                             onTap: () {
                                                                               Navigator.pop(context);
-                                                                              addItemsHostController.listDeleteImages.add(item!.gallery![index].url);
+                                                                              // Ajouter l'URL à la liste des images supprimées
+                                                                              final imageUrl = item!.gallery![index].url;
+                                                                              if (imageUrl != null) {
+                                                                                addItemsHostController.listDeleteImages.add(imageUrl);
+                                                                                addItemsHostController.deletedImageUrls.add(imageUrl);
+                                                                                debugPrint('🗑️ [UPLOAD_IMAGE] Image de galerie supprimée: $imageUrl');
+                                                                              }
+                                                                              // Retirer l'image de la galerie pour l'affichage
                                                                               item!.gallery!.removeAt(index);
                                                                               setState(() {
                                                                                 checkUpdate = true;
@@ -1012,6 +1019,16 @@ class _UploadImageScreenState extends State<UploadImageScreen> {
       if (image == null) {
         return;
       }
+      // Si on remplace une image existante, marquer l'ancienne pour suppression
+      if (item != null && item!.frontImage != null && item!.frontImage!.url != null) {
+        final oldImageUrl = item!.frontImage!.url;
+        if (oldImageUrl != null && !addItemsHostController.listDeleteImages.contains(oldImageUrl)) {
+          addItemsHostController.listDeleteImages.add(oldImageUrl);
+          addItemsHostController.deletedImageUrls.add(oldImageUrl);
+          debugPrint('🗑️ [UPLOAD_IMAGE] Image principale remplacée (ancienne marquée pour suppression): $oldImageUrl');
+        }
+      }
+      
       addItemsHostController.frontImage = image;
       _imagesChanged = true;
       setState(() {});

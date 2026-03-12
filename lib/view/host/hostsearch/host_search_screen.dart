@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/controller/add_items_host_controller.dart';
 import 'package:carvy/controller/home_controller.dart';
@@ -18,11 +19,13 @@ import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/host/dash_board_screen.dart';
 import 'package:carvy/view/host/vehiclehost/editvehicle/edit_vehicle_home_screen.dart';
+import 'package:carvy/view/host/vehiclehost/editvehicle/clean_edit_vehicle_screen.dart';
 import 'package:carvy/work_space.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import '../../itemdetail/vehicle/vehicle_detail_screen.dart';
+import 'package:carvy/controller/vehicle_controller.dart';
 
 class HostSearchScreen extends StatefulWidget {
   final ScreenMode? mode;
@@ -33,237 +36,66 @@ class HostSearchScreen extends StatefulWidget {
 
 class _HostSearchScreenState extends State<HostSearchScreen> {
   final AddItemsHostController addItemsHostController = Get.find();
+  final VehicleController vehicleController = Get.find<VehicleController>();
   bool showSuggestions = false;
   final FocusNode _focusNode = FocusNode();
   List<Map<String, String>> recentSearches = [];
 
-  MyItemsModel? myItemsModels;
-  List<Items> list = [];
   RefreshController refreshController = RefreshController();
-  num offset = 0;
   GeneralDataModel? generalDataModel;
   bool publicpost = false;
   getData(String? search) async {
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpPost(
-    //     Config.myItems, {"offset": "$offset", "search": "$search"});
+    // Utiliser fetchMyVehicles() du VehicleController pour récupérer les véhicules réels
+    await vehicleController.fetchMyVehicles();
     
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-    
-    // MOCK: Static my-items data (filtered by search if provided)
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "My items retrieved successfully",
-      "error": "",
-      "data": {
-        "host_status": "1",
-        "checkLimit": 10,
-        "offset": offset + 2,
-        "limit": "10",
-        "items": [
-          {
-            "id": 101,
-            "title": "Toyota Camry 2023",
-            "description": "Clean and comfortable sedan perfect for city driving",
-            "item_rating": "4.5",
-            "mobile": "+1234567890",
-            "status": "1",
-            "person_allowed": "5",
-            "price": "50.00",
-            "address": "123 Main Street, Los Angeles",
-            "state_region": "California",
-            "zip_postal_code": "90001",
-            "city_name": "Los Angeles",
-            "country": "USA",
-            "latitude": "34.0522",
-            "longitude": "-118.2437",
-            "weekly_discount": "10",
-            "weekly_discount_type": "percent",
-            "monthly_discount": "15",
-            "monthly_discount_type": "percent",
-            "item_type_id": "1",
-            "features_id": "[1,2,3]",
-            "place_id": "ChIJE9on3F3HwoAR9AhGJW_fL-I",
-            "booking_policies_id": 1,
-            "item_type": "Sedan",
-            "front_image": {
-              "id": 1,
-              "model_type": "Item",
-              "model_id": "101",
-              "uuid": "abc123",
-              "collection_name": "front_image",
-              "name": "camry-front",
-              "file_name": "camry-front.jpg",
-              "mime_type": "image/jpeg",
-              "disk": "public",
-              "conversions_disk": "public",
-              "size": "500000",
-              "order_column": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z",
-              "url": "https://example.com/host-camry-front.jpg",
-              "thumbnail": "https://example.com/host-camry-front-thumb.jpg",
-              "preview": "https://example.com/host-camry-front-preview.jpg",
-              "original_url": "https://example.com/host-camry-front-original.jpg",
-              "preview_url": "https://example.com/host-camry-front-preview.jpg"
-            },
-            "front_image_doc": null,
-            "gallery": [
-              {
-                "id": 1,
-                "model_type": "Item",
-                "model_id": "101",
-                "uuid": "gallery1",
-                "collection_name": "gallery",
-                "name": "camry-gallery-1",
-                "file_name": "camry-gallery-1.jpg",
-                "mime_type": "image/jpeg",
-                "disk": "public",
-                "conversions_disk": "public",
-                "size": "400000",
-                "order_column": "1",
-                "created_at": "2024-01-01T00:00:00.000Z",
-                "updated_at": "2024-01-01T00:00:00.000Z",
-                "url": "https://example.com/host-camry-gallery-1.jpg",
-                "thumbnail": "https://example.com/host-camry-gallery-1-thumb.jpg",
-                "preview": "https://example.com/host-camry-gallery-1-preview.jpg",
-                "original_url": "https://example.com/host-camry-gallery-1-original.jpg",
-                "preview_url": "https://example.com/host-camry-gallery-1-preview.jpg"
-              }
-            ],
-            "available_dates": null,
-            "not_available_dates": null,
-            "booked_dates": null,
-            "item_info": "{\"host_id\":\"1\",\"service_type\":\"booking\",\"review_data\":[],\"features_data\":[],\"gallery_image_urls\":[]}",
-            "metaData": "{}"
-          },
-          {
-            "id": 102,
-            "title": "Tesla Model 3 2022",
-            "description": "Electric vehicle with autopilot features",
-            "item_rating": "4.8",
-            "mobile": "+1234567890",
-            "status": "1",
-            "person_allowed": "5",
-            "price": "80.00",
-            "address": "456 Market Street, San Francisco",
-            "state_region": "California",
-            "zip_postal_code": "94102",
-            "city_name": "San Francisco",
-            "country": "USA",
-            "latitude": "37.7749",
-            "longitude": "-122.4194",
-            "weekly_discount": "12",
-            "weekly_discount_type": "percent",
-            "monthly_discount": "18",
-            "monthly_discount_type": "percent",
-            "item_type_id": "2",
-            "features_id": "[4,5,6]",
-            "place_id": "ChIJIQBpAG2ahYAR_6128GcTUEo",
-            "booking_policies_id": 2,
-            "item_type": "Electric",
-            "front_image": {
-              "id": 2,
-              "model_type": "Item",
-              "model_id": "102",
-              "uuid": "def456",
-              "collection_name": "front_image",
-              "name": "tesla-front",
-              "file_name": "tesla-front.jpg",
-              "mime_type": "image/jpeg",
-              "disk": "public",
-              "conversions_disk": "public",
-              "size": "600000",
-              "order_column": "1",
-              "created_at": "2024-01-01T00:00:00.000Z",
-              "updated_at": "2024-01-01T00:00:00.000Z",
-              "url": "https://example.com/host-tesla-front.jpg",
-              "thumbnail": "https://example.com/host-tesla-front-thumb.jpg",
-              "preview": "https://example.com/host-tesla-front-preview.jpg",
-              "original_url": "https://example.com/host-tesla-front-original.jpg",
-              "preview_url": "https://example.com/host-tesla-front-preview.jpg"
-            },
-            "front_image_doc": null,
-            "gallery": [
-              {
-                "id": 2,
-                "model_type": "Item",
-                "model_id": "102",
-                "uuid": "gallery2",
-                "collection_name": "gallery",
-                "name": "tesla-gallery-1",
-                "file_name": "tesla-gallery-1.jpg",
-                "mime_type": "image/jpeg",
-                "disk": "public",
-                "conversions_disk": "public",
-                "size": "450000",
-                "order_column": "1",
-                "created_at": "2024-01-01T00:00:00.000Z",
-                "updated_at": "2024-01-01T00:00:00.000Z",
-                "url": "https://example.com/host-tesla-gallery-1.jpg",
-                "thumbnail": "https://example.com/host-tesla-gallery-1-thumb.jpg",
-                "preview": "https://example.com/host-tesla-gallery-1-preview.jpg",
-                "original_url": "https://example.com/host-tesla-gallery-1-original.jpg",
-                "preview_url": "https://example.com/host-tesla-gallery-1-preview.jpg"
-              }
-            ],
-            "available_dates": null,
-            "not_available_dates": null,
-            "booked_dates": null,
-            "item_info": "{\"host_id\":\"1\",\"service_type\":\"booking\",\"review_data\":[],\"features_data\":[],\"gallery_image_urls\":[]}",
-            "metaData": "{}"
-          }
-        ]
-      }
-    };
-    
-    var response = mockResponse;
-    // ========== END MOCK DATA ==========
-    
-    if (response != null) {
-      myItemsModels = MyItemsModel.fromJson(response);
-      if (myItemsModels!.data != null) {
-        list.addAll(myItemsModels!.data!.items!);
-        offset = myItemsModels!.data!.offset!;
-      }
-    }
     setState(() {});
     refreshController.loadComplete();
     refreshController.refreshCompleted();
   }
+  
+  // Liste filtrée pour la recherche
+  List<Items> getFilteredItems(String? search) {
+    if (search == null || search.isEmpty) {
+      return vehicleController.myVehiclesItems;
+    }
+    
+    final searchLower = search.toLowerCase();
+    return vehicleController.myVehiclesItems.where((item) {
+      final title = item.title?.toLowerCase() ?? '';
+      final description = item.description?.toLowerCase() ?? '';
+      // Extraire le matricule depuis itemInfo si disponible
+      String? plateNumber = '';
+      if (item.itemInfo != null) {
+        try {
+          final itemInfoMap = json.decode(item.itemInfo!);
+          plateNumber = itemInfoMap['platNumber']?.toString().toLowerCase() ?? '';
+        } catch (e) {
+          // Ignorer les erreurs de parsing
+        }
+      }
+      return title.contains(searchLower) || 
+             description.contains(searchLower) || 
+             (plateNumber ?? '').contains(searchLower);
+    }).toList();
+  }
 
-  deleteMethod(index) async {
-    showLoading();
-    
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpPost(Config.deleteItem, {"id": list[index].id.toString()});
-    
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-    
-    // MOCK: Static success response for deleting an item
-    Map<String, dynamic> mockResponse = {
-      "status": 200,
-      "message": "Vehicle deleted successfully",
-      "error": "",
-      "data": {
-        "id": list[index].id.toString(),
-        "deleted": true
+  deleteMethod(int index) async {
+    try {
+      final vehicle = vehicleController.myVehicles[index];
+      final vehicleId = vehicle['_id']?.toString() ?? vehicle['id']?.toString();
+      
+      if (vehicleId == null || vehicleId.isEmpty) {
+        showErrorToastMessage('ID du véhicule introuvable');
+        return;
       }
-    };
-    
-    var response = mockResponse;
-    // ========== END MOCK DATA ==========
-    
-    closeLoading();
-    if (response != null) {
-      if (response['status'] == 200) {
-        showToastMessage(response['message']);
-        onRefresh();
-      } else {
-        showErrorToastMessage(response['error']);
-      }
+      
+      // Appeler la nouvelle fonction deleteVehicleRequest du contrôleur
+      await addItemsHostController.deleteVehicleRequest(vehicleId);
+      
+      // Rafraîchir la liste après la suppression
+      onRefresh();
+    } catch (e) {
+      showErrorToastMessage('Erreur lors de la demande de suppression: $e');
     }
   }
 
@@ -273,10 +105,8 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
   }
 
   onRefresh() {
-    myItemsModels = null;
-    list = [];
+    vehicleController.myVehicles.clear();
     setState(() {});
-    offset = 0;
     getData(generalScopeController.searchLead.text);
   }
 
@@ -285,6 +115,7 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
     super.initState();
     item = null;
     initialitems = null;
+    // Charger les véhicules au démarrage
     getData("");
   }
 
@@ -304,9 +135,6 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
     if (value != _previousValue) {
       _debounce = Timer(const Duration(milliseconds: 1000), () {
         _previousValue = value;
-        myItemsModels = null;
-        list.clear();
-        offset = 0;
         getData(value);
       });
     }
@@ -314,9 +142,6 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
 
   void resetSearch() {
     generalScopeController.searchLead.clear();
-    myItemsModels = null;
-    list = [];
-    offset = 0;
     getData("");
   }
 
@@ -418,89 +243,339 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
                     controller: refreshController,
                     onRefresh: onRefresh,
                     onLoading: onLoading,
-                    enablePullUp: offset == -1 ? false : true,
-                    child: ListView(
-                      children: [
-                        myItemsModels == null
-                            ? verticleShimmerWidgetBookable()
-                            : list.isEmpty
-                                ? Padding(
-                                    padding: const EdgeInsets.only(top: 250),
-                                    child: Center(
-                                      child: buildNoDataWidget(
-                                        context,
-                                        "No product found".tr,
-                                      ),
-                                    ),
-                                  )
-                                : GridView.builder(
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    shrinkWrap: true,
-                                    gridDelegate:
-                                        const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 1,
-                                      crossAxisSpacing: 8,
-                                      mainAxisExtent: 350,
-                                      mainAxisSpacing: 8,
-                                    ),
-                                    itemCount: list.length,
-                                    itemBuilder: (context, index) {
-                                      ItemInfo? itemInfoData;
-                                      String? jsonString = list[index].itemInfo;
-                                      if (jsonString != null) {
-                                        itemInfoData = ItemInfo.fromJson(
-                                            json.decode(jsonString));
+                    enablePullUp: false,
+                    child: Obx(() {
+                      // Gestion du Loader : s'affiche uniquement si la liste est vide ET en chargement
+                      final isLoading = vehicleController.isLoadingMyVehicles.value;
+                      final hasVehicles = vehicleController.myVehiclesItems.isNotEmpty;
+                      
+                      // Si on charge ET qu'on n'a pas encore de véhicules, afficher le loader
+                      if (isLoading && !hasVehicles) {
+                        return verticleShimmerWidgetBookable();
+                      }
+                      
+                      // SÉCURITÉ : Si on a des véhicules, forcer l'affichage de la liste
+                      if (hasVehicles) {
+                        // Utiliser la liste filtrée pour la recherche
+                        final itemsList = getFilteredItems(generalScopeController.searchLead.text);
+                        
+                        if (itemsList.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 250),
+                            child: Center(
+                              child: buildNoDataWidget(
+                                context,
+                                "No product found".tr,
+                              ),
+                            ),
+                          );
+                        }
+                        
+                        return ListView(
+                          children: [
+                            GridView.builder(
+                              physics: const NeverScrollableScrollPhysics(),
+                              shrinkWrap: true,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 1,
+                                crossAxisSpacing: 8,
+                                mainAxisExtent: 335,
+                                mainAxisSpacing: 8,
+                              ),
+                              itemCount: itemsList.length,
+                              itemBuilder: (context, index) {
+                                ItemInfo? itemInfoData;
+                                String? jsonString = itemsList[index].itemInfo;
+                                if (jsonString != null && jsonString.isNotEmpty) {
+                                  try {
+                                    final Map<String, dynamic> itemInfoJson = json.decode(jsonString);
+                                    itemInfoData = ItemInfo.fromJson(itemInfoJson);
+                                  } catch (e) {
+                                    // Ignorer les erreurs de parsing
+                                  }
+                                }
+                                
+                                return VehicleItemCard(
+                                  vehicle: itemsList[index],
+                                  itemInfoData: itemInfoData,
+                                  notifires: notifires,
+                                  onTap: () {
+                                    final vehicle = itemsList[index];
+                                    final vehicleId = vehicle.id?.toString() ?? '';
+                                    final vehicleTitle = vehicle.title;
+                                    final vehicleRating = vehicle.itemRating ?? "0";
+                                    final vehicleAddress = vehicle.address;
+                                    final vehicleCity = vehicle.city;
+                                    final vehicleLatitude = vehicle.latitude;
+                                    final vehicleLongitude = vehicle.longitude;
+                                    final vehicleImage = vehicle.frontImage?.thumbnail ?? vehicle.frontImage?.url;
+                                    final vehiclePrice = vehicle.price;
+                                    
+                                    // Parser itemInfo si disponible
+                                    ItemInfo? itemInfoData;
+                                    String? jsonString = vehicle.itemInfo;
+                                    if (jsonString != null && jsonString.isNotEmpty) {
+                                      try {
+                                        final Map<String, dynamic> itemInfoJson = json.decode(jsonString);
+                                        itemInfoData = ItemInfo.fromJson(itemInfoJson);
+                                      } catch (e) {
+                                        // Ignorer les erreurs de parsing
                                       }
-                                      return VehicleItemCard(
-                                        list: list,
-                                        index: index,
-                                        itemInfoData: itemInfoData,
-                                        notifires: notifires,
-                                        stateSetter: setState,
-                                        onDelete: () {
-                                          showDeleteDialog(context, index);
-                                        },
-                                        onEdit: () {
-                                          Get.to(
-                                            const EditVehicleHomeScreen(
-                                                mode: ScreenMode.edit),
-                                          )?.then((value) {
-                                            myItemsModels = null;
-                                            offset = 0;
-                                            list.clear();
-                                            setState(() {
-                                              getData("");
-                                            });
-                                          });
-                                          if (widget.mode == ScreenMode.edit) {
-                                            item = list[index];
+                                    }
+                                    
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => VehicleDetailSScreen(
+                                          id: vehicleId,
+                                          itemInfo: itemInfoData,
+                                          title: vehicleTitle,
+                                          rating: vehicleRating,
+                                          address: vehicleAddress,
+                                          city: vehicleCity,
+                                          latitute: vehicleLatitude,
+                                          longtitute: vehicleLongitude,
+                                          frontImage: vehicleImage,
+                                          itemType: vehicle.itemType,
+                                          price: vehiclePrice,
+                                          isWishList: false, // Items n'a pas isInWishlist
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  onEdit: () async {
+                                    // Afficher un loader pendant la récupération des détails
+                                    showLoading();
+                                    
+                                    try {
+                                      // Récupérer l'ID du véhicule - Utiliser item.id (MongoDB) et non un ID temporaire
+                                      final vehicle = itemsList[index];
+                                      
+                                      // 🔍 DEBUG : Log de l'objet brut AVANT toute manipulation
+                                      try {
+                                        final vehicleJson = vehicle.toJson();
+                                        debugPrint('📋 [OBJET_BRUT] JSON complet: ${vehicleJson.toString()}');
+                                        debugPrint('📋 [OBJET_BRUT] Clés disponibles: ${vehicleJson.keys.toList()}');
+                                      } catch (e) {
+                                        debugPrint('❌ [OBJET_BRUT] Erreur lors de la conversion en JSON: $e');
+                                      }
+                                      
+                                      // 🔍 DEBUG : Vérifier l'ID avant utilisation
+                                      debugPrint('🔍 [DEBUG_EDIT] Véhicule sélectionné: ${vehicle.title ?? vehicle.id}');
+                                      debugPrint('🔍 [DEBUG_EDIT] ID du véhicule (vehicle.id): ${vehicle.id}');
+                                      debugPrint('🔍 [DEBUG_EDIT] Type de l\'ID: ${vehicle.id?.runtimeType}');
+                                      debugPrint('🔍 [DEBUG_EDIT] Index dans la liste: $index');
+                                      debugPrint('🔍 [DEBUG_EDIT] Taille de la liste: ${itemsList.length}');
+                                      
+                                      // Essayer plusieurs sources pour l'ID
+                                      String? vehicleId = vehicle.id?.toString();
+                                      
+                                      // Si l'ID est null, vide, ou "null", essayer de récupérer depuis le JSON brut
+                                      if (vehicleId == null || vehicleId.isEmpty || vehicleId == "null") {
+                                        debugPrint('⚠️ [DEBUG_EDIT] ID null ou vide, tentative de récupération alternative...');
+                                        // Tentative de récupération directe dans le map si le modèle a échoué
+                                        try {
+                                          final vehicleJson = vehicle.toJson();
+                                          // Priorité: _id (MongoDB) > id (standard)
+                                          vehicleId = vehicleJson['_id']?.toString() ?? 
+                                                      vehicleJson['id']?.toString();
+                                          
+                                          // Si toujours null, essayer de chercher dans les clés avec différentes variantes
+                                          if (vehicleId == null || vehicleId.isEmpty || vehicleId == "null") {
+                                            debugPrint('⚠️ [DEBUG_EDIT] ID toujours null après toJson(), recherche dans toutes les clés...');
+                                            for (var key in vehicleJson.keys) {
+                                              if (key.toLowerCase().contains('id') && vehicleJson[key] != null) {
+                                                final candidateId = vehicleJson[key].toString();
+                                                if (candidateId.isNotEmpty && candidateId != "null" && candidateId.length >= 10) {
+                                                  vehicleId = candidateId;
+                                                  debugPrint('✅ [DEBUG_EDIT] ID trouvé dans la clé "$key": $vehicleId');
+                                                  break;
+                                                }
+                                              }
+                                            }
                                           }
-                                        },
-                                        onVehicleDetails: () {
-                                          showPopUpScreen(
-                                            context,
-                                            VehicleDetailSScreen(
-                                              id: list[index].id,
-                                              itemInfo: itemInfoData,
-                                              rating: list[index].itemRating,
-                                              title: list[index].title,
-                                              address: list[index].address,
-                                              latitute: list[index].latitude,
-                                              longtitute: list[index].longitude,
-                                              frontImage:
-                                                  list[index].frontImage?.url ??
-                                                      "",
-                                              itemType: list[index].itemType,
-                                              price: list[index].price,
+                                          
+                                          debugPrint('🔍 [DEBUG_EDIT] ID depuis toJson() (secours): $vehicleId');
+                                        } catch (e) {
+                                          debugPrint('❌ [DEBUG_EDIT] Erreur lors de la récupération depuis toJson(): $e');
+                                        }
+                                      }
+                                      
+                                      debugPrint('🔍 [DEBUG_EDIT] ID final utilisé: "$vehicleId"');
+                                      
+                                      // Vérifier si l'ID est valide (MongoDB ObjectId = 24 caractères, minimum 10)
+                                      final bool hasValidId = vehicleId != null && 
+                                                               vehicleId.isNotEmpty && 
+                                                               vehicleId != 'null' && 
+                                                               vehicleId != 'nu' && 
+                                                               vehicleId.trim().isNotEmpty &&
+                                                               vehicleId.length >= 10 &&
+                                                               !vehicleId.contains('-A-') &&
+                                                               !vehicleId.contains('temp') &&
+                                                               !vehicleId.contains('mock');
+                                      
+                                      if (!hasValidId) {
+                                        // ⚠️ ID manquant ou invalide : Afficher un message d'erreur
+                                        debugPrint('⚠️ [WARNING] ID manquant ou invalide: "$vehicleId"');
+                                        closeLoading();
+                                        showErrorToastMessage('ID du véhicule invalide. Impossible de modifier ce véhicule.');
+                                        return;
+                                      }
+                                      
+                                      // ✅ ID valide : Récupérer les détails complets depuis le serveur
+                                      debugPrint('✅ [DEBUG_EDIT] ID validé, récupération des détails...');
+                                      
+                                      // Récupérer les détails complets du véhicule depuis le serveur
+                                      var detailedVehicle = await addItemsHostController.fetchVehicleDetails(vehicleId!);
+                                      
+                                      if (detailedVehicle != null) {
+                                        // Stocker le véhicule détaillé
+                                        addItemsHostController.item = detailedVehicle;
+                                        
+                                        // Remplir le formulaire avec les données détaillées
+                                        await addItemsHostController.populateFields(detailedVehicle);
+                                        
+                                        closeLoading(); // Fermer le loader en cas de succès
+                                        
+                                        // Naviguer vers l'écran d'édition d'origine avec le même UI que l'ajout
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => EditVehicleHomeScreen(
+                                              mode: ScreenMode.edit,
                                             ),
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
-                      ],
-                    ),
+                                          ),
+                                        ).then((value) {
+                                          // Rafraîchir la liste après retour
+                                          vehicleController.fetchMyVehicles();
+                                          setState(() {});
+                                        });
+                                      } else {
+                                        closeLoading();
+                                        showErrorToastMessage('Impossible de charger les détails du véhicule pour édition.');
+                                      }
+                                      
+                                      // ========== ANCIEN CODE (COMMENTÉ) ==========
+                                      // Ancienne navigation vers CleanEditVehicleScreen (V2 temporaire)
+                                      /*
+                                      debugPrint('✅ [CLEAN_EDIT] Navigation vers CleanEditVehicleScreen avec ID: $vehicleId');
+                                      closeLoading();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => CleanEditVehicleScreen(
+                                            vehicleId: vehicleId!,
+                                          ),
+                                        ),
+                                      ).then((value) {
+                                        vehicleController.fetchMyVehicles();
+                                        setState(() {});
+                                      });
+                                      if (!hasValidId) {
+                                        // ⚠️ ID manquant ou invalide : Utiliser les données locales directement
+                                        debugPrint('⚠️ [WARNING] ID manquant, utilisation des données locales');
+                                        debugPrint('⚠️ [WARNING] vehicleId: "$vehicleId"');
+                                        
+                                        // Stocker le véhicule local
+                                        addItemsHostController.item = vehicle;
+                                        
+                                        // Remplir le formulaire avec les données locales (sans appel API)
+                                        await addItemsHostController.populateFields(vehicle);
+                                        
+                                        closeLoading(); // Fermer le loader en cas de succès
+                                        
+                                        // Naviguer vers l'écran d'édition
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const EditVehicleHomeScreen(
+                                              mode: ScreenMode.edit,
+                                            ),
+                                          ),
+                                        ).then((value) {
+                                          // Rafraîchir la liste après retour
+                                          vehicleController.fetchMyVehicles();
+                                          setState(() {});
+                                        });
+                                      } else {
+                                        // ✅ ID valide : Récupérer les détails complets depuis le serveur
+                                        debugPrint('✅ [DEBUG_EDIT] ID validé, récupération des détails...');
+                                        
+                                        // Récupérer les détails complets du véhicule depuis le serveur
+                                        var detailedVehicle = await addItemsHostController.fetchVehicleDetails(vehicleId!);
+                                        
+                                        if (detailedVehicle != null) {
+                                          // Stocker le véhicule détaillé
+                                          addItemsHostController.item = detailedVehicle;
+                                          
+                                          // Remplir le formulaire avec les vraies données complètes
+                                          await addItemsHostController.populateFields(detailedVehicle);
+                                          
+                                          closeLoading(); // Fermer le loader en cas de succès
+                                          
+                                          // Naviguer vers l'écran d'édition
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => const EditVehicleHomeScreen(
+                                                mode: ScreenMode.edit,
+                                              ),
+                                            ),
+                                          ).then((value) {
+                                            // Rafraîchir la liste après retour
+                                            vehicleController.fetchMyVehicles();
+                                            setState(() {});
+                                          });
+                                        } else {
+                                          // Échec de l'API : Utiliser les données locales comme fallback
+                                          debugPrint('⚠️ [WARNING] Échec de l\'API, utilisation des données locales');
+                                          addItemsHostController.item = vehicle;
+                                          await addItemsHostController.populateFields(vehicle);
+                                          closeLoading();
+                                          
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => const EditVehicleHomeScreen(
+                                                mode: ScreenMode.edit,
+                                              ),
+                                            ),
+                                          ).then((value) {
+                                            vehicleController.fetchMyVehicles();
+                                            setState(() {});
+                                          });
+                                        }
+                                      }
+                                      */
+                                      // ========== FIN ANCIEN CODE ==========
+                                    } catch (e) {
+                                      closeLoading(); // 4. CORRECTION DU LOADER : Fermer systématiquement en cas d'exception
+                                      debugPrint('❌ [HOST_SEARCH] Erreur lors de la récupération des détails: $e');
+                                      showErrorToastMessage('Erreur lors du chargement des détails');
+                                    }
+                                  },
+                                  onDelete: () {
+                                    deleteMethod(index);
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      }
+                      
+                      // Si on arrive ici, pas de véhicules et pas de chargement
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 250),
+                        child: Center(
+                          child: buildNoDataWidget(
+                            context,
+                            "No product found".tr,
+                          ),
+                        ),
+                      );
+                    }),
                   ),
                 ),
               ],
@@ -511,7 +586,7 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
     );
   }
 
-  Future<void> showDeleteDialog(BuildContext context, index) async {
+  Future<void> showDeleteDialog(BuildContext context, int index) async {
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {

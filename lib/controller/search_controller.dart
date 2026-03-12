@@ -450,6 +450,13 @@ class SearchControllerHome extends GetxController implements GetxService {
   }
 
   void filterApiBasedOnModule() {
+    print('🧹 [INIT] Vidage du cache des filtres...');
+    GetStorage().remove("vehicleAminities");
+    GetStorage().remove("vehiclemake");
+    GetStorage().remove("vehicleOdometer");
+    GetStorage().remove("fuelTypesFilter");
+    GetStorage().remove("transmissionFilter");
+    print('✅ [INIT] Cache vidé, démarrage des appels API...');
     getAminitiesvehicle();
     getMakeApi();
     getOdometersvehicle();
@@ -459,86 +466,208 @@ class SearchControllerHome extends GetxController implements GetxService {
   }
 
   Future getAminitiesvehicle() async {
-    isLoadingVehicle.value = true;
-    var vehicleAminities = GetStorage().read("vehicleAminities");
-    if (vehicleAminities == null) {
-      final response = await httpGet(Config.amenities, {});
-      if (response != null) {
-        GetStorage().write("vehicleAminities", response);
-        amenitiesModelVehicle = AmenitiesModel.fromJson(response);
+    try {
+      print('🚀 [API GET_AMENITIES] Début de la requête...');
+      isLoadingVehicle.value = true;
+      var vehicleAminities = GetStorage().read("vehicleAminities");
+      
+      if (vehicleAminities == null) {
+        print('📡 [API GET_AMENITIES] Aucun cache trouvé, appel HTTP en cours...');
+        final response = await httpGet(Config.amenities, {});
+        
+        print('📦 [API GET_AMENITIES] Réponse brute reçue : $response'); // LOG CRUCIAL
+        
+        if (response != null) {
+          GetStorage().write("vehicleAminities", response);
+          try {
+            amenitiesModelVehicle = AmenitiesModel.fromJson(response);
+            print('✅ [API GET_AMENITIES] Parsing JSON réussi ! Nombre d\'éléments : ${amenitiesModelVehicle?.data?.amenities?.length ?? 0}');
+          } catch (e) {
+            print('❌ [API GET_AMENITIES] Erreur lors du parsing JSON : $e');
+          }
+        } else {
+          print('⚠️ [API GET_AMENITIES] La réponse HTTP est nulle.');
+        }
+      } else {
+        print('💾 [API GET_AMENITIES] Chargement depuis le cache.');
+        try {
+          amenitiesModelVehicle = AmenitiesModel.fromJson(vehicleAminities);
+          print('✅ [API GET_AMENITIES] Cache chargé ! Nombre d\'éléments : ${amenitiesModelVehicle?.data?.amenities?.length ?? 0}');
+        } catch (e) {
+          print('❌ [API GET_AMENITIES] Erreur parsing du cache : $e');
+        }
       }
-    } else {
-      amenitiesModelVehicle = AmenitiesModel.fromJson(vehicleAminities);
+      isLoadingVehicle.value = false;
+      update();
+    } catch (e) {
+      print('💥 [API GET_AMENITIES] Erreur globale de la fonction : $e');
+      isLoadingVehicle.value = false;
+      update();
     }
-    isLoadingVehicle.value = false;
-    update();
   }
 
   Future getOdometersvehicle() async {
-    isLoadingVehicle.value = true;
-    var vehicleOdometer = GetStorage().read("vehicleOdometer");
-    if (vehicleOdometer == null) {
-      final response = await httpGet(Config.vechileOdometer, {});
-      if (response != null) {
-        GetStorage().write("vehicleOdometer", response);
-        odometerModelVehicle = Odometer.fromJson(response);
+    try {
+      print('🚀 [API GET_ODOMETER] Début de la requête...');
+      isLoadingVehicle.value = true;
+      var vehicleOdometer = GetStorage().read("vehicleOdometer");
+      
+      if (vehicleOdometer == null) {
+        print('📡 [API GET_ODOMETER] Aucun cache trouvé, appel HTTP en cours...');
+        final response = await httpGet(Config.vechileOdometer, {});
+        
+        print('📦 [API GET_ODOMETER] Réponse brute reçue : $response'); // LOG CRUCIAL
+        
+        if (response != null) {
+          GetStorage().write("vehicleOdometer", response);
+          try {
+            odometerModelVehicle = Odometer.fromJson(response);
+            print('✅ [API GET_ODOMETER] Parsing JSON réussi ! Nombre d\'éléments : ${odometerModelVehicle?.data?.odometerList?.length ?? 0}');
+          } catch (e) {
+            print('❌ [API GET_ODOMETER] Erreur lors du parsing JSON : $e');
+          }
+        } else {
+          print('⚠️ [API GET_ODOMETER] La réponse HTTP est nulle.');
+        }
+      } else {
+        print('💾 [API GET_ODOMETER] Chargement depuis le cache.');
+        try {
+          odometerModelVehicle = Odometer.fromJson(vehicleOdometer);
+          print('✅ [API GET_ODOMETER] Cache chargé ! Nombre d\'éléments : ${odometerModelVehicle?.data?.odometerList?.length ?? 0}');
+        } catch (e) {
+          print('❌ [API GET_ODOMETER] Erreur parsing du cache : $e');
+        }
       }
-    } else {
-      odometerModelVehicle = Odometer.fromJson(vehicleOdometer);
+      isLoadingVehicle.value = false;
+      update();
+    } catch (e) {
+      print('💥 [API GET_ODOMETER] Erreur globale de la fonction : $e');
+      isLoadingVehicle.value = false;
+      update();
     }
-    isLoadingVehicle.value = false;
-    update();
   }
 
   // NOUVEAU: Récupérer les types de carburant pour le filtre
   Future getFuelTypesForFilter() async {
-    isLoadingVehicle.value = true;
-    var fuelTypesCache = GetStorage().read("fuelTypesFilter");
-    if (fuelTypesCache == null) {
-      final response = await httpGet(Config.fuelType, {});
-      if (response != null) {
-        GetStorage().write("fuelTypesFilter", response);
-        fuelTypeModelFilter = FuelTypeModel.fromJson(response);
+    try {
+      print('🚀 [API GET_FUEL] Début de la requête...');
+      isLoadingVehicle.value = true;
+      var fuelTypesCache = GetStorage().read("fuelTypesFilter");
+      
+      if (fuelTypesCache == null) {
+        print('📡 [API GET_FUEL] Aucun cache trouvé, appel HTTP en cours...');
+        final response = await httpGet(Config.fuelType, {});
+        
+        print('📦 [API GET_FUEL] Réponse brute reçue : $response'); // LOG CRUCIAL
+        
+        if (response != null) {
+          GetStorage().write("fuelTypesFilter", response);
+          try {
+            fuelTypeModelFilter = FuelTypeModel.fromJson(response);
+            print('✅ [API GET_FUEL] Parsing JSON réussi ! Nombre d\'éléments : ${fuelTypeModelFilter?.fuelTypes.length ?? 0}');
+          } catch (e) {
+            print('❌ [API GET_FUEL] Erreur lors du parsing JSON : $e');
+          }
+        } else {
+          print('⚠️ [API GET_FUEL] La réponse HTTP est nulle.');
+        }
+      } else {
+        print('💾 [API GET_FUEL] Chargement depuis le cache.');
+        try {
+          fuelTypeModelFilter = FuelTypeModel.fromJson(fuelTypesCache);
+          print('✅ [API GET_FUEL] Cache chargé ! Nombre d\'éléments : ${fuelTypeModelFilter?.fuelTypes.length ?? 0}');
+        } catch (e) {
+          print('❌ [API GET_FUEL] Erreur parsing du cache : $e');
+        }
       }
-    } else {
-      fuelTypeModelFilter = FuelTypeModel.fromJson(fuelTypesCache);
+      isLoadingVehicle.value = false;
+      update();
+    } catch (e) {
+      print('💥 [API GET_FUEL] Erreur globale de la fonction : $e');
+      isLoadingVehicle.value = false;
+      update();
     }
-    isLoadingVehicle.value = false;
-    update();
   }
 
   // NOUVEAU: Récupérer les transmissions pour le filtre
   Future getTransmissionsForFilter() async {
-    isLoadingVehicle.value = true;
-    var transmissionCache = GetStorage().read("transmissionFilter");
-    if (transmissionCache == null) {
-      final response = await httpGet(Config.odometermannual, {});
-      if (response != null) {
-        GetStorage().write("transmissionFilter", response);
-        transmissionModelFilter = Transmission.fromJson(response);
+    try {
+      print('🚀 [API GET_TRANSMISSION] Début de la requête...');
+      isLoadingVehicle.value = true;
+      var transmissionCache = GetStorage().read("transmissionFilter");
+      
+      if (transmissionCache == null) {
+        print('📡 [API GET_TRANSMISSION] Aucun cache trouvé, appel HTTP en cours...');
+        final response = await httpGet(Config.odometermannual, {});
+        
+        print('📦 [API GET_TRANSMISSION] Réponse brute reçue : $response'); // LOG CRUCIAL
+        
+        if (response != null) {
+          GetStorage().write("transmissionFilter", response);
+          try {
+            transmissionModelFilter = Transmission.fromJson(response);
+            print('✅ [API GET_TRANSMISSION] Parsing JSON réussi ! Nombre d\'éléments : ${transmissionModelFilter?.data?.options?.length ?? 0}');
+          } catch (e) {
+            print('❌ [API GET_TRANSMISSION] Erreur lors du parsing JSON : $e');
+          }
+        } else {
+          print('⚠️ [API GET_TRANSMISSION] La réponse HTTP est nulle.');
+        }
+      } else {
+        print('💾 [API GET_TRANSMISSION] Chargement depuis le cache.');
+        try {
+          transmissionModelFilter = Transmission.fromJson(transmissionCache);
+          print('✅ [API GET_TRANSMISSION] Cache chargé ! Nombre d\'éléments : ${transmissionModelFilter?.data?.options?.length ?? 0}');
+        } catch (e) {
+          print('❌ [API GET_TRANSMISSION] Erreur parsing du cache : $e');
+        }
       }
-    } else {
-      transmissionModelFilter = Transmission.fromJson(transmissionCache);
+      isLoadingVehicle.value = false;
+      update();
+    } catch (e) {
+      print('💥 [API GET_TRANSMISSION] Erreur globale de la fonction : $e');
+      isLoadingVehicle.value = false;
+      update();
     }
-    isLoadingVehicle.value = false;
-    update();
   }
 
   Future getMakeApi() async {
-    showLoading();
-    isLoadingVehiclemake.value = true;
-    var vehiclemakedata = GetStorage().read("vehiclemake");
     try {
+      print('🚀 [API GET_MAKE] Début de la requête...');
+      showLoading();
+      isLoadingVehiclemake.value = true;
+      var vehiclemakedata = GetStorage().read("vehiclemake");
+      
       if (vehiclemakedata == null) {
+        print('📡 [API GET_MAKE] Aucun cache trouvé, appel HTTP en cours...');
+        print('📡 [API GET_MAKE] Paramètres : type_id = $globalItemType');
         final response =
             await httpGet(Config.makeType, {"type_id": "$globalItemType"});
+        
+        print('📦 [API GET_MAKE] Réponse brute reçue : $response'); // LOG CRUCIAL
+        
         if (response != null) {
           GetStorage().write("vehiclemake", response);
-          makeTypeModel = CarMakes.fromJson(response);
+          try {
+            makeTypeModel = CarMakes.fromJson(response);
+            print('✅ [API GET_MAKE] Parsing JSON réussi ! Nombre d\'éléments : ${makeTypeModel?.data?.makes?.length ?? 0}');
+          } catch (e) {
+            print('❌ [API GET_MAKE] Erreur lors du parsing JSON : $e');
+          }
+        } else {
+          print('⚠️ [API GET_MAKE] La réponse HTTP est nulle.');
         }
       } else {
-        makeTypeModel = CarMakes.fromJson(vehiclemakedata);
+        print('💾 [API GET_MAKE] Chargement depuis le cache.');
+        try {
+          makeTypeModel = CarMakes.fromJson(vehiclemakedata);
+          print('✅ [API GET_MAKE] Cache chargé ! Nombre d\'éléments : ${makeTypeModel?.data?.makes?.length ?? 0}');
+        } catch (e) {
+          print('❌ [API GET_MAKE] Erreur parsing du cache : $e');
+        }
       }
+    } catch (e) {
+      print('💥 [API GET_MAKE] Erreur globale de la fonction : $e');
     } finally {
       // Toujours fermer le loader même en cas d'erreur ou de première requête
       closeLoading();

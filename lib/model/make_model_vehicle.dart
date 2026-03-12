@@ -67,7 +67,7 @@ class Data {
 
 class MakeTypes {
   MakeTypes(
-      {num? id,
+      {String? id, // CHANGÉ : String au lieu de num
       String? name,
       String? description,
       String? status,
@@ -82,13 +82,20 @@ class MakeTypes {
   }
 
   MakeTypes.fromJson(dynamic json) {
-    _id = json['id'];
+    // PRIORITÉ à _id (MongoDB) et FORCER en String
+    final idValue = json['_id'] ?? json['id'];
+    if (idValue == null) {
+      _id = null;
+    } else {
+      // FORCER la conversion en String (MongoDB ObjectId est une string)
+      _id = idValue.toString().trim();
+    }
     _name = json['name'];
     _description = json['description'];
     _status = json['status'];
     _models = List.from(json['models']).map((e) => Models.fromJson(e)).toList();
   }
-  num? _id;
+  String? _id; // CHANGÉ : String au lieu de num pour MongoDB ObjectId
   String? _name;
   String? _description;
   String? _status;
@@ -96,7 +103,7 @@ class MakeTypes {
   List<Models>? _models;
 
   List<Models>? get models => _models;
-  num? get id => _id;
+  String? get id => _id; // CHANGÉ : String au lieu de num
   String? get name => _name;
   String? get description => _description;
   String? get status => _status;
@@ -111,11 +118,21 @@ class MakeTypes {
     map['models'] = _models?.map((e) => e.toJson()).toList();
     return map;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MakeTypes &&
+          runtimeType == other.runtimeType &&
+          _id == other._id;
+
+  @override
+  int get hashCode => _id?.hashCode ?? 0;
 }
 
 class Models {
   Models(
-      {num? id,
+      {String? id, // CHANGÉ : String au lieu de num
       dynamic makeId,
       String? name,
       String? description,
@@ -129,13 +146,36 @@ class Models {
   }
 
   Models.fromJson(dynamic json) {
-    _id = json['id'];
-    _name = json['name'];
-    _makeId = json['make_id'];
-    _description = json['description'];
-    _status = json['status'];
+    // Parsing ultra-robuste pour éviter les erreurs de type
+    
+    // ID : PRIORITÉ à _id (MongoDB) et FORCER en String
+    final idValue = json['_id'] ?? json['id'];
+    if (idValue == null) {
+      _id = null;
+    } else {
+      // FORCER la conversion en String (MongoDB ObjectId est une string)
+      _id = idValue.toString().trim();
+    }
+    
+    // makeId : Peut être String ou num, conversion sécurisée
+    final makeIdValue = json['make_id'] ?? json['makeId'];
+    if (makeIdValue == null) {
+      _makeId = null;
+    } else if (makeIdValue is num) {
+      _makeId = makeIdValue;
+    } else if (makeIdValue is String) {
+      _makeId = makeIdValue;
+    } else {
+      _makeId = makeIdValue.toString();
+    }
+    
+    // Champs String : Utiliser .toString() pour éviter les erreurs si le serveur renvoie un nombre
+    _name = json['name']?.toString();
+    _description = json['description']?.toString();
+    _status = json['status']?.toString();
+    _image = json['image'];
   }
-  num? _id;
+  String? _id; // CHANGÉ : String au lieu de num pour MongoDB ObjectId
   dynamic _makeId;
   String? _name;
   String? _description;
@@ -143,7 +183,7 @@ class Models {
   dynamic _image;
 
   dynamic get makeId => _makeId;
-  num? get id => _id;
+  String? get id => _id; // CHANGÉ : String au lieu de num
   String? get name => _name;
   String? get description => _description;
   String? get status => _status;
@@ -158,4 +198,14 @@ class Models {
     map['make_id'] = _makeId;
     return map;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Models &&
+          runtimeType == other.runtimeType &&
+          _id == other._id;
+
+  @override
+  int get hashCode => _id?.hashCode ?? 0;
 }
