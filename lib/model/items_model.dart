@@ -1,5 +1,35 @@
 import 'dart:convert';
 
+/// Lit `min_rental_days` à la racine du JSON ou dans `item_info` (Map ou string JSON).
+/// Utilisé par les résultats de recherche et [ItemsData].
+int resolveMinRentalDaysForSearchItem(dynamic json) {
+  if (json is! Map) return 1;
+  final m = Map<String, dynamic>.from(json as Map);
+  final fromRoot = _parseMinRentalDaysInt(m['min_rental_days']);
+  if (fromRoot != null) return fromRoot;
+  final raw = m['item_info'];
+  if (raw is String && raw.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final v = _parseMinRentalDaysInt(decoded['min_rental_days']);
+        if (v != null) return v;
+      }
+    } catch (_) {}
+  } else if (raw is Map<String, dynamic>) {
+    final v = _parseMinRentalDaysInt(raw['min_rental_days']);
+    if (v != null) return v;
+  }
+  return 1;
+}
+
+int? _parseMinRentalDaysInt(dynamic v) {
+  if (v == null) return null;
+  final n = int.tryParse(v.toString().trim());
+  if (n == null || n < 1) return null;
+  return n;
+}
+
 class ItemModel {
   num? _status;
   String? _message;
@@ -122,6 +152,7 @@ class Items {
   String? _transmission;
   String? _fuel;
   String? _seats;
+  int _parsedMinRentalDays = 1;
 
   Items({
     String? id,
@@ -301,7 +332,12 @@ class Items {
 
     _itemType = json['item_type']?.toString() ?? '';
     _distance = json['distance']?.toString() ?? '0';
+
+    _parsedMinRentalDays = resolveMinRentalDaysForSearchItem(json);
   }
+
+  /// Durée minimum de location exigée par le véhicule (aligné sur `min_rental_days` / `item_info`).
+  int get parsedMinRentalDays => _parsedMinRentalDays;
 
   String? get id => _id;
   String? get name => _name;

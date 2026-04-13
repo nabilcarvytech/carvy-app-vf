@@ -16,19 +16,60 @@ import 'package:intl/intl.dart';
 // SEARCH WIZARD - Recherche en 3 étapes: Location → Date → Time
 // ═══════════════════════════════════════════════════════════════════════════
 
-void openSearchWizard(BuildContext context, {VoidCallback? onSearch}) {
+/// Construit une [Location] pour préremplir le wizard depuis la fiche véhicule :
+/// correspondance avec les régions de l'accueil si possible, sinon ville + coordonnées.
+Location? buildInitialLocationForVehicle({
+  required String? city,
+  String? vehicleLat,
+  String? vehicleLng,
+  List<Location>? homeRegions,
+}) {
+  final trimmed = city?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+
+  if (homeRegions != null) {
+    final lower = trimmed.toLowerCase();
+    for (final loc in homeRegions) {
+      if ((loc.cityName ?? '').trim().toLowerCase() == lower) return loc;
+    }
+    for (final loc in homeRegions) {
+      final name = (loc.cityName ?? '').toLowerCase();
+      if (name.contains(lower) || lower.contains(name)) return loc;
+    }
+  }
+
+  return Location(
+    cityName: trimmed,
+    latitude: vehicleLat,
+    longitude: vehicleLng,
+  );
+}
+
+void openSearchWizard(
+  BuildContext context, {
+  VoidCallback? onSearch,
+  Location? initialLocation,
+}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => SearchWizardBottomSheet(onSearch: onSearch),
+    builder: (context) => SearchWizardBottomSheet(
+      onSearch: onSearch,
+      initialLocation: initialLocation,
+    ),
   );
 }
 
 class SearchWizardBottomSheet extends StatefulWidget {
   final VoidCallback? onSearch;
+  final Location? initialLocation;
 
-  const SearchWizardBottomSheet({super.key, this.onSearch});
+  const SearchWizardBottomSheet({
+    super.key,
+    this.onSearch,
+    this.initialLocation,
+  });
 
   @override
   State<SearchWizardBottomSheet> createState() =>
@@ -40,7 +81,7 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
   final HomeController homeController = Get.find();
   final BookingController bookingController = Get.find();
 
-  int _currentStep = 0; // 0: Location, 1: Date, 2: Time
+  late int _currentStep; // 0: Location, 1: Date, 2: Time
   final TextEditingController _searchController = TextEditingController();
   List<Location> _filteredLocations = [];
   List<Location> _allLocations = [];
@@ -49,24 +90,42 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
   DateTime? _startDate;
   DateTime? _endDate;
 
-  // Time selection
-  String _startTime = "8:00 AM";
-  String _endTime = "6:00 PM";
+  // Time selection (heures d'ouverture 09:00–22:00)
+  String _startTime = "09:00";
+  String _endTime = "10:00";
 
   @override
   void initState() {
     super.initState();
+    _currentStep = widget.initialLocation != null ? 1 : 0;
     _loadLocations();
     _searchController.addListener(_filterLocations);
 
-    // Charger la valeur sélectionnée seulement si ce n'est pas "All location"
-    final currentLocation = generalScopeController.homeSearchLocation.value;
-    if (currentLocation.isNotEmpty &&
-        currentLocation != "All location".tr &&
-        currentLocation != "All location") {
-      _searchController.text = currentLocation;
+    if (widget.initialLocation != null) {
+      _applyLocationSelection(widget.initialLocation!);
+    } else {
+      // Charger la valeur sélectionnée seulement si ce n'est pas "All location"
+      final currentLocation = generalScopeController.homeSearchLocation.value;
+      if (currentLocation.isNotEmpty &&
+          currentLocation != "All location".tr &&
+          currentLocation != "All location") {
+        _searchController.text = currentLocation;
+      }
     }
     // Sinon, laisser la barre vide pour voir toutes les locations
+  }
+
+  void _applyLocationSelection(Location location) {
+    _searchController.text = location.cityName ?? '';
+    generalScopeController.homeSearchLocation.value = location.cityName ?? '';
+    generalScopeController.textEditingControllerCity.text =
+        location.cityName ?? '';
+
+    slatsearch =
+        location.latitude?.replaceAll('° N', '').replaceAll('° W', '') ?? '';
+    sLongSearch =
+        location.longitude?.replaceAll('° N', '').replaceAll('° W', '') ?? '';
+    filterController.setCity = location.cityName ?? '';
   }
 
   void _loadLocations() {
@@ -115,16 +174,7 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
 
   void _selectLocation(Location location) {
     setState(() {
-      _searchController.text = location.cityName ?? '';
-      generalScopeController.homeSearchLocation.value = location.cityName ?? '';
-      generalScopeController.textEditingControllerCity.text =
-          location.cityName ?? '';
-
-      slatsearch =
-          location.latitude?.replaceAll('° N', '').replaceAll('° W', '') ?? '';
-      sLongSearch =
-          location.longitude?.replaceAll('° N', '').replaceAll('° W', '') ?? '';
-      filterController.setCity = location.cityName ?? '';
+      _applyLocationSelection(location);
     });
   }
 

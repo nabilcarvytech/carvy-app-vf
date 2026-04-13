@@ -14,6 +14,7 @@ import 'package:carvy/helper/get_data_read.dart';
 import 'package:carvy/work_space.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/locale_string.dart';
+import 'package:carvy/service/onesignal_service.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/view/splash/initial_screen.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
@@ -69,6 +70,7 @@ void main() {
       if (!kIsWeb) {
         try {
           debugPrint('🔔 [MAIN] Starting OneSignal initialization...');
+          await OneSignalService.initialize();
           await setupOneSignal();
           debugPrint('✅ [MAIN] OneSignal initialized successfully');
           
@@ -199,6 +201,11 @@ void main() {
         systemNavigationBarColor: Colors.white,
         systemNavigationBarIconBrightness: Brightness.dark,
       ));
+
+      ErrorWidget.builder = (FlutterErrorDetails details) {
+        // En production, on montre juste un Container vide pour ne pas choquer l'utilisateur.
+        return Container();
+      };
 
       runApp(
         _MyApp(initialLocale: selectedLocale),

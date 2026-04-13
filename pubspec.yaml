@@ -78,6 +78,8 @@ dependencies:
   collection: any
   path: any
   jwt_decoder: ^2.0.1
+  socket_io_client: ^3.0.2
+  audioplayers: ^6.6.0
 
 dev_dependencies:
   flutter_test:
@@ -97,6 +99,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/sounds/
     - assets/activeModules/
     - assets/lottie/success.json
     - assets/lottie/failed.json

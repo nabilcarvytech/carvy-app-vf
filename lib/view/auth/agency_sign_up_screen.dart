@@ -12,6 +12,7 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/auth/login_screen.dart';
+import 'package:carvy/view/splash/user_role_selection_screen.dart';
 import 'package:carvy/work_space.dart';
 
 class AgencySignUpScreen extends StatefulWidget {
@@ -148,6 +149,10 @@ class _AgencySignUpScreenState extends State<AgencySignUpScreen> {
     }
   }
 
+  void _goBackToRegistrationType() {
+    Get.offAll(() => const UserRoleSelectionScreen());
+  }
+
   void _submitForm() {
     // Appeler la méthode submitRegistration du controller
     agencyController.submitRegistration();
@@ -201,7 +206,7 @@ class _AgencySignUpScreenState extends State<AgencySignUpScreen> {
         if (_currentStep > 0) {
           _previousStep();
         } else {
-          Navigator.pop(context);
+          _goBackToRegistrationType();
         }
       },
       child: Scaffold(
@@ -218,7 +223,7 @@ class _AgencySignUpScreenState extends State<AgencySignUpScreen> {
               if (_currentStep > 0) {
                 _previousStep();
               } else {
-                Navigator.pop(context);
+                _goBackToRegistrationType();
               }
             },
           ),
@@ -427,26 +432,38 @@ class _AgencySignUpScreenState extends State<AgencySignUpScreen> {
             ),
             const SizedBox(height: 30),
             // Lien vers la connexion
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Vous avez déjà un compte ? ',
-                  style: regular3(context),
-                ),
-                InkWell(
-                  onTap: () {
-                    Get.to(() => LoginScreen());
-                  },
-                  child: Text(
-                    'Se connecter',
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Vous avez déjà un compte ? ',
                     style: regular2(context).copyWith(
-                      color: vehicalThemColor,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Colors.grey.shade700,
                     ),
                   ),
-                ),
-              ],
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      Get.to(() => const LoginScreen());
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                      child: Text(
+                        'Se connecter',
+                        style: regular2(context).copyWith(
+                          fontSize: 16,
+                          color: const Color(0xFF2B489A),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 40),
           ],

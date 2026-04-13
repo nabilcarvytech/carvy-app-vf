@@ -110,6 +110,7 @@ const Map<String, String> esES = {
   "Check Availability": "Comprobar disponibilidad",
   "Pick Your Date": "Selecciona tus fechas",
   "Not Available": "No disponible",
+  "Blocking reason": "Motivo del bloqueo",
   "Selected for Booking": "Seleccionado para reservar",
   "Start date": "Fecha de inicio",
   "End date": "Fecha de fin",
@@ -138,6 +139,7 @@ const Map<String, String> esES = {
   "Flexible": "Flexible",
   "Contact host": "Contactar con la agencia",
   "Message": "Mensaje",
+  "Send a message": "Enviar un mensaje",
   "Show Less": "Mostrar menos",
   "Show More": "Mostrar más",
   "Search brand...": "Buscar marca...",
@@ -147,6 +149,11 @@ const Map<String, String> esES = {
   "brands": "marcas",
   "Select brands": "Seleccionar marcas",
   "Validate": "Validar",
+  "Enter handover code": "Introduzca el código de entrega",
+  "Please enter the 4-digit code provided by the customer to validate the vehicle return.":
+      "Introduzca el código de 4 dígitos proporcionado por el cliente para validar la devolución del vehículo.",
+  "Please enter the complete 4-digit code": "Introduzca el código completo de 4 dígitos",
+  "Please enter only 4 digits": "Introduzca solo 4 dígitos",
   "Clear": "Limpiar",
   "Date": "Fecha",
   "Time": "Hora",
@@ -622,6 +629,7 @@ const Map<String, String> esES = {
   "Trip end date": "Fecha de finalización del viaje",
   "Live in": "Vive en",
   "Hosting": "Anfitrión",
+  "Vehicles": "Vehículos",
   "About": "Acerca de",
   "Email not verified": "Correo electrónico no verificado",
   "Verified Email": "Correo electrónico verificado",
@@ -1253,5 +1261,7 @@ const Map<String, String> esES = {
   "la politique d'annulation": "la política de cancelación",
   "Note": "Nota",
   "Smoking Allowed": "Fumar permitido",
+  "min_rental_duration_vehicle_days":
+      "La duración mínima del alquiler para este vehículo es de @days días.",
   "International Travel Allowed": "Viaje internacional permitido"
 };

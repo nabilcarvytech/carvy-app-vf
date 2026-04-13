@@ -107,6 +107,7 @@ const Map<String, String> arAR = {
   "Check Availability": "تحقق من التوفر",
   "Pick Your Date": "اختر التواريخ",
   "Not Available": "غير متاح",
+  "Blocking reason": "سبب الحظر",
   "Selected for Booking": "تم الاختيار للحجز",
   "Start date": "تاريخ البدء",
   "End date": "تاريخ الانتهاء",
@@ -136,6 +137,7 @@ const Map<String, String> arAR = {
   "Contact host": "الاتصال بالوكالة",
   
   "Message": "رسالة",
+  "Send a message": "إرسال رسالة",
   "Show Less": "عرض أقل",
   "Show More": "عرض المزيد",
   "Search brand...": "البحث عن علامة تجارية...",
@@ -145,6 +147,11 @@ const Map<String, String> arAR = {
   "brands": "العلامات التجارية",
   "Select brands": "اختيار العلامات التجارية",
   "Validate": "تأكيد",
+  "Enter handover code": "أدخل رمز التسليم",
+  "Please enter the 4-digit code provided by the customer to validate the vehicle return.":
+      "يُرجى إدخال الرمز المكوّن من 4 أرقام الذي قدّمه العميل لتأكيد إرجاع المركبة.",
+  "Please enter the complete 4-digit code": "يُرجى إدخال الرمز الكامل المكوّن من 4 أرقام",
+  "Please enter only 4 digits": "يُرجى إدخال 4 أرقام فقط",
   "Clear": "مسح",
   "Date": "التاريخ",
   "Time": "الوقت",
@@ -605,6 +612,7 @@ const Map<String, String> arAR = {
   "Trip end date": "تاريخ نهاية الرحلة",
   "Live in": "الإقامة في",
   "Hosting": "الاستضافة",
+  "Vehicles": "المركبات",
   "About": "نبذة",
   "Email not verified": "البريد الإلكتروني غير مؤكد",
   "Verified Email": "البريد الإلكتروني مؤكد",
@@ -1213,5 +1221,7 @@ const Map<String, String> arAR = {
   "la politique d'annulation": "سياسة الإلغاء",
   "Note": "ملاحظة",
   "Smoking Allowed": "التدخين مسموح",
+  "min_rental_duration_vehicle_days":
+      "الحد الأدنى لمدة إيجار هذه المركبة هو @days أيام.",
   "International Travel Allowed": "السفر الدولي مسموح"
 };

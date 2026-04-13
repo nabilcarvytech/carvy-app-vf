@@ -132,17 +132,34 @@ class _BottomHostScreenState extends State<BottomHost>
                     ],
                   ),
                 )
-              : Scaffold(
-                  resizeToAvoidBottomInset: false,
-                  backgroundColor: notifires.getbgcolor,
-                  body: ConnectivityWrapper(
-                    child: TabBarView(
-                      physics: const NeverScrollableScrollPhysics(),
-                      controller: generalController.tabControllerHost,
-                      children: list,
-                      // children: vehicleListHost,
+              : PopScope(
+                  canPop: false,
+                  onPopInvoked: (didPop) async {
+                    if (didPop) return;
+                    
+                    // Si on n'est pas sur l'onglet principal (index 0), on y retourne
+                    if (generalController.currentIndexHost.value != 0) {
+                      generalController.tabControllerHost.animateTo(0);
+                      generalController.currentIndexHost.value = 0;
+                      return; // Empêche de fermer l'application
+                    } else {
+                      // Si on est déjà sur l'accueil (index 0), on affiche le popup "Souhaitez-vous quitter ?"
+                      if (!webPlateForm) {
+                        dialogExit(context);
+                      }
+                    }
+                  },
+                  child: Scaffold(
+                    resizeToAvoidBottomInset: false,
+                    backgroundColor: notifires.getbgcolor,
+                    body: ConnectivityWrapper(
+                      child: TabBarView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        controller: generalController.tabControllerHost,
+                        children: list,
+                        // children: vehicleListHost,
+                      ),
                     ),
-                  ),
                   floatingActionButtonAnimator:
                       FloatingActionButtonAnimator.scaling,
                   floatingActionButton: InkWell(
@@ -363,6 +380,7 @@ class _BottomHostScreenState extends State<BottomHost>
                     ),
                   ),
                 ),
+              ),
     );
   }
 }

@@ -44,6 +44,22 @@ class _PublicProfileState extends State<PublicProfile> {
 
   stateSetter(fn) => setState(() {});
 
+  void _navigateToVendorListings() {
+    final name = publicProfileController.getUserProfile?.data?.name ??
+        widget.userName ??
+        '';
+    Get.to(
+      () => RecommendationScreen(
+        comefromprofilepage: true,
+        title: "$name ${"Listing".tr}",
+        locationId: "-1",
+        userId: widget.userid,
+        itemList: publicProfileController.getUserItems?.data?.items,
+      ),
+      transition: Transition.fadeIn,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Align(
@@ -221,62 +237,82 @@ class _PublicProfileState extends State<PublicProfile> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            Column(
+                            // Compteur : Avis (non cliquable — chiffre en gris)
+                            Obx(() => Column(
                               children: [
                                 Text(
-                                  publicProfileController.getUserProfile?.data
-                                          ?.totalReviewsOnItems
-                                          ?.toString() ??
-                                      '',
+                                  publicProfileController.totalReviews.value.toString(),
                                   style: boldstyle(context).copyWith(
-                                      color: getColorBasedOnActiveModuleid(),
+                                      color: notifires.getGrey1Whitecolor,
                                       fontSize: 17),
                                 ),
                                 Text(
-                                  "Reviews".tr,
+                                  "Avis".tr,
                                   style: regular2(context).copyWith(
                                       color: notifires.getGrey3Whitecolor),
                                 ),
                               ],
+                            )),
+                            // Compteur : nombre de véhicules (tap → RecommendationScreen)
+                            InkWell(
+                              onTap: _navigateToVendorListings,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      publicProfileController
+                                              .getUserItems
+                                              ?.data
+                                              ?.items
+                                              ?.length
+                                              .toString() ??
+                                          '0',
+                                      style: boldstyle(context).copyWith(
+                                          color:
+                                              getColorBasedOnActiveModuleid(),
+                                          fontSize: 17,
+                                        ),
+                                    ),
+                                    Text(
+                                      "Vehicles".tr,
+                                      style: regular2(context).copyWith(
+                                          color:
+                                              notifires.getGrey3Whitecolor),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            Column(
+                            // Compteur : Évaluation globale (non cliquable — gris)
+                            Obx(() => Column(
                               children: [
-                                Text(
-                                  publicProfileController
-                                          .getUserProfile?.data?.yearsOfHosting
-                                          ?.toString() ??
-                                      '',
-                                  style: boldstyle(context).copyWith(
-                                      color: getColorBasedOnActiveModuleid(),
-                                      fontSize: 17),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      publicProfileController.globalAverage.value.toStringAsFixed(1),
+                                      style: boldstyle(context).copyWith(
+                                          color: notifires.getGrey1Whitecolor,
+                                          fontSize: 17),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.star,
+                                      size: 16,
+                                      color: notifires.getGrey3Whitecolor,
+                                    ),
+                                  ],
                                 ),
                                 Text(
-                                  "Hosting".tr,
+                                  "Évaluation".tr,
                                   style: regular2(context).copyWith(
                                       color: notifires.getGrey3Whitecolor),
                                 ),
                               ],
-                            ),
-                            Column(
-                              children: [
-                                Text(
-                                  publicProfileController.getUserProfile?.data
-                                          ?.totalReviewsOnItems
-                                          ?.toString() ??
-                                      '',
-                                  style: boldstyle(context).copyWith(
-                                      color: getColorBasedOnActiveModuleid(),
-                                      fontSize: 17),
-                                ),
-                                Text(
-                                  "Rating".tr,
-                                  style: regular2(context).copyWith(
-                                      color: notifires.getGrey3Whitecolor),
-                                ),
-                              ],
-                            ),
-
-                            // Add more Columns as needed
+                            )),
                           ],
                         ),
                       ),
@@ -392,8 +428,272 @@ class _PublicProfileState extends State<PublicProfile> {
                         ),
                       ),
                       const SizedBox(
+                        height: 20,
+                      ),
+                      // ========== SECTION : Détails des évaluations ==========
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Détails des évaluations".tr,
+                              style: heading2Grey1(context).copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Obx(() {
+                              if (publicProfileController.isLoadingReviews.value) {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(20.0),
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
+                              
+                              if (publicProfileController.criteriaAverages.isEmpty) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(20.0),
+                                  child: Text(
+                                    "Aucune évaluation disponible".tr,
+                                    style: regular2(context).copyWith(
+                                      color: notifires.getGrey3Whitecolor,
+                                    ),
+                                  ),
+                                );
+                              }
+                              
+                              return ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: publicProfileController.criteriaAverages.length,
+                                itemBuilder: (context, index) {
+                                  final key = publicProfileController.criteriaAverages.keys.elementAt(index);
+                                  final rating = publicProfileController.criteriaAverages[key] ?? 0.0;
+                                  
+                                  // Traduire la clé pour l'affichage
+                                  String displayName = key;
+                                  if (key == 'communication_rating') {
+                                    displayName = "Communication".tr;
+                                  } else if (key == 'vehicle_condition_rating') {
+                                    displayName = "État du véhicule".tr;
+                                  } else {
+                                    // Capitaliser la première lettre et remplacer les underscores
+                                    displayName = key
+                                        .replaceAll('_', ' ')
+                                        .split(' ')
+                                        .map((word) => word.isEmpty 
+                                            ? '' 
+                                            : word[0].toUpperCase() + word.substring(1))
+                                        .join(' ');
+                                  }
+                                  
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              displayName,
+                                              style: regular2(context).copyWith(
+                                                color: notifires.getwhiteblackcolor,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  rating.toStringAsFixed(1),
+                                                  style: boldstyle(context).copyWith(
+                                                    color: getColorBasedOnActiveModuleid(),
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Icon(
+                                                  Icons.star,
+                                                  size: 16,
+                                                  color: getColorBasedOnActiveModuleid(),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        LinearProgressIndicator(
+                                          value: rating / 5.0,
+                                          backgroundColor: notifires.getBoxColor,
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            getColorBasedOnActiveModuleid(),
+                                          ),
+                                          minHeight: 8,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 20,
+                      ),
+                      // ========== SECTION : Commentaires ==========
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Commentaires".tr,
+                              style: heading2Grey1(context).copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Obx(() {
+                              if (publicProfileController.isLoadingReviews.value) {
+                                return const SizedBox();
+                              }
+                              
+                              if (publicProfileController.reviewsList.isEmpty) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(20.0),
+                                  child: Text(
+                                    "Aucun commentaire disponible".tr,
+                                    style: regular2(context).copyWith(
+                                      color: notifires.getGrey3Whitecolor,
+                                    ),
+                                  ),
+                                );
+                              }
+                              
+                              return ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: publicProfileController.reviewsList.length,
+                                itemBuilder: (context, index) {
+                                  final review = publicProfileController.reviewsList[index];
+                                  final client = review['client'] as Map<String, dynamic>?;
+                                  final clientName = client?['name'] ?? 'Client'.tr;
+                                  final clientImage = client?['profile_picture'];
+                                  final createdAt = review['created_at'] ?? '';
+                                  final averageRating = review['average_rating'] ?? 0.0;
+                                  final comment = review['comment'] ?? '';
+                                  
+                                  // Formater la date
+                                  String formattedDate = createdAt;
+                                  try {
+                                    if (createdAt.isNotEmpty) {
+                                      final date = DateTime.parse(createdAt).toLocal();
+                                      formattedDate = '${date.day}/${date.month}/${date.year}';
+                                    }
+                                  } catch (e) {
+                                    // Garder la date brute si le parsing échoue
+                                  }
+                                  
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 20),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: notifires.getBoxColor,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              // Avatar du client
+                                              CircleAvatar(
+                                                radius: 24,
+                                                backgroundColor: notifires.getGrey3Whitecolor,
+                                                backgroundImage: clientImage != null && clientImage.toString().isNotEmpty
+                                                    ? NetworkImage(clientImage.toString())
+                                                    : null,
+                                                child: clientImage == null || clientImage.toString().isEmpty
+                                                    ? Icon(
+                                                        Icons.person,
+                                                        color: notifires.getwhiteblackcolor,
+                                                        size: 24,
+                                                      )
+                                                    : null,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      clientName,
+                                                      style: boldstyle(context).copyWith(
+                                                        color: notifires.getwhiteblackcolor,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      formattedDate,
+                                                      style: regular2(context).copyWith(
+                                                        color: notifires.getGrey3Whitecolor,
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              // Note avec étoile
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    (averageRating is num ? averageRating.toDouble() : 0.0).toStringAsFixed(1),
+                                                    style: boldstyle(context).copyWith(
+                                                      color: getColorBasedOnActiveModuleid(),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Icon(
+                                                    Icons.star,
+                                                    size: 18,
+                                                    color: getColorBasedOnActiveModuleid(),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                          if (comment.isNotEmpty) ...[
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              comment,
+                                              style: regular2(context).copyWith(
+                                                color: notifires.getwhiteblackcolor,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(
                         height: 5,
                       ),
+                      // ========== SECTION : Ancienne section Reviews (pour compatibilité) ==========
                       publicProfileController.getVendorItemsReviews?.data ==
                               null
                           ? const SizedBox()
@@ -687,59 +987,6 @@ class _PublicProfileState extends State<PublicProfile> {
                       const SizedBox(
                         height: 10,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 22,
-                          right: 22,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                                child: Text(
-                                    "${publicProfileController.getUserProfile!.data?.name ?? ""} ${"Listing".tr.tr}",
-                                    style: heading2Grey1(context))),
-                            InkWell(
-                                onTap: () {
-                                  Get.to(
-                                      () => RecommendationScreen(
-                                            comefromprofilepage: true,
-                                            title:
-                                                "${publicProfileController.getUserProfile!.data!.name!} ${"Listing".tr}",
-                                            locationId: "-1",
-                                            userId: widget.userid,
-                                            itemList: publicProfileController
-                                                .getUserItems?.data?.items,
-                                          ),
-                                      transition: Transition.fadeIn);
-                                },
-                                child: Text("View All Listing".tr,
-                                    style: regular2(context).copyWith(
-                                        color:
-                                            getColorBasedOnActiveModuleid()))),
-                          ],
-                        ),
-                      ),
-                      publicProfileController
-                                  .getUserItems?.data?.items?.isEmpty ??
-                              true
-                          ? const SizedBox
-                              .shrink() // Use SizedBox.shrink to take zero space
-                          : Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    child: itemVerticalViewPublic(
-                                        publicProfileController
-                                            .getUserItems?.data?.items,
-                                        true,
-                                        false,
-                                        stateSetter,
-                                        context),
-                                  ),
-                                ],
-                              ),
-                            ),
                       const SizedBox(
                         height: 50,
                       ),

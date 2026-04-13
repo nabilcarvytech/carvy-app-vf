@@ -7,10 +7,12 @@ import 'package:carvy/customwidget/full_screen_image_view.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_bar.dart';
 import 'package:carvy/customwidget/project_color.dart';
+import 'package:carvy/api/config.dart';
 import 'package:carvy/model/door_step_address_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 import '../../controller/booking_controller.dart';
 import '../../controller/items_detail_controller.dart';
 import '../../model/booking_model.dart';
@@ -111,27 +113,63 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
     );
   }
 
+  String formatBookedDate(String? rawDate) {
+    if (rawDate == null || rawDate.isEmpty) return '';
+    try {
+      DateTime parsedDate = DateTime.parse(rawDate).toLocal();
+      return DateFormat('dd MMM yyyy, HH:mm').format(parsedDate);
+    } catch (e) {
+      return rawDate;
+    }
+  }
+
   Widget erecieptBasedOnModuleId() {
     if (activeModuleId.value == 1 || activeModuleId.value == 2) {
+      // Construction robuste de la liste d’URLs d’images à partir de booking_vehicle_images
       List<String> imageUrls = [];
-      if (widget.bookings!.iteriorImage != null &&
-          widget.bookings!.iteriorImage is List) {
+      final dynamic rawImages = widget.bookings!.iteriorImage;
+
+      if (rawImages != null) {
         try {
-          final imageList = widget.bookings!.iteriorImage as List;
-          imageUrls = imageList
-              .map((image) => image['url']?.toString() ?? '')
-              .where((url) => url.isNotEmpty)
-              .toList();
+          if (rawImages is List) {
+            imageUrls = rawImages
+                .map<String>((image) {
+                  if (image == null) return '';
+
+                  // Cas 1 : liste de Strings
+                  if (image is String) {
+                    return Config.getFullImageUrl(image);
+                  }
+
+                  // Cas 2 : liste de Maps { url: "...", path: "..." }
+                  if (image is Map<String, dynamic>) {
+                    final rawUrl = image['url']?.toString() ??
+                        image['path']?.toString() ??
+                        '';
+                    return Config.getFullImageUrl(rawUrl);
+                  }
+
+                  // Fallback : toString
+                  return Config.getFullImageUrl(image.toString());
+                })
+                .where((url) => url.isNotEmpty)
+                .toList();
+          } else if (rawImages is String && rawImages.isNotEmpty) {
+            // Cas où le backend renvoie une seule image sous forme de String
+            imageUrls = [Config.getFullImageUrl(rawImages)];
+          }
         } catch (e) {
-          print('Error parsing interiorImage: $e');
+          print('❌ Error parsing booking_vehicle_images: $e');
         }
       }
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "${"Customer Receipt".tr} #${widget.bookings!.id}",
-            style: heading1(context),
+          Center(
+            child: Text(
+              "Reçu".tr,
+              style: heading1(context).copyWith(fontWeight: FontWeight.w700),
+            ),
           ),
           const SizedBox(height: 7),
           Container(
@@ -157,7 +195,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                   height: 7,
                 ),
                 Text(
-                  widget.bookings!.createdAt!.split(" ")[0],
+                  formatBookedDate(widget.bookings!.createdAt),
                   style: regular2(context),
                 ),
                 const SizedBox(height: 7),
@@ -340,15 +378,79 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                   children: [
                     Text("${widget.bookings!.hostName}",
                         style: regular2(context)),
-                    Text("${widget.bookings!.hostNumber}",
-                        style: regular2(context)),
+                    GestureDetector(
+                      onTap: () async {
+                        final phone = widget.bookings!.hostNumber?.toString();
+                        if (phone != null && phone.isNotEmpty) {
+                          final uri = Uri.parse('tel:$phone');
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri);
+                          }
+                        }
+                      },
+                      child: Text(
+                        "${widget.bookings!.hostNumber}",
+                        style: regular2(context).copyWith(
+                          color: notifires.getwhiteblackcolor,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text("Email".tr, style: heading3Grey1(context)),
                 const SizedBox(height: 3),
-                Text(widget.bookings!.hostEmail.toString(),
-                    style: regular2(context)),
+                GestureDetector(
+                  onTap: () async {
+                    final email = widget.bookings!.hostEmail?.toString();
+                    if (email != null && email.isNotEmpty) {
+                      final uri = Uri.parse('mailto:$email');
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri);
+                      }
+                    }
+                  },
+                  child: Text(
+                    widget.bookings!.hostEmail.toString(),
+                    style: regular2(context).copyWith(
+                      color: notifires.getwhiteblackcolor,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+                if ((widget.bookings!.hostAddress ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text("Address".tr, style: heading3Grey1(context)),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.bookings!.hostAddress.toString(),
+                    style: regular2(context),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Builder(
+                  builder: (context) {
+                    final lat = widget.bookings!.hostLat;
+                    final lng = widget.bookings!.hostLng;
+                    final hasCoords = lat != null && lng != null;
+                    if (!hasCoords) return const SizedBox.shrink();
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final url = 'https://www.google.com/maps/search/?api=1&query=${lat},${lng}';
+                          final uri = Uri.parse(url);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          }
+                        },
+                        icon: const Icon(Icons.directions_car),
+                        label: Text('Voir l\'itinéraire'.tr),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),

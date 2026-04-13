@@ -137,7 +137,8 @@ class _EditCalenderOnThirdStepCommonState
                 .toString()
                 .split(" ")[0],
             "status": x['status'],
-            "price": "0".toString()
+            "price": "0".toString(),
+            "reason": addItemsHostController.calendarBlockReason.value,
           }));
         }
         myNewDateAndStatusListNotAvailable.add(aList);

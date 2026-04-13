@@ -275,18 +275,12 @@ class _MyProfileState extends State<MyProfile> {
                                                             )
                                                           : Obx(
                                                               () =>
-                                                                  Image.network(
+                                                                  buildAvatarImage(
                                                                 profileController
                                                                     .myImage
                                                                     .value,
                                                                 fit: BoxFit
                                                                     .cover,
-                                                                errorBuilder:
-                                                                    (context,
-                                                                        error,
-                                                                        stackTrace) {
-                                                                  return getErrorImage();
-                                                                },
                                                               ),
                                                             ),
                                                     ),
@@ -320,19 +314,13 @@ class _MyProfileState extends State<MyProfile> {
                                                                 ),
                                                               )
                                                             : Obx(
-                                                                () => Image
-                                                                    .network(
+                                                                () =>
+                                                                    buildAvatarImage(
                                                                   profileController
                                                                       .myImage
                                                                       .value,
                                                                   fit: BoxFit
                                                                       .cover,
-                                                                  errorBuilder:
-                                                                      (context,
-                                                                          error,
-                                                                          stackTrace) {
-                                                                    return getErrorImage();
-                                                                  },
                                                                 ),
                                                               ),
                                                       ),

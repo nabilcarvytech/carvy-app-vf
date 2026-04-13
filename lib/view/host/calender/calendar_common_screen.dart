@@ -28,6 +28,32 @@ class CalendarCommonScreen extends StatefulWidget {
 }
 
 class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
+  /// Parse une date de calendrier en ignorant totalement l'heure envoyée par le serveur.
+  /// - Accepte des formats avec ou sans heure (ex: "2025-03-23", "2025-03-23T00:00:00Z", etc.)
+  /// - Extrait uniquement la partie "YYYY-MM-DD"
+  /// - Retourne un `DateTime(year, month, day)` en **local**, pour rester aligné
+  ///   avec le comportement du widget de calendrier (qui fonctionne en heure locale).
+  DateTime? parseCalendarDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return null;
+    try {
+      // On extrait uniquement les 10 premiers caractères (YYYY-MM-DD)
+      final String dateOnly =
+          dateStr.length >= 10 ? dateStr.substring(0, 10) : dateStr;
+      final parts = dateOnly.split('-');
+      if (parts.length == 3) {
+        final int year = int.parse(parts[0]);
+        final int month = int.parse(parts[1]);
+        final int day = int.parse(parts[2]);
+        // On crée une date **locale** (pas UTC) pour éviter le décalage d'un jour
+        // lorsque le widget de calendrier interprète la date selon le fuseau local.
+        return DateTime(year, month, day);
+      }
+    } catch (e) {
+      print('Erreur de parsing de date: $dateStr');
+    }
+    return null;
+  }
+
   AddItemsHostController addItemsHostController = Get.find();
   DateRangePickerController dateRangePickerControllers =
       DateRangePickerController();
@@ -86,6 +112,10 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
       if (response != null) {
         myItemsModelHost = MyItemsModel.fromJson(response);
         if (myItemsModelHost!.data != null) {
+          // Important: on évite que la liste des véhicules s'additionne à chaque rechargement
+          // (sinon tu obtiens le même véhicule dupliqué après plusieurs clics).
+          list.clear();
+          offset = 0;
           list.addAll(myItemsModelHost!.data!.items!);
           offset = myItemsModelHost!.data!.offset!;
           checkItemPiblicationLimit = response["data"]["checkLimit"];
@@ -248,17 +278,11 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                     print('📅 [CALENDAR_DIAG] Date brute reçue (available): $dateStr (type: ${dateStr.runtimeType}), prix: $price');
                     
                     if (dateStr != null && dateStr.isNotEmpty) {
-                      DateTime? parsedDate = DateTime.tryParse(dateStr);
-                      if (parsedDate == null) {
+                      DateTime? normalizedDate = parseCalendarDate(dateStr);
+                      if (normalizedDate == null) {
                         print('⚠️ [CALENDAR_DIAG] Échec du parsing de la date: $dateStr');
                         continue;
                       }
-                      // Normaliser la date (sans heure)
-                      DateTime normalizedDate = DateTime(
-                        parsedDate.year,
-                        parsedDate.month,
-                        parsedDate.day,
-                      );
                       availableDates.add(PickerDateRange(
                         normalizedDate,
                         normalizedDate,
@@ -320,16 +344,11 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                     print('📅 [CALENDAR_DIAG] Date brute reçue (notAvailable): $dateStr');
                     
                     if (dateStr != null && dateStr.isNotEmpty) {
-                      DateTime? parsedDate = DateTime.tryParse(dateStr);
-                      if (parsedDate == null) {
+                      DateTime? normalizedDate = parseCalendarDate(dateStr);
+                      if (normalizedDate == null) {
                         print('⚠️ [CALENDAR_DIAG] Échec du parsing de la date: $dateStr');
                         continue;
                       }
-                      DateTime normalizedDate = DateTime(
-                        parsedDate.year,
-                        parsedDate.month,
-                        parsedDate.day,
-                      );
                       notAvailableDates.add(PickerDateRange(
                         normalizedDate,
                         normalizedDate,
@@ -362,16 +381,11 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                     print('📅 [CALENDAR_DIAG] Date brute reçue (booked): $dateStr, prix: $price');
                     
                     if (dateStr != null && dateStr.isNotEmpty) {
-                      DateTime? parsedDate = DateTime.tryParse(dateStr);
-                      if (parsedDate == null) {
+                      DateTime? normalizedDate = parseCalendarDate(dateStr);
+                      if (normalizedDate == null) {
                         print('⚠️ [CALENDAR_DIAG] Échec du parsing de la date réservée: $dateStr');
                         continue;
                       }
-                      DateTime normalizedDate = DateTime(
-                        parsedDate.year,
-                        parsedDate.month,
-                        parsedDate.day,
-                      );
                       bookedDates.add(PickerDateRange(
                         normalizedDate,
                         normalizedDate,
@@ -401,7 +415,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                         // Transformation propre du prix en String
                         String priceStr = priceValue?.toString().trim() ?? "";
                         if (dateStr.isNotEmpty && priceStr.isNotEmpty && priceStr != "0" && priceStr != "0.0" && priceStr != "0.00") {
-                          DateTime? parsedDate = DateTime.tryParse(dateStr);
+                          DateTime? parsedDate = parseCalendarDate(dateStr);
                           if (parsedDate != null) {
                             String normalizedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
                             finalCustomPricesMap[normalizedDate] = priceStr;
@@ -422,7 +436,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                           String? priceStr = item['price']?.toString().trim();
                           if (dateStr != null && dateStr.isNotEmpty && 
                               priceStr != null && priceStr.isNotEmpty && priceStr != "0" && priceStr != "0.0" && priceStr != "0.00") {
-                            DateTime? parsedDate = DateTime.tryParse(dateStr);
+                            DateTime? parsedDate = parseCalendarDate(dateStr);
                             if (parsedDate != null) {
                               String normalizedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
                               finalCustomPricesMap[normalizedDate] = priceStr;
@@ -566,7 +580,8 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
           aList.add({
             "date": formattedDate,
             "status": x['status'],
-            "price": "0"
+            "price": "0",
+            "reason": addItemsHostController.calendarBlockReason.value,
           });
         }
         myNewDateAndStatusListNotAvailable.add(aList);
@@ -1327,22 +1342,16 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
               itemBuilder: (context, index) {
                 return InkWell(
                   onTap: () {
-                    if (webPlateForm) {
-                      Get.to(const BottomHost(
-                        initialIndex: 1,
-                      ));
-                    } else {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (builder) => const BottomHost(
-                                    initialIndex: 1,
-                                  )));
-                    }
-
+                    // 1. Fermer le modal de sélection
+                    Get.back();
+                    
+                    // 2. Mettre à jour le véhicule sélectionné
                     setState(() {
                       initialitems = list[index];
                     });
+                    
+                    // 3. Recharger les données du calendrier pour ce nouveau véhicule
+                    fetchDataCalendar();
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),

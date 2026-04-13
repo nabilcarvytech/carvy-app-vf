@@ -9,6 +9,8 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import '../../../../work_space.dart';
+import '../../../../model/location_host_model.dart';
+import 'package:carvy/utils/theme_style.dart';
 
 class VehiclePriceScreen extends StatefulWidget {
   final VoidCallback? onNextButtonPressed;
@@ -25,17 +27,14 @@ class VehiclePriceScreen extends StatefulWidget {
 }
 
 class _VehiclePriceScreenState extends State<VehiclePriceScreen> {
+  String? selectedDeliveryLocationId;
+
   @override
   void initState() {
     super.initState();
     if (widget.mode == ScreenMode.add) {
       addItemsHostController.convertFirstLettertoCapital = "Booking";
       addItemsHostController.serviceType = "booking";
-    }
-    if (addItemsHostController
-        .textEditingControllerDoorstepPrice.text.isNotEmpty) {
-      addItemsHostController.isCheckeddoorstep = true;
-      addItemsHostController.isCheckedSecurityDeposit = true;
     }
   }
 
@@ -111,6 +110,12 @@ class _VehiclePriceScreenState extends State<VehiclePriceScreen> {
                                           setState(() {
                                             addItemsHostController
                                                 .isCheckeddoorstep = value!;
+                                            if (value == false) {
+                                              addItemsHostController
+                                                  .deliveryLocations
+                                                  .clear();
+                                              selectedDeliveryLocationId = null;
+                                            }
                                           });
                                         },
                                       ),
@@ -122,27 +127,216 @@ class _VehiclePriceScreenState extends State<VehiclePriceScreen> {
                                                 "Doorstep delivery Price".tr))
                                   ],
                                 ),
-                                 const SizedBox(height: 5),
+                                const SizedBox(height: 5),
                                 addItemsHostController.isCheckeddoorstep
-                                    ? TextFieldRefs(
-                                        onChange: (value) {
-                                          addItemsHostController.cleanNumericInput(
-                                              addItemsHostController
-                                                  .textEditingControllerDoorstepPrice,
-                                              value!);
-                                          return null;
-                                        },
-                                        suffixtext: currency,
-                                        onTap: () {
-                                          addItemsHostController.numerictype =
-                                              true;
-                                        },
-                                        txt: "Enter the price".tr,
-                                        textEditingControllerCommon:
-                                            addItemsHostController
-                                                .textEditingControllerDoorstepPrice,
-                                        inputType: TextInputType.number,
-                                        inputAlignment: TextAlign.left,
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            "💡 Vous pouvez définir jusqu'à 3 zones ou villes de livraison, chacune avec son propre tarif personnalisé.",
+                                            style: regular3(context).copyWith(
+                                              color: notifires
+                                                  .getGrey2Whitecolor,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          DropdownButtonFormField<String>(
+                                            decoration: InputDecoration(
+                                              filled: true,
+                                              fillColor:
+                                                  notifires.getBoxColor,
+                                              enabledBorder:
+                                                  OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                borderSide: BorderSide(
+                                                    color: notifires.getBoxColor),
+                                              ),
+                                              focusedBorder:
+                                                  OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                borderSide: BorderSide(
+                                                    color: notifires.getBoxColor),
+                                              ),
+                                            ),
+                                            isExpanded: true,
+                                            hint: Text(
+                                              "Choose delivery location".tr,
+                                              style: regular3(context),
+                                            ),
+                                            value:
+                                                selectedDeliveryLocationId,
+                                            items: addItemsHostController
+                                                .listLocation
+                                                .map((loc) {
+                                              return DropdownMenuItem<String>(
+                                                value: loc.id?.toString(),
+                                                child: Text(
+                                                  loc.name ?? '',
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              );
+                                            }).toList(),
+                                            onChanged: (value) {
+                                              setState(() {
+                                                selectedDeliveryLocationId = value;
+                                              });
+                                            },
+                                          ),
+                                          const SizedBox(height: 10),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: ElevatedButton(
+                                              onPressed:
+                                                  addItemsHostController
+                                                              .deliveryLocations
+                                                              .length >=
+                                                          3 ||
+                                                      selectedDeliveryLocationId ==
+                                                          null
+                                                  ? null
+                                                  : () {
+                                                      final selectedId =
+                                                          selectedDeliveryLocationId;
+                                                      final match =
+                                                          addItemsHostController
+                                                              .listLocation
+                                                              .where((l) =>
+                                                                  l.id
+                                                                      ?.toString() ==
+                                                                  selectedId)
+                                                              .toList();
+                                                      final locName =
+                                                          match.isNotEmpty
+                                                              ? (match.first.name ??
+                                                                  '')
+                                                              : '';
+                                                      if (selectedId != null) {
+                                                        addItemsHostController
+                                                            .addDeliveryLocation(
+                                                                selectedId,
+                                                                locName);
+                                                      }
+                                                      setState(() {});
+                                                    },
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    getColorBasedOnActiveModuleid(),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                "Ajouter".tr,
+                                                style: heading2(context)
+                                                    .copyWith(color: whiteColor),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Obx(() => ListView.builder(
+                                                shrinkWrap: true,
+                                                physics:
+                                                    const NeverScrollableScrollPhysics(),
+                                                itemCount:
+                                                    addItemsHostController
+                                                        .deliveryLocations
+                                                        .length,
+                                                itemBuilder:
+                                                    (context, index) {
+                                                  final item = addItemsHostController
+                                                      .deliveryLocations[index];
+                                                  final locId =
+                                                      item['location']?.toString() ?? '';
+                                                  final locName = item['locationName']?.toString() ??
+                                                      item['location']?.toString() ?? '';
+                                                  final priceInt = item['price'];
+                                                  final priceText =
+                                                      priceInt?.toString() ?? '0';
+
+                                                  return Container(
+                                                    margin:
+                                                        const EdgeInsets.only(bottom: 10),
+                                                    padding:
+                                                        const EdgeInsets.all(12),
+                                                    decoration: BoxDecoration(
+                                                      color: notifires.getbgcolor,
+                                                      borderRadius:
+                                                          BorderRadius.circular(12),
+                                                      border: Border.all(
+                                                        color: notifires.getBoxColor,
+                                                      ),
+                                                    ),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment.start,
+                                                      children: [
+                                                        Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: Text(
+                                                                locName,
+                                                                style: heading3(context),
+                                                                overflow:
+                                                                    TextOverflow.ellipsis,
+                                                              ),
+                                                            ),
+                                                            IconButton(
+                                                              onPressed: () => addItemsHostController
+                                                                  .removeDeliveryLocation(index),
+                                                              icon: const Icon(
+                                                                Icons.delete,
+                                                                color: Colors.red,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 10),
+                                                        TextFormField(
+                                                          key: ValueKey(locId),
+                                                          keyboardType:
+                                                              TextInputType.number,
+                                                          initialValue:
+                                                              priceText,
+                                                          onChanged: (value) {
+                                                            addItemsHostController
+                                                                .updateDeliveryPrice(
+                                                                    index,
+                                                                    value);
+                                                          },
+                                                          decoration:
+                                                              InputDecoration(
+                                                            filled: true,
+                                                            fillColor:
+                                                                notifires.getBoxColor,
+                                                            hintText:
+                                                                "Enter delivery price".tr,
+                                                            enabledBorder:
+                                                                OutlineInputBorder(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(12),
+                                                              borderSide: BorderSide(
+                                                                  color: notifires.getBoxColor),
+                                                            ),
+                                                            focusedBorder:
+                                                                OutlineInputBorder(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(12),
+                                                              borderSide: BorderSide(
+                                                                  color: notifires.getBoxColor),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
+                                              )),
+                                        ],
                                       )
                                     : const SizedBox(),
                                     const SizedBox(height: 10),
@@ -237,12 +431,20 @@ class _VehiclePriceScreenState extends State<VehiclePriceScreen> {
         bottomNavigationBar: BottomHosts(
           onTap: () {
             if (addItemsHostController.isCheckeddoorstep == true) {
-              if (addItemsHostController
-                  .textEditingControllerDoorstepPrice.text.isEmpty) {
+              if (addItemsHostController.deliveryLocations.isEmpty) {
                 showErrorToastMessage(
                     "Please uncheck the doorstep price or enter the doorstep price."
                         .tr);
                 return;
+              }
+              for (final loc in addItemsHostController.deliveryLocations) {
+                final priceRaw = loc['price'];
+                final priceInt = int.tryParse(priceRaw?.toString() ?? '');
+                if (priceInt == null || priceInt <= 0) {
+                  showErrorToastMessage(
+                      "Please enter delivery prices for all zones.".tr);
+                  return;
+                }
               }
             }
               if (addItemsHostController.isCheckedSecurityDeposit == true) {

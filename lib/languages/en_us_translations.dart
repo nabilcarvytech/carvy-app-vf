@@ -108,6 +108,7 @@ const Map<String, String> enUs = {
   "Check Availability": "Check Availability",
   "Pick Your Date": "Select Your Dates",
   "Not Available": "Not Available",
+  "Blocking reason": "Blocking reason",
   "Selected for Booking": "Selected for Booking",
   "Start date": "Start date",
   "End date": "End date",
@@ -136,6 +137,7 @@ const Map<String, String> enUs = {
   "Flexible": "Flexible",
   "Contact host": "Contact Agency",
   "Message": "Message",
+  "Send a message": "Send a message",
   "Show Less": "Show Less",
   "Show More": "Show More",
   "Search brand...": "Search brand...",
@@ -145,6 +147,11 @@ const Map<String, String> enUs = {
   "brands": "brands",
   "Select brands": "Select brands",
   "Validate": "Validate",
+  "Enter handover code": "Enter handover code",
+  "Please enter the 4-digit code provided by the customer to validate the vehicle return.":
+      "Please enter the 4-digit code provided by the customer to validate the vehicle return.",
+  "Please enter the complete 4-digit code": "Please enter the complete 4-digit code",
+  "Please enter only 4 digits": "Please enter only 4 digits",
   "Clear": "Clear",
   "Date": "Date",
   "Time": "Time",
@@ -592,7 +599,7 @@ const Map<String, String> enUs = {
   "Become a User": "Become a User",
   "Become a Host": "Become a Host",
   "Session client": "Client Session",
-  "Session vendeur": "Vendor Session",
+  "Session Agence": "Agency Session",
   "Upload your place photos": "Upload your Vehicle Photos",
   "Front Image": "Front Image",
   "Change": "Change",
@@ -617,6 +624,7 @@ const Map<String, String> enUs = {
   "Trip end date": "Trip End Date",
   "Live in": "Live in",
   "Hosting": "Hosting",
+  "Vehicles": "Vehicles",
   "About": "About",
   "Email not verified": "Email not verified",
   "Verified Email": "Verified Email",
@@ -1060,5 +1068,7 @@ const Map<String, String> enUs = {
   "la politique d'annulation": "the cancellation policy",
   "Note": "Note",
   "Smoking Allowed": "Smoking Allowed",
+  "min_rental_duration_vehicle_days":
+      "The minimum rental duration for this vehicle is @days days.",
   "International Travel Allowed": "International Travel Allowed"
 };

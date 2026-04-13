@@ -142,6 +142,8 @@ class VehicleController extends GetxController implements GetxService {
   // ========== DONNÉES DE L'ÉTAPE 7 (Photos) ==========
   RxList<XFile> selectedImages = <XFile>[].obs; // Liste des images sélectionnées
   final ImagePicker _imagePicker = ImagePicker();
+  // Index réactif de la photo principale (par défaut: 0)
+  RxInt mainImageIndex = 0.obs;
 
   // ========== DONNÉES DE L'ÉTAPE 8 (Documents) ==========
   Rx<File?> registrationCardRecto = Rx<File?>(null); // Carte grise recto
@@ -281,6 +283,7 @@ class VehicleController extends GetxController implements GetxService {
     // Étape 7: Photos
     selectedImages.clear();
     uploadedImageUrls.clear();
+    mainImageIndex.value = 0;
     
     // Étape 8: Documents
     registrationCardRecto.value = null;
@@ -329,6 +332,10 @@ class VehicleController extends GetxController implements GetxService {
         if (remainingSlots > 0) {
           final List<XFile> imagesToAdd = images.take(remainingSlots).toList();
           selectedImages.addAll(imagesToAdd);
+          // Maintenir un index principal valide
+          if (selectedImages.isNotEmpty && (mainImageIndex.value < 0 || mainImageIndex.value >= selectedImages.length)) {
+            mainImageIndex.value = 0;
+          }
           
           if (images.length > remainingSlots) {
             showErrorToastMessage('Maximum 10 images autorisées. ${images.length - remainingSlots} image(s) ignorée(s)');
@@ -343,10 +350,27 @@ class VehicleController extends GetxController implements GetxService {
     }
   }
 
+  /// Définir l'image principale par son index
+  void setMainImage(int index) {
+    if (index >= 0 && index < selectedImages.length) {
+      mainImageIndex.value = index;
+    }
+  }
+
   /// Supprime une image de la liste
   void removeImage(int index) {
-    if (index >= 0 && index < selectedImages.length) {
-      selectedImages.removeAt(index);
+    if (index < 0 || index >= selectedImages.length) return;
+    selectedImages.removeAt(index);
+    if (selectedImages.isEmpty) {
+      mainImageIndex.value = 0;
+      return;
+    }
+    if (index == mainImageIndex.value) {
+      // Si on supprime l'image principale, revenir à 0
+      mainImageIndex.value = 0;
+    } else if (index < mainImageIndex.value) {
+      // Si on supprime avant la principale, l'index recule de 1
+      mainImageIndex.value = mainImageIndex.value - 1;
     }
   }
 
@@ -1419,8 +1443,21 @@ class VehicleController extends GetxController implements GetxService {
       final String baseUrl = Config.baseUrlWithoutV1;
       final String url = '${baseUrl}${Config.uploadImages}';
 
-      // Créer une instance Dio
+      // Créer une instance Dio + Interceptor de debug (payload)
       final dio.Dio dioInstance = dio.Dio();
+      dioInstance.interceptors.add(
+        dio.InterceptorsWrapper(
+          onRequest: (options, handler) {
+            try {
+              final dynamic body = options.data;
+              debugPrint("DEBUG CARVY - Payload envoyé: ${jsonEncode(body)}");
+            } catch (_) {
+              // ignore
+            }
+            return handler.next(options);
+          },
+        ),
+      );
 
       // Créer FormData avec les images
       final dio.FormData formData = dio.FormData();
@@ -1958,8 +1995,10 @@ class VehicleController extends GetxController implements GetxService {
   /// }
   Future<bool> submitVehicle({
     required String? vehicleTypeId,
+    List<String>? categoriesIds,
     required String? brandId,
     required String? modelId,
+    String? otherModelName,
     required String? fuelId,
     required String transmission, // "MANUAL" ou "AUTOMATIC"
     required String? odometerId,
@@ -1975,7 +2014,7 @@ class VehicleController extends GetxController implements GetxService {
     required double monthlyDiscountValue,
     required String monthlyDiscountType,
     required bool hasHomeDelivery,
-    required double deliveryPrice,
+    required List<Map<String, dynamic>> deliveryLocations,
     required String? regionId,
     required String fullAddress,
     String? city,
@@ -2019,7 +2058,13 @@ class VehicleController extends GetxController implements GetxService {
       debugPrint('📤 [VEHICLE] Étape 1 : Upload des images...');
       List<String> imageUrls = [];
       if (imageFiles.isNotEmpty) {
-        imageUrls = await uploadVehicleImages(imageFiles);
+        // Réordonner la liste pour mettre l'image principale en première position
+        final List<XFile> reordered = List<XFile>.from(imageFiles);
+        if (mainImageIndex.value >= 0 && mainImageIndex.value < reordered.length) {
+          final XFile selected = reordered.removeAt(mainImageIndex.value);
+          reordered.insert(0, selected);
+        }
+        imageUrls = await uploadVehicleImages(reordered);
         // Ne passer à l'étape suivante que si l'upload a réussi (liste non vide)
         if (imageUrls.isEmpty) {
           closeLoading();
@@ -2147,8 +2192,51 @@ class VehicleController extends GetxController implements GetxService {
         };
       }
       
+      // Livraison (multi-emplacements)
       if (hasHomeDelivery) {
-        pricing['homeDeliveryPrice'] = deliveryPrice.toDouble(); // Force en double
+        if (deliveryLocations.isEmpty) {
+          closeLoading();
+          showErrorToastMessage('Veuillez ajouter au moins un emplacement de livraison.'.tr);
+          return false;
+        }
+
+        // Normaliser + valider
+        final normalizedDeliveryLocations = deliveryLocations.map((loc) {
+          final locationId = loc['location']?.toString() ?? '';
+          final priceValue = loc['price'];
+          final double price = (priceValue is num)
+              ? priceValue.toDouble()
+              : double.tryParse(priceValue?.toString() ?? '') ?? 0.0;
+
+          return <String, dynamic>{
+            'location': locationId,
+            'price': price,
+          };
+        }).where((loc) =>
+            (loc['location'] is String) &&
+            (loc['location'] as String).isNotEmpty).toList();
+
+        if (normalizedDeliveryLocations.isEmpty) {
+          closeLoading();
+          showErrorToastMessage('Emplacements de livraison invalides.'.tr);
+          return false;
+        }
+
+        for (final loc in normalizedDeliveryLocations) {
+          final price = (loc['price'] as double?) ?? 0.0;
+          if (price <= 0) {
+            closeLoading();
+            showErrorToastMessage(
+              'Veuillez saisir des prix de livraison valides pour toutes les zones.'.tr,
+            );
+            return false;
+          }
+        }
+
+        pricing['deliveryLocations'] = normalizedDeliveryLocations;
+      } else {
+        // Quand la livraison n'est pas activée, envoyer un tableau vide
+        pricing['deliveryLocations'] = <Map<String, dynamic>>[];
       }
 
       // ========== LOCATION (structure GeoJSON) ==========
@@ -2167,58 +2255,36 @@ class VehicleController extends GetxController implements GetxService {
       // ========== RULES (tableau d'ObjectIds au niveau racine) ==========
       final List<String> rules = selectedRules.where((id) => id.isNotEmpty && id != "0").toList();
 
-      // ========== CANCELLATION POLICIES (structure exacte avec ObjectId réel) ==========
+      // ========== CANCELLATION POLICIES (structure dynamique basée sur les paliers UI) ==========
+      //
+      // Le backend attend un tableau :
+      // [{ "policy": "<ObjectId MongoDB>", "percentage": 55 }, ...]
+      //
+      // On construit ce tableau à partir de :
+      // - tierSwitches : Map<tierId, bool> indiquant si le palier est activé
+      // - tierRetentionFees : Map<tierId, String> contenant le pourcentage saisi
+      // - policiesList : liste brute des politiques (avec leurs _id réels)
       final List<Map<String, dynamic>> cancellationPolicies = [];
-      if (policyId != null && policyId.isNotEmpty && policyId != "0") {
-        // IMPORTANT: policyId peut être 'non-refundable' ou 'flexible' (string)
-        // Il faut trouver l'ObjectId réel dans policiesList
-        String? realPolicyObjectId;
-        
-        // Chercher la politique correspondante dans policiesList
-        for (var policy in policiesList) {
-          if (policy is Map<String, dynamic>) {
-            final policyIdValue = policy['id']?.toString() ?? policy['_id']?.toString();
-            final policyName = policy['name']?.toString().toLowerCase() ?? '';
-            final policyType = policy['type']?.toString().toLowerCase() ?? '';
-            
-            // Vérifier si cette politique correspond à policyId
-            if (policyId == 'non-refundable' || policyId == 'nonremboursable') {
-              if (policyName.contains('non') || policyName.contains('remboursable') || 
-                  policyType == 'non-refundable' || policyType == 'nonremboursable') {
-                realPolicyObjectId = policyIdValue;
-                break;
-              }
-            } else if (policyId == 'flexible') {
-              if (policyName.contains('flexible') || policyType == 'flexible') {
-                realPolicyObjectId = policyIdValue;
-                break;
-              }
-            } else {
-              // Si policyId est déjà un ObjectId (format MongoDB), l'utiliser directement
-              if (policyIdValue == policyId || policyId.length == 24) {
-                realPolicyObjectId = policyId;
-                break;
-              }
-            }
-          }
-        }
-        
-        // Si on n'a pas trouvé, mais que policyId ressemble à un ObjectId (24 caractères hex), l'utiliser
-        if (realPolicyObjectId == null && policyId.length == 24) {
-          realPolicyObjectId = policyId;
-        }
-        
-        // Ajouter la politique seulement si on a un ObjectId valide
-        if (realPolicyObjectId != null && realPolicyObjectId.isNotEmpty) {
-          cancellationPolicies.add({
-            'policy': realPolicyObjectId, // ObjectId réel, pas 'non-refundable' ou 'flexible'
-            'percentage': 0, // Par défaut, peut être ajusté si nécessaire
-          });
-          debugPrint('✅ [VEHICLE] Politique d\'annulation ajoutée avec ObjectId: $realPolicyObjectId');
-        } else {
-          debugPrint('⚠️ [VEHICLE] Impossible de trouver l\'ObjectId pour la politique: $policyId');
-        }
+
+      // Construire les politiques uniquement à partir des valeurs saisies,
+      // sans se baser sur un switch d'activation
+      for (var policy in policiesList) {
+        if (policy is! Map<String, dynamic>) continue;
+        final String tierId = policy['_id']?.toString() ?? policy['id']?.toString() ?? '';
+        if (tierId.isEmpty) continue;
+        final String? feeString = tierRetentionFees[tierId];
+        if (feeString == null || feeString.trim().isEmpty) continue;
+        final double? percentageDouble = double.tryParse(feeString.trim());
+        if (percentageDouble == null) continue;
+        final int percentage = percentageDouble.round().clamp(0, 100);
+        cancellationPolicies.add({
+          'policy': tierId,
+          'percentage': percentage,
+        });
       }
+
+      debugPrint(
+          '🛠️ [POLICIES PAYLOAD] Politiques préparées pour l\'envoi: $cancellationPolicies');
 
       // ========== AGE RESTRICTION (structure exacte) ==========
       final Map<String, dynamic> ageRestriction = {
@@ -2227,26 +2293,63 @@ class VehicleController extends GetxController implements GetxService {
       };
 
       // ========== PAYLOAD FINAL (structure exacte selon documentation) ==========
+      // Validation simple de l'ObjectId (24 hex)
+      bool _isValidMongoId(String? s) =>
+          s != null && s.length == 24 && RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(s);
+
+      final String? cleanVehicleTypeId =
+          _isValidMongoId(vehicleTypeId) ? vehicleTypeId : null;
+
+      // Nettoyer la liste multi-catégories
+      final List<String> cleanedCategories = (categoriesIds ?? [])
+          .where((id) => _isValidMongoId(id))
+          .toSet() // dédoublonne
+          .toList(growable: false);
+      if (cleanVehicleTypeId != null && !cleanedCategories.contains(cleanVehicleTypeId)) {
+        cleanedCategories.insert(0, cleanVehicleTypeId);
+      }
+
       final Map<String, dynamic> payload = {
-        'type': 'CAR', // Type de véhicule (peut être ajusté selon les besoins)
-        'category': 'SUV', // Catégorie (peut être ajusté selon les besoins)
-        'vehicleType': vehicleTypeId, // ObjectId au niveau racine
+        'type': 'CAR',
+        // Champs pour compat descendante: vehicleType + category (singulier) = ID
+        'vehicleType': cleanVehicleTypeId,
+        'category': cleanVehicleTypeId,
+        // Nouveau schéma maître: tableau de catégories (multi-sélection UI)
+        'categories': cleanedCategories,
         'specs': specs,
         'pricing': pricing,
         'location': location,
         'features': features,
         'rules': rules,
-        'images': imageUrls, // Tableau de strings (URLs)
+        'images': imageUrls,
         'cancellationPolicies': cancellationPolicies,
         'minRentalDays': int.tryParse(minRentalDays) ?? 1,
-        // Nettoyage de la plaque d'immatriculation : remplacer les barres | par des tirets -
-        'licencePlateNumber': _cleanPlateNumber(plateNumber1, plateNumber2, plateNumber3), // Au niveau racine
-        'insuranceCoverage': insurance.toUpperCase(), // Au niveau racine (pas insurance)
+        'licencePlateNumber':
+            _cleanPlateNumber(plateNumber1, plateNumber2, plateNumber3),
+        'insuranceCoverage': insurance.toUpperCase(),
         'ageRestriction': ageRestriction,
-        'smokingAllowed': false, // Par défaut (peut être ajusté si nécessaire)
+        'smokingAllowed': false,
         'internationalTravelAllowed': allowsInternationalTravel,
-        'isActive': false, // Par défaut, le véhicule n'est pas actif à la création
+        'isActive': false,
       };
+
+      // Joindre le modèle personnalisé si "Autre" a été saisi
+      if (otherModelName != null && otherModelName.trim().isNotEmpty) {
+        payload['otherModelName'] = otherModelName.trim();
+      }
+
+      debugPrint('📡 [VEHICLE->NODE] Endpoint: POST ${Config.baseUrlWithoutV1}${Config.submitVehicle}');
+      debugPrint('📡 [VEHICLE->NODE] Auth token present: ${authToken.isNotEmpty}');
+      debugPrint('🧪 [VEHICLE] vehicleTypeId (clean) = $cleanVehicleTypeId');
+      debugPrint('🧪 [VEHICLE] categories[] = ${payload['categories']}');
+      debugPrint('🚀 [SENDING_TO_NODE] otherModelName: ${payload['otherModelName']}');
+      debugPrint('🧪 [VEHICLE] brand/model/fuel = ${specs['brand']}/${specs['model']}/${specs['fuel']}');
+      debugPrint('🧪 [VEHICLE] odometer/year/seats = ${specs['odometer']}/${specs['year']}/${specs['seats']}');
+      debugPrint('🧪 [VEHICLE] pricing(base,deposit,currency) = ${pricing['basePrice']}/${(pricing['deposit'] as Map<String, dynamic>)['value']}/${pricing['currency']}');
+      debugPrint('🧪 [VEHICLE] location(city,address) = ${location['city']}/${location['address']}');
+      debugPrint('🧪 [VEHICLE] images/docs counts = ${imageUrls.length}/${documentUrls.values.where((e) => e != null && e!.isNotEmpty).length}');
+      debugPrint('📦 [VEHICLE->NODE] Payload keys: ${payload.keys.toList()}');
+      debugPrint('📦 [VEHICLE->NODE] Payload JSON: ${jsonEncode(payload)}');
 
       // Ajouter les URLs des documents directement dans le payload (au niveau racine)
       if (documentUrls['registrationCardFront'] != null && documentUrls['registrationCardFront']!.isNotEmpty) {
@@ -2279,12 +2382,12 @@ class VehicleController extends GetxController implements GetxService {
       );
 
       // Envoyer la requête POST avec JSON pur
-      debugPrint('📤 [VEHICLE] Envoi du payload JSON: ${jsonEncode(payload)}');
       final dio.Response response = await dioInstance.post(
         url,
         data: payload,
         options: options,
       );
+      debugPrint('📥 [NODE->VEHICLE] HTTP ${response.statusCode} | body: ${response.data}');
 
       closeLoading();
       

@@ -1273,7 +1273,7 @@ class AuthController extends GetxController implements GetxService {
 
     print('🔄 [SWITCH_ROLE] Rôle utilisateur: $userRoleValue');
     print('🔄 [SWITCH_ROLE] Est déjà vendor: $isAlreadyVendor');
-    print('🔄 [SWITCH_ROLE] isHostMode actuel: ${isHostMode.value}');
+    print('🔄 [SWITCH_ROLE] isHostMode actuel: ${this.isHostMode.value}');
 
     // Si l'utilisateur est déjà un vendor, on ne fait pas d'appel API
     // On change simplement la variable locale isHostMode
@@ -1281,19 +1281,19 @@ class AuthController extends GetxController implements GetxService {
       print('✅ [SWITCH_ROLE] Utilisateur déjà vendor - Changement local uniquement');
       
       // Inverser isHostMode
-      isHostMode.value = !isHostMode.value;
+      this.isHostMode.value = !this.isHostMode.value;
       
       // Synchroniser avec la variable globale et le stockage
-      GetStorage().write('isHostMode', isHostMode.value);
+      GetStorage().write('isHostMode', this.isHostMode.value);
       
       // Synchroniser avec la variable globale isHostMode (accessible via work_space.dart)
       // Note: La variable globale est importée via work_space.dart qui importe custom_active_module_id_widget.dart
       // La variable globale isHostMode est déjà synchronisée car elle est réactive
       
-      print('🔄 [SWITCH_ROLE] Nouveau isHostMode: ${isHostMode.value}');
+      print('🔄 [SWITCH_ROLE] Nouveau isHostMode: ${this.isHostMode.value}');
       
       // Naviguer vers le dashboard host si on passe en mode host
-      if (isHostMode.value) {
+      if (this.isHostMode.value) {
         if (webPlateForm) {
           Get.offAllNamed(WebRoutes.buttomHost);
         } else {
@@ -1316,7 +1316,7 @@ class AuthController extends GetxController implements GetxService {
 
     // Si l'utilisateur n'est pas encore vendor, faire l'appel API pour devenir vendor
     // Déterminer le rôle actuel basé sur isHostMode
-    String currentRole = isHostMode.value ? 'vendor' : 'user';
+    String currentRole = this.isHostMode.value ? 'vendor' : 'user';
     String newRole = currentRole == 'vendor' ? 'user' : 'vendor';
 
     print('🔄 [SWITCH_ROLE] Rôle actuel: $currentRole');
@@ -1335,7 +1335,7 @@ class AuthController extends GetxController implements GetxService {
       if (response != null && response['status'] == 200) {
         // Mettre à jour isHostMode localement et globalement
         bool newHostMode = newRole == 'vendor';
-        isHostMode.value = newHostMode;
+        this.isHostMode.value = newHostMode;
         GetStorage().write('isHostMode', newHostMode);
         // Synchroniser avec la variable globale isHostMode (accessible via work_space.dart)
         // Note: La variable globale est importée via work_space.dart qui importe custom_active_module_id_widget.dart
@@ -1378,7 +1378,7 @@ class AuthController extends GetxController implements GetxService {
       // En cas d'erreur API, utiliser la logique locale existante
       // (fallback si l'endpoint n'existe pas encore)
       bool newHostMode = newRole == 'vendor';
-      isHostMode.value = newHostMode;
+      this.isHostMode.value = newHostMode;
       GetStorage().write('isHostMode', newHostMode);
       showToastMessage('Mode changé avec succès'.tr);
       

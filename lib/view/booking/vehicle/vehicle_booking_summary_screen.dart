@@ -269,6 +269,43 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                   return;
                                                 }
                                               }
+
+                                              // Validation "Jours minimum de location" avant navigation vers le paiement.
+                                              final checkInDate =
+                                                  DateTime.tryParse(
+                                                      bookingController
+                                                          .startDate.value);
+                                              final checkOutDate =
+                                                  DateTime.tryParse(
+                                                      bookingController
+                                                          .endDate.value);
+                                              if (checkInDate != null &&
+                                                  checkOutDate != null) {
+                                                final totalNight =
+                                                    bookingController
+                                                        .getDaysInBetween(
+                                                  checkInDate,
+                                                  checkOutDate,
+                                                );
+                                                final minRentalDaysRequired =
+                                                    bookingController
+                                                        .resolveMinRentalDaysForBooking(
+                                                            widget.itemDetails);
+                                                if (minRentalDaysRequired !=
+                                                        null &&
+                                                    minRentalDaysRequired > 0 &&
+                                                    totalNight.length <
+                                                        minRentalDaysRequired) {
+                                                  showErrorToastMessage(
+                                                    'min_rental_duration_vehicle_days'
+                                                        .trParams({
+                                                      'days': minRentalDaysRequired
+                                                          .toString()
+                                                    }),
+                                                  );
+                                                  return;
+                                                }
+                                              }
                                               // Naviguer vers l'écran de sélection des méthodes de paiement
                                               Navigator.push(
                                                 context,
@@ -303,6 +340,43 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                         .data!.lastName ==
                                                     "") {
                                                   profileUpdate(context);
+                                                  return;
+                                                }
+                                              }
+
+                                              // Validation "Jours minimum de location" avant navigation vers le paiement.
+                                              final checkInDate =
+                                                  DateTime.tryParse(
+                                                      bookingController
+                                                          .startDate.value);
+                                              final checkOutDate =
+                                                  DateTime.tryParse(
+                                                      bookingController
+                                                          .endDate.value);
+                                              if (checkInDate != null &&
+                                                  checkOutDate != null) {
+                                                final totalNight =
+                                                    bookingController
+                                                        .getDaysInBetween(
+                                                  checkInDate,
+                                                  checkOutDate,
+                                                );
+                                                final minRentalDaysRequired =
+                                                    bookingController
+                                                        .resolveMinRentalDaysForBooking(
+                                                            widget.itemDetails);
+                                                if (minRentalDaysRequired !=
+                                                        null &&
+                                                    minRentalDaysRequired > 0 &&
+                                                    totalNight.length <
+                                                        minRentalDaysRequired) {
+                                                  showErrorToastMessage(
+                                                    'min_rental_duration_vehicle_days'
+                                                        .trParams({
+                                                      'days': minRentalDaysRequired
+                                                          .toString()
+                                                    }),
+                                                  );
                                                   return;
                                                 }
                                               }
@@ -1345,73 +1419,185 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             const SizedBox(
                                               height: 16,
                                             ),
-                                            Row(
-                                              children: [
-                                                Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
+                                            Builder(
+                                              builder: (context) {
+                                                final totalNights = int.tryParse(
+                                                      bookingController
+                                                              .getItemPrices!
+                                                              .data!
+                                                              .totalNights ??
+                                                          '0',
+                                                    ) ??
+                                                    0;
+                                                final nightLabel =
+                                                    totalNights > 1
+                                                        ? "days"
+                                                        : "day";
+
+                                                final priceDetails =
+                                                    widget.itemDetails
+                                                        ?.priceDetails;
+                                                final originalDaily =
+                                                    double.tryParse(priceDetails
+                                                            ?.originalDailyPrice
+                                                            ?.toString() ??
+                                                        '') ??
+                                                    0.0;
+                                                final fallbackOriginalDaily =
+                                                    totalNights > 0
+                                                        ? (double.tryParse(bookingController
+                                                                    .getItemPrices!
+                                                                    .data!
+                                                                    .priceBeforeDiscount ??
+                                                                '0') ??
+                                                            0.0) /
+                                                            totalNights
+                                                        : (double.tryParse(widget
+                                                                    .price
+                                                                    ?.toString() ??
+                                                                '0') ??
+                                                            0.0);
+                                                final effectiveOriginalDaily =
+                                                    originalDaily > 0
+                                                        ? originalDaily
+                                                        : fallbackOriginalDaily;
+                                                final weeklyDaily =
+                                                    double.tryParse(priceDetails
+                                                            ?.discountedDailyPriceWeekly
+                                                            ?.toString() ??
+                                                        '') ??
+                                                    effectiveOriginalDaily;
+                                                final monthlyDaily =
+                                                    double.tryParse(priceDetails
+                                                            ?.discountedDailyPriceMonthly
+                                                            ?.toString() ??
+                                                        '') ??
+                                                    weeklyDaily;
+
+                                                final selectedDailyPrice =
+                                                    totalNights >= 30
+                                                        ? monthlyDaily
+                                                        : (totalNights >= 7
+                                                            ? weeklyDaily
+                                                            : effectiveOriginalDaily);
+                                                final initialTotal =
+                                                    effectiveOriginalDaily *
+                                                        totalNights;
+                                                final discountedTotal =
+                                                    selectedDailyPrice *
+                                                        totalNights;
+                                                final savedAmount =
+                                                    (initialTotal -
+                                                            discountedTotal)
+                                                        .clamp(
+                                                            0, double.infinity);
+
+                                                return Column(
                                                   children: [
-                                                    Text(
-                                                      "${"Price".tr} ( ${bookingController.getItemPrices!.data!.totalNights!} ${int.parse(bookingController.getItemPrices!.data!.totalNights!) > 1 ? "days" : "day"} )",
-                                                      style: regular2(context)
-                                                          .copyWith(
-                                                              color: notifires
-                                                                  .getGrey3Whitecolor),
-                                                    )
-                                                  ],
-                                                ),
-                                                const Spacer(),
-                                                Text(
-                                                  "${bookingController.currency} ${double.tryParse(bookingController.getItemPrices!.data!.priceBeforeDiscount ?? "0")?.toStringAsFixed(2) ?? bookingController.getItemPrices!.data!.priceBeforeDiscount ?? "0.00"}",
-                                                  style: regular2(context)
-                                                      .copyWith(
-                                                          color: greenback),
-                                                ),
-                                                const SizedBox(
-                                                  width: 10,
-                                                )
-                                              ],
-                                            ),
-                                            const SizedBox(
-                                              height: 2,
-                                            ),
-                                            bookingController.getItemPrices!
-                                                        .data!.discountPrice !=
-                                                    "0"
-                                                ? Row(
-                                                    children: [
-                                                      Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
+                                                    Row(
+                                                      children: [
+                                                        Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              "${"Price".tr} ( $totalNights $nightLabel )",
+                                                              style: regular2(
+                                                                      context)
+                                                                  .copyWith(
+                                                                color: notifires
+                                                                    .getGrey3Whitecolor,
+                                                              ),
+                                                            )
+                                                          ],
+                                                        ),
+                                                        const Spacer(),
+                                                        Text(
+                                                          "${bookingController.currency} ${discountedTotal.toStringAsFixed(2)}",
+                                                          style: regular2(
+                                                                  context)
+                                                              .copyWith(
+                                                            color: greenback,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 10,
+                                                        )
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    if (savedAmount > 0)
+                                                      Row(
                                                         children: [
                                                           Text(
-                                                            bookingController
-                                                                .getItemPrices!
-                                                                .data!
-                                                                .discountType!,
+                                                            "Prix total initial"
+                                                                .tr,
+                                                            style:
+                                                                regular2(context)
+                                                                    .copyWith(
+                                                              color: notifires
+                                                                  .getGrey3Whitecolor,
+                                                              decoration:
+                                                                  TextDecoration
+                                                                      .lineThrough,
+                                                            ),
+                                                          ),
+                                                          const Spacer(),
+                                                          Text(
+                                                            "${bookingController.currency} ${initialTotal.toStringAsFixed(2)}",
+                                                            style:
+                                                                regular2(context)
+                                                                    .copyWith(
+                                                              color: notifires
+                                                                  .getGrey3Whitecolor,
+                                                              decoration:
+                                                                  TextDecoration
+                                                                      .lineThrough,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 10,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    if (savedAmount > 0)
+                                                      const SizedBox(height: 4),
+                                                    if (savedAmount > 0)
+                                                      Row(
+                                                        children: [
+                                                          Text(
+                                                            "Économie longue durée"
+                                                                .tr,
                                                             style: regular2(
                                                                     context)
                                                                 .copyWith(
-                                                                    color: notifires
-                                                                        .getGrey3Whitecolor),
-                                                          )
+                                                              color: Colors
+                                                                  .green[700],
+                                                            ),
+                                                          ),
+                                                          const Spacer(),
+                                                          Text(
+                                                            "- ${savedAmount.toStringAsFixed(2)} MAD",
+                                                            style: regular2(
+                                                                    context)
+                                                                .copyWith(
+                                                              color: Colors
+                                                                  .green[700],
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 10,
+                                                          ),
                                                         ],
                                                       ),
-                                                      const Spacer(),
-                                                      Text(
-                                                        "- ${bookingController.currency} ${bookingController.getItemPrices!.data!.discountPrice!}",
-                                                        style: regular2(context)
-                                                            .copyWith(
-                                                                color: notifires
-                                                                    .getGrey3Whitecolor),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 10,
-                                                      )
-                                                    ],
-                                                  )
-                                                : const SizedBox(),
+                                                  ],
+                                                );
+                                              },
+                                            ),
                                             const SizedBox(
                                               height: 2,
                                             ),
@@ -1452,78 +1638,37 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             const SizedBox(
                                               height: 2,
                                             ),
-                                            bookingController.getItemPrices!
-                                                        .data!.serviceCharge ==
-                                                    "0"
-                                                ? const SizedBox()
-                                                : Row(
-                                                    children: [
-                                                      Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                            "Service Charge".tr,
-                                                            style: regular2(
-                                                                    context)
-                                                                .copyWith(
-                                                                    color: notifires
-                                                                        .getGrey3Whitecolor),
-                                                          )
-                                                        ],
-                                                      ),
-                                                      const Spacer(),
-                                                      Text(
-                                                        "${bookingController.currency} ${bookingController.getItemPrices!.data!.serviceCharge!}",
-                                                        style: regular2(context)
-                                                            .copyWith(
-                                                                color: notifires
-                                                                    .getGrey3Whitecolor),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 10,
-                                                      )
-                                                    ],
-                                                  ),
+                                            Row(
+                                              children: [
+                                                Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      "Service Charge".tr,
+                                                      style: regular2(context)
+                                                          .copyWith(
+                                                              color: notifires
+                                                                  .getGrey3Whitecolor),
+                                                    )
+                                                  ],
+                                                ),
+                                                const Spacer(),
+                                                Text(
+                                                  "${bookingController.currency} 0.00",
+                                                  style: regular2(context)
+                                                      .copyWith(
+                                                          color: notifires
+                                                              .getGrey3Whitecolor),
+                                                ),
+                                                const SizedBox(
+                                                  width: 10,
+                                                )
+                                              ],
+                                            ),
                                             const SizedBox(
                                               height: 2,
                                             ),
-                                            bookingController.getItemPrices!
-                                                        .data!.cleaningCharge ==
-                                                    "0"
-                                                ? const SizedBox()
-                                                : Row(
-                                                    children: [
-                                                      Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                            "Cleaning Charge"
-                                                                .tr,
-                                                            style: regular2(
-                                                                    context)
-                                                                .copyWith(
-                                                                    color: notifires
-                                                                        .getGrey3Whitecolor),
-                                                          )
-                                                        ],
-                                                      ),
-                                                      const Spacer(),
-                                                      Text(
-                                                        "${bookingController.currency} ${bookingController.getItemPrices!.data!.cleaningCharge!}",
-                                                        style: regular2(context)
-                                                            .copyWith(
-                                                                color: notifires
-                                                                    .getGrey3Whitecolor),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 10,
-                                                      )
-                                                    ],
-                                                  ),
                                             widget.isAddDoorStepPrice == "0" ||
                                                     widget.isAddDoorStepPrice ==
                                                         ""
@@ -1548,88 +1693,6 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                       const Spacer(),
                                                       Text(
                                                         "${bookingController.currency} ${widget.isAddDoorStepPrice}",
-                                                        style: regular2(context)
-                                                            .copyWith(
-                                                                color: notifires
-                                                                    .getGrey3Whitecolor),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 10,
-                                                      )
-                                                    ],
-                                                  ),
-                                            const SizedBox(
-                                              height: 2,
-                                            ),
-                                            bookingController
-                                                        .getItemPrices!
-                                                        .data!
-                                                        .securityDeposit!
-                                                        .isEmpty ||
-                                                    bookingController
-                                                            .getItemPrices!
-                                                            .data!
-                                                            .securityDeposit ==
-                                                        "0"
-                                                ? const SizedBox()
-                                                : Row(
-                                                    children: [
-                                                      Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                            "Security Deposit"
-                                                                .tr,
-                                                            style: regular2(
-                                                                    context)
-                                                                .copyWith(
-                                                                    color: notifires
-                                                                        .getGrey3Whitecolor),
-                                                          )
-                                                        ],
-                                                      ),
-                                                      const Spacer(),
-                                                      Text(
-                                                        "${bookingController.currency} ${bookingController.getItemPrices!.data!.securityDeposit!}",
-                                                        style: regular2(context)
-                                                            .copyWith(
-                                                                color: notifires
-                                                                    .getGrey3Whitecolor),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 10,
-                                                      )
-                                                    ],
-                                                  ),
-                                            const SizedBox(
-                                              height: 2,
-                                            ),
-                                            bookingController.getItemPrices!
-                                                        .data!.tax ==
-                                                    "0"
-                                                ? const SizedBox()
-                                                : Row(
-                                                    children: [
-                                                      Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                            "Tax".tr,
-                                                            style: regular2(
-                                                                    context)
-                                                                .copyWith(
-                                                                    color: notifires
-                                                                        .getGrey3Whitecolor),
-                                                          )
-                                                        ],
-                                                      ),
-                                                      const Spacer(),
-                                                      Text(
-                                                        "${bookingController.currency} ${bookingController.getItemPrices!.data!.tax!}",
                                                         style: regular2(context)
                                                             .copyWith(
                                                                 color: notifires
@@ -1689,11 +1752,14 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.start,
                                                   children: [
-                                                    Text("Total Price".tr,
+                                                    Text("Total à payer".tr,
                                                         style: heading3(context)
                                                             .copyWith(
                                                                 color:
-                                                                    getColorBasedOnActiveModuleid()))
+                                                                    getColorBasedOnActiveModuleid(),
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700))
                                                   ],
                                                 ),
                                                 const Spacer(),
@@ -1947,15 +2013,13 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                     noteItem(
                                       label: "Smoking Allowed".tr,
                                       value:
-                                          widget.itemDetails!.smokingStatus ==
-                                              '1',
+                                          widget.itemDetails!.isSmokingAllowed,
                                     ),
                                     const SizedBox(height: 8),
                                     noteItem(
                                       label: "International Travel Allowed".tr,
                                       value: widget.itemDetails!
-                                              .internationalTravel ==
-                                          '1',
+                                              .isInternationalTravelAllowed,
                                     ),
                                   ],
                                 ),
@@ -1984,7 +2048,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
           ),
         ),
         Text(
-          value ? "Yes" : "No",
+          value ? "Yes".tr : "No".tr,
           style: const TextStyle(
             color: Colors.black,
             fontSize: 14,

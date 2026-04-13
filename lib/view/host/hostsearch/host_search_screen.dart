@@ -90,7 +90,7 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
       }
       
       // Appeler la nouvelle fonction deleteVehicleRequest du contrôleur
-      await addItemsHostController.deleteVehicleRequest(vehicleId);
+      await addItemsHostController.toggleVehicleActiveStatus(index, vehicleId);
       
       // Rafraîchir la liste après la suppression
       onRefresh();
@@ -556,7 +556,19 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
                                     }
                                   },
                                   onDelete: () {
-                                    deleteMethod(index);
+                                    final vehicle = itemsList[index];
+                                    final vehicleId =
+                                        vehicle.id?.toString() ?? '';
+                                    if (vehicleId.isEmpty) {
+                                      showErrorToastMessage(
+                                          'ID du véhicule introuvable');
+                                      return;
+                                    }
+                                    addItemsHostController
+                                        .toggleVehicleActiveStatus(
+                                      index,
+                                      vehicleId,
+                                    );
                                   },
                                 );
                               },

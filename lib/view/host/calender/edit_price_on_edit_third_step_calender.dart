@@ -7,6 +7,7 @@ import 'package:carvy/controller/add_items_host_controller.dart';
 import 'package:carvy/customwidget/form_elements.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
+import 'package:carvy/utils/calendar_block_reasons.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/work_space.dart';
@@ -34,6 +35,8 @@ class _EditPriceOnThirdStepCommonCalenderState
   @override
   void initState() {
     addItemsHostController.textEditingControllerFuturePrice.clear();
+    addItemsHostController.calendarBlockReason.value =
+        CalendarBlockReasons.defaultReason;
     super.initState();
   }
 
@@ -124,6 +127,51 @@ class _EditPriceOnThirdStepCommonCalenderState
                     ),
                   ],
                 ),
+                Obx(() => addItemsHostController.isChecked2.value
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          value: addItemsHostController
+                                  .calendarBlockReason.value,
+                          decoration: InputDecoration(
+                            labelText: 'Blocking reason'.tr,
+                            filled: true,
+                            fillColor: notifires.getblackwhitecolor,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusLarge,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusLarge,
+                              ),
+                              borderSide:
+                                  BorderSide(color: notifires.getgreywhite),
+                            ),
+                          ),
+                          items: CalendarBlockReasons.options
+                              .map(
+                                (e) => DropdownMenuItem<String>(
+                                  value: e,
+                                  child: Text(
+                                    e,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) {
+                              addItemsHostController.calendarBlockReason.value =
+                                  v;
+                            }
+                          },
+                        ),
+                      )
+                    : const SizedBox.shrink()),
               ],
             ),
             Column(

@@ -48,8 +48,95 @@ import '../view/booking/e_reciept.dart';
 import '../view/chat/conversation_screen.dart';
 import '../view/itemdetail/vehicle/vehicle_detail_screen.dart';
 import '../view/wishlist/wish_list_screen.dart';
+import 'extension.dart';
 
 import '../work_space.dart';
+
+class BookingStatusDetails {
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  const BookingStatusDetails({
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
+}
+
+/// Ouvre Google Maps (Android) ou Apple Maps (iOS) vers les coordonnées de l’agence.
+Future<void> launchBookingAgencyDirections({
+  required double? latitude,
+  required double? longitude,
+}) async {
+  if (latitude == null || longitude == null) {
+    showErrorToastMessage('Location not found'.tr);
+    return;
+  }
+  final lat = latitude.toString();
+  final lng = longitude.toString();
+  final Uri uri = Platform.isIOS
+      ? Uri.parse('https://maps.apple.com/?daddr=$lat,$lng')
+      : Uri.parse(
+          'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+        );
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } else {
+    showErrorToastMessage('Could not open the map'.tr);
+  }
+}
+
+/// Affiche « Voir l’itinéraire » pour les réservations confirmées ou en cours (hors terminées / annulées).
+bool shouldShowBookingAgencyDirections({
+  required String? bookingStatus,
+  required String listType,
+}) {
+  if (listType == 'Cancelled' || listType == 'Previous') return false;
+  final s = bookingStatus?.trim().toUpperCase() ?? '';
+  if (s.isEmpty) return false;
+  if (s == 'CONFIRMED' ||
+      s == 'CONFIRMÉE' ||
+      s == 'CONFIRMEE') {
+    return true;
+  }
+  if (s == 'LIVE' ||
+      s == 'ONGOING' ||
+      s == 'EN DIRECT' ||
+      s == 'EN_DIRECT') {
+    return true;
+  }
+  return false;
+}
+
+BookingStatusDetails getBookingStatusDetails(String? status) {
+  switch (status.toStandardStatus()) {
+    case 'CONFIRMED':
+      return BookingStatusDetails(
+        label: 'CONFIRMEE'.tr,
+        color: greensColor,
+        icon: Icons.check_circle_outline,
+      );
+    case 'PENDING':
+      return BookingStatusDetails(
+        label: 'EN ATTENTE'.tr,
+        color: orangeColor,
+        icon: Icons.schedule,
+      );
+    case 'CANCELLED':
+      return BookingStatusDetails(
+        label: 'ANNULEE'.tr,
+        color: redColor,
+        icon: Icons.close,
+      );
+    default:
+      return BookingStatusDetails(
+        label: status.toStandardStatus(),
+        color: greyColor,
+        icon: Icons.info_outline,
+      );
+  }
+}
 
 // --- GLOBAL FUNCTIONS ---
 Widget commonlyUserlogoAlert() {
@@ -433,8 +520,13 @@ Widget itemVerticalView(
       ItemInfo? itemInfoData;
       if (list != null && list.length > index && list[index] != null) {
         final item = list[index];
-        // DEBUG: vérifier que les items sont bien construits pour la liste
-        print("🔧 BUILDING ITEM: ${item.name} - ${item.price} - ${item.image}");
+        // DEBUG demandé: tracer chaque véhicule rendu dans la liste.
+        print('🚗 [DEBUG] Véhicule chargé : ${item.name} | ID: ${item.id}');
+        if ((item.id ?? '').trim().isEmpty ||
+            (item.id ?? '').toLowerCase() == 'null') {
+          print(
+              "⚠️ [DEBUG] Véhicule potentiellement dummy détecté: nom=${item.name}, id='${item.id}'");
+        }
 
         if (activeModuleId.value == 1 ||
             activeModuleId.value == 2 ||
@@ -459,6 +551,8 @@ Widget itemVerticalView(
         final String locationText = locationParts.isNotEmpty
             ? locationParts.join(" • ")
             : "Unknown Location".tr;
+        final double parsedRating =
+            double.tryParse(item.itemRating?.toString() ?? '0') ?? 0.0;
 
         return Padding(
           padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
@@ -569,7 +663,7 @@ Widget itemVerticalView(
                                           ),
                                           const SizedBox(width: 5),
                                           Text(
-                                            '${item.itemRating ?? ""}.0'.tr,
+                                            parsedRating.toStringAsFixed(1),
                                             style: boldstyle(context).copyWith(
                                                 color: whiteColor, fontSize: 9),
                                           ),
@@ -840,6 +934,8 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
         final String locationTextPublic = locationPartsPublic.isNotEmpty
             ? locationPartsPublic.join(" • ")
             : "Unknown Location".tr;
+        final double parsedRating =
+            double.tryParse(list[index].itemRating?.toString() ?? '0') ?? 0.0;
         return Padding(
           padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
           child: GestureDetector(
@@ -951,8 +1047,7 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
                                           ),
                                           const SizedBox(width: 5),
                                           Text(
-                                            '${list[index].itemRating ?? ""}.0'
-                                                .tr,
+                                            parsedRating.toStringAsFixed(1),
                                             style: boldstyle(context).copyWith(
                                               color: whiteColor,
                                               fontSize: 9,
@@ -1250,7 +1345,7 @@ myBookingListWidget(
                           const SizedBox(
                             height: 10,
                           ),
-                          list[index].status == "Confirmed" &&
+                          list[index].status.isConfirmed &&
                                   listType == 'UpComing'
                               ? Text(
                                   'Your booking is confirmed. Do you still want to cancel it?'
@@ -1455,6 +1550,9 @@ myBookingListWidget(
         print(list[index].status);
 
         var itemData = jsonDecode(list[index].itemData);
+        String vehicleMongoId = (itemData.isNotEmpty && itemData[0]['_id'] != null) 
+            ? itemData[0]['_id'].toString() 
+            : list.elementAt(index).itemid.toString();
         String address = itemData[0]['address'] ?? 'N/A'.tr;
         dynamic latitude = itemData[0]['latitude'] ?? 'N/A'.tr;
         dynamic longitude = itemData[0]['longitude'] ?? 'N/A'.tr;
@@ -1484,6 +1582,9 @@ myBookingListWidget(
 
         dynamic proType = itemData[0]['item_type'] ?? 'N/A'.tr;
         String? doorStepPrice = itemInfoData.doorStepPrice;
+        final bool isLiveBookingCard = listType.toLowerCase() == "ongoing";
+        final String dropOtpValue = (list[index].dropOtp ?? '').trim();
+        final bool hasDropOtp = dropOtpValue.isNotEmpty;
 
         SchedulerBinding.instance.addPostFrameCallback((_) {
           if (!bookingAgrinmentUser2 &&
@@ -1708,15 +1809,57 @@ myBookingListWidget(
             // d'avoir la priorité sur les clics
             behavior: HitTestBehavior.deferToChild,
             onTap: () {
-              // Navigation vers les détails du véhicule avec toutes les données
-              // (même navigation que celle qui fonctionnait sur l'image)
+              // Extraction de l'ID du véhicule depuis itemData (JSON String)
+              // afin d'éviter l'erreur 404 causée par l'envoi de l'ID de réservation
+              String vehicleId = "";
+              String rawItemData = list[index].itemData.toString();
+              
+              try {
+                var decodedData = jsonDecode(rawItemData);
+                if (decodedData is List && decodedData.isNotEmpty) {
+                  // Le premier élément contient les détails du véhicule
+                  vehicleId = decodedData[0]['item_id']?.toString() ?? "";
+                  
+                  // Fallback de sécurité : si item_id est absent, on vérifie item_type 
+                  // (certaines versions de l'API utilisent ce champ pour l'ID)
+                  if (vehicleId.isEmpty || vehicleId == "null") {
+                    vehicleId = decodedData[0]['item_type']?.toString() ?? "";
+                  }
+                }
+              } catch (e) {
+                print('❌ [DEBUG] Erreur décodage itemData: $e');
+              }
+
+              // Si on n'a toujours pas d'ID, fallback sur list[index].itemid
+              if (vehicleId.isEmpty || vehicleId == "null") {
+                vehicleId = list[index].itemid.toString();
+              }
+
+              print('🚀 [NAVIGATION] ID véhicule extrait pour VehicleDetailSScreen : $vehicleId');
+              
+              // Inspiration Homepage: Définir un titre de fallback robuste
+              String finalTitle = list[index].propTitle ?? "";
+              if (finalTitle.isEmpty || finalTitle == "null" || finalTitle == "N/A" || finalTitle.toLowerCase() == "véhicule sans titre") {
+                 try {
+                   var decodedData = jsonDecode(rawItemData);
+                   if (decodedData is List && decodedData.isNotEmpty) {
+                      finalTitle = decodedData[0]['name'] ?? decodedData[0]['item_title'] ?? decodedData[0]['title'] ?? "Véhicule";
+                   } else {
+                      finalTitle = "Véhicule";
+                   }
+                 } catch(e) {
+                   finalTitle = "Véhicule";
+                 }
+              }
+
+              // Navigation vers les détails du véhicule avec l'ID sécurisé et les données fallback
               showPopUpScreen(
                   context,
                   VehicleDetailSScreen(
-                    id: list.elementAt(index).itemid,
+                    id: vehicleId,
                     itemInfo: itemInfoData!,
                     rating: list[index].rating,
-                    title: list[index].propTitle,
+                    title: finalTitle,
                     address: address,
                     latitute: latitude,
                     longtitute: longitude,
@@ -1764,37 +1907,141 @@ myBookingListWidget(
                             ),
                           ],
                         ),
-                        Positioned(
-                            left: 0,
-                            top: 0,
-                            child: Container(
-                              padding: const EdgeInsets.only(
-                                  left: 8, right: 8, top: 4, bottom: 4),
-                              decoration: BoxDecoration(
-                                  color: getColorBasedOnActiveModuleid()
-                                      .withOpacity(.8),
-                                  borderRadius: BorderRadius.circular(12)),
-                              child: Text("${list[index].pickOtp ?? ''}",
-                                  style: regular2(context)
-                                      .copyWith(color: whiteColor)),
-                            )),
+                        // Afficher le Drop OTP pour le client sur les réservations en direct
+                        isLiveBookingCard && hasDropOtp
+                            ? Positioned(
+                                top: 8,
+                                left: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.only(
+                                      left: 8, right: 8, top: 4, bottom: 4),
+                                  decoration: BoxDecoration(
+                                    color: getColorBasedOnActiveModuleid()
+                                        .withOpacity(.8),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    "Drop OTP : $dropOtpValue",
+                                    style: regular2(context)
+                                        .copyWith(color: whiteColor),
+                                  ),
+                                ),
+                              )
+                            : SizedBox(),
                         listType == "Cancelled"
                             ? SizedBox()
                             : Positioned(
                                 bottom: 10,
                                 right: 10,
                                 child: InkWell(
-                                  onTap: () {
+                                  onTap: () async {
+                                    final booking = list[index];
+                                    // ignore: avoid_print
+                                    print('--- DUMP COMPLET RÉSERVATION ---');
+                                    try {
+                                      // ignore: avoid_print
+                                      print(jsonEncode(booking.toJson()));
+                                    } catch (_) {
+                                      // ignore: avoid_print
+                                      print(booking.toString());
+                                    }
+                                    // ignore: avoid_print
+                                    print('CONTENU ITEM_DATA : ${booking.itemData}');
+                                    // ignore: avoid_print
+                                    print('---------------------------------');
+
+                                    // Récupère hostId avec fallback depuis itemData si null/\"null\"/vide
+                                    String? primaryHostId =
+                                        booking.hostId?.toString().trim();
+                                    String? fallbackHostId;
+                                    try {
+                                      final dynamic raw = itemData;
+                                      if (raw is List && raw.isNotEmpty) {
+                                        final m = raw.first is Map
+                                            ? Map<String, dynamic>.from(raw.first)
+                                            : <String, dynamic>{};
+                                        fallbackHostId = (m['host_id'] ??
+                                                m['hostId'] ??
+                                                m['seller_id'] ??
+                                                m['vendor_id'] ??
+                                                m['owner_id'] ??
+                                                m['user_id'])
+                                            ?.toString()
+                                            .trim();
+                                      }
+                                    } catch (_) {
+                                      // ignore
+                                    }
+                                    String finalHostId = (primaryHostId != null &&
+                                                primaryHostId.isNotEmpty &&
+                                                primaryHostId.toLowerCase() != 'null')
+                                            ? primaryHostId
+                                            : ((fallbackHostId != null &&
+                                                        fallbackHostId.isNotEmpty &&
+                                                        fallbackHostId.toLowerCase() != 'null')
+                                                    ? fallbackHostId!
+                                                    : '');
+
+                                    // Fallback "lazy loading" via API véhicule si hostId est encore introuvable
+                                    if (finalHostId.isEmpty) {
+                                      final itemId = booking.itemid?.toString().trim() ?? '';
+                                      if (itemId.isNotEmpty &&
+                                          itemId.toLowerCase() != 'null') {
+                                        try {
+                                          final vehicleResponse = await httpGet(
+                                            '${Config.getVehicleDetails}/$itemId',
+                                            {},
+                                          );
+                                          dynamic vehicleData = vehicleResponse?['data'];
+                                          if (vehicleData is Map &&
+                                              vehicleData['items'] is List &&
+                                              (vehicleData['items'] as List).isNotEmpty) {
+                                            vehicleData = (vehicleData['items'] as List).first;
+                                          }
+                                          if (vehicleData is Map) {
+                                            final apiHostId = (vehicleData['user_id'] ??
+                                                    vehicleData['host_id'] ??
+                                                    vehicleData['owner_id'] ??
+                                                    vehicleData['vendor_id'] ??
+                                                    vehicleData['userId'] ??
+                                                    vehicleData['hostId'])
+                                                ?.toString()
+                                                .trim();
+                                            if (apiHostId != null &&
+                                                apiHostId.isNotEmpty &&
+                                                apiHostId.toLowerCase() != 'null') {
+                                              finalHostId = apiHostId;
+                                            }
+                                          }
+                                        } catch (e) {
+                                          // ignore: avoid_print
+                                          print('DEBUG CHAT : fallback API vehicle échoué: $e');
+                                        }
+                                      }
+                                    }
+
+                                    // Log de debug requis
+                                    print("DEBUG CHAT : hostId = $finalHostId");
+
+                                    // Si hostId introuvable, alerte et on stoppe
+                                    if (finalHostId.isEmpty) {
+                                      showErrorToastMessage(
+                                          "Impossible d'ouvrir le chat: identifiant du vendeur introuvable");
+                                      return;
+                                    }
+
+                                    final String conversationId =
+                                        "${userId}_${list[index].id}_$finalHostId";
+
                                     Get.to(() => ConversationScreen(
                                           bookingStatus: list[index].status,
                                           bookingId: '${list[index].id}',
                                           image: image,
                                           title: list[index].propTitle!,
-                                          conversationId:
-                                              "${userId}_${list[index].id}_${list[index].hostId}",
+                                          conversationId: conversationId,
                                           from: "${list[index].hostName}",
                                           senderId: "$userId",
-                                          reciverId: "${list[index].hostId}",
+                                          reciverId: finalHostId,
                                         ));
                                   },
                                   child: Container(
@@ -1893,52 +2140,79 @@ myBookingListWidget(
                             Spacer(),
                             listType == "ongoing"
                                 ? SizedBox()
-                                : Container(
-                                    padding: const EdgeInsets.only(
-                                        left: 8, right: 8, top: 4, bottom: 4),
-                                    decoration: BoxDecoration(
-                                        color: list[index].status ==
-                                                    "Confirmed" ||
-                                                list[index].status == "live"
-                                            ? greensColor
-                                            : list[index].status == "Pending"
-                                                ? yellowColor
-                                                : list[index].status ==
-                                                        "Completed"
-                                                    ? blueColor
-                                                    : redColor,
-                                        borderRadius: BorderRadius.circular(5)),
-                                    child: list[index].status == "Confirmed" ||
-                                            list[index].status == "live" ||
-                                            list[index].status == "Pending" ||
-                                            list[index].status == "Declined" &&
-                                                listType == "UpComing" ||
-                                            listType == "Previous"
-                                        ? Text("${list[index].status}",
-                                            style: regular(context)
-                                                .copyWith(color: whiteColor))
-                                        : listType == 'Cancelled'
-                                            ? Container(
-                                                decoration: BoxDecoration(
-                                                    color: redColor,
-                                                    border: Border.all(
-                                                      color: redColor,
+                                : Builder(
+                                    builder: (context) {
+                                      final statusUi = getBookingStatusDetails(
+                                        list[index].status?.toString(),
+                                      );
+                                      final standardStatus = list[index]
+                                          .status
+                                          .toStandardStatus();
+                                      final canShowStatusText =
+                                          standardStatus == 'CONFIRMED' ||
+                                              standardStatus == 'PENDING' ||
+                                              standardStatus == 'DECLINED' ||
+                                              standardStatus == 'LIVE' ||
+                                              listType == "Previous" ||
+                                              listType == "UpComing";
+                                      return Container(
+                                        padding: const EdgeInsets.only(
+                                          left: 8,
+                                          right: 8,
+                                          top: 4,
+                                          bottom: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: statusUi.color,
+                                          borderRadius:
+                                              BorderRadius.circular(5),
+                                        ),
+                                        child: canShowStatusText
+                                            ? Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    statusUi.icon,
+                                                    size: 12,
+                                                    color: whiteColor,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    statusUi.label,
+                                                    style: regular(context)
+                                                        .copyWith(
+                                                      color: whiteColor,
                                                     ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            10)),
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.all(4.0),
-                                                  child: Text(
-                                                      '${list[index].status}',
-                                                      style: regular(context)
-                                                          .copyWith(
-                                                              color:
-                                                                  whiteColor)),
-                                                ),
+                                                  ),
+                                                ],
                                               )
-                                            : const SizedBox(),
+                                            : listType == 'Cancelled'
+                                                ? Container(
+                                                    decoration: BoxDecoration(
+                                                      color: redColor,
+                                                      border: Border.all(
+                                                        color: redColor,
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                    ),
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              4.0),
+                                                      child: Text(
+                                                        statusUi.label,
+                                                        style: regular(context)
+                                                            .copyWith(
+                                                          color: whiteColor,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  )
+                                                : const SizedBox(),
+                                      );
+                                    },
                                   )
                           ],
                         ),
@@ -3156,7 +3430,8 @@ myBookingListWidget(
                                                   : const SizedBox()
                                           : const SizedBox(),
                             ),
-                            listType == 'UpComing' && list[index].status.toString().toUpperCase() == 'CONFIRMED'
+                            listType == 'UpComing' &&
+                                    list[index].status.isConfirmed
                                 ? Expanded(
                                     flex: 1,
                                     child: InkWell(
@@ -3191,7 +3466,7 @@ myBookingListWidget(
                                   ? const SizedBox()
                                   : listType == "Previous" &&
                                           list[index].isItemReturned == 0 &&
-                                          list[index].status == "Confirmed"
+                                          list[index].status.isConfirmed
                                       ? Expanded(
                                           flex: 1,
                                           child: InkWell(
@@ -3418,39 +3693,127 @@ myBookingListWidget(
                                 height: 8,
                               )
                             : SizedBox(),
-                        InkWell(
-                          onTap: () async {
-                            Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (builder) => EReceiptScreen(
-                                          bookings: list[index],
-                                          fromPropBooking: fromPropBooking,
-                                          doorStepPrice: doorStepPrice ?? "",
-                                        ))).then((value) {
-                              if (value != null) {
-                                list[index].statusSetter = value;
-                                setState(() {});
-                              }
-                            });
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 10),
-                            child: Container(
-                                height: 49,
-                                padding: const EdgeInsets.only(
-                                    left: 10, right: 10, top: 0, bottom: 0),
-                                decoration: BoxDecoration(
-                                  color: themeColor,
-                                  borderRadius: BorderRadius.circular(13),
+                        Builder(
+                          builder: (context) {
+                            final showDirections =
+                                shouldShowBookingAgencyDirections(
+                                  bookingStatus: list[index].status,
+                                  listType: listType,
+                                ) &&
+                                list[index].hostLat != null &&
+                                list[index].hostLng != null;
+                            const double actionButtonHeight = 48;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 10),
+                              child: SizedBox(
+                                height: 50,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    if (showDirections)
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                              right: 8),
+                                          child: SizedBox(
+                                            height: actionButtonHeight,
+                                            width: double.infinity,
+                                            child: ElevatedButton.icon(
+                                              onPressed: () =>
+                                                  launchBookingAgencyDirections(
+                                                latitude: list[index].hostLat,
+                                                longitude: list[index].hostLng,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.directions_car,
+                                                size: 20,
+                                              ),
+                                              label: Text(
+                                                'Voir l\'itinéraire'.tr,
+                                                style: boldstyle(context)
+                                                    .copyWith(
+                                                  color: Colors.purple,
+                                                  fontSize: 13,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                elevation: 0,
+                                                tapTargetSize: MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                                backgroundColor: Colors.purple
+                                                    .withOpacity(0.1),
+                                                foregroundColor: Colors.purple,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(13),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: actionButtonHeight,
+                                        child: InkWell(
+                                          borderRadius:
+                                              BorderRadius.circular(13),
+                                          onTap: () async {
+                                            Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                    builder: (builder) =>
+                                                        EReceiptScreen(
+                                                          bookings:
+                                                              list[index],
+                                                          fromPropBooking:
+                                                              fromPropBooking,
+                                                          doorStepPrice:
+                                                              doorStepPrice ??
+                                                                  "",
+                                                        ))).then((value) {
+                                              if (value != null) {
+                                                list[index].statusSetter =
+                                                    value;
+                                                setState(() {});
+                                              }
+                                            });
+                                          },
+                                          child: Container(
+                                            height: actionButtonHeight,
+                                            alignment: Alignment.center,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: themeColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(13),
+                                            ),
+                                            child: Text(
+                                              "Reciept".tr,
+                                              textAlign: TextAlign.center,
+                                              style: boldstyle(context)
+                                                  .copyWith(
+                                                color: whiteColor,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                child: Center(
-                                    child: Text(
-                                  "Reciept".tr,
-                                  style: boldstyle(context).copyWith(
-                                      color: whiteColor, fontSize: 14),
-                                ))),
-                          ),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -3523,26 +3886,51 @@ bottomSheetReviewed(rating, text) {
   );
 }
 
-Widget myNetworkImage(String? image, [bool? shoeIcononError]) {
-  if (image != null && Uri.tryParse(image) != null) {
-    return Image.network(
-      image,
-      fit: BoxFit.cover,
-      loadingBuilder: (BuildContext context, Widget child,
-          ImageChunkEvent? loadingProgress) {
-        if (loadingProgress == null) {
-          return child;
-        } else {
-          return shimmerContainer();
-        }
-      },
-      errorBuilder: (context, exception, stackTrace) {
-        return shoeIcononError == true ? getErrorIcon() : getErrorImage();
-      },
+/// Affiche une image de profil : data URI base64 (`data:image/...`), URL http(s), ou placeholder d'erreur.
+Widget buildAvatarImage(String imageUrl,
+    {BoxFit fit = BoxFit.cover, bool? shoeIcononError}) {
+  Widget onError() =>
+      shoeIcononError == true ? getErrorIcon() : getErrorImage();
+
+  final trimmed = imageUrl.trim();
+  if (trimmed.isEmpty) return onError();
+  if (trimmed.startsWith('data:image')) {
+    try {
+      final comma = trimmed.indexOf(',');
+      if (comma < 0) return onError();
+      final base64String = trimmed.substring(comma + 1);
+      final bytes = base64Decode(base64String);
+      return Image.memory(
+        bytes,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => onError(),
+      );
+    } catch (_) {
+      return onError();
+    }
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return CachedNetworkImage(
+      imageUrl: trimmed,
+      fit: fit,
+      placeholder: (context, url) => const Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+      errorWidget: (context, url, error) => onError(),
     );
-  } else {
+  }
+  return onError();
+}
+
+Widget myNetworkImage(String? image, [bool? shoeIcononError]) {
+  if (image == null || image.trim().isEmpty) {
     return shoeIcononError == true ? getErrorIcon() : getErrorImage();
   }
+  return buildAvatarImage(image, fit: BoxFit.cover, shoeIcononError: shoeIcononError);
 }
 
 Widget myNetworkImageWithShimmer(String? image) {
@@ -3587,12 +3975,16 @@ Widget myNetworkImageWithShimmer(String? image) {
 }
 
 Widget myNetworkImageFillBox(String? image) {
-  if (image != null && Uri.tryParse(image) != null) {
-    if (kDebugMode) {
-      print(image);
-    }
+  if (image == null || image.trim().isEmpty) return getErrorImage();
+  final t = image.trim();
+  if (t.startsWith('data:image')) {
+    if (kDebugMode) print(image);
+    return buildAvatarImage(t, fit: BoxFit.cover);
+  }
+  if (t.startsWith('http://') || t.startsWith('https://')) {
+    if (kDebugMode) print(image);
     return Image.network(
-      image,
+      t,
       fit: BoxFit.cover,
       loadingBuilder: (BuildContext context, Widget child,
           ImageChunkEvent? loadingProgress) {
@@ -3611,15 +4003,19 @@ Widget myNetworkImageFillBox(String? image) {
         return getErrorImage();
       },
     );
-  } else {
-    return getErrorImage();
   }
+  return getErrorImage();
 }
 
 Widget myNetworkImageFitWidth(String? image) {
-  if (image != null && Uri.tryParse(image) != null) {
+  if (image == null || image.trim().isEmpty) return getErrorImage();
+  final t = image.trim();
+  if (t.startsWith('data:image')) {
+    return buildAvatarImage(t, fit: BoxFit.cover);
+  }
+  if (t.startsWith('http://') || t.startsWith('https://')) {
     return Image.network(
-      image,
+      t,
       fit: BoxFit.cover,
       loadingBuilder: (BuildContext context, Widget child,
           ImageChunkEvent? loadingProgress) {
@@ -3638,9 +4034,8 @@ Widget myNetworkImageFitWidth(String? image) {
         return getErrorImage();
       },
     );
-  } else {
-    return getErrorImage();
   }
+  return getErrorImage();
 }
 
 Widget getErrorImage() {
@@ -4192,6 +4587,12 @@ Widget searchContainer() {
 }
 
 featuresBottomSheet(BuildContext context, {final String? title, dynamic list}) {
+  final safeList = (list is List) ? list : [];
+  if (safeList.isEmpty) {
+    // Rien à afficher: on n'ouvre pas de bottom sheet vide.
+    return;
+  }
+
   showModalBottomSheet(
     enableDrag: true,
     useRootNavigator: true,
@@ -4236,16 +4637,18 @@ featuresBottomSheet(BuildContext context, {final String? title, dynamic list}) {
               ],
             ),
             const SizedBox(height: 25),
-            Text(title!.tr,
-                style: headingh4.copyWith(color: notifires.getwhiteblackcolor)),
-            const SizedBox(
-              height: 10,
-            ),
+            if ((title ?? '').trim().isNotEmpty) ...[
+              Text(
+                title!.tr,
+                style: headingh4.copyWith(color: notifires.getwhiteblackcolor),
+              ),
+              const SizedBox(height: 10),
+            ],
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    for (var x in list)
+                    for (var x in safeList)
                       Column(
                         children: [
                           featuresbox(
@@ -4339,9 +4742,12 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
               ],
             ),
             const SizedBox(height: 25),
-            // Titre "Politique d'annulation" en gras (style Title)
+            // Titre dynamique : utilise le titre passé en paramètre si disponible,
+            // sinon fallback sur "Politique d'annulation"
             Text(
-              "Politique d'annulation".tr,
+              (title != null && title.isNotEmpty)
+                  ? title.tr
+                  : "Politique d'annulation".tr,
               style: boldstyle(context).copyWith(
                 color: notifires.getGrey2Whitecolor,
                 fontSize: 24,
@@ -5124,15 +5530,9 @@ Widget profilePhotoOnHomeScreen(BuildContext context) {
                             ),
                           ),
                         )
-                      : CachedNetworkImage(
+                      : buildAvatarImage(
+                          profileController.myImage.value,
                           fit: BoxFit.cover,
-                          imageUrl: profileController.myImage.value,
-                          errorWidget: (context, exception, stackTrace) {
-                            return const Icon(
-                              Icons.account_circle_rounded,
-                              size: 30,
-                            );
-                          },
                         ),
                 ),
               ),

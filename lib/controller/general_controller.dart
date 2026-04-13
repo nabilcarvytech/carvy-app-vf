@@ -18,9 +18,64 @@ class GeneralController extends GetxController implements GetxService {
   RxBool hasGeneralData = false.obs;
   RxBool hasGeneralDataforBanner = false.obs;
   RxBool failed = false.obs;
+  /// Ancien bool utilisé pour un petit indicateur.
+  /// On garde pour compatibilité, mais le badge Inbox s'appuiera sur `totalUnreadCount`.
   RxBool msgUpdater = false.obs;
+  /// Compteur global des messages non lus (pour le badge navigation Chat).
+  RxInt totalUnreadCount = 0.obs;
+  bool _isFetchingUnread = false;
   GeneralDataModel? generalDataModel;
   RxInt myBookingTabIndex = 0.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    fetchTotalUnreadCount();
+  }
+
+  Future<void> fetchTotalUnreadCount() async {
+    if (_isFetchingUnread) return;
+    if (token.isEmpty) return;
+    _isFetchingUnread = true;
+    try {
+      final res = await httpGetAdmin(Config.chatInboxPath, {});
+      final d = res is Map ? res['data'] : null;
+      List<dynamic> conversations = [];
+      if (d is List) {
+        conversations = d;
+      } else if (d is Map) {
+        if (d['conversations'] is List) {
+          conversations = d['conversations'] as List;
+        } else if (d['inbox'] is List) {
+          conversations = d['inbox'] as List;
+        } else if (d['items'] is List) {
+          conversations = d['items'] as List;
+        }
+      } else if (res is Map && res['conversations'] is List) {
+        conversations = res['conversations'] as List;
+      }
+
+      int total = 0;
+      for (final e in conversations) {
+        if (e is! Map) continue;
+        final map = Map<String, dynamic>.from(e);
+        final raw = map['unreadCount'] ?? map['unread_count'];
+        final parsed = int.tryParse('${raw ?? 0}') ?? 0;
+        if (parsed > 0) {
+          total += parsed;
+          continue;
+        }
+        final boolUnread =
+            map['unread'] == true || map['unread'] == 1 || map['hasUnread'] == true;
+        if (boolUnread) total += 1;
+      }
+      totalUnreadCount.value = total;
+    } catch (_) {
+      // Best effort : ne pas bloquer l'UI en cas d'échec réseau.
+    } finally {
+      _isFetchingUnread = false;
+    }
+  }
 
   Future<void> fetchGeneralSettings([bool? runOnHomePage]) async {
     var datastorelocally = GetStorage().read("generalSettings");

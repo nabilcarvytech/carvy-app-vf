@@ -6,6 +6,7 @@ import 'package:carvy/controller/booking_controller.dart';
 import '../../controller/booking_record_controller.dart';
 import '../../customwidget/data_not_found.dart';
 import '../../customwidget/project_color.dart';
+import '../../utils/extension.dart';
 import '../../utils/common_widget.dart';
 
 class MyUpCommingTrip extends StatefulWidget {
@@ -103,8 +104,20 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
               )),
           Obx(() {
             if (bookingController.openOtpAfterImageSubmit.value) {
+              final bookingId = bookingController.currentBookingIdForOtp.value;
+              dynamic matchedBooking;
+              for (final booking in bookingRecordController.bookingsList) {
+                if (booking.id?.toString() == bookingId) {
+                  matchedBooking = booking;
+                  break;
+                }
+              }
+              final canOpenOtp =
+                  (matchedBooking?.status as String?)?.isConfirmed == true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                CommonWidgets.showOtpBottomSheet(context, bookingController.currentBookingIdForOtp.value);
+                if (canOpenOtp) {
+                  CommonWidgets.showOtpBottomSheet(context, bookingId);
+                }
                 bookingController.openOtpAfterImageSubmit.value = false;
               });
             }

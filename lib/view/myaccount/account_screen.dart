@@ -21,6 +21,7 @@ import 'package:carvy/view/myaccount/addaddress/pick_address_with_map.dart';
 import 'package:carvy/view/myaccount/my_profile_screen.dart';
 import 'package:carvy/view/myaccount/static_page_screen.dart';
 import 'package:carvy/work_space.dart';
+import 'package:carvy/model/vendor_model.dart';
 import '../booking/my_booking_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -40,10 +41,13 @@ class _AccounScreenState extends State<AccountScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (loginModel != null) {
         if (loginModel!.data != null) {
-          if (loginModel!.data!.profileImage != null &&
-              loginModel!.data!.profileImage!.containsKey('url')) {
-            profileController.myImage.value =
-                loginModel!.data!.profileImage!['url'];
+          final raw = Vendor.rawImageFromJson({
+            'profile_image': loginModel!.data!.profileImage,
+            'agency_logo': loginModel!.data!.agencyLogo,
+          });
+          final resolved = Vendor.resolveImageUrl(raw);
+          if (resolved != null && resolved.isNotEmpty) {
+            profileController.myImage.value = resolved;
           }
           if (loginModel!.data!.firstName != null) {
             profileController.myName.value = loginModel!.data!.firstName!;
@@ -136,20 +140,10 @@ class _AccounScreenState extends State<AccountScreen> {
                                                         ),
                                                       ),
                                                     )
-                                                  : CachedNetworkImage(
+                                                  : buildAvatarImage(
+                                                      profileController
+                                                          .myImage.value,
                                                       fit: BoxFit.cover,
-                                                      imageUrl:
-                                                          profileController
-                                                              .myImage.value,
-                                                      errorWidget: (context,
-                                                          exception,
-                                                          stackTrace) {
-                                                        return const Icon(
-                                                          Icons
-                                                              .account_circle_rounded,
-                                                          size: 120,
-                                                        );
-                                                      },
                                                     ),
                                             ),
                                           ),
@@ -214,7 +208,7 @@ class _AccounScreenState extends State<AccountScreen> {
                                 const SizedBox(
                                   height: 10,
                                 ),
-                                isHostMode.value == true
+                                Obx(() => isHostMode.value == true
                                     ? const SizedBox()
                                     : ForwardActionTile(
                                         onTap: () {
@@ -228,11 +222,11 @@ class _AccounScreenState extends State<AccountScreen> {
                                             .location_city, // Your custom icon
                                         iconColor:
                                             getColorBasedOnActiveModuleid(), // Your custom color
-                                      ),
+                                      )),
                                 const SizedBox(
                                   height: 10,
                                 ),
-                                ForwardActionTile(
+                                Obx(() => ForwardActionTile(
                                   onTap: () {
                                     if (isHostMode.value == true) {
                                       if (webPlateForm) {
@@ -274,7 +268,7 @@ class _AccounScreenState extends State<AccountScreen> {
                                   leadingIcon: Icons.event, // Your custom icon
                                   iconColor:
                                       getColorBasedOnActiveModuleid(), // Your custom color
-                                ),
+                                )),
                                 HeaderTextWidget(
                                   headingText: "Account Settings".tr,
                                 ),
@@ -295,7 +289,7 @@ class _AccounScreenState extends State<AccountScreen> {
                                 const SizedBox(
                                   height: 10,
                                 ),
-                                isHostMode.value == true
+                                Obx(() => isHostMode.value == true
                                     ? SizedBox()
                                     : kycenable != "Active"
                                         ? SizedBox()
@@ -313,15 +307,15 @@ class _AccounScreenState extends State<AccountScreen> {
                                                 .settings, // Your custom icon
                                             iconColor:
                                                 getColorBasedOnActiveModuleid(), // Your custom color
-                                          ),
-                                isHostMode.value == true
+                                          )),
+                                Obx(() => isHostMode.value == true
                                     ? SizedBox()
                                     : kycenable != "Active"
                                         ? SizedBox()
                                         : const SizedBox(
                                             height: 10,
-                                          ),
-                                ForwardActionTile(
+                                          )),
+                                Obx(() => ForwardActionTile(
                                   onTap: () {
                                     if (isHostMode.value == true) {
                                       Navigator.push(
@@ -342,11 +336,11 @@ class _AccounScreenState extends State<AccountScreen> {
                                   leadingIcon: Icons.wallet, // Your custom icon
                                   iconColor:
                                       getColorBasedOnActiveModuleid(), // Your custom color
-                                ),
+                                )),
                                 const SizedBox(
                                   height: 10,
                                 ),
-                                isHostMode.value == true
+                                Obx(() => isHostMode.value == true
                                     ? ForwardActionTile(
                                         onTap: () {
                                           if (webPlateForm) {
@@ -368,12 +362,12 @@ class _AccounScreenState extends State<AccountScreen> {
                                         iconColor:
                                             getColorBasedOnActiveModuleid(), // Your custom color
                                       )
-                                    : const SizedBox(),
-                                isHostMode.value == true
+                                    : const SizedBox()),
+                                Obx(() => isHostMode.value == true
                                     ? const SizedBox(
                                         height: 10,
                                       )
-                                    : const SizedBox(),
+                                    : const SizedBox()),
                                 ForwardActionTile(
                                   onTap: () {
                                     Get.dialog(

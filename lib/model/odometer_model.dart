@@ -80,7 +80,7 @@ class Data {
 
 class Getodometer {
   Getodometer({
-    int? id,
+    String? id,
     String? odometerSpeed,
   }) {
     _id = id;
@@ -88,18 +88,19 @@ class Getodometer {
   }
 
   Getodometer.fromJson(dynamic json) {
-    // Mapping MongoDB : utiliser _id en priorité
-    final idValue = json['_id'] ?? json['id'];
-    if (idValue != null) {
-      _id = idValue is int ? idValue : int.tryParse(idValue.toString());
-    }
-    _odometerSpeed = json['odometer'] ?? json['odometerSpeed'] ?? json['name'];
+    // MongoDB peut envoyer _id en String (ObjectId), donc on force String.
+    _id = json['_id']?.toString() ?? json['id']?.toString() ?? '';
+    _odometerSpeed =
+        json['odometer']?.toString() ??
+        json['odometerSpeed']?.toString() ??
+        json['name']?.toString() ??
+        '';
   }
 
-  int? _id;
+  String? _id;
   String? _odometerSpeed;
 
-  int? get id => _id;
+  String? get id => _id;
   String? get name => _odometerSpeed;
 
   Map<String, dynamic> toJson() {

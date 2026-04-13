@@ -17,20 +17,15 @@ import '../work_space.dart';
 import 'package:carvy/utils/theme_style.dart';
 
 RxInt activeModuleId = 2.obs;
-// Initialisation sécurisée de isHostMode pour éviter les crashes au démarrage
-// Si GetStorage n'est pas encore initialisé, on utilise false par défaut
-RxBool isHostMode = RxBool(false);
 var shouldNavigatetoHost = false.obs;
 RxBool switchonOff = RxBool(false);
+RxBool get isHostMode => Get.find<AuthController>().isHostMode;
 
 // Fonction pour initialiser isHostMode de manière sécurisée
 void initializeIsHostMode() {
   try {
     // Vérifier si GetStorage est initialisé avant de lire
     final storage = GetStorage();
-    if (storage.read('isHostMode') != null) {
-      isHostMode.value = storage.read('isHostMode') ?? false;
-    }
     if (storage.read('IsCarFilter') != null) {
       switchonOff.value = storage.read('IsCarFilter') ?? false;
     }
@@ -225,10 +220,10 @@ Widget switchToOwner(BuildContext context) {
                     child: Text(
                       // Texte dynamique : affiche l'action inverse du mode actuel
                       // Si isHostMode == true (mode vendeur) → "Session client"
-                      // Si isHostMode == false (mode client) → "Session vendeur"
+                      // Si isHostMode == false (mode client) → "Session Agence"
                       isHostMode.value 
                           ? "Session client".tr 
-                          : "Session vendeur".tr,
+                          : "Session Agence".tr,
                       style: heading3(context).copyWith(color: whiteColor),
                     ),
                   ),

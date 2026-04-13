@@ -76,6 +76,7 @@ class Data {
 
     dynamic firebaseAuth,
     String? role,
+    dynamic agencyLogo,
   }) {
     _id = id;
     _firstName = firstName;
@@ -109,6 +110,7 @@ class Data {
     _pushNotification = pushNotification;
     _firebaseAuth = firebaseAuth;
     _role = role;
+    _agencyLogo = agencyLogo;
   }
 
   Data.fromJson(dynamic json) {
@@ -143,7 +145,9 @@ class Data {
     _emailNotification = json['email_notification'];
     _pushNotification = json['push_notification'];
     _firebaseAuth = json['firebase_auth'];
-    
+    _agencyLogo =
+        json['agency_logo'] ?? json['company_logo'] ?? json['vendor_logo'];
+
     // Cherche d'abord dans le JSON
     _role = json['role']?.toString();
     
@@ -191,6 +195,7 @@ class Data {
   dynamic _pushNotification;
   dynamic _firebaseAuth;
   String? _role;
+  dynamic _agencyLogo;
 
   String? get id => _id;
   String? get firstName => _firstName;
@@ -224,6 +229,7 @@ class Data {
   dynamic get pushNotification => _pushNotification;
   dynamic get firebaseAuth => _firebaseAuth;
   String? get role => _role;
+  dynamic get agencyLogo => _agencyLogo;
 
   set firstNameSetter(value) {
     _firstName = value;
@@ -314,6 +320,7 @@ class Data {
     map['push_notification'] = pushNotification;
     map['firebase_auth'] = firebaseAuth;
     map['role'] = _role;
+    map['agency_logo'] = _agencyLogo;
     return map;
   }
 }

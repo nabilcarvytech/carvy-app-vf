@@ -198,6 +198,23 @@ class ItemDetailsController extends GetxController implements GetxService {
                         debugPrint('✅ [FIX] cancellationReasonDescription créé depuis cancellationReasonTitle');
                       }
                     }
+
+                    // Injecter les champs de pricing/réduction exposés au niveau ItemDetails.
+                    parsedItemInfo.weeklyDiscountValue =
+                        itemDetails.weeklyDiscountValue;
+                    parsedItemInfo.monthlyDiscountValue =
+                        itemDetails.monthlyDiscountValue;
+                    parsedItemInfo.hasDiscounts = itemDetails.hasDiscounts;
+                    if (itemDetails.priceDetails != null) {
+                      parsedItemInfo.priceDetails = ItemInfoPriceDetails(
+                        originalDailyPrice:
+                            itemDetails.priceDetails?.originalDailyPrice,
+                        discountedDailyPriceWeekly: itemDetails
+                            .priceDetails?.discountedDailyPriceWeekly,
+                        discountedDailyPriceMonthly: itemDetails
+                            .priceDetails?.discountedDailyPriceMonthly,
+                      );
+                    }
                     
                     // Mettre à jour itemInfo dans le controller (c'est cet objet qui sera transmis)
                     itemInfo = parsedItemInfo;

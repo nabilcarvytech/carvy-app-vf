@@ -33,6 +33,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
   // Variables de sélection
   dynamic _selectedVehicleType;
+  final Set<String> _selectedCategoryIds = <String>{};
+  final ScrollController _categoryScrollController = ScrollController();
+  bool _catShowLeft = false;
+  bool _catShowRight = false;
   Makes? _selectedMake;
   Models? _selectedModel;
   FuelType? _selectedFuelType;
@@ -42,6 +46,11 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   Getodometer? _selectedOdometer;
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _seatsController = TextEditingController();
+  final TextEditingController _mileageController = TextEditingController(text: '0');
+  double _mileageKm = 0;
+  // Saisie manuelle du modèle si "Autre" est sélectionné
+  bool _isOtherModelSelected = false;
+  final TextEditingController _otherModelController = TextEditingController();
   
   // Champs pour l'étape Technique
   final TextEditingController _plateNumber1Controller = TextEditingController();
@@ -68,7 +77,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   
   // Livraison
   bool _hasHomeDelivery = false;
-  final TextEditingController _deliveryPriceController = TextEditingController();
+  dynamic _selectedDeliveryLocation;
+  final List<Map<String, dynamic>> _deliveryLocations = <Map<String, dynamic>>[];
+  final List<TextEditingController> _deliveryLocationPriceControllers = <TextEditingController>[];
   
   // Champs pour l'étape Localisation
   dynamic _selectedLocation;
@@ -100,6 +111,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     _loadVehicleControllerData();
     // Initialiser le marqueur sur la carte
     _updateMarker(_selectedLatLng);
+
+    _categoryScrollController.addListener(_updateCategoryArrowsVisibility);
   }
   
   /// Rafraîchit le bearer token et charge les données initiales
@@ -125,7 +138,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       await _loadInitialData();
       
       // Vérifier que les listes ne sont pas vides (indicateur de token invalide)
-      if (vehicleController.vehicleTypesList.isEmpty && 
+      if (vehicleController.categoriesList.isEmpty && 
           vehicleController.makesList.isEmpty) {
         // Ne pas rediriger immédiatement, peut-être que c'est juste un problème réseau
         // Mais afficher un message d'erreur
@@ -143,6 +156,218 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         });
       }
     }
+  }
+
+  void _updateCategoryArrowsVisibility() {
+    if (!_categoryScrollController.hasClients) return;
+    final max = _categoryScrollController.position.maxScrollExtent;
+    final offset = _categoryScrollController.offset;
+    final bool showLeft = offset > 8;
+    final bool showRight = offset < (max - 8);
+    if (showLeft != _catShowLeft || showRight != _catShowRight) {
+      setState(() {
+        _catShowLeft = showLeft;
+        _catShowRight = showRight;
+      });
+    }
+  }
+
+  String? _extractCategoryId(dynamic c) {
+    if (c == null) return null;
+    try {
+      if (c is Map<String, dynamic>) {
+        return c['_id']?.toString() ?? c['id']?.toString();
+      }
+      // ItemTypes
+      // ignore: unnecessary_cast
+      final dynamic any = c as dynamic;
+      return any._id?.toString() ?? any.id?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _primarySelectedCategoryId() {
+    return _selectedCategoryIds.isNotEmpty ? _selectedCategoryIds.first : null;
+  }
+
+  Widget _buildCategorySelectionWithArrows(List<dynamic> categoriesList) {
+    if (categoriesList.isEmpty) {
+      return Text('Aucune catégorie'.tr, style: TextStyle(color: Colors.grey[600]));
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateCategoryArrowsVisibility());
+
+    return Stack(
+      children: [
+        SizedBox(
+          height: 92,
+          child: ListView.separated(
+            controller: _categoryScrollController,
+            scrollDirection: Axis.horizontal,
+            itemCount: categoriesList.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final c = categoriesList[index];
+              final id = _extractCategoryId(c) ?? '';
+              final name = c is Map<String, dynamic>
+                  ? (c['name']?.toString() ?? '')
+                  : (c.name?.toString() ?? '');
+              final bool selected = _selectedCategoryIds.contains(id);
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (selected) {
+                      _selectedCategoryIds.remove(id);
+                      if (_selectedVehicleType == c) {
+                        _selectedVehicleType = null;
+                      }
+                    } else {
+                      _selectedCategoryIds.add(id);
+                      _selectedVehicleType = c; // sert d’ancre pour chargement des modèles
+                    }
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: selected ? vehicalThemColor : Colors.grey[300]!,
+                      width: selected ? 2 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.directions_car_filled_outlined,
+                          color: selected ? vehicalThemColor : Colors.grey[700]),
+                      const SizedBox(width: 10),
+                      Text(
+                        name,
+                        style: TextStyle(
+                          color: selected ? vehicalThemColor : Colors.grey[900],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      if (selected) const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (_catShowLeft)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    _categoryScrollController.animateTo(
+                      (_categoryScrollController.offset - 180).clamp(
+                        0.0,
+                        _categoryScrollController.position.maxScrollExtent,
+                      ),
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOut,
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 2),
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF27489E),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF27489E).withOpacity(0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
+                  ),
+                ),
+                Container(
+                  width: 24,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Colors.white, Colors.white.withOpacity(0.0)],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (_catShowRight)
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Row(
+              children: [
+                Container(
+                  width: 24,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerRight,
+                      end: Alignment.centerLeft,
+                      colors: [Colors.white, Colors.white.withOpacity(0.0)],
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    _categoryScrollController.animateTo(
+                      (_categoryScrollController.offset + 180).clamp(
+                        0.0,
+                        _categoryScrollController.position.maxScrollExtent,
+                      ),
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOut,
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 2),
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF27489E),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF27489E).withOpacity(0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
   }
 
   // Charger les données depuis le controller si elles existent
@@ -172,8 +397,111 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     _allowsInternationalTravel = controller.allowsInternationalTravel;
   }
 
+  void _clearDeliveryLocations() {
+    for (final controller in _deliveryLocationPriceControllers) {
+      controller.dispose();
+    }
+    _deliveryLocationPriceControllers.clear();
+    _deliveryLocations.clear();
+    _selectedDeliveryLocation = null;
+  }
+
+  String _extractLocationId(dynamic location) {
+    if (location is Map<String, dynamic>) {
+      return (location['_id'] ?? location['id'])?.toString() ?? '';
+    }
+    try {
+      return location.id?.toString() ?? location._id?.toString() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String _extractLocationName(dynamic location) {
+    if (location is Map<String, dynamic>) {
+      return location['cityName']?.toString() ??
+          location['city_name']?.toString() ??
+          location['name']?.toString() ??
+          location['region_name']?.toString() ??
+          location['city']?.toString() ??
+          '';
+    }
+    try {
+      return location.cityName?.toString() ?? location.name?.toString() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  List<Map<String, dynamic>> _buildDeliveryLocationsPayload() {
+    if (!_hasHomeDelivery) return <Map<String, dynamic>>[];
+
+    return _deliveryLocations
+        .map((loc) => <String, dynamic>{
+              // Backend attendu : { "location": "<ID>", "price": 100 }
+              'location': loc['locationId']?.toString() ?? '',
+              'price': (loc['price'] as num?)?.toDouble() ?? 0.0,
+            })
+        .where((e) =>
+            (e['location'] is String) && (e['location'] as String).isNotEmpty)
+        .toList();
+  }
+
+  void _addDeliveryLocation() {
+    if (_deliveryLocations.length >= 3) {
+      showErrorToastMessage('Vous pouvez ajouter jusqu\'à 3 emplacements.'.tr);
+      return;
+    }
+
+    if (_selectedDeliveryLocation == null) {
+      showErrorToastMessage('Veuillez sélectionner une ville.'.tr);
+      return;
+    }
+
+    final id = _extractLocationId(_selectedDeliveryLocation);
+    if (id.isEmpty) {
+      showErrorToastMessage('Emplacement invalide.'.tr);
+      return;
+    }
+
+    final alreadyAdded = _deliveryLocations.any(
+      (e) => e['locationId']?.toString() == id,
+    );
+    if (alreadyAdded) {
+      showErrorToastMessage('Cet emplacement est déjà ajouté.'.tr);
+      return;
+    }
+
+    final name = _extractLocationName(_selectedDeliveryLocation);
+    if (name.isEmpty) {
+      showErrorToastMessage('Nom de l\'emplacement introuvable.'.tr);
+      return;
+    }
+
+    setState(() {
+      _deliveryLocations.add(<String, dynamic>{
+        'locationId': id,
+        'locationName': name,
+        'price': 0.0,
+      });
+      _deliveryLocationPriceControllers.add(
+        TextEditingController(text: '0'),
+      );
+      _selectedDeliveryLocation = null;
+    });
+  }
+
+  void _removeDeliveryLocation(int index) {
+    if (index < 0 || index >= _deliveryLocations.length) return;
+    setState(() {
+      _deliveryLocationPriceControllers[index].dispose();
+      _deliveryLocationPriceControllers.removeAt(index);
+      _deliveryLocations.removeAt(index);
+    });
+  }
+
   Future<void> _loadInitialData() async {
-    await vehicleController.fetchVehicleTypes();
+    await vehicleController.fetchCategories();
     await vehicleController.fetchVehicleMakes();
     await vehicleController.fetchVehicleFuelTypes();
     await vehicleController.fetchOdometers();
@@ -268,7 +596,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   bool _canProceedToNextStep() {
     switch (_currentStep) {
       case 0: // Identité - Tous les champs doivent être remplis
-        return _selectedVehicleType != null &&
+        return _selectedCategoryIds.isNotEmpty &&
             _selectedMake != null &&
             _selectedModel != null &&
             _selectedOdometer != null &&
@@ -282,15 +610,47 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         return plateComplete && _selectedInsurance != null && _selectedInsurance!.isNotEmpty;
       case 2: // Tarification - Prix par jour requis (doit être > 0)
         final price = double.tryParse(_pricePerDayController.text);
-        return price != null && price > 0;
+        if (price == null || price <= 0) return false;
+
+        if (_hasHomeDelivery) {
+          if (_deliveryLocations.isEmpty) return false;
+
+          for (final loc in _deliveryLocations) {
+            final double locPrice = (loc['price'] as num?)?.toDouble() ?? 0.0;
+            if (locPrice <= 0) return false;
+          }
+        }
+
+        return true;
       case 3: // Localisation - Ville requise
         return _selectedLocation != null;
       case 4: // Équipements - Au moins un équipement requis
         return vehicleController.selectedFeatures.isNotEmpty;
-      case 5: // Politiques & Règles - Politique d'annulation requise
-        return vehicleController.selectedPolicyId.value.isNotEmpty;
+      case 5: // Politiques & Règles
+        if (vehicleController.selectedPolicyId.value.isEmpty) {
+          return false;
+        }
+        // Si Flexible, exiger que tous les paliers aient une valeur valide 0-100
+        if (vehicleController.selectedPolicyId.value == 'flexible') {
+          final policiesList = vehicleController.policiesList.toList();
+          if (policiesList.isEmpty) return false;
+          for (var tier in policiesList) {
+            if (tier is! Map<String, dynamic>) return false;
+            final String tierId = tier['_id']?.toString() ?? tier['id']?.toString() ?? '';
+            if (tierId.isEmpty) return false;
+            final String? fee = vehicleController.tierRetentionFees[tierId];
+            if (fee == null || fee.trim().isEmpty) return false;
+            final double? v = double.tryParse(fee.trim());
+            if (v == null || v < 0 || v > 100) return false;
+          }
+        }
+        return true;
       case 6: // Photos - Au moins une image requise
         return vehicleController.selectedImages.isNotEmpty;
+      case 7: // Documents - Les 3 documents obligatoires doivent être présents
+        return vehicleController.registrationCardRecto.value != null &&
+               vehicleController.registrationCardVerso.value != null &&
+               vehicleController.ministryAuthorization.value != null;
       default:
         return true; // Les autres étapes n'ont pas de validation stricte
     }
@@ -301,8 +661,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       return;
     }
 
-    if (_selectedVehicleType == null) {
-      showErrorToastMessage('Veuillez sélectionner un type de véhicule');
+    if (_selectedCategoryIds.isEmpty) {
+      showErrorToastMessage('Veuillez sélectionner au moins une catégorie de véhicule');
       _goToStep(1);
       return;
     }
@@ -346,14 +706,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
     try {
       // Récupérer les IDs
-      String? vehicleTypeId;
-      if (_selectedVehicleType != null) {
-        if (_selectedVehicleType is Map<String, dynamic>) {
-          vehicleTypeId = _selectedVehicleType['_id']?.toString() ?? _selectedVehicleType['id']?.toString();
-        } else {
-          vehicleTypeId = _selectedVehicleType.id?.toString() ?? _selectedVehicleType._id?.toString();
-        }
-      }
+      String? vehicleTypeId = _primarySelectedCategoryId();
 
       final double basePrice = double.tryParse(_pricePerDayController.text) ?? 0.0;
       if (basePrice <= 0) {
@@ -419,10 +772,31 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         return;
       }
       
+      // Préparer la liste complète des catégories sélectionnées (filtrée 24 hex)
+      List<String> categoriesForBackend = _selectedCategoryIds
+          .where((id) => id.length == 24 && RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(id))
+          .toList(growable: false);
+
+      debugPrint('📤 [ADD_VEHICLE_UI] vehicleTypeId principal: $vehicleTypeId');
+      debugPrint('📤 [ADD_VEHICLE_UI] categoriesIds (multi): $categoriesForBackend');
+      debugPrint('📤 [ADD_VEHICLE_UI] brand/model/fuel IDs: $extractedBrandId / $extractedModelId / $extractedFuelId');
+      debugPrint('📤 [ADD_VEHICLE_UI] odometer/year/seats: ${_selectedOdometer?.id} / $year / $seats');
+      debugPrint('📤 [ADD_VEHICLE_UI] pricing: base=$basePrice deposit=$deposit');
+      debugPrint('📤 [ADD_VEHICLE_UI] location: region=$regionId city=$city lat=${_selectedLatLng.latitude} lng=${_selectedLatLng.longitude}');
+      debugPrint('📤 [ADD_VEHICLE_UI] media counts: images=${vehicleController.selectedImages.length}, docs=${[
+        vehicleController.registrationCardRecto.value,
+        vehicleController.registrationCardVerso.value,
+        vehicleController.ministryAuthorization.value
+      ].where((f) => f != null).length}');
+
       final bool success = await vehicleController.submitVehicle(
         vehicleTypeId: vehicleTypeId,
+        categoriesIds: categoriesForBackend,
         brandId: extractedBrandId,
         modelId: extractedModelId,
+        otherModelName: _isOtherModelSelected
+            ? _otherModelController.text.trim()
+            : null,
         fuelId: extractedFuelId,
         transmission: _selectedTransmission,
         odometerId: _selectedOdometer?.id?.toString(),
@@ -438,7 +812,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         monthlyDiscountValue: double.tryParse(_monthlyDiscountValueController.text) ?? 0.0,
         monthlyDiscountType: _monthlyDiscountType,
         hasHomeDelivery: _hasHomeDelivery,
-        deliveryPrice: double.tryParse(_deliveryPriceController.text) ?? 0.0,
+        deliveryLocations: _buildDeliveryLocationsPayload(),
         regionId: regionId,
         fullAddress: vehicleController.fullAddress.value.isNotEmpty 
             ? vehicleController.fullAddress.value 
@@ -509,7 +883,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       _depositController.clear();
       _weeklyDiscountValueController.clear();
       _monthlyDiscountValueController.clear();
-      _deliveryPriceController.clear();
+      _clearDeliveryLocations();
       _yearController.clear();
       _seatsController.clear();
       _plateNumber1Controller.clear();
@@ -530,7 +904,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     _depositController.dispose();
     _weeklyDiscountValueController.dispose();
     _monthlyDiscountValueController.dispose();
-    _deliveryPriceController.dispose();
+    _clearDeliveryLocations();
     _yearController.dispose();
     _seatsController.dispose();
     _plateNumber1Controller.dispose();
@@ -662,7 +1036,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Sélectionnez le type, la marque et le modèle'.tr,
+            'Sélectionnez la catégorie, la marque et le modèle'.tr,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -670,13 +1044,13 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Carte Type de véhicule
+          // Carte Catégorie de véhicule
           _buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Type de véhicule *'.tr,
+                  'Catégorie de véhicule *'.tr,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -685,38 +1059,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 ),
                 const SizedBox(height: 12),
                 Obx(() {
-                  final isLoading = vehicleController.isLoadingVehicleTypes.value;
-                  final typesList = vehicleController.vehicleTypesList.toList();
-                  final typesCount = typesList.length;
-                  
-                  if (isLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildModernDropdown<dynamic>(
-                        key: UniqueKey(), // Force la reconstruction à chaque changement
-                        value: _selectedVehicleType, // Peut être null au premier chargement
-                        items: typesList.map((type) {
-                                final name = type is Map<String, dynamic>
-                                    ? (type['name']?.toString() ?? '')
-                                    : (type.name?.toString() ?? '');
-                                return DropdownMenuItem<dynamic>(
-                                  value: type,
-                                  child: Text(name.isNotEmpty ? name : ''),
-                                );
-                              }).toList(),
-                        enabled: true, // FORCÉ : Toujours activé
-                        onChanged: (dynamic type) {
-                          _onVehicleTypeSelected(type);
-                        },
-                        hint: typesCount == 0 ? 'Chargement...'.tr : 'Sélectionnez une option'.tr,
-                        icon: Icons.category_rounded,
-                      ),
-                    ],
-                  );
+                  final isLoading = vehicleController.isLoadingCategories.value;
+                  final categoriesList = vehicleController.categoriesList.toList();
+                  if (isLoading) return const Center(child: CircularProgressIndicator());
+                  return _buildCategorySelectionWithArrows(categoriesList);
                 }),
               ],
             ),
@@ -741,59 +1087,36 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   final isLoading = vehicleController.isLoadingMakes.value;
                   final makesList = vehicleController.makesList.toList();
                   final makesCount = makesList.length;
-                  
-                  if (isLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  
+                  if (isLoading) return const Center(child: CircularProgressIndicator());
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildModernDropdown<Makes>(
-                        key: UniqueKey(), // Force la reconstruction à chaque changement
-                        value: _selectedMake, // Peut être null au premier chargement
-                        items: makesList.map((make) {
-                                return DropdownMenuItem<Makes>(
+                        key: UniqueKey(),
+                        value: _selectedMake,
+                        items: makesList
+                            .map((make) => DropdownMenuItem<Makes>(
                                   value: make,
                                   child: Text(make.makeName ?? ''),
-                                );
-                              }).toList(),
-                        enabled: true, // FORCÉ : Toujours activé
+                                ))
+                            .toList(),
+                        enabled: true,
                         onChanged: (Makes? newValue) async {
-                      setState(() {
-                        _selectedMake = newValue;
-                        // IMPORTANT : Réinitialiser le modèle quand la marque change
-                        _selectedModel = null;
-                      });
-                      
-                      // IMPORTANT : Vider la liste des modèles dans le controller avant de charger les nouveaux
-                      // (fetchVehicleModels le fait déjà, mais on s'assure ici aussi)
-                      vehicleController.modelsList.clear();
-                      
-                      // Dès qu'une marque est sélectionnée, charger les modèles correspondants
-                      // Passer à la fois typeId ET makeId
-                      if (newValue != null && newValue.id != null && newValue.id!.isNotEmpty) {
-                        String? typeId;
-                        if (_selectedVehicleType != null) {
-                          if (_selectedVehicleType is Map<String, dynamic>) {
-                            typeId = _selectedVehicleType['id']?.toString();
-                          } else {
-                            typeId = _selectedVehicleType.id?.toString();
+                          setState(() {
+                            _selectedMake = newValue;
+                            _selectedModel = null;
+                          });
+                          vehicleController.modelsList.clear();
+                          if (newValue != null && newValue.id != null && newValue.id!.isNotEmpty) {
+                            String? typeId = _primarySelectedCategoryId();
+                            await vehicleController.fetchVehicleModels(
+                              typeId: typeId,
+                              makeId: newValue.id,
+                            );
                           }
-                        }
-                        // Appeler fetchVehicleModels avec makeId pour filtrer les modèles par marque
-                        // Le paramètre makeId sera converti en 'make' dans le controller
-                        await vehicleController.fetchVehicleModels(
-                          typeId: typeId,
-                          makeId: newValue.id,
-                        );
-                      } else {
-                        // Si aucune marque n'est sélectionnée, vider la liste des modèles
-                        vehicleController.modelsList.clear();
-                      }
-                    },
-                    hint: makesCount == 0 ? 'Chargement...'.tr : 'Sélectionnez une option'.tr,
-                    icon: Icons.directions_car_rounded,
+                        },
+                        hint: makesCount == 0 ? 'Chargement...'.tr : 'Sélectionnez une option'.tr,
+                        icon: Icons.directions_car_rounded,
                       ),
                     ],
                   );
@@ -821,34 +1144,45 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   final isLoading = vehicleController.isLoadingModels.value;
                   final modelsList = vehicleController.modelsList.toList();
                   final modelsCount = modelsList.length;
-                  
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : _buildModernDropdown<Models>(
-                              key: UniqueKey(), // Force la reconstruction à chaque changement
-                              value: _selectedModel, // Peut être null au premier chargement
-                              items: modelsList.map((model) {
-                                return DropdownMenuItem<Models>(
-                                  value: model,
-                                  child: Text(model.name ?? ''),
-                                );
-                              }).toList(),
-                              enabled: true, // FORCÉ : Toujours activé
+                              key: UniqueKey(),
+                              value: _selectedModel,
+                              items: modelsList
+                                  .map((model) => DropdownMenuItem<Models>(
+                                        value: model,
+                                        child: Text(model.name ?? ''),
+                                      ))
+                                  .toList(),
+                              enabled: true,
                               onChanged: (Models? model) {
                                 setState(() {
                                   _selectedModel = model;
+                                  final String selectedName = (model?.name ?? '').toString();
+                                  _isOtherModelSelected = selectedName.toLowerCase() == 'autre';
+                                  debugPrint('SÉLECTION MODÈLE: $selectedName | IS_OTHER: $_isOtherModelSelected');
                                 });
                               },
-                              hint: isLoading 
-                                  ? 'Chargement...'.tr 
-                                  : (modelsCount == 0 
-                                      ? 'Aucun modèle disponible'.tr 
+                              hint: isLoading
+                                  ? 'Chargement...'.tr
+                                  : (modelsCount == 0
+                                      ? 'Aucun modèle disponible'.tr
                                       : 'Sélectionnez un modèle'.tr),
                               icon: Icons.directions_car,
                             ),
+                      if (_isOtherModelSelected) ...[
+                        const SizedBox(height: 12),
+                        _buildModernTextField(
+                          controller: _otherModelController,
+                          hint: 'Saisissez le modèle'.tr,
+                          icon: Icons.edit,
+                          keyboardType: TextInputType.text,
+                        ),
+                      ],
                     ],
                   );
                 }),
@@ -857,7 +1191,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Carte Kilométrage
+          // Carte Kilométrage (champ + slider + mappage automatique d'intervalle)
           _buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1053,6 +1387,100 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         ],
       ),
     );
+  }
+
+  // Cartes de sélection visuelles (icône + label + contour bleu si sélectionnée)
+  Widget _buildSelectionCards<T>({
+    required List<T> items,
+    required bool Function(T) isSelected,
+    required String Function(T) label,
+    required IconData Function(T) icon,
+    required void Function(T) onTap,
+  }) {
+    if (items.isEmpty) {
+      return Text('Aucune donnée disponible'.tr, style: TextStyle(color: Colors.grey[600]));
+    }
+
+    return SizedBox(
+      height: 92,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final T item = items[index];
+          final bool selected = isSelected(item);
+          return GestureDetector(
+            onTap: () => onTap(item),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected ? vehicalThemColor : Colors.grey[300]!,
+                  width: selected ? 2 : 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon(item), color: selected ? vehicalThemColor : Colors.grey[700]),
+                  const SizedBox(width: 10),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 120),
+                    child: Text(
+                      label(item),
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected ? vehicalThemColor : Colors.grey[900],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  if (selected)
+                    const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Déduction simple de l'intervalle d'odomètre à partir d'un nombre (si le nom contient une plage)
+  void _autoMapMileageToOdometer() {
+    final list = vehicleController.odometerList.toList();
+    if (list.isEmpty) return;
+
+    Getodometer? best;
+    for (final o in list) {
+      final name = (o.name ?? '').replaceAll(' ', '');
+      // Exemple formats: "0-10k", "10k-50k", "100000-150000", etc.
+      final match = RegExp(r'(\d{1,6})\D*-\D*(\d{1,6})').firstMatch(name);
+      if (match != null) {
+        final start = int.tryParse(match.group(1)!) ?? 0;
+        final end = int.tryParse(match.group(2)!) ?? start;
+        final km = _mileageKm.toInt();
+        if (km >= start && km <= end) {
+          best = o;
+          break;
+        }
+      }
+    }
+    setState(() {
+      _selectedOdometer = best ?? _selectedOdometer;
+    });
   }
 
   // ========== ÉTAPE 2 : TECHNIQUE ==========
@@ -1661,6 +2089,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   onChanged: (bool? value) {
                     setState(() {
                       _hasHomeDelivery = value ?? false;
+                      if (!_hasHomeDelivery) {
+                        _clearDeliveryLocations();
+                      }
                     });
                     // Synchroniser avec le controller
                     vehicleController.hasHomeDelivery = _hasHomeDelivery;
@@ -1672,16 +2103,166 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   duration: const Duration(milliseconds: 300),
                   child: _hasHomeDelivery
                       ? Padding(
-                          key: const ValueKey('deliveryPrice'),
+                          key: const ValueKey('deliveryLocations'),
                           padding: const EdgeInsets.only(top: 12),
-                          child: _buildModernTextField(
-                            controller: _deliveryPriceController,
-                            hint: 'Prix de livraison (MAD)'.tr,
-                            icon: Icons.local_shipping,
-                            keyboardType: TextInputType.numberWithOptions(decimal: true),
-                            onChanged: (value) {
-                              vehicleController.deliveryPrice = double.tryParse(value) ?? 0.0;
-                            },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "💡 Vous pouvez définir jusqu'à 3 zones ou villes de livraison, chacune avec son propre tarif personnalisé."
+                                    .tr,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Obx(() {
+                                final isLoading = vehicleController
+                                    .isLoadingLocations.value;
+                                final locationsList =
+                                    vehicleController.locationsList.toList();
+                                final addedLocationIds = _deliveryLocations
+                                    .map((e) => e['locationId']?.toString())
+                                    .whereType<String>()
+                                    .where((id) => id.isNotEmpty)
+                                    .toSet();
+
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    _buildModernDropdown<dynamic>(
+                                      key: UniqueKey(),
+                                      value: _selectedDeliveryLocation,
+                                      items: locationsList
+                                          .where((location) {
+                                            final locationId =
+                                                _extractLocationId(location);
+                                            return locationId.isEmpty ||
+                                                !addedLocationIds
+                                                    .contains(locationId);
+                                          })
+                                          .map((location) {
+                                            final name = location
+                                                    is Map<String, dynamic>
+                                                ? (location['cityName']
+                                                        ?.toString() ??
+                                                    location['city_name']
+                                                        ?.toString() ??
+                                                    location['name']
+                                                        ?.toString() ??
+                                                    location['region_name']
+                                                        ?.toString() ??
+                                                    location['city']?.toString() ??
+                                                    '')
+                                                : location.toString();
+
+                                            return DropdownMenuItem<dynamic>(
+                                              value: location,
+                                              child: Text(
+                                                name.isNotEmpty
+                                                    ? name
+                                                    : 'Ville inconnue',
+                                              ),
+                                            );
+                                          }).toList(),
+                                      enabled: !isLoading,
+                                      onChanged: (dynamic v) {
+                                        setState(() {
+                                          _selectedDeliveryLocation = v;
+                                        });
+                                      },
+                                      hint: locationsList.isEmpty
+                                          ? 'Chargement...'.tr
+                                          : addedLocationIds.length >= 3
+                                              ? 'Toutes les villes sont ajoutées'.tr
+                                              : 'Sélectionnez une ville'.tr,
+                                      icon: Icons.location_city,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed:
+                                            _deliveryLocations.length >= 3
+                                                ? null
+                                                : _addDeliveryLocation,
+                                        icon: const Icon(Icons.add),
+                                        label: Text('Ajouter'.tr),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }),
+                              const SizedBox(height: 12),
+                              ListView.builder(
+                                itemCount: _deliveryLocations.length,
+                                shrinkWrap: true,
+                                physics:
+                                    const NeverScrollableScrollPhysics(),
+                                itemBuilder: (context, index) {
+                                  final loc = _deliveryLocations[index];
+                                  final priceController =
+                                      _deliveryLocationPriceControllers[index];
+                                  final locationName =
+                                      loc['locationName']?.toString() ??
+                                          'Ville inconnue';
+
+                                  return Padding(
+                                    padding:
+                                        const EdgeInsets.only(bottom: 12),
+                                    child: _buildCard(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  locationName,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.delete,
+                                                  color: Colors.red,
+                                                ),
+                                                onPressed: () =>
+                                                    _removeDeliveryLocation(
+                                                  index,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _buildModernTextField(
+                                            controller: priceController,
+                                            hint: 'Prix (MAD)'.tr,
+                                            icon: Icons.local_shipping,
+                                            keyboardType:
+                                                TextInputType.numberWithOptions(
+                                                    decimal: true),
+                                            onChanged: (value) {
+                                              final parsed =
+                                                  double.tryParse(value) ?? 0.0;
+                                              setState(() {
+                                                _deliveryLocations[index]
+                                                    ['price'] = parsed;
+                                              });
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         )
                       : const SizedBox.shrink(key: ValueKey('emptyDelivery')),
@@ -2236,79 +2817,84 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                             
                             if (tierId == null) return const SizedBox.shrink();
                             
-                            final isTierEnabled = tierSwitches[tierId] ?? false;
-                            
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                SwitchListTile(
-                                  title: Text(
+                                // Titre du palier
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 4, bottom: 6, top: 6),
+                                  child: Text(
                                     tierTitle,
                                     style: TextStyle(
-                                      fontWeight: isTierEnabled ? FontWeight.bold : FontWeight.normal,
-                                      color: isTierEnabled ? vehicalThemColor : Colors.grey[900],
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey[900],
                                     ),
                                   ),
-                                  subtitle: tierDescription.isNotEmpty
-                                      ? Text(
-                                          tierDescription,
-                                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                        )
-                                      : null,
-                                  value: isTierEnabled,
-                                  onChanged: (bool value) {
-                                    vehicleController.tierSwitches[tierId!] = value;
-                                    // Si désactivé, supprimer le frais de retenue
-                                    if (!value) {
-                                      vehicleController.tierRetentionFees.remove(tierId);
-                                    }
-                                  },
-                                  activeColor: vehicalThemColor,
-                                  contentPadding: EdgeInsets.zero,
                                 ),
-                                
-                                // ========== NIVEAU 3 : FRAIS DE RETENUE (Conditionnel - Si Switch activé) ==========
-                                if (isTierEnabled) ...[
+                                if (tierDescription.isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.only(left: 16, top: 8, bottom: 16),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        TextFormField(
-                                          keyboardType: TextInputType.number,
-                                          decoration: InputDecoration(
-                                            labelText: 'Frais de retenue (%)'.tr,
-                                            hintText: 'Ex: 30',
-                                            helperText: 'Si vous réglez sur 30%, vous conserverez 30% du montant et le client sera remboursé de 70%'.tr,
-                                            helperMaxLines: 2,
-                                            prefixIcon: const Icon(Icons.percent, size: 20),
-                                            border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            focusedBorder: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                              borderSide: BorderSide(color: vehicalThemColor, width: 2),
-                                            ),
-                                          ),
-                                          initialValue: vehicleController.tierRetentionFees[tierId] ?? '',
-                                          onChanged: (String value) {
-                                            vehicleController.tierRetentionFees[tierId!] = value;
-                                          },
-                                          validator: (String? value) {
-                                            if (value == null || value.isEmpty) {
-                                              return 'Veuillez saisir un pourcentage'.tr;
-                                            }
-                                            final num = double.tryParse(value);
-                                            if (num == null || num < 0 || num > 100) {
-                                              return 'Le pourcentage doit être entre 0 et 100'.tr;
-                                            }
-                                            return null;
-                                          },
-                                        ),
-                                      ],
+                                    padding: const EdgeInsets.only(left: 4, bottom: 8),
+                                    child: Text(
+                                      tierDescription,
+                                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                                     ),
                                   ),
-                                ],
+                                // Champ obligatoire (toujours affiché si Flexible)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 0, top: 4, bottom: 16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      RichText(
+                                        text: TextSpan(
+                                          text: 'Frais de retenue (%) '.tr,
+                                          style: TextStyle(
+                                            color: Colors.grey[800],
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          children: const [
+                                            TextSpan(
+                                              text: '*',
+                                              style: TextStyle(color: Colors.red),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      TextFormField(
+                                        keyboardType: TextInputType.number,
+                                        decoration: InputDecoration(
+                                          hintText: 'Ex: 30',
+                                          helperText: 'Si vous réglez sur 30%, vous conserverez 30% du montant et le client sera remboursé de 70%'.tr,
+                                          helperMaxLines: 2,
+                                          prefixIcon: const Icon(Icons.percent, size: 20),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: BorderSide(color: vehicalThemColor, width: 2),
+                                          ),
+                                        ),
+                                        initialValue: vehicleController.tierRetentionFees[tierId] ?? '',
+                                        onChanged: (String value) {
+                                          vehicleController.tierRetentionFees[tierId!] = value;
+                                        },
+                                        validator: (String? value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Veuillez saisir un pourcentage'.tr;
+                                          }
+                                          final num = double.tryParse(value);
+                                          if (num == null || num < 0 || num > 100) {
+                                            return 'Le pourcentage doit être entre 0 et 100'.tr;
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 const Divider(height: 1),
                               ],
                             );
@@ -2447,6 +3033,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           // Zone d'upload avec bordure en pointillés (effet visuel)
           Obx(() {
             final selectedImages = vehicleController.selectedImages.toList();
+            final mainIdx = vehicleController.mainImageIndex.value;
             
             return Container(
               decoration: BoxDecoration(
@@ -2535,18 +3122,65 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                               ),
                             );
                           }
-                          // Miniature avec bouton X
+                          final bool isMain = index == mainIdx;
+                          // Miniature avec sélection d'image principale et bouton de suppression
                           return Stack(
                             children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.file(
-                                  File(selectedImages[index].path),
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: double.infinity,
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isMain ? const Color(0xFF27489E) : Colors.grey[300]!,
+                                    width: isMain ? 3 : 1,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.file(
+                                    File(selectedImages[index].path),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  ),
                                 ),
                               ),
+                              // Étoile de sélection (principale ou sélectionner)
+                              Positioned(
+                                top: 6,
+                                left: 6,
+                                child: GestureDetector(
+                                  onTap: () => vehicleController.setMainImage(index),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isMain ? Icons.star : Icons.star_border,
+                                        color: isMain ? Colors.amber : Colors.white,
+                                        size: 20,
+                                      ),
+                                      if (isMain)
+                                        Container(
+                                          margin: const EdgeInsets.only(left: 4),
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.9),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: const Color(0xFF27489E)),
+                                          ),
+                                          child: const Text(
+                                            'Principale',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF27489E),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              // Bouton supprimer
                               Positioned(
                                 top: 4,
                                 right: 4,
@@ -2950,17 +3584,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   // ========== BOUTONS DE NAVIGATION ==========
   Widget _buildNavigationButtons() {
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(16),
+      color: Colors.transparent,
       child: Row(
         children: [
           if (_currentStep > 0)
@@ -2979,14 +3604,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   children: [
                     Icon(Icons.arrow_back_rounded, color: Colors.grey[700]),
                     const SizedBox(width: 8),
-                    Text(
-                      'Précédent'.tr,
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
+                    Text('Précédent'.tr,
+                        style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -2995,119 +3614,63 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           Expanded(
             flex: _currentStep == 0 ? 1 : 2,
             child: Obx(() {
-              // Sécurité supplémentaire : forcer la disparition totale du loader si succès
-              if (vehicleController.isSuccess.value) {
-                // Retourner le bouton sans loader
-                return ElevatedButton(
-                  onPressed: !_canProceedToNextStep() ? () {} : _nextStep,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: vehicalThemColor,
-                    disabledBackgroundColor: Colors.grey[300],
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _currentStep == _totalSteps - 1
-                            ? 'Envoyer'.tr
-                            : 'Suivant'.tr,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              
-              // Utiliser uniquement isSubmittingVehicle pour le loader principal
               final bool isSubmitting = vehicleController.isSubmittingVehicle.value;
               final bool isLoading = vehicleController.isLoading.value || isSubmitting;
-              
-              // Si pas de chargement, ne pas afficher le loader
-              if (!isLoading) {
-                return ElevatedButton(
-                  onPressed: !_canProceedToNextStep() ? () {} : _nextStep,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: vehicalThemColor,
-                    disabledBackgroundColor: Colors.grey[300],
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              final bool enabled = _canProceedToNextStep() && !isLoading;
+
+              return InkWell(
+                onTap: enabled ? _nextStep : null,
+                child: Container(
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: enabled
+                          ? [const Color(0xFF27489E), const Color(0xFF3F64D9)]
+                          : [Colors.grey[300]!, Colors.grey[300]!],
                     ),
-                    elevation: 2,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _currentStep == _totalSteps - 1
-                            ? 'Envoyer'.tr
-                            : 'Suivant'.tr,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      if (enabled)
+                        BoxShadow(
+                          color: const Color(0xFF27489E).withOpacity(0.35),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
                         ),
-                      ),
                     ],
                   ),
-                );
-              }
-
-              // Afficher le loader uniquement si isLoading est true
-              return ElevatedButton(
-                onPressed: (isLoading || !_canProceedToNextStep())
-                    ? null
-                    : _nextStep,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: vehicalThemColor,
-                  disabledBackgroundColor: Colors.grey[300],
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                ),
-                child: isLoading
-                    ? const SizedBox(
+                  child: Center(
+                    child: isLoading
+                        ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _currentStep == _totalSteps - 1
-                                ? 'Envoyer'.tr
-                                : 'Suivant'.tr,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _currentStep == _totalSteps - 1 ? 'Envoyer'.tr : 'Suivant'.tr,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                _currentStep == _totalSteps - 1
+                                    ? Icons.check_rounded
+                                    : Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            _currentStep == _totalSteps - 1
-                                ? Icons.check_rounded
-                                : Icons.arrow_forward_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ],
-                      ),
+                  ),
+                ),
               );
             }),
           ),

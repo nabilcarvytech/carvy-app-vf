@@ -378,9 +378,30 @@ Future<dynamic> httpGetAdmin(String path, Map<String, dynamic> params) async {
     developer.log('📋 [ADMIN] Parameters: ${jsonEncode(params)}');
     developer.log('🔑 [ADMIN] Bearer Token: ${bearerToken.substring(0, 20)}...');
 
+    dynamic decodeAdminGetBody(http.Response response) {
+      if (path == Config.chatInboxPath) {
+        // ignore: avoid_print
+        print('🚨 [API INBOX RAW]: ${response.body}');
+      }
+      final decoded = jsonDecode(response.body);
+      if (path == Config.chatInboxPath && decoded is Map) {
+        final m = Map<String, dynamic>.from(decoded as Map);
+        if (m['success'] == false) {
+          final msg = m['message'] ??
+              m['error'] ??
+              m['msg'] ??
+              m['errors'] ??
+              'no message';
+          // ignore: avoid_print
+          print('🚨 [API INBOX] success=false: $msg');
+        }
+      }
+      return decoded;
+    }
+
     final response = await http.get(Uri.parse(fullUrl), headers: headers);
 
-    responseData = jsonDecode(response.body);
+    responseData = decodeAdminGetBody(response);
 
     if (response.statusCode == 498) {
       developer.log('❌ [ADMIN] Token expired (498) — regenerating...');
@@ -391,7 +412,7 @@ Future<dynamic> httpGetAdmin(String path, Map<String, dynamic> params) async {
         headers['Authorization'] = 'Bearer $newToken';
 
         final retryResponse = await http.get(Uri.parse(fullUrl), headers: headers);
-        responseData = jsonDecode(retryResponse.body);
+        responseData = decodeAdminGetBody(retryResponse);
 
         developer.log('🔁 [ADMIN] Retried Response: $responseData');
       } else {
@@ -418,6 +439,66 @@ Future<dynamic> httpGetAdmin(String path, Map<String, dynamic> params) async {
   }
 
   return responseData;
+}
+
+/// POST [Config.uploadApi] (multipart, champ `file`). Retourne l’URL publique ou null.
+Future<String?> uploadChatImage(File file) async {
+  connectionLost = false;
+  try {
+    if (bearerToken.isEmpty) {
+      bearerToken = await generateToken() ?? "";
+    }
+    if (bearerToken.isEmpty) {
+      developer.log('uploadChatImage: bearer token vide');
+      return null;
+    }
+    final uri =
+        Uri.parse('${Config.baseUrlWithoutV1}${Config.uploadApi}');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $bearerToken';
+    final name = file.path.replaceAll('\\', '/').split('/').last;
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        file.path,
+        filename: name.isNotEmpty ? name : 'image.jpg',
+      ),
+    );
+    final streamed = await request.send();
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode != 200 && streamed.statusCode != 201) {
+      developer.log(
+          'uploadChatImage HTTP ${streamed.statusCode}: $body');
+      return null;
+    }
+    final dynamic decoded = jsonDecode(body);
+    return _parseUploadResponseUrl(decoded);
+  } catch (e, st) {
+    developer.log('uploadChatImage: $e', stackTrace: st);
+    return null;
+  }
+}
+
+String? _parseUploadResponseUrl(dynamic decoded) {
+  if (decoded is String) {
+    if (decoded.startsWith('http')) return decoded;
+    return null;
+  }
+  if (decoded is! Map) return null;
+  final m = Map<String, dynamic>.from(decoded);
+  if (m['url'] != null) return m['url'].toString();
+  if (m['fileUrl'] != null) return m['fileUrl'].toString();
+  if (m['data'] != null) {
+    final d = m['data'];
+    if (d is String && d.startsWith('http')) return d;
+    if (d is Map) {
+      final dm = Map<String, dynamic>.from(d);
+      if (dm['url'] != null) return dm['url'].toString();
+      if (dm['path'] != null) return dm['path'].toString();
+    }
+  }
+  if (m['path'] != null) return m['path'].toString();
+  return null;
 }
 
 bool shouldLogout = false;
@@ -936,6 +1017,69 @@ Future<dynamic> httpPut(String path, Map<String, dynamic> data) async {
   }
 }
 // ========== END HTTP PUT METHOD ==========
+
+// ========== HTTP PATCH METHOD (sans payload optionnel) ==========
+/// Envoie une requête HTTP PATCH vers `${Config.baseurl}$path`.
+/// Par défaut, aucun body n'est envoyé (utile pour les endpoints "toggle-active" qui ne prennent pas de payload).
+Future<dynamic> httpPatch(String path) async {
+  try {
+    // Get token & bearer token (même approche que httpPut/httpPost)
+    String token = GetStorage().read("token") ?? "";
+    String bearerToken = GetStorage().read("bearerToken") ?? "";
+
+    if (bearerToken.isEmpty) {
+      bearerToken = await generateToken() ?? "";
+      if (bearerToken.isEmpty) {
+        return {"error": "Bearer token generation failed"};
+      }
+    }
+
+    // Important: certains endpoints PATCH (ex: toggle-active) n'attendent PAS de `/v1/`.
+    // On utilise donc la base sans v1 pour éviter les 404.
+    final String url = '${Config.baseUrlWithoutV1}$path';
+
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'x-auth-token': token,
+      "Authorization": "Bearer $bearerToken",
+    };
+
+    final result = await http.patch(
+      Uri.parse(url),
+      headers: headers,
+    );
+
+    // Certains endpoints renvoient un body vide : éviter jsonDecode si vide.
+    final bodyStr = result.bodyBytes.isEmpty ? '' : utf8.decode(result.bodyBytes);
+    if (bodyStr.isEmpty) {
+      return {"statusCode": result.statusCode};
+    }
+
+    final responseData = jsonDecode(bodyStr);
+
+    if (responseData is Map<String, dynamic>) {
+      // Gérer la logique d'expiration token si la backend le renvoie
+      if (responseData['ResponseCode'] == 419) {
+        loginExpireAlertoexitfromappt();
+        Future.delayed(const Duration(seconds: 3), () {
+          logout();
+        });
+      }
+      if (responseData['ResponseCode'] == 498) {
+        loginExpireAlertoexitfromappt();
+      }
+    }
+
+    return responseData;
+  } catch (err) {
+    print("❌ [httpPatch] Error: $err");
+    if (err is FormatException) {
+      connectionLost = true;
+    }
+    return {"error": err.toString()};
+  }
+}
+// ========== END HTTP PATCH METHOD ==========
 
 // ========== HTTP DELETE METHOD ==========
 Future<dynamic> httpDelete(String path) async {

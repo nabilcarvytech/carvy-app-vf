@@ -50,6 +50,44 @@ class _AfterSearchState extends State<AfterSearch> {
   List<dynamic> list = [];
   bool execption = false;
   bool showloading = false;
+
+  /// Durée demandée (jours calendaires inclusifs), alignée sur [BookingController.getDaysInBetween].
+  int? _calculateRequestedDays() {
+    String s = generalScopeController.startDateCustomDate.value.toString().trim();
+    String e = generalScopeController.endDateCustomDate.value.toString().trim();
+    if (s.isEmpty) s = widget.checkIn?.toString().trim() ?? '';
+    if (e.isEmpty) e = widget.checkout?.toString().trim() ?? '';
+    if (s.isEmpty || e.isEmpty) return null;
+    final start = DateTime.tryParse(s);
+    final end = DateTime.tryParse(e);
+    if (start == null || end == null) return null;
+    final sd = DateTime(start.year, start.month, start.day);
+    final ed = DateTime(end.year, end.month, end.day);
+    final inclusive = ed.difference(sd).inDays + 1;
+    return inclusive < 1 ? 1 : inclusive;
+  }
+
+  void _removeItemsExceedingMinRentalDays(List<dynamic> items) {
+    final rd = _calculateRequestedDays();
+    if (rd == null) return;
+    items.removeWhere((item) {
+      final min = item is Items
+          ? item.parsedMinRentalDays
+          : item is ItemsData
+              ? item.parsedMinRentalDays
+              : 1;
+      return min > rd;
+    });
+  }
+
+  void _applyMinRentalDaysFilterAfterSearch() {
+    final rd = _calculateRequestedDays();
+    if (rd == null) return;
+    _removeItemsExceedingMinRentalDays(list);
+    filterController.searchFilterList
+        .removeWhere((item) => item.parsedMinRentalDays > rd);
+  }
+
   onLoading() {
     setState(() {});
     onLoadingdata();
@@ -89,6 +127,7 @@ class _AfterSearchState extends State<AfterSearch> {
       final initialItems = itemModel!.data?.items ?? [];
       list.addAll(initialItems);
       filterController.searchFilterList.addAll(initialItems);
+      _applyMinRentalDaysFilterAfterSearch();
 
       // DEBUG: vérifier la taille exacte retournée par l'API
       print("🔎 [SEARCH] Initial items count: ${initialItems.length}");
@@ -153,6 +192,11 @@ class _AfterSearchState extends State<AfterSearch> {
         return ItemsData.fromJson(item as Map<String, dynamic>);
       }).toList();
 
+      final rd = _calculateRequestedDays();
+      if (rd != null) {
+        convertedItems.removeWhere((item) => item.parsedMinRentalDays > rd);
+      }
+
       // DEBUG: pagination
       print(
           "🔎 [SEARCH] Pagination fetched ${convertedItems.length} items (prev total: ${list.length})");
@@ -207,7 +251,8 @@ class _AfterSearchState extends State<AfterSearch> {
     if (widget.itemList != null) {
       showloading = true;
 
-      list = widget.itemList!;
+      list = List<dynamic>.from(widget.itemList!);
+      _removeItemsExceedingMinRentalDays(list);
       filterController.offset = widget.itemList!.length;
     } else {
       itemModel = null;

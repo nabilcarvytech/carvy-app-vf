@@ -125,6 +125,16 @@ vehicalCategory(List<Makes> list, notifire) {
         // itemCount: (list?.length ?? 0) > 5 ? 5 : (list?.length ?? 0),
         itemCount: list.length,
         itemBuilder: (context, index) {
+          // ========== LOGS DE DÉBOGAGE POUR DIAGNOSTIQUER LES URLs ==========
+          final rawUrl = list.elementAt(index).imageUrl;
+          final transformedUrl = rawUrl != null ? Config.getFullImageUrl(rawUrl) : 'null';
+          print('📸 [DEBUG IMAGE MARQUE] Index $index - Nom: ${list.elementAt(index).makeName ?? "N/A"}');
+          print('📸 [DEBUG IMAGE MARQUE] URL Brute: $rawUrl');
+          print('📸 [DEBUG IMAGE MARQUE] URL Transformée: $transformedUrl');
+          print('📸 [DEBUG IMAGE MARQUE] URL est null?: ${rawUrl == null}');
+          print('📸 [DEBUG IMAGE MARQUE] URL est vide?: ${rawUrl?.isEmpty ?? true}');
+          // ===================================================================
+          
           return Padding(
             padding:
                 const EdgeInsets.only(right: 14, top: 5, bottom: 5, left: 8),
@@ -171,9 +181,26 @@ vehicalCategory(List<Makes> list, notifire) {
                   padding: const EdgeInsets.all(10),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(50),
-                    child: SizedBox(
-                        height: 75,
-                        child: myNetworkImage(list.elementAt(index).imageUrl)),
+                    child: list.elementAt(index).imageUrl != null &&
+                            list.elementAt(index).imageUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(50),
+                            child: Image.network(
+                              Config.getFullImageUrl(
+                                  list.elementAt(index).imageUrl!),
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.directions_car_rounded,
+                                color: notifires.getgreycolor,
+                                size: 30,
+                              ),
+                            ),
+                          )
+                        : Icon(
+                            Icons.directions_car_rounded,
+                            color: notifires.getgreycolor,
+                            size: 30,
+                          ),
                   ),
                 ),
               ),
@@ -237,6 +264,8 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
         final String locationText = locationParts.isNotEmpty
             ? locationParts.join(" • ")
             : "Unknown Location".tr;
+        final double parsedRating =
+            double.tryParse(list[index].itemRating?.toString() ?? '0') ?? 0.0;
         return Padding(
           padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
           child: GestureDetector(
@@ -349,8 +378,7 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                                           ),
                                           const SizedBox(width: 5),
                                           Text(
-                                            '${list[index].itemRating ?? ""}.0'
-                                                .tr,
+                                            parsedRating.toStringAsFixed(1),
                                             style: boldstyle(context).copyWith(
                                                 color: whiteColor, fontSize: 9),
                                           ),
@@ -2065,6 +2093,8 @@ Widget vehicalHorizontalViewNearYou(
           if (city != null) {
             city = cityy;
           }
+          final double parsedRating =
+              double.tryParse(list[index].itemRating?.toString() ?? '0') ?? 0.0;
 
           return Padding(
             padding:
@@ -2181,8 +2211,8 @@ Widget vehicalHorizontalViewNearYou(
                                             ),
                                             const SizedBox(width: 5),
                                             Text(
-                                              '${list[index].itemRating ?? ""}.0'
-                                                  .tr,
+                                              parsedRating
+                                                  .toStringAsFixed(1),
                                               style: boldstyle(context)
                                                   .copyWith(
                                                       color: whiteColor,

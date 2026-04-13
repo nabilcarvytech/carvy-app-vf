@@ -285,14 +285,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
       return const SizedBox.shrink();
     }
 
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (v) {
-        if (!webPlateForm) {
-          dialogExit(context);
-        }
-      },
-      child: Scaffold(
+    return Scaffold(
         resizeToAvoidBottomInset: false,
         backgroundColor: notifires.getbgcolor,
         appBar: kIsWeb
@@ -468,7 +461,6 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             );
           },
         ),
-      ),
     );
   }
 
@@ -926,66 +918,19 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             )
           : Padding(
               padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-              child: Stack(
-                children: [
-                  Card(
-                    elevation: 5,
-                    child: Container(
-                      height: 188,
-                      decoration: BoxDecoration(
-                        color: notifires.getboxcolor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+              child: Card(
+                elevation: 5,
+                child: Container(
+                  height: 188,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    image: const DecorationImage(
+                      image: AssetImage('assets/images/click_rent_drive.png'),
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
                     ),
                   ),
-                  Positioned(
-                    right: 10,
-                    top: 10,
-                    bottom: 10,
-                    child: SvgPicture.asset("assets/images/vehicalbaner.svg"),
-                  ),
-                  Positioned(
-                    left: 25,
-                    top: 30,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: 240,
-                          child: Text(
-                            "Lead your vehicle to make some extra cash".tr,
-                            style: boldstyle(context).copyWith(
-                              fontSize: 24,
-                              color: notifires.getGrey2Whitecolor,
-                            ),
-                            maxLines: 3,
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        InkWell(
-                          onTap: () {
-                            tobecomeHost(context);
-                          },
-                          child: Row(
-                            children: [
-                              Text(
-                                "Become a Lend".tr,
-                                style: heading3(context).copyWith(
-                                    color: getColorBasedOnActiveModuleid()),
-                              ),
-                              const SizedBox(width: 10),
-                              Icon(
-                                Icons.arrow_forward,
-                                color: getColorBasedOnActiveModuleid(),
-                                size: 18,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
     });

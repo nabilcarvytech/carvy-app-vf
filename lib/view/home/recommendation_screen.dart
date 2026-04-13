@@ -44,6 +44,9 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   ItemDetailsController propertyDetailController = Get.find();
   num offset = 0;
   var list = [];
+  int? _totalFromBackend;
+  bool _hasMoreData = true;
+  static const int _defaultLimit = 10;
   @override
   void initState() {
     super.initState();
@@ -62,179 +65,112 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     try {
       isLoading = true;
       setState(() {});
-      
-      // ========== MOCK DATA - OLD API CALLS COMMENTED ==========
-      // if (widget.userId != null) {
-      //   response = await httpGet(Config.getUseritems,
-      //       {"userid": widget.userId, "offset": "$offset"});
-      // } else if (widget.title == "Recommended Vehicle") {
-      //   response = await httpPost(Config.featuredItems, {"offset": "$offset"});
-      // } else if (widget.title == "Vehicles Near You") {
-      //   response = await httpPost(Config.nearbyItems, {
-      //     "offset": "$offset",
-      //     "item_type": "${searchController.globalItemType.value}"
-      //   });
-      // } else {
-      //   response = await httpPost(Config.getItemsByLocation,
-      //       {"location_id": widget.locationId, "offset": "$offset"});
-      // }
-      
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // MOCK: Return static ItemModel data based on title
+
       if (widget.userId != null) {
-        response = {
-          "status": 200,
-          "message": "User items retrieved successfully",
-          "error": "",
-          "data": {
-            "items": [
-              {
-                "id": 501,
-                "name": "User Vehicle 1",
-                "item_rating": "4.6",
-                "mobile": "+1234567895",
-                "person_allowed": "5",
-                "address": "100 User Street",
-                "state_region": "California",
-                "city": "San Diego",
-                "zip_postal_code": "92101",
-                "price": "75.00",
-                "latitude": "32.7157",
-                "longitude": "-117.1611",
-                "status": "1",
-                "item_type_id": "1",
-                "image": "https://example.com/user1.jpg",
-                "item_info": null,
-                "is_in_wishlist": false,
-                "item_type": "Sedan",
-                "distance": null
-              }
-            ],
-            "offset": 0
-          }
-        };
+        response = await httpGet(
+          Config.submitVehicle,
+          {"vendorId": widget.userId, "offset": "$offset"},
+        );
       } else if (widget.title == "Recommended Vehicle") {
-        response = {
-          "status": 200,
-          "message": "Featured items retrieved successfully",
-          "error": "",
-          "data": {
-            "items": [
-              {
-                "id": 201,
-                "name": "BMW 3 Series 2023",
-                "item_rating": "4.8",
-                "mobile": "+1234567892",
-                "person_allowed": "5",
-                "address": "789 Luxury Lane",
-                "state_region": "California",
-                "city": "Beverly Hills",
-                "zip_postal_code": "90210",
-                "price": "120.00",
-                "latitude": "34.0736",
-                "longitude": "-118.4004",
-                "status": "1",
-                "item_type_id": "1",
-                "image": "https://example.com/bmw3.jpg",
-                "item_info": null,
-                "is_in_wishlist": false,
-                "item_type": "Sedan",
-                "distance": null
-              }
-            ],
-            "offset": 0
-          }
-        };
+        response = await httpPost(Config.featuredItems, {"offset": "$offset"});
       } else if (widget.title == "Vehicles Near You") {
-        response = {
-          "status": 200,
-          "message": "Nearby items retrieved successfully",
-          "error": "",
-          "data": {
-            "items": [
-              {
-                "id": 101,
-                "name": "Toyota Camry 2023",
-                "item_rating": "4.5",
-                "mobile": "+1234567890",
-                "person_allowed": "5",
-                "address": "123 Main Street",
-                "state_region": "California",
-                "city": "Los Angeles",
-                "zip_postal_code": "90001",
-                "price": "50.00",
-                "latitude": "34.0522",
-                "longitude": "-118.2437",
-                "status": "1",
-                "item_type_id": "1",
-                "image": "https://example.com/camry.jpg",
-                "item_info": null,
-                "is_in_wishlist": false,
-                "item_type": "Sedan",
-                "distance": "2.5"
-              }
-            ],
-            "offset": 0
-          }
-        };
+        response = await httpPost(Config.nearbyItems, {
+          "offset": "$offset",
+          "item_type": "${searchController.globalItemType.value}"
+        });
       } else {
-        response = {
-          "status": 200,
-          "message": "Location items retrieved successfully",
-          "error": "",
-          "data": {
-            "items": [
-              {
-                "id": 601,
-                "name": "Location Vehicle 1",
-                "item_rating": "4.4",
-                "mobile": "+1234567896",
-                "person_allowed": "5",
-                "address": "200 Location Blvd",
-                "state_region": "California",
-                "city": "Sacramento",
-                "zip_postal_code": "95814",
-                "price": "60.00",
-                "latitude": "38.5816",
-                "longitude": "-121.4944",
-                "status": "1",
-                "item_type_id": "2",
-                "image": "https://example.com/location1.jpg",
-                "item_info": null,
-                "is_in_wishlist": false,
-                "item_type": "SUV",
-                "distance": null
-              }
-            ],
-            "offset": 0
-          }
-        };
+        response = await httpPost(
+          Config.getItemsByLocation,
+          {"location_id": widget.locationId, "offset": "$offset"},
+        );
       }
 
       if (response != null && response['status'] == 200) {
         itemModel = ItemModel.fromJson(response);
-        list.addAll(itemModel!.data!.items!);
+        final newList = itemModel?.data?.items ?? [];
+        final data = response['data'];
+        int totalItems = _totalFromBackend ?? -1;
+        int limit = _defaultLimit;
+
+        if (data is Map && data['total'] != null) {
+          _totalFromBackend = int.tryParse('${data['total']}');
+          totalItems = _totalFromBackend ?? -1;
+        }
+        if (data is Map && data['limit'] != null) {
+          limit = int.tryParse('${data['limit']}') ?? _defaultLimit;
+        }
+
+        print(
+            '📑 [PAGINATION] Offset actuel: $offset | Items reçus: ${newList.length} | Total attendu: $totalItems');
+
+        // Anti-doublons: on n'ajoute que les véhicules dont l'id n'existe pas déjà.
+        final existingIds = list
+            .map((e) => (e.id ?? '').toString().trim())
+            .where((id) => id.isNotEmpty && id.toLowerCase() != 'null')
+            .toSet();
+        final uniqueNewItems = newList.where((item) {
+          final id = (item.id ?? '').toString().trim();
+          if (id.isEmpty || id.toLowerCase() == 'null') {
+            return true;
+          }
+          if (existingIds.contains(id)) {
+            print('⚠️ [PAGINATION] Doublon ignoré pour id=$id');
+            return false;
+          }
+          existingIds.add(id);
+          return true;
+        }).toList();
+
+        list.addAll(uniqueNewItems);
         widget.itemList = list;
-        offset = itemModel!.data!.offset!;
+
+        final newOffset = itemModel?.data?.offset;
+        final reachedByTotal =
+            _totalFromBackend != null && list.length >= _totalFromBackend!;
+        final reachedByEmptyPage = newList.isEmpty;
+        final reachedByOffset = newOffset == null || newOffset == -1;
+        final reachedByShortPage = newList.length < limit;
+        _hasMoreData = !(reachedByTotal ||
+            reachedByEmptyPage ||
+            reachedByOffset ||
+            reachedByShortPage);
+
+        if (_hasMoreData) {
+          offset = newOffset!;
+          refreshController.loadComplete();
+        } else {
+          offset = -1;
+          refreshController.loadNoData();
+        }
+
         isLoading = false;
         setState(() {});
       } else {
         isLoading = false;
-        showerrorWhenloginwithOtherDevice = "${response["error"]}";
-        showErrorToastMessage("${response["error"]}");
+        // UX silencieuse : ne jamais afficher d'erreur technique à l'utilisateur.
+        _hasMoreData = false;
+        offset = -1;
+        refreshController.loadComplete();
       }
-      refreshController.loadComplete();
       refreshController.refreshCompleted();
       setState(() {});
     } catch (e) {
-      showErrorToastMessage(e);
+      // UX silencieuse : arrêter le scroll sans message visible.
+      _hasMoreData = false;
+      offset = -1;
+      refreshController.loadComplete();
+      setState(() {});
+    } finally {
+      isLoading = false;
       setState(() {});
     }
   }
 
   onLoading() {
+    if (!_hasMoreData) {
+      refreshController.loadNoData();
+      return;
+    }
     setState(() {});
     fetchData();
     setState(() {});
@@ -245,6 +181,9 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     list = [];
     setState(() {});
     offset = 0;
+    _totalFromBackend = null;
+    _hasMoreData = true;
+    refreshController.resetNoData();
     fetchData();
   }
 
@@ -325,6 +264,14 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
           padding: const EdgeInsets.only(top: 15, left: 15, right: 15),
           child: SmartRefresher(
             controller: refreshController,
+            footer: const ClassicFooter(
+              loadStyle: LoadStyle.ShowWhenLoading,
+              loadingText: '',
+              noDataText: '',
+              failedText: '',
+              canLoadingText: '',
+              idleText: '',
+            ),
             onRefresh: onRefresh,
             onLoading: () async {
               await onLoading();
@@ -333,7 +280,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                     false; // Set isLoading to false after loading is completed
               });
             },
-            enablePullUp: offset == -1 ? false : true,
+            enablePullUp: _hasMoreData,
             child: isLoading
                 ? Center(
                     child: verticleShimmerWidgetBookable(),

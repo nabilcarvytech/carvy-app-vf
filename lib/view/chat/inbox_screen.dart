@@ -1,24 +1,19 @@
+import 'dart:async';
 import 'dart:developer';
-import 'package:firebase_database/firebase_database.dart';
+
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:pull_to_refresh/pull_to_refresh.dart';
-import 'package:carvy/controller/home_controller.dart';
+import 'package:carvy/api/config.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
-import 'package:carvy/helper/web_router.dart';
+import 'package:carvy/helper/http_service.dart';
+import 'package:carvy/model/booking_model.dart';
+import 'package:carvy/model/conversation_model.dart';
+import 'package:carvy/services/socket_service.dart';
 import 'package:carvy/utils/theme_style.dart';
-import '../../customwidget/data_not_found.dart';
-import '../../model/get_message_model.dart';
 import '../../utils/common_widget.dart';
 import '../../work_space.dart';
-import 'conversation_screen.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'conversation_screen.dart';
 
 class InboxScreen extends StatefulWidget {
@@ -29,13 +24,76 @@ class InboxScreen extends StatefulWidget {
 }
 
 class _InboxScreenState extends State<InboxScreen> {
-  GetMessageModel? getMessageModel;
-  List<Conversations> list = [];
-  RefreshController refreshController = RefreshController();
-  HomeController homeController = Get.find();
-  num offset = 0;
-  final DatabaseReference dbRef =
-      FirebaseDatabase.instance.ref("chatList").child('$userId');
+  List<ConversationModel> _conversations = [];
+  bool _loading = true;
+  StreamSubscription<dynamic>? _socketSubscription;
+  StreamSubscription<dynamic>? _inboxUpdateSubscription;
+
+  String _firstValid(List<String?> values) {
+    for (final v in values) {
+      final s = (v ?? '').trim();
+      if (s.isNotEmpty && s.toLowerCase() != 'null') return s;
+    }
+    return '';
+  }
+
+  bool _isCompositeId(String id) {
+    final parts = id.split('_');
+    return parts.length == 3 && parts.every((p) => p.trim().isNotEmpty);
+  }
+
+  bool _looksLikeMongoId(String id) {
+    return RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(id.trim());
+  }
+
+  String _extractMongoId(String raw) {
+    final match = RegExp(r'([a-fA-F0-9]{24})').firstMatch(raw);
+    return match?.group(1) ?? '';
+  }
+
+  String _resolveHistoryId(ConversationModel conv) {
+    final candidate = conv.conversationId.trim();
+    if (_looksLikeMongoId(candidate)) return candidate;
+    final extracted = _extractMongoId(candidate);
+    if (extracted.isNotEmpty) return extracted;
+    return candidate;
+  }
+
+  String _resolveConversationId(ConversationModel conv) {
+    final original = conv.conversationId.trim();
+    if (_isCompositeId(original)) return original;
+
+    final current = userId.toString().trim();
+    final bookingId = (conv.bookingId ?? '').trim();
+    final peerId = (conv.recipientId ?? '').trim();
+    final buyerId = _firstValid([conv.buyerId, current]);
+    final sellerId = _firstValid([conv.sellerId, peerId]);
+
+    if (bookingId.isNotEmpty && buyerId.isNotEmpty && sellerId.isNotEmpty) {
+      return '${buyerId}_${bookingId}_${sellerId}';
+    }
+    if (bookingId.isNotEmpty && current.isNotEmpty && peerId.isNotEmpty) {
+      return '${current}_${bookingId}_${peerId}';
+    }
+    return original;
+  }
+
+  Bookings _buildBookingForConversation(ConversationModel conv) {
+    final current = userId.toString().trim();
+    final peerId = (conv.recipientId ?? '').trim();
+    final buyerId = _firstValid([conv.buyerId, current]);
+    final sellerId = _firstValid([conv.sellerId, peerId]);
+    final isCurrentBuyer = buyerId.isNotEmpty && buyerId == current;
+    return Bookings(
+      id: conv.bookingId,
+      userid: buyerId.isNotEmpty ? buyerId : current,
+      hostId: sellerId.isNotEmpty ? sellerId : peerId,
+      hostName: isCurrentBuyer ? conv.fromName : null,
+      userName: isCurrentBuyer ? null : conv.fromName,
+      propTitle: conv.itemName,
+      itemData: '',
+    );
+  }
 
   static String getFormattedTime({
     required BuildContext context,
@@ -66,19 +124,171 @@ class _InboxScreenState extends State<InboxScreen> {
     }
   }
 
+  Future<void> _fetchInbox() async {
+    if (token.isEmpty) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    if (mounted) setState(() => _loading = true);
+    try {
+      final res = await httpGetAdmin(Config.chatInboxPath, {});
+      print('RAW RESPONSE: $res');
+      // ignore: avoid_print
+      print('📦 [API INBOX] Réponse brute du serveur : $res');
+      final dynamic rawData = (res is Map) ? res['data'] : null;
+      final int conversationCount = rawData is List
+          ? rawData.length
+          : rawData is Map && rawData['conversations'] is List
+              ? (rawData['conversations'] as List).length
+              : 0;
+      // ignore: avoid_print
+      print('📦 [API INBOX] Nombre de conversations trouvées : $conversationCount');
+      final raw = _extractConversationsList(res);
+      final uid = userId.toString();
+      final parsed = <ConversationModel>[];
+      for (final e in raw) {
+        if (e is Map) {
+          parsed.add(ConversationModel.fromJson(
+            Map<String, dynamic>.from(e),
+            uid,
+          ));
+        }
+      }
+      parsed.sort((a, b) => b.timestampMs.compareTo(a.timestampMs));
+      if (mounted) {
+        final totalUnread = parsed.fold<int>(
+          0,
+          (sum, c) => sum + (c.unreadCount > 0 ? c.unreadCount : 0),
+        );
+        setState(() {
+          _conversations = parsed;
+          _loading = false;
+        });
+        generalController.totalUnreadCount.value = totalUnread;
+      }
+    } catch (e, st) {
+      log('inbox fetch: $e', stackTrace: st);
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> fetchConversations() async {
+    await _fetchInbox();
+  }
+
+  List<dynamic> _extractConversationsList(dynamic res) {
+    if (res is! Map) return [];
+    if (res['error'] != null) return [];
+    final d = res['data'];
+    if (d is List) return d;
+    if (d is Map) {
+      if (d['conversations'] is List) return d['conversations'] as List;
+      if (d['items'] is List) return d['items'] as List;
+      if (d['inbox'] is List) return d['inbox'] as List;
+    }
+    if (res['conversations'] is List) return res['conversations'] as List;
+    return [];
+  }
+
+  void _onSocketMessage(dynamic data) {
+    if (!mounted) return;
+    if (data is! Map) {
+      _fetchInbox();
+      return;
+    }
+    final map = Map<String, dynamic>.from(data);
+    final rawCid = map['conversationId'] ??
+        map['conversation_id'] ??
+        map['roomId'] ??
+        map['room_id'] ??
+        map['id'];
+    if (rawCid == null) {
+      _fetchInbox();
+      return;
+    }
+    final cid = rawCid.toString();
+    final last = (map['text'] ??
+            map['message'] ??
+            map['lastMessage'] ??
+            map['last_message'] ??
+            '')
+        .toString();
+    final ts = _parseTsMs(map['timestamp'] ?? map['createdAt'] ?? map['created_at']);
+    final senderId =
+        (map['senderId'] ?? map['sender_id'] ?? '').toString();
+    final isUnread =
+        senderId.isNotEmpty && senderId != userId.toString();
+
+    final idx = _conversations.indexWhere((c) => c.conversationId == cid);
+    if (idx >= 0) {
+      final c = _conversations[idx];
+      setState(() {
+        _conversations.removeAt(idx);
+        _conversations.insert(
+          0,
+          c.copyWith(
+            lastMessage: last.isNotEmpty ? last : c.lastMessage,
+            timestampMs: ts,
+            // Un unread true/bool existait déjà : on transforme en compteur.
+            // Quand le message vient de l'autre participant, on incrémente.
+            unreadCount: isUnread ? (c.unreadCount + 1) : c.unreadCount,
+          ),
+        );
+
+        // Badge global : mise à jour instantanée.
+        generalController.totalUnreadCount.value = _conversations.fold<int>(
+          0,
+          (sum, c) => sum + (c.unreadCount > 0 ? c.unreadCount : 0),
+        );
+      });
+    } else {
+      _fetchInbox();
+    }
+  }
+
+  int _parseTsMs(dynamic t) {
+    if (t == null) return DateTime.now().millisecondsSinceEpoch;
+    if (t is int) return _normEpoch(t);
+    if (t is num) return _normEpoch(t.toInt());
+    final s = t.toString();
+    final n = int.tryParse(s);
+    if (n != null) return _normEpoch(n);
+    try {
+      return DateTime.parse(s).millisecondsSinceEpoch;
+    } catch (_) {
+      return DateTime.now().millisecondsSinceEpoch;
+    }
+  }
+
+  int _normEpoch(int v) {
+    if (v < 10000000000) return v * 1000;
+    return v;
+  }
+
   @override
   void initState() {
     super.initState();
     isInboxOpen = true;
-    // Set user defaults only if node doesn't exist
-    dbRef.once().then((event) {
-      if (!event.snapshot.exists) {
-        database.child(userId.toString()).set({
-          "userId": userId.toString(),
-          "playerId": oneSiginalplayerid ?? "null",
-        });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (token.isNotEmpty) {
+        SocketService.instance.connect();
       }
     });
+    fetchConversations();
+    _socketSubscription =
+        SocketService.instance.newMessageStream.listen(_onSocketMessage);
+    _inboxUpdateSubscription = SocketService.instance.onUpdateInbox((data) {
+      // ignore: avoid_print
+      print('🔄 SOCKET : Rafraîchissement de la liste des discussions');
+      fetchConversations();
+    });
+  }
+
+  @override
+  void dispose() {
+    _socketSubscription?.cancel();
+    _inboxUpdateSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -105,979 +315,422 @@ class _InboxScreenState extends State<InboxScreen> {
                   ? Center(child: notloginwidget())
                   : loginModel!.data!.firebaseAuth == "0"
                       ? Center(child: notloginwidget())
-                      : StreamBuilder(
-                          stream: dbRef.onValue,
-                          builder:
-                              (context, AsyncSnapshot<DatabaseEvent> snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return chatInboxScreenShimmer();
-                            }
-                            if (!snapshot.hasData ||
-                                snapshot.data!.snapshot.children.isEmpty) {
-                              return Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.chat_bubble_outline,
-                                      size: 64,
-                                      color: notifires.getGrey3Whitecolor,
-                                    ),
-                                    SizedBox(height: 16),
-                                    Text(
-                                      "No messages yet".tr,
-                                      style: TextStyle(
-                                        fontSize: 18,
+                      : _loading
+                          ? chatInboxScreenShimmer()
+                          : _conversations.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.chat_bubble_outline,
+                                        size: 64,
                                         color: notifires.getGrey3Whitecolor,
                                       ),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      "Your conversations will appear here".tr,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: notifires.getGrey3Whitecolor,
+                                      SizedBox(height: 16),
+                                      Text(
+                                        "No messages yet".tr,
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: notifires.getGrey3Whitecolor,
+                                        ),
                                       ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-                            List<DataSnapshot> items =
-                                snapshot.data!.snapshot.children.toList();
-                            items.sort((a, b) => b
-                                .child('timestamp')
-                                .value
-                                .toString()
-                                .compareTo(
-                                    a.child('timestamp').value.toString()));
-                            return ListView.builder(
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                              itemCount: items.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                DataSnapshot snapshot = items[index];
-                                var value = snapshot.value;
-                                if (value is! Map<dynamic, dynamic>) {
-                                  return Container();
-                                }
-                                Map userData = value;
-                                userData['key'] = snapshot.key;
-                                log("chat list is $userData");
+                                      SizedBox(height: 8),
+                                      Text(
+                                        "Your conversations will appear here".tr,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: notifires.getGrey3Whitecolor,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : RefreshIndicator(
+                                  color: getColorBasedOnActiveModuleid(),
+                                  onRefresh: fetchConversations,
+                                  child: ListView.builder(
+                                    padding:
+                                        EdgeInsets.symmetric(vertical: 8),
+                                    itemCount: _conversations.length,
+                                    itemBuilder: (context, index) {
+                                      final conv = _conversations[index];
+                                      final timestampStr =
+                                          conv.timestampMs.toString();
+                                      final isUnread = conv.unreadCount > 0;
 
-                                // Extract fields from metadata
-                                String itemName =
-                                    userData['itemName']?.toString() ??
-                                        'Unknown';
-                                String lastMessage =
-                                    userData['message']?.toString() ?? '';
-                                String fromName =
-                                    userData['from']?.toString() ?? 'Unknown';
-                                String imageUrl =
-                                    userData['image']?.toString() ?? '';
-                                String bookingStatus =
-                                    userData['bookingStatus']?.toString() ?? '';
-                                String timestampStr =
-                                    userData['timestamp']?.toString() ?? '';
-                                String reciverId;
-                                if (userData["receiverId"].toString() ==
-                                    userId.toString()) {
-                                  reciverId = userData["senderId"].toString();
-                                } else {
-                                  reciverId = userData["receiverId"].toString();
-                                }
+                                      return Container(
+                                        margin: EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 4),
+                                        child: Material(
+                                          color: notifires.getBoxColor,
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            onTap: () async {
+                                              final resolvedConversationId =
+                                                  _resolveConversationId(conv);
+                                              final currentUserId =
+                                                  userId.toString().trim();
+                                              final participants = conv.participants;
+                                              final buyerFromParticipants =
+                                                  participants.isNotEmpty
+                                                      ? participants[0]
+                                                      : '';
+                                              final sellerFromParticipants =
+                                                  participants.length > 1
+                                                      ? participants[1]
+                                                      : '';
+                                              // On récupère l'ID de l'autre personne (le vendeur)
+                                              String actualSellerId = '';
+                                              if (participants.length >= 2) {
+                                                actualSellerId = participants.firstWhere(
+                                                  (id) => id != currentUserId,
+                                                  orElse: () => '',
+                                                );
+                                              }
 
-                                bool isUnread =
-                                    userData['senderId'] != userId.toString() &&
-                                        !(userData['seen'] ?? false);
+                                              // Si on ne le trouve pas, on utilise l'ID statique du log (Agence Carvy Test)
+                                              if (actualSellerId.isEmpty) {
+                                                actualSellerId = '69511e84eee94e05f0cd312e';
+                                              }
 
-                                return Container(
-                                  margin: EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 4),
-                                  child: Material(
-                                    color: notifires.getBoxColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(16),
-                                      onTap: () {
-                                        if (isUnread) {
-                                          dbRef
-                                              .child(snapshot.key!)
-                                              .update({'seen': true});
-                                        }
+                                              // Construction de la Room ID identique au bouton Booking
+                                              final unifiedRoomId =
+                                                  '${currentUserId}_${conv.bookingId}_$actualSellerId';
+                                              // ignore: avoid_print
+                                              print('📦 [INBOX DIAGNOSTIC] Données conversation => conversationId=${conv.conversationId} | bookingId=${conv.bookingId} | mongoId=${conv.mongoId} | buyerId=${conv.buyerId} | sellerId=${conv.sellerId} | recipientId=${conv.recipientId} | playerId=${conv.playerId} | fromName=${conv.fromName} | itemName=${conv.itemName} | bookingStatus=${conv.bookingStatus}');
+                                              // ignore: avoid_print
+                                              print('📦 [INBOX DIAGNOSTIC] Participants : ${conv.participants}');
+                                              // ignore: avoid_print
+                                              print('🎯 [INBOX UNIFICATION] Room ID généré : $unifiedRoomId');
+                                              // ignore: avoid_print
+                                              print('🚀 GO TO CHAT: HistoryID (Mongo) = ${conv.mongoId ?? conv.conversationId} | RoomID (Composite) = $resolvedConversationId');
+                                              // ignore: avoid_print
+                                              print('📤 [INBOX SEND] On envoie au chat : Buyer=${conv.participants[0]} | Booking=${conv.bookingId}');
 
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                ConversationScreen(
-                                              bookingId: userData["bookingId"]
-                                                      ?.toString() ??
-                                                  '',
-                                              bookingStatus:
-                                                  userData["bookingStatus"]
-                                                          ?.toString() ??
-                                                      '',
-                                              from: fromName,
-                                              title: itemName,
-                                              image: imageUrl.isNotEmpty
-                                                  ? imageUrl
-                                                  : null,
-                                              conversationId: userData["roomId"]
-                                                      ?.toString() ??
-                                                  '',
-                                              senderId: userId.toString(),
-                                              reciverId: reciverId,
-                                              playerId:
-                                                  userData["playeridUser2"]
-                                                          ?.toString() ??
-                                                      '',
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      child: Padding(
-                                        padding: EdgeInsets.all(16),
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            // Avatar
-                                            Stack(
-                                              children: [
-                                                Container(
-                                                  width: 56,
-                                                  height: 56,
-                                                  decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    color: notifires.getbgcolor,
-                                                  ),
-                                                  child: imageUrl.isEmpty
-                                                      ? Icon(Icons.person,
-                                                          size: 32,
-                                                          color: notifires
-                                                              .getGrey3Whitecolor)
-                                                      : ClipOval(
-                                                          child: Image.network(
-                                                            imageUrl,
-                                                            fit: BoxFit.cover,
-                                                            errorBuilder:
-                                                                (context, error,
-                                                                    stackTrace) {
-                                                              return Icon(
-                                                                  Icons.person,
-                                                                  size: 32,
-                                                                  color: notifires
-                                                                      .getGrey3Whitecolor);
-                                                            },
-                                                          ),
-                                                        ),
-                                                ),
-                                                if (isUnread)
-                                                  Positioned(
-                                                    right: 0,
-                                                    bottom: 0,
-                                                    child: Container(
-                                                      width: 16,
-                                                      height: 16,
-                                                      decoration: BoxDecoration(
-                                                        color: appgreen,
-                                                        shape: BoxShape.circle,
-                                                        border: Border.all(
-                                                          color: notifires
-                                                              .getBoxColor,
-                                                          width: 2,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                            SizedBox(width: 16),
+                                              // Optimistic UI : enlever le style gras + badges
+                                              // immédiatement avant navigation.
+                                              if (mounted) {
+                                                setState(() {
+                                                  _conversations[index] =
+                                                      conv.copyWith(
+                                                    unreadCount: 0,
+                                                    unread: false,
+                                                  );
+                                                  generalController.totalUnreadCount
+                                                      .value = _conversations.fold<int>(
+                                                    0,
+                                                    (sum, c) =>
+                                                        sum + (c.unreadCount > 0 ? c.unreadCount : 0),
+                                                  );
+                                                });
+                                              }
 
-                                            // Message content
-                                            Expanded(
-                                              child: Column(
+                                              await Get.to(() =>
+                                                  ConversationScreen(
+                                                    booking:
+                                                        _buildBookingForConversation(
+                                                            conv),
+                                                    mongoId: conv.mongoId,
+                                                    bookingId: conv.bookingId,
+                                                    bookingStatus:
+                                                        conv.bookingStatus,
+                                                    from: conv.fromName,
+                                                    title: conv.itemName,
+                                                    image: conv.imageUrl
+                                                            .isNotEmpty
+                                                        ? conv.imageUrl
+                                                        : null,
+                                                    historyId:
+                                                        (conv.mongoId != null && conv.mongoId!.trim().isNotEmpty)
+                                                            ? conv.mongoId
+                                                            : conv.conversationId,
+                                                    socketRoomId:
+                                                        unifiedRoomId,
+                                                    buyerId: currentUserId,
+                                                    sellerId: actualSellerId,
+                                                    conversationId:
+                                                        unifiedRoomId,
+                                                    city: conv.city,
+                                                    senderId:
+                                                        currentUserId,
+                                                    reciverId: (() {
+                                                      final r = (conv.recipientId ?? '').trim();
+                                                      return r.toLowerCase() == 'null' ? '' : r;
+                                                    })(),
+                                                    playerId: conv.playerId,
+                                                  ));
+                                              if (mounted) {
+                                                await fetchConversations();
+                                              }
+                                            },
+                                            child: Padding(
+                                              padding: EdgeInsets.all(16),
+                                              child: Row(
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: [
-                                                  Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .spaceBetween,
+                                                  Stack(
                                                     children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          itemName,
-                                                          style: TextStyle(
-                                                            fontSize: 16,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            color: notifires
-                                                                .getwhiteblackcolor,
-                                                          ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        getFormattedTime(
-                                                            context: context,
-                                                            time: timestampStr),
-                                                        style: TextStyle(
-                                                          fontSize: 12,
+                                                      Container(
+                                                        width: 56,
+                                                        height: 56,
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          shape:
+                                                              BoxShape.circle,
                                                           color: notifires
-                                                              .getGrey3Whitecolor,
+                                                              .getbgcolor,
                                                         ),
+                                                        child: conv.imageUrl
+                                                                .isEmpty
+                                                            ? Icon(
+                                                                Icons.person,
+                                                                size: 32,
+                                                                color: notifires
+                                                                    .getGrey3Whitecolor)
+                                                            : ClipOval(
+                                                                child: Image
+                                                                    .network(
+                                                                  conv.imageUrl,
+                                                                  fit: BoxFit
+                                                                      .cover,
+                                                                  errorBuilder:
+                                                                      (context,
+                                                                          error,
+                                                                          stackTrace) {
+                                                                    return Icon(
+                                                                        Icons
+                                                                            .person,
+                                                                        size:
+                                                                            32,
+                                                                        color: notifires
+                                                                            .getGrey3Whitecolor);
+                                                                  },
+                                                                ),
+                                                              ),
                                                       ),
-                                                    ],
-                                                  ),
-                                                  SizedBox(height: 4),
-                                                  Text(
-                                                    lastMessage,
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: notifires
-                                                          .getGrey3Whitecolor,
-                                                      fontWeight: isUnread
-                                                          ? FontWeight.w600
-                                                          : FontWeight.normal,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    maxLines: 1,
-                                                  ),
-                                                  SizedBox(height: 4),
-                                                  Row(
-                                                    children: [
-                                                      Text(
-                                                        "${"From".tr}: ",
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          color: notifires
-                                                              .getGrey3Whitecolor,
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        fromName,
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: notifires
-                                                              .getGrey3Whitecolor,
-                                                        ),
-                                                      ),
-                                                      Spacer(),
-                                                      if (bookingStatus
-                                                          .isNotEmpty)
-                                                        Container(
-                                                          padding: EdgeInsets
-                                                              .symmetric(
-                                                                  horizontal: 8,
-                                                                  vertical: 4),
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            color: bookingStatus ==
-                                                                        "Confirmed" ||
-                                                                    bookingStatus ==
-                                                                        "Completed"
-                                                                ? Colors.green
-                                                                    .withOpacity(
-                                                                        0.2)
-                                                                : bookingStatus ==
-                                                                        "Pending"
-                                                                    ? Colors
-                                                                        .orange
-                                                                        .withOpacity(
-                                                                            0.2)
-                                                                    : bookingStatus ==
-                                                                                "Declined" ||
-                                                                            bookingStatus ==
-                                                                                "Cancelled"
-                                                                        ? Colors
-                                                                            .red
-                                                                            .withOpacity(
-                                                                                0.2)
-                                                                        : Colors
-                                                                            .grey
-                                                                            .withOpacity(0.2),
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        12),
-                                                          ),
-                                                          child: Text(
-                                                            bookingStatus,
-                                                            style: TextStyle(
-                                                              fontSize: 10,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                              color: bookingStatus ==
-                                                                          "Confirmed" ||
-                                                                      bookingStatus ==
-                                                                          "Completed"
-                                                                  ? Colors.green
-                                                                  : bookingStatus ==
-                                                                          "Pending"
-                                                                      ? Colors
-                                                                          .orange
-                                                                      : bookingStatus == "Declined" ||
-                                                                              bookingStatus ==
-                                                                                  "Cancelled"
-                                                                          ? Colors
-                                                                              .red
-                                                                          : Colors
-                                                                              .grey,
+                                                      if (isUnread)
+                                                        Positioned(
+                                                          right: 0,
+                                                          bottom: 0,
+                                                          child: Container(
+                                                            width: 16,
+                                                            height: 16,
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: appgreen,
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              border:
+                                                                  Border.all(
+                                                                color: notifires
+                                                                    .getBoxColor,
+                                                                width: 2,
+                                                              ),
                                                             ),
                                                           ),
                                                         ),
                                                     ],
                                                   ),
+                                                  SizedBox(width: 16),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Row(
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .spaceBetween,
+                                                          children: [
+                                                            Expanded(
+                                                              child: Column(
+                                                                crossAxisAlignment:
+                                                                    CrossAxisAlignment
+                                                                        .start,
+                                                                children: [
+                                                                  Text(
+                                                                    conv.vehicleTitle ??
+                                                                        'Véhicule',
+                                                                    style:
+                                                                        TextStyle(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      fontSize:
+                                                                          15,
+                                                                      color: Colors
+                                                                          .black,
+                                                                    ),
+                                                                    maxLines: 1,
+                                                                    overflow:
+                                                                        TextOverflow
+                                                                            .ellipsis,
+                                                                  ),
+                                                                  const SizedBox(
+                                                                      height: 2),
+                                                                  Row(
+                                                                    children: [
+                                                                      Icon(
+                                                                          Icons
+                                                                              .location_on,
+                                                                          size:
+                                                                              12,
+                                                                          color:
+                                                                              Colors.grey),
+                                                                      const SizedBox(
+                                                                          width:
+                                                                              4),
+                                                                      Text(
+                                                                        conv.city ??
+                                                                            'Maroc',
+                                                                        style:
+                                                                            TextStyle(
+                                                                          fontSize:
+                                                                              12,
+                                                                          color:
+                                                                              Colors.grey[600],
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                            Text(
+                                                              getFormattedTime(
+                                                                  context:
+                                                                      context,
+                                                                  time:
+                                                                      timestampStr),
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: notifires
+                                                                    .getGrey3Whitecolor,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        SizedBox(height: 4),
+                                                        Text(
+                                                          conv.lastMessage,
+                                                          style: TextStyle(
+                                                            fontSize: 14,
+                                                            color: isUnread
+                                                                ? Colors.black
+                                                                : Colors.grey,
+                                                            fontWeight:
+                                                                isUnread
+                                                                    ? FontWeight.bold
+                                                                    : FontWeight.normal,
+                                                          ),
+                                                          overflow:
+                                                              TextOverflow
+                                                                  .ellipsis,
+                                                          maxLines: 1,
+                                                        ),
+                                                        SizedBox(height: 4),
+                                                        Row(
+                                                          children: [
+                                                            Text(
+                                                              "${"From".tr}: ",
+                                                              style:
+                                                                  TextStyle(
+                                                                fontSize: 12,
+                                                                color: notifires
+                                                                    .getGrey3Whitecolor,
+                                                              ),
+                                                            ),
+                                                            Text(
+                                                              conv.fromName,
+                                                              style:
+                                                                  TextStyle(
+                                                                fontSize: 12,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                color: notifires
+                                                                    .getGrey3Whitecolor,
+                                                              ),
+                                                            ),
+                                                            Spacer(),
+                                                            if (conv
+                                                                .bookingStatus
+                                                                .isNotEmpty)
+                                                              Container(
+                                                                padding: EdgeInsets
+                                                                    .symmetric(
+                                                                        horizontal:
+                                                                            8,
+                                                                        vertical:
+                                                                            4),
+                                                                decoration:
+                                                                    BoxDecoration(
+                                                                  color: conv.bookingStatus ==
+                                                                              "Confirmed" ||
+                                                                          conv.bookingStatus ==
+                                                                              "Completed"
+                                                                      ? Colors
+                                                                          .green
+                                                                          .withOpacity(
+                                                                              0.2)
+                                                                      : conv.bookingStatus ==
+                                                                              "Pending"
+                                                                          ? Colors.orange.withOpacity(
+                                                                              0.2)
+                                                                          : conv.bookingStatus == "Declined" || conv.bookingStatus == "Cancelled"
+                                                                              ? Colors.red.withOpacity(0.2)
+                                                                              : Colors.grey.withOpacity(0.2),
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                          12),
+                                                                ),
+                                                                child: Text(
+                                                                  conv
+                                                                      .bookingStatus,
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                    color: conv.bookingStatus ==
+                                                                                "Confirmed" ||
+                                                                            conv.bookingStatus ==
+                                                                                "Completed"
+                                                                        ? Colors
+                                                                            .green
+                                                                        : conv.bookingStatus ==
+                                                                                "Pending"
+                                                                            ? Colors.orange
+                                                                            : conv.bookingStatus == "Declined" || conv.bookingStatus == "Cancelled"
+                                                                                ? Colors.red
+                                                                                : Colors.grey,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
                                                 ],
                                               ),
                                             ),
-                                          ],
+                                          ),
                                         ),
-                                      ),
-                                    ),
+                                      );
+                                    },
                                   ),
-                                );
-                              },
-                            );
-                          },
-                        ),
+                                ),
             ),
     );
   }
-// }
-
-// class InboxScreen extends StatefulWidget {
-//   const InboxScreen({super.key});
-
-//   @override
-//   State<InboxScreen> createState() => _InboxScreenState();
-// }
-
-// class _InboxScreenState extends State<InboxScreen> {
-//   GetMessageModel? getMessageModel;
-//   List<Conversations> list = [];
-//   RefreshController refreshController = RefreshController();
-//   HomeController homeController = Get.find();
-//   num offset = 0;
-//   final DatabaseReference dbRef =
-//       FirebaseDatabase.instance.ref("chatList").child('$userId');
-
-//   // Search functionality variables
-//   TextEditingController _searchController = TextEditingController();
-//   String _searchQuery = '';
-//   List<DataSnapshot> _allItems = [];
-//   List<DataSnapshot> _filteredItems = [];
-
-//   static String getFormattedTime({
-//     required BuildContext context,
-//     required String? time,
-//   }) {
-//     if (time == null || time.isEmpty) {
-//       return 'Invalid time';
-//     }
-
-//     try {
-//       final microseconds = int.parse(time);
-//       final date = DateTime.fromMillisecondsSinceEpoch(microseconds);
-//       final formattedTime =
-//           TimeOfDay.fromDateTime(date).format(context).toLowerCase();
-//       final now = DateTime.now();
-//       final isToday = date.year == now.year &&
-//           date.month == now.month &&
-//           date.day == now.day;
-//       final DateFormat dateFormatter = DateFormat("d MMM");
-//       final formattedDate = dateFormatter.format(date);
-//       if (isToday) {
-//         return formattedTime;
-//       } else {
-//         return formattedDate;
-//       }
-//     } catch (e) {
-//       return 'Invalid time';
-//     }
-//   }
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     isInboxOpen = true;
-//     // Set user defaults only if node doesn't exist
-//     dbRef.once().then((event) {
-//       if (!event.snapshot.exists) {
-//         database.child(userId.toString()).set({
-//           "userId": userId.toString(),
-//           "playerId": oneSiginalplayerid ?? "null",
-//         });
-//       }
-//     });
-//   }
-
-//   // Method to filter items based on search query
-//   void _filterItems(String query) {
-//     setState(() {
-//       _searchQuery = query.toLowerCase();
-
-//       if (_searchQuery.isEmpty) {
-//         _filteredItems = List.from(_allItems);
-//       } else {
-//         _filteredItems = _allItems.where((item) {
-//           final itemName = item.child('itemName').value?.toString()?.toLowerCase() ?? '';
-//           final fromName = item.child('from').value?.toString()?.toLowerCase() ?? '';
-//           final bookingId = item.child('bookingId').value?.toString()?.toLowerCase() ?? '';
-//           final message = item.child('message').value?.toString()?.toLowerCase() ?? '';
-
-//           return itemName.contains(_searchQuery) ||
-//                  fromName.contains(_searchQuery) ||
-//                  bookingId.contains(_searchQuery) ||
-//                  message.contains(_searchQuery);
-//         }).toList();
-//       }
-//     });
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return PopScope(
-//       canPop: false,
-//       onPopInvoked: (v) {
-//         generalController.tabController.index = 0;
-//         generalController.currentIndex.value = 0;
-//       },
-//       child: showerrorWhenloginwithOtherDevice == "token not match"
-//           ? Center(child: showTokenExpirePlease())
-//           : Scaffold(
-//               backgroundColor: notifires.getbgcolor,
-//               appBar: AppBar(
-//                 automaticallyImplyLeading: false,
-//                 centerTitle: true,
-//                 backgroundColor: notifires.getbgcolor,
-//                 elevation: 0,
-//                 leadingWidth: 80,
-//                 title: Text(
-//                   "Messages".tr,
-//                   style: heading2Grey1(context)
-//                 ),
-//                 actions: [
-//                   IconButton(
-//                     icon: Icon(Icons.search, color: notifires.getwhiteblackcolor),
-//                     onPressed: () {
-//                       showSearch(
-//                         context: context,
-//                         delegate: InboxSearchDelegate(_allItems, _filterItems,),
-//                       );
-//                     },
-//                   ),
-//                 ],
-//               ),
-//               body: token.isEmpty
-//                   ? Center(child: notloginwidget())
-//                   : loginModel!.data!.firebaseAuth == "0"
-//                       ? Center(child: notloginwidget())
-//                       : StreamBuilder(
-//                           stream: dbRef.onValue,
-//                           builder:
-//                               (context, AsyncSnapshot<DatabaseEvent> snapshot) {
-//                             if (snapshot.connectionState ==
-//                                 ConnectionState.waiting) {
-//                               return chatInboxScreenShimmer();
-//                             }
-//                             if (!snapshot.hasData ||
-//                                 snapshot.data!.snapshot.children.isEmpty) {
-//                               return Center(
-//                                 child: Column(
-//                                   mainAxisAlignment: MainAxisAlignment.center,
-//                                   children: [
-//                                     Icon(
-//                                       Icons.chat_bubble_outline,
-//                                       size: 64,
-//                                       color: notifires.getGrey3Whitecolor,
-//                                     ),
-//                                     SizedBox(height: 16),
-//                                     Text(
-//                                       "No messages yet".tr,
-//                                       style: TextStyle(
-//                                         fontSize: 18,
-//                                         color: notifires.getGrey3Whitecolor,
-//                                       ),
-//                                     ),
-//                                     SizedBox(height: 8),
-//                                     Text(
-//                                       "Your conversations will appear here".tr,
-//                                       style: TextStyle(
-//                                         fontSize: 14,
-//                                         color: notifires.getGrey3Whitecolor,
-//                                       ),
-//                                       textAlign: TextAlign.center,
-//                                     ),
-//                                   ],
-//                                 ),
-//                               );
-//                             }
-
-//                             // Store all items and filter based on search query
-//                             _allItems = snapshot.data!.snapshot.children.toList();
-
-//                             if (_searchQuery.isNotEmpty) {
-//                               _filterItems(_searchQuery);
-//                             } else {
-//                               _filteredItems = List.from(_allItems);
-//                             }
-
-//                             _filteredItems.sort((a, b) => b
-//                                 .child('timestamp')
-//                                 .value
-//                                 .toString()
-//                                 .compareTo(
-//                                     a.child('timestamp').value.toString()));
-
-//                             return Column(
-//                               children: [
-//                                 // Search Bar
-//                                 Padding(
-//                                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-//                                   child: TextField(
-//                                     controller: _searchController,
-//                                     decoration: InputDecoration(
-//                                       hintText: 'Search by name, booking ID or message...',
-//                                       prefixIcon: Icon(Icons.search),
-//                                       suffixIcon: _searchQuery.isNotEmpty
-//                                           ? IconButton(
-//                                               icon: Icon(Icons.clear),
-//                                               onPressed: () {
-//                                                 _searchController.clear();
-//                                                 _filterItems('');
-//                                               },
-//                                             )
-//                                           : null,
-//                                       border: OutlineInputBorder(
-//                                         borderRadius: BorderRadius.circular(12),
-//                                       ),
-//                                       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-//                                     ),
-//                                     onChanged: _filterItems,
-//                                   ),
-//                                 ),
-
-//                                 // Results count
-//                                 if (_searchQuery.isNotEmpty)
-//                                   Padding(
-//                                     padding: EdgeInsets.symmetric(horizontal: 16),
-//                                     child: Row(
-//                                       children: [
-//                                         Text(
-//                                           '${_filteredItems.length} results found',
-//                                           style: TextStyle(
-//                                             fontSize: 12,
-//                                             color: notifires.getGrey3Whitecolor,
-//                                           ),
-//                                         ),
-//                                       ],
-//                                     ),
-//                                   ),
-
-//                                 // Messages List
-//                                 Expanded(
-//                                   child: ListView.builder(
-//                                     padding: EdgeInsets.symmetric(vertical: 8),
-//                                     itemCount: _filteredItems.length,
-//                                     itemBuilder: (BuildContext context, int index) {
-//                                       DataSnapshot snapshot = _filteredItems[index];
-//                                       var value = snapshot.value;
-//                                       if (value is! Map<dynamic, dynamic>) {
-//                                         return Container();
-//                                       }
-//                                       Map userData = value;
-//                                       userData['key'] = snapshot.key;
-//                                       log("chat list is $userData");
-
-//                                       // Extract fields from metadata
-//                                       String itemName =
-//                                           userData['itemName']?.toString() ??
-//                                               'Unknown';
-//                                       String lastMessage =
-//                                           userData['message']?.toString() ?? '';
-//                                       String fromName =
-//                                           userData['from']?.toString() ?? 'Unknown';
-//                                       String imageUrl =
-//                                           userData['image']?.toString() ?? '';
-//                                       String bookingStatus =
-//                                           userData['bookingStatus']?.toString() ?? '';
-//                                       String timestampStr =
-//                                           userData['timestamp']?.toString() ?? '';
-//                                       String reciverId;
-//                                       if (userData["receiverId"].toString() ==
-//                                           userId.toString()) {
-//                                         reciverId = userData["senderId"].toString();
-//                                       } else {
-//                                         reciverId = userData["receiverId"].toString();
-//                                       }
-
-//                                       bool isUnread =
-//                                           userData['senderId'] != userId.toString() &&
-//                                               !(userData['seen'] ?? false);
-
-//                                       return Container(
-//                                         margin: EdgeInsets.symmetric(
-//                                             horizontal: 16, vertical: 4),
-//                                         child: Material(
-//                                           color: notifires.getBoxColor,
-//                                           borderRadius: BorderRadius.circular(16),
-//                                           child: InkWell(
-//                                             borderRadius: BorderRadius.circular(16),
-//                                             onTap: () {
-//                                               if (isUnread) {
-//                                                 dbRef
-//                                                     .child(snapshot.key!)
-//                                                     .update({'seen': true});
-//                                               }
-
-//                                               Navigator.push(
-//                                                 context,
-//                                                 MaterialPageRoute(
-//                                                   builder: (context) =>
-//                                                       ConversationScreen(
-//                                                     bookingId: userData["bookingId"]
-//                                                             ?.toString() ??
-//                                                         '',
-//                                                     bookingStatus:
-//                                                         userData["bookingStatus"]
-//                                                                 ?.toString() ??
-//                                                             '',
-//                                                     from: fromName,
-//                                                     title: itemName,
-//                                                     image: imageUrl.isNotEmpty
-//                                                         ? imageUrl
-//                                                         : null,
-//                                                     conversationId: userData["roomId"]
-//                                                             ?.toString() ??
-//                                                         '',
-//                                                     senderId: userId.toString(),
-//                                                     reciverId: reciverId,
-//                                                     playerId:
-//                                                         userData["playeridUser2"]
-//                                                                 ?.toString() ??
-//                                                             '',
-//                                                   ),
-//                                                 ),
-//                                               );
-//                                             },
-//                                             child: Padding(
-//                                               padding: EdgeInsets.all(16),
-//                                               child: Row(
-//                                                 crossAxisAlignment:
-//                                                     CrossAxisAlignment.start,
-//                                                 children: [
-//                                                   // Avatar
-//                                                   Stack(
-//                                                     children: [
-//                                                       Container(
-//                                                         width: 56,
-//                                                         height: 56,
-//                                                         decoration: BoxDecoration(
-//                                                           shape: BoxShape.circle,
-//                                                           color: notifires.getbgcolor,
-//                                                         ),
-//                                                         child: imageUrl.isEmpty
-//                                                             ? Icon(Icons.person,
-//                                                                 size: 32,
-//                                                                 color: notifires
-//                                                                     .getGrey3Whitecolor)
-//                                                             : ClipOval(
-//                                                                 child: Image.network(
-//                                                                   imageUrl,
-//                                                                   fit: BoxFit.cover,
-//                                                                   errorBuilder:
-//                                                                       (context, error,
-//                                                                           stackTrace) {
-//                                                                     return Icon(
-//                                                                         Icons.person,
-//                                                                         size: 32,
-//                                                                         color: notifires
-//                                                                             .getGrey3Whitecolor);
-//                                                                   },
-//                                                                 ),
-//                                                               ),
-//                                                       ),
-//                                                       if (isUnread)
-//                                                         Positioned(
-//                                                           right: 0,
-//                                                           bottom: 0,
-//                                                           child: Container(
-//                                                             width: 16,
-//                                                             height: 16,
-//                                                             decoration: BoxDecoration(
-//                                                               color: appgreen,
-//                                                               shape: BoxShape.circle,
-//                                                               border: Border.all(
-//                                                                 color: notifires
-//                                                                     .getBoxColor,
-//                                                                 width: 2,
-//                                                               ),
-//                                                             ),
-//                                                           ),
-//                                                         ),
-//                                                     ],
-//                                                   ),
-//                                                   SizedBox(width: 16),
-
-//                                                   // Message content
-//                                                   Expanded(
-//                                                     child: Column(
-//                                                       crossAxisAlignment:
-//                                                           CrossAxisAlignment.start,
-//                                                       children: [
-//                                                         Row(
-//                                                           mainAxisAlignment:
-//                                                               MainAxisAlignment
-//                                                                   .spaceBetween,
-//                                                           children: [
-//                                                             Expanded(
-//                                                               child: Text(
-//                                                                 itemName,
-//                                                                 style: TextStyle(
-//                                                                   fontSize: 16,
-//                                                                   fontWeight:
-//                                                                       FontWeight.w600,
-//                                                                   color: notifires
-//                                                                       .getwhiteblackcolor,
-//                                                                 ),
-//                                                                 overflow: TextOverflow
-//                                                                     .ellipsis,
-//                                                               ),
-//                                                             ),
-//                                                             Text(
-//                                                               getFormattedTime(
-//                                                                   context: context,
-//                                                                   time: timestampStr),
-//                                                               style: TextStyle(
-//                                                                 fontSize: 12,
-//                                                                 color: notifires
-//                                                                     .getGrey3Whitecolor,
-//                                                               ),
-//                                                             ),
-//                                                           ],
-//                                                         ),
-//                                                         SizedBox(height: 4),
-//                                                         Text(
-//                                                           lastMessage,
-//                                                           style: TextStyle(
-//                                                             fontSize: 14,
-//                                                             color: notifires
-//                                                                 .getGrey3Whitecolor,
-//                                                             fontWeight: isUnread
-//                                                                 ? FontWeight.w600
-//                                                                 : FontWeight.normal,
-//                                                           ),
-//                                                           overflow:
-//                                                               TextOverflow.ellipsis,
-//                                                           maxLines: 1,
-//                                                         ),
-//                                                         SizedBox(height: 4),
-//                                                         Row(
-//                                                           children: [
-//                                                             Text(
-//                                                               "${"From".tr}: ",
-//                                                               style: TextStyle(
-//                                                                 fontSize: 12,
-//                                                                 color: notifires
-//                                                                     .getGrey3Whitecolor,
-//                                                               ),
-//                                                             ),
-//                                                             Text(
-//                                                               fromName,
-//                                                               style: TextStyle(
-//                                                                 fontSize: 12,
-//                                                                 fontWeight:
-//                                                                     FontWeight.w600,
-//                                                                 color: notifires
-//                                                                     .getGrey3Whitecolor,
-//                                                               ),
-//                                                             ),
-//                                                             Spacer(),
-//                                                             if (bookingStatus
-//                                                                 .isNotEmpty)
-//                                                               Container(
-//                                                                 padding: EdgeInsets
-//                                                                     .symmetric(
-//                                                                         horizontal: 8,
-//                                                                         vertical: 4),
-//                                                                 decoration:
-//                                                                     BoxDecoration(
-//                                                                   color: bookingStatus ==
-//                                                                             "Confirmed" ||
-//                                                                         bookingStatus ==
-//                                                                             "Completed"
-//                                                                     ? Colors.green
-//                                                                         .withOpacity(
-//                                                                             0.2)
-//                                                                     : bookingStatus ==
-//                                                                             "Pending"
-//                                                                         ? Colors
-//                                                                             .orange
-//                                                                             .withOpacity(
-//                                                                                 0.2)
-//                                                                         : bookingStatus ==
-//                                                                                     "Declined" ||
-//                                                                                 bookingStatus ==
-//                                                                                     "Cancelled"
-//                                                                             ? Colors
-//                                                                                 .red
-//                                                                                 .withOpacity(
-//                                                                                     0.2)
-//                                                                             : Colors
-//                                                                                 .grey
-//                                                                                 .withOpacity(0.2),
-//                                                                   borderRadius:
-//                                                                       BorderRadius
-//                                                                           .circular(
-//                                                                               12),
-//                                                                 ),
-//                                                                 child: Text(
-//                                                                   bookingStatus,
-//                                                                   style: TextStyle(
-//                                                                     fontSize: 10,
-//                                                                     fontWeight:
-//                                                                         FontWeight
-//                                                                             .w600,
-//                                                                     color: bookingStatus ==
-//                                                                               "Confirmed" ||
-//                                                                           bookingStatus ==
-//                                                                               "Completed"
-//                                                                       ? Colors.green
-//                                                                       : bookingStatus ==
-//                                                                               "Pending"
-//                                                                           ? Colors
-//                                                                               .orange
-//                                                                           : bookingStatus == "Declined" ||
-//                                                                                   bookingStatus ==
-//                                                                                       "Cancelled"
-//                                                                               ? Colors
-//                                                                                   .red
-//                                                                               : Colors
-//                                                                                   .grey,
-//                                                                   ),
-//                                                                 ),
-//                                                               ),
-//                                                           ],
-//                                                         ),
-//                                                       ],
-//                                                     ),
-//                                                   ),
-//                                                 ],
-//                                               ),
-//                                             ),
-//                                           ),
-//                                         ),
-//                                       );
-//                                     },
-//                                   ),
-//                                 ),
-//                               ],
-//                             );
-//                           },
-//                         ),
-//             ),
-//     );
-//   }
-// }
-// class InboxSearchDelegate extends SearchDelegate {
-//   final List<DataSnapshot> allItems;
-//   final Function(String) filterItems;
-
-//   InboxSearchDelegate(this.allItems, this.filterItems, );
-
-//   @override
-//   List<Widget> buildActions(BuildContext context) {
-//     return [
-//       IconButton(
-//         icon: Icon(Icons.clear),
-//         onPressed: () {
-//           query = '';
-//         },
-//       ),
-//     ];
-//   }
-
-//   @override
-//   Widget buildLeading(BuildContext context) {
-//     return IconButton(
-//       icon: Icon(Icons.arrow_back),
-//       onPressed: () {
-//         close(context, null);
-//       },
-//     );
-//   }
-
-//   @override
-//   Widget buildResults(BuildContext context) {
-//     return _buildSearchResults();
-//   }
-
-//   @override
-//   Widget buildSuggestions(BuildContext context) {
-//     return _buildSearchResults();
-//   }
-
-//   Widget _buildSearchResults() {
-//     final results = allItems.where((item) {
-//       final itemName = item.child('itemName').value?.toString()?.toLowerCase() ?? '';
-//       final fromName = item.child('from').value?.toString()?.toLowerCase() ?? '';
-//       final bookingId = item.child('bookingId').value?.toString()?.toLowerCase() ?? '';
-//       final message = item.child('message').value?.toString()?.toLowerCase() ?? '';
-
-//       return itemName.contains(query.toLowerCase()) ||
-//              fromName.contains(query.toLowerCase()) ||
-//              bookingId.contains(query.toLowerCase()) ||
-//              message.contains(query.toLowerCase());
-//     }).toList();
-
-//     return ListView.builder(
-//       itemCount: results.length,
-//       itemBuilder: (context, index) {
-//         final item = results[index];
-//         final userData = item.value as Map<dynamic, dynamic>;
-
-//         String itemName = userData['itemName']?.toString() ?? 'Unknown';
-//         String lastMessage = userData['message']?.toString() ?? '';
-//         String fromName = userData['from']?.toString() ?? 'Unknown';
-//         String imageUrl = userData['image']?.toString() ?? '';
-//         String timestampStr = userData['timestamp']?.toString() ?? '';
-
-//         return ListTile(
-//           leading: CircleAvatar(
-//             backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-//             child: imageUrl.isEmpty ? Icon(Icons.person) : null,
-//           ),
-//           title: Text(itemName),
-//           subtitle: Text(lastMessage),
-//           trailing: Text(_getFormattedTime(timestampStr,context)),
-//           onTap: () {
-//             // Handle item tap
-//           },
-//         );
-//       },
-//     );
-//   }
-
-//   String _getFormattedTime(String timestampStr,context) {
-//     try {
-//       final microseconds = int.parse(timestampStr);
-//       final date = DateTime.fromMillisecondsSinceEpoch(microseconds);
-//       final now = DateTime.now();
-//       final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
-//       final DateFormat dateFormatter = DateFormat("d MMM");
-//       final formattedDate = dateFormatter.format(date);
-//       return isToday ? TimeOfDay.fromDateTime(date).format(context).toLowerCase() : formattedDate;
-//     } catch (e) {
-//       return 'Invalid time';
-//     }
-//   }
 }

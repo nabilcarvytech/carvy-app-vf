@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
@@ -79,16 +78,16 @@ class _InitialHostCommonScreenState extends State<InitialHostCommonScreen> {
                 width: 100,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(50),
-                  child: CachedNetworkImage(
-                    fit: BoxFit.cover,
-                    imageUrl: profileController.myImage.value,
-                    errorWidget: (context, exception, stackTrace) {
+                  child: Obx(() {
+                    final v = profileController.myImage.value;
+                    if (v.isEmpty) {
                       return const Icon(
                         Icons.account_circle_rounded,
                         size: 80,
                       );
-                    },
-                  ),
+                    }
+                    return buildAvatarImage(v, fit: BoxFit.cover);
+                  }),
                 ),
               ),
               const SizedBox(height: 10),

@@ -16,6 +16,7 @@ import 'package:carvy/controller/add_address_controller.dart';
 import 'package:carvy/controller/items_detail_controller.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/controller/push_notifications.dart';
+import 'package:carvy/controller/booking_record_controller.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/digital_singnature_model.dart';
@@ -33,11 +34,62 @@ import '../model/calendar_model.dart';
 import '../model/get_item_prices.dart';
 import '../model/wallet_model.dart';
 import '../view/booking/payment_screen.dart';
+import '../view/booking/my_booking_screen.dart';
 import '../view/booking/vehicle/vehicle_booking_summary_screen.dart';
 import '../view/bottombar/home_main.dart';
 import '../work_space.dart';
 
 ItemDetailsController spaceDetailController = Get.find();
+
+/// Ticket véhicule simplifié : taxe, dépôt, nettoyage et frais de service à 0 ;
+/// total = prix jours − remise − coupon (sans frais cachés).
+GetItemPrices applySimplifiedVehicleBookingPrices(GetItemPrices src) {
+  final d = src.data;
+  if (d == null) return src;
+  final base = double.tryParse(d.priceBeforeDiscount ?? '0') ?? 0.0;
+  final discount = double.tryParse(d.discountPrice ?? '0') ?? 0.0;
+  final coupon = double.tryParse(d.couponDiscount ?? '0') ?? 0.0;
+  final totalNights = int.tryParse(d.totalNights ?? '') ?? d.duration ?? 1;
+
+  // Applique explicitement la remise longue durée au total pour éviter
+  // l'incohérence "économie affichée mais non déduite" sur le montant final.
+  final itemDetails = spaceDetailController.vehicleDetailModel?.data?.itemDetails;
+  final priceDetails = itemDetails?.priceDetails;
+  final originalDailyFromPriceDetails =
+      double.tryParse(priceDetails?.originalDailyPrice?.toString() ?? '') ?? 0.0;
+  final fallbackDaily = totalNights > 0 ? (base / totalNights) : 0.0;
+  final originalDaily = originalDailyFromPriceDetails > 0
+      ? originalDailyFromPriceDetails
+      : fallbackDaily;
+  final weeklyDaily = double.tryParse(
+          priceDetails?.discountedDailyPriceWeekly?.toString() ?? '') ??
+      originalDaily;
+  final monthlyDaily = double.tryParse(
+          priceDetails?.discountedDailyPriceMonthly?.toString() ?? '') ??
+      weeklyDaily;
+  final selectedDaily = totalNights >= 30
+      ? monthlyDaily
+      : (totalNights >= 7 ? weeklyDaily : originalDaily);
+  final longDurationDiscount =
+      ((originalDaily - selectedDaily) * totalNights).clamp(0, double.infinity);
+
+  var afterDiscount = base - discount - longDurationDiscount;
+  if (afterDiscount < 0) afterDiscount = 0;
+  var total = afterDiscount - coupon;
+  if (total < 0) total = 0;
+  final afterDiscStr = afterDiscount.toStringAsFixed(2);
+  final totalStr = total.toStringAsFixed(2);
+  return src.copyWith(
+    data: d.copyWith(
+      serviceCharge: '0.00',
+      cleaningCharge: '0.00',
+      tax: '0.00',
+      securityDeposit: '0.00',
+      priceAfterDiscount: afterDiscStr,
+      grossPrice: totalStr,
+    ),
+  );
+}
 
 class BookingController extends GetxController implements GetxService {
   @override
@@ -465,12 +517,9 @@ class BookingController extends GetxController implements GetxService {
 
       // Calculate prices using real daily price and real number of days
       double basePrice = dailyPriceValue * totalNights;
-      double serviceCharge = 10.00;
-      double cleaningCharge = 5.00;
-      double tax = 12.50;
-      double grossPrice = basePrice + serviceCharge + cleaningCharge + tax;
+      double grossPrice = basePrice;
 
-      // MOCK: Return dynamic response data
+      // MOCK: Return dynamic response data (sans taxe / dépôt / nettoyage / frais service)
       Map<String, dynamic> response = {
         "status": 200,
         "message": "Item prices retrieved successfully",
@@ -496,15 +545,15 @@ class BookingController extends GetxController implements GetxService {
           "discount_price": "0.00",
           "coupon_discount": "0.00",
           "price_after_discount": basePrice.toStringAsFixed(2),
-          "service_charge": serviceCharge.toStringAsFixed(2),
-          "cleaning_charge": cleaningCharge.toStringAsFixed(2),
+          "service_charge": "0.00",
+          "cleaning_charge": "0.00",
           "coupon_code": coupon ?? "",
-          "tax": tax.toStringAsFixed(2),
+          "tax": "0.00",
           "wallet_amount": wallet ?? "0.00",
           "remaining_wallet_balance": "0.00",
           "gross_price": grossPrice.toStringAsFixed(2),
           "duration": totalNights,
-          "security_deposit": "100.00",
+          "security_deposit": "0.00",
           "distance": "0",
           "label": ""
         }
@@ -612,7 +661,8 @@ class BookingController extends GetxController implements GetxService {
           debugPrint('✅ [getDataBookingSummery] SUCCÈS - Statut 200');
 
           try {
-            getItemPrices = GetItemPrices.fromJson(response);
+            getItemPrices = applySimplifiedVehicleBookingPrices(
+                GetItemPrices.fromJson(response));
             print('✅ [getDataBookingSummery] Parsing JSON réussi');
             debugPrint('✅ [getDataBookingSummery] Parsing JSON réussi');
 
@@ -1102,9 +1152,9 @@ class BookingController extends GetxController implements GetxService {
         "$price",
         bookingForSomeOne,
         "${getItemPrices!.data!.priceBeforeDiscount}",
-        getItemPrices!.data!.serviceCharge!,
         "0",
-        getItemPrices!.data!.tax!,
+        "0",
+        "0",
         getItemPrices!.data!.grossPrice!,
         currency,
         'stripe',
@@ -1115,7 +1165,7 @@ class BookingController extends GetxController implements GetxService {
         getItemPrices!.data!.discountPrice!.toString(),
         getItemPrices!.data!.couponDiscount!.toString(),
         getItemPrices!.data!.discountType!,
-        getItemPrices!.data!.cleaningCharge!.toString(),
+        "0",
         addDoorStepPrice.toString(),
         meta);
     closeLoading();
@@ -1225,9 +1275,9 @@ class BookingController extends GetxController implements GetxService {
       "per_day": pernight,
       "book_for": bookfor,
       "base_price": basePrice,
-      "service_charge": serviceCharge,
-      "security_money": serviceCharge,
-      "iva_tax": ivaText,
+      "service_charge": "0",
+      "security_money": "0",
+      "iva_tax": "0",
       "total": total,
       "currency_code": currencyCode,
       "payment_method": paymentMethod,
@@ -1238,7 +1288,7 @@ class BookingController extends GetxController implements GetxService {
       "discount_price": discountPrice,
       "coupon_discount": couponDiscount,
       "discount_type": discountType,
-      "cleaning_charges": cleaningCharges,
+      "cleaning_charges": "0",
       "start_time": startTimeForBackend,
       "end_time": endTimeForBackend,
       "onlinepayment": "$paymentStatus",
@@ -1396,6 +1446,7 @@ class BookingController extends GetxController implements GetxService {
         return;
       }
 
+      // ========== 4.1. VALIDATION "JOURS MINIMUM" (UX: blocage uniquement au paiement final) ==========
       String checkInIso = checkInDate.toIso8601String();
       String checkOutIso = checkOutDate.toIso8601String();
 
@@ -1481,9 +1532,9 @@ class BookingController extends GetxController implements GetxService {
         "per_day": getItemPrices!.data!.pricePerNight ?? "0",
         "book_for": "",
         "base_price": getItemPrices!.data!.priceBeforeDiscount ?? "0",
-        "service_charge": getItemPrices!.data!.serviceCharge ?? "0",
-        "security_money": getItemPrices!.data!.serviceCharge ?? "0",
-        "iva_tax": getItemPrices!.data!.tax ?? "0",
+        "service_charge": "0",
+        "security_money": "0",
+        "iva_tax": "0",
         "currency_code": currency,
         "payment_method":
             selectedPaymentMethod?.name?.toLowerCase() ?? "stripe",
@@ -1495,8 +1546,7 @@ class BookingController extends GetxController implements GetxService {
         "coupon_discount":
             getItemPrices!.data!.couponDiscount?.toString() ?? "0",
         "discount_type": getItemPrices!.data!.discountType ?? "",
-        "cleaning_charges":
-            getItemPrices!.data!.cleaningCharge?.toString() ?? "0",
+        "cleaning_charges": "0",
         "start_time": startTimeForBackend,
         "end_time": endTimeForBackend,
         "onlinepayment": paymentStatus ?? "",
@@ -1773,11 +1823,27 @@ class BookingController extends GetxController implements GetxService {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Get.back(); // Fermer le dialogue
-                        // Naviguer vers l'écran "My Bookings"
+                        final bookingRecordController =
+                            Get.find<BookingRecordController>();
+                        await bookingRecordController.getBookingRecord(
+                          type: 'upcoming',
+                          offset: 0,
+                        );
                         generalController.currentIndex.value = 2;
-                        Get.offAll(() => const HomeMain(initialIndex: 2));
+                        Get.offAll(() => MyBooking(
+                              fromPropBooking: false,
+                              initialTabIndex: 0,
+                            ));
+                        Get.snackbar(
+                          'Succes'.tr,
+                          'Votre reservation est confirmee !'.tr,
+                          snackPosition: SnackPosition.TOP,
+                          backgroundColor: Colors.green,
+                          colorText: Colors.white,
+                          duration: const Duration(seconds: 2),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: themeColor,
@@ -1875,6 +1941,34 @@ class BookingController extends GetxController implements GetxService {
   RxString hindTimeSEnd = "".obs;
   RxInt currentdatebool = 1.obs;
   RxInt currentdateboospace = 1.obs;
+
+  int? _resolveMinRentalDaysForBooking(dynamic itemDetails) {
+    int? parse(dynamic d) {
+      if (d == null) return null;
+      try {
+        final v = (d as dynamic).minRentalDays;
+        if (v == null) return null;
+        final n = int.tryParse(v.toString().trim());
+        if (n == null || n < 1) return null;
+        return n;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final fromParam = parse(itemDetails);
+    if (fromParam != null) return fromParam;
+
+    try {
+      return parse(spaceDetailController.itemInfo);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Wrapper public pour permettre à l'UI de valider avant navigation vers le paiement.
+  int? resolveMinRentalDaysForBooking(dynamic itemDetails) =>
+      _resolveMinRentalDaysForBooking(itemDetails);
 
   bool isEndTimeBeforeStartTime(String startTime, String endTime) {
     bool is24HourFormat =
@@ -1990,56 +2084,21 @@ class BookingController extends GetxController implements GetxService {
     }
   }
 
+  /// Heures d'ouverture des agences : 09:00 à 22:00 (sans 22:30 ni 23:00).
   List<String> getManualTimeSlots24() {
-    return [
-      '00:30',
-      '01:00',
-      '01:30',
-      '02:00',
-      '02:30',
-      '03:00',
-      '03:30',
-      '04:00',
-      '04:30',
-      '05:00',
-      '05:30',
-      '06:00',
-      '06:30',
-      '07:00',
-      '07:30',
-      '08:00',
-      '08:30',
-      '09:00',
-      '09:30',
-      '10:00',
-      '10:30',
-      '11:00',
-      '11:30',
-      '12:00',
-      '12:30',
-      '13:00',
-      '13:30',
-      '14:00',
-      '14:30',
-      '15:00',
-      '15:30',
-      '16:00',
-      '16:30',
-      '17:00',
-      '17:30',
-      '18:00',
-      '18:30',
-      '19:00',
-      '19:30',
-      '20:00',
-      '20:30',
-      '21:00',
-      '21:30',
-      '22:00',
-      '22:30',
-      '23:00',
-      '23:30'
-    ];
+    return getServiceHours();
+  }
+
+  List<String> getServiceHours() {
+    final List<String> times = [];
+    for (int i = 9; i <= 22; i++) {
+      final String hour = i.toString().padLeft(2, '0');
+      times.add('$hour:00');
+      if (i < 22) {
+        times.add('$hour:30');
+      }
+    }
+    return times;
   }
 
   List<String> generateTimeSlots(DateTime selectedDate) {
@@ -2050,18 +2109,28 @@ class BookingController extends GetxController implements GetxService {
         selectedDate.day == currentTime.day) {
       int remainingMinutes = 30 - (currentTime.minute % 30);
       currentTime = currentTime.add(Duration(minutes: remainingMinutes));
-      DateTime endDate = DateTime(
+      final DateTime serviceStart = DateTime(
         currentTime.year,
         currentTime.month,
         currentTime.day,
-        23,
-        59,
+        9,
+        0,
       );
-      if (currentTime.hour == 23 && currentTime.minute >= 30) {
+      final DateTime serviceEnd = DateTime(
+        currentTime.year,
+        currentTime.month,
+        currentTime.day,
+        22,
+        0,
+      );
+      if (currentTime.isBefore(serviceStart)) {
+        currentTime = serviceStart;
+      }
+      if (currentTime.isAfter(serviceEnd)) {
         return [];
       }
-      while (currentTime.isBefore(endDate) ||
-          currentTime.isAtSameMomentAs(endDate)) {
+      while (currentTime.isBefore(serviceEnd) ||
+          currentTime.isAtSameMomentAs(serviceEnd)) {
         String formattedTime = DateFormat('HH:mm').format(currentTime);
         currenttimeSlots.add(formattedTime);
         currentTime = currentTime.add(const Duration(minutes: 30));
@@ -2232,8 +2301,8 @@ class BookingController extends GetxController implements GetxService {
         debugPrint('Error in checkDateApi: $error');
         showErrorToastMessage(
             "An error occurred while checking availability.".tr);
-        nextStartTime.value = "00:00";
-        nextEndTime.value = "23:30";
+        nextStartTime.value = "09:00";
+        nextEndTime.value = "22:00";
         update();
       });
       update();

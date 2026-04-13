@@ -110,6 +110,7 @@ const Map<String, String> ruRU = {
   "Check Availability": "Проверить доступность",
   "Pick Your Date": "Выберите дату",
   "Not Available": "Недоступно",
+  "Blocking reason": "Причина блокировки",
   "Selected for Booking": "Выбрано для бронирования",
   "Start date": "Дата начала",
   "End date": "Дата окончания",
@@ -138,6 +139,7 @@ const Map<String, String> ruRU = {
   "Flexible": "Гибко",
   "Contact host": "Связаться с хозяином",
   "Message": "Сообщение",
+  "Send a message": "Отправить сообщение",
   "Show Less": "Показать меньше",
   "Show More": "Показать больше",
   "Search brand...": "Поиск бренда...",
@@ -147,6 +149,11 @@ const Map<String, String> ruRU = {
   "brands": "бренды",
   "Select brands": "Выбрать бренды",
   "Validate": "Подтвердить",
+  "Enter handover code": "Введите код возврата",
+  "Please enter the 4-digit code provided by the customer to validate the vehicle return.":
+      "Введите 4-значный код, полученный от клиента, чтобы подтвердить возврат транспортного средства.",
+  "Please enter the complete 4-digit code": "Введите полный 4-значный код",
+  "Please enter only 4 digits": "Введите только 4 цифры",
   "Clear": "Очистить",
   "Date": "Дата",
   "Time": "Время",
@@ -618,6 +625,7 @@ const Map<String, String> ruRU = {
   "Trip end date": "Дата окончания поездки",
   "Live in": "Проживает в",
   "Hosting": "Хостинг",
+  "Vehicles": "Транспорт",
   "About": "О себе",
   "Email not verified": "Электронная почта не подтверждена",
   "Verified Email": "Подтвержденная электронная почта",
@@ -1254,5 +1262,7 @@ const Map<String, String> ruRU = {
   "la politique d'annulation": "политику отмены",
   "Note": "Примечание",
   "Smoking Allowed": "Курение разрешено",
+  "min_rental_duration_vehicle_days":
+      "Минимальная длительность аренды для этого автомобиля: @days дней.",
   "International Travel Allowed": "Международные поездки разрешены"
 };

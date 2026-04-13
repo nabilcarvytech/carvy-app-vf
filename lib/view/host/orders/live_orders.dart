@@ -200,6 +200,7 @@ class _LiveOrderdsState extends State<LiveOrderds> {
                       widget.fromPropBooking,
                       "Ongoing",
                       onItemCancelled,
+                      refreshData: onRefresh,
                     ),
         ));
   }

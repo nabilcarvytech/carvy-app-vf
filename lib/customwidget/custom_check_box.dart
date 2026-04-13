@@ -893,9 +893,9 @@ class _MyCustomCheckBoxState extends State<MyCustomCheckBox> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SizedBox(height: 12),
-        // GridView avec 3 colonnes pour Features et Odometer avec checkbox
-        GridView.builder(
+          const SizedBox(height: 12),
+          // GridView avec 3 colonnes pour Features et Odometer avec checkbox
+          GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -908,24 +908,28 @@ class _MyCustomCheckBoxState extends State<MyCustomCheckBox> {
           itemCount: widget.initialValue.length,
           itemBuilder: (context, index) {
             final option = widget.initialValue[index];
+            final String optionKey = option?.toString() ?? '';
             final isSelected = widget.isOdometer == true
-                ? filterController.odometerValues.contains(option)
+                ? optionKey.isNotEmpty &&
+                    filterController.selectedOdometers.contains(optionKey)
                 : filterController.featuresvalues.contains(option);
 
             return InkWell(
               onTap: () {
                 setState(() {
-                  if (isSelected) {
-                    if (widget.isOdometer == false) {
+                  if (widget.isOdometer == false) {
+                    if (isSelected) {
                       filterController.featuresvalues.remove(option);
                     } else {
-                      filterController.odometerValues.remove(option);
+                      filterController.featuresvalues.add(option);
                     }
                   } else {
-                    if (widget.isOdometer == false) {
-                      filterController.featuresvalues.add(option);
-                    } else {
-                      filterController.odometerValues.add(option);
+                    if (optionKey.isEmpty) return;
+                    if (isSelected) {
+                      filterController.selectedOdometers.remove(optionKey);
+                    } else if (!filterController.selectedOdometers
+                        .contains(optionKey)) {
+                      filterController.selectedOdometers.add(optionKey);
                     }
                   }
                 });
@@ -953,15 +957,26 @@ class _MyCustomCheckBoxState extends State<MyCustomCheckBox> {
                           setState(() {
                             if (value == true) {
                               if (widget.isOdometer == false) {
-                                filterController.featuresvalues.add(option);
+                                if (!filterController.featuresvalues
+                                    .contains(option)) {
+                                  filterController.featuresvalues.add(option);
+                                }
                               } else {
-                                filterController.odometerValues.add(option);
+                                if (!filterController.selectedOdometers
+                                    .contains(optionKey)) {
+                                  if (optionKey.isEmpty) return;
+                                  filterController.selectedOdometers
+                                      .add(optionKey);
+                                }
                               }
                             } else {
                               if (widget.isOdometer == false) {
                                 filterController.featuresvalues.remove(option);
                               } else {
-                                filterController.odometerValues.remove(option);
+                                if (optionKey.isNotEmpty) {
+                                  filterController.selectedOdometers
+                                      .remove(optionKey);
+                                }
                               }
                             }
                           });
@@ -1390,9 +1405,9 @@ class _MyCustomCheckBoxModelYearState extends State<MyCustomCheckBoxModelYear> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SizedBox(height: 12),
-        // GridView avec 3 colonnes pour les années avec checkbox
-        GridView.builder(
+          const SizedBox(height: 12),
+          // GridView avec 3 colonnes pour les années avec checkbox
+          GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -1405,15 +1420,16 @@ class _MyCustomCheckBoxModelYearState extends State<MyCustomCheckBoxModelYear> {
           itemBuilder: (context, index) {
             final option = widget.initialValue[index];
             final isSelected =
-                filterController.selectedModelYear.contains(option);
+                filterController.selectedYears.contains(option.toString());
 
             return InkWell(
               onTap: () {
                 setState(() {
+                  final key = option.toString();
                   if (isSelected) {
-                    filterController.selectedModelYear.remove(option);
-                  } else {
-                    filterController.selectedModelYear.add(option);
+                    filterController.selectedYears.remove(key);
+                  } else if (!filterController.selectedYears.contains(key)) {
+                    filterController.selectedYears.add(key);
                   }
                 });
               },
@@ -1437,10 +1453,14 @@ class _MyCustomCheckBoxModelYearState extends State<MyCustomCheckBoxModelYear> {
                         value: isSelected,
                         onChanged: (bool? value) {
                           setState(() {
+                            final key = option.toString();
                             if (value == true) {
-                              filterController.selectedModelYear.add(option);
+                              if (!filterController.selectedYears
+                                  .contains(key)) {
+                                filterController.selectedYears.add(key);
+                              }
                             } else {
-                              filterController.selectedModelYear.remove(option);
+                              filterController.selectedYears.remove(key);
                             }
                           });
                         },
@@ -1501,9 +1521,9 @@ class _MyCustomCheckBoxFuelTypeState extends State<MyCustomCheckBoxFuelType> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SizedBox(height: 12),
-        // GridView avec 3 colonnes pour les types de carburant avec checkbox
-        GridView.builder(
+          const SizedBox(height: 12),
+          // GridView avec 3 colonnes pour les types de carburant avec checkbox
+          GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -1516,15 +1536,16 @@ class _MyCustomCheckBoxFuelTypeState extends State<MyCustomCheckBoxFuelType> {
           itemBuilder: (context, index) {
             final fuelType = widget.fuelTypes[index];
             final isSelected =
-                filterController.selectedFuelTypes.contains(fuelType.id);
+                filterController.selectedFuels.contains(fuelType.id.toString());
 
             return InkWell(
               onTap: () {
                 setState(() {
+                  final key = fuelType.id.toString();
                   if (isSelected) {
-                    filterController.selectedFuelTypes.remove(fuelType.id);
-                  } else {
-                    filterController.selectedFuelTypes.add(fuelType.id);
+                    filterController.selectedFuels.remove(key);
+                  } else if (!filterController.selectedFuels.contains(key)) {
+                    filterController.selectedFuels.add(key);
                   }
                 });
               },
@@ -1548,12 +1569,14 @@ class _MyCustomCheckBoxFuelTypeState extends State<MyCustomCheckBoxFuelType> {
                         value: isSelected,
                         onChanged: (bool? value) {
                           setState(() {
+                            final key = fuelType.id.toString();
                             if (value == true) {
-                              filterController.selectedFuelTypes
-                                  .add(fuelType.id);
+                              if (!filterController.selectedFuels
+                                  .contains(key)) {
+                                filterController.selectedFuels.add(key);
+                              }
                             } else {
-                              filterController.selectedFuelTypes
-                                  .remove(fuelType.id);
+                              filterController.selectedFuels.remove(key);
                             }
                           });
                         },
@@ -1620,9 +1643,9 @@ class _MyCustomCheckBoxTransmissionState
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SizedBox(height: 12),
-        // GridView avec 3 colonnes pour les transmissions avec checkbox
-        GridView.builder(
+          const SizedBox(height: 12),
+          // GridView avec 3 colonnes pour les transmissions avec checkbox
+          GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -1644,7 +1667,8 @@ class _MyCustomCheckBoxTransmissionState
                   if (isSelected) {
                     filterController.selectedTransmissions
                         .remove(transmissionName);
-                  } else {
+                  } else if (!filterController.selectedTransmissions
+                      .contains(transmissionName)) {
                     filterController.selectedTransmissions
                         .add(transmissionName);
                   }
@@ -1671,8 +1695,11 @@ class _MyCustomCheckBoxTransmissionState
                         onChanged: (bool? value) {
                           setState(() {
                             if (value == true) {
-                              filterController.selectedTransmissions
-                                  .add(transmissionName);
+                              if (!filterController.selectedTransmissions
+                                  .contains(transmissionName)) {
+                                filterController.selectedTransmissions
+                                    .add(transmissionName);
+                              }
                             } else {
                               filterController.selectedTransmissions
                                   .remove(transmissionName);

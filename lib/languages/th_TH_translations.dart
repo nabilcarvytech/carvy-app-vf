@@ -108,6 +108,7 @@ const Map<String, String> thTH = {
   "Check Availability": "ตรวจสอบความพร้อม",
   "Pick Your Date": "เลือกวันที่",
   "Not Available": "ไม่พร้อมใช้งาน",
+  "Blocking reason": "เหตุผลการบล็อก",
   "Selected for Booking": "เลือกสำหรับการจอง",
   "Start date": "วันที่เริ่มต้น",
   "End date": "วันที่สิ้นสุด",
@@ -136,6 +137,7 @@ const Map<String, String> thTH = {
   "Flexible": "ยืดหยุ่น",
   "Contact host": "ติดต่อเจ้าของ",
   "Message": "ข้อความ",
+  "Send a message": "ส่งข้อความ",
   "Show Less": "แสดงน้อยลง",
   "Show More": "แสดงเพิ่มเติม",
   "Search brand...": "ค้นหาแบรนด์...",
@@ -145,6 +147,11 @@ const Map<String, String> thTH = {
   "brands": "แบรนด์",
   "Select brands": "เลือกแบรนด์",
   "Validate": "ยืนยัน",
+  "Enter handover code": "กรอกรหัสส่งมอบ",
+  "Please enter the 4-digit code provided by the customer to validate the vehicle return.":
+      "กรุณากรอกรหัส 4 หลักที่ลูกค้าให้มาเพื่อยืนยันการคืนรถ",
+  "Please enter the complete 4-digit code": "กรุณากรอกรหัสครบ 4 หลัก",
+  "Please enter only 4 digits": "กรุณากรอกตัวเลข 4 หลักเท่านั้น",
   "Clear": "ล้าง",
   "Date": "วันที่",
   "Time": "เวลา",
@@ -612,6 +619,7 @@ const Map<String, String> thTH = {
   "Trip end date": "วันที่สิ้นสุดการเดินทาง",
   "Live in": "อาศัยอยู่ใน",
   "Hosting": "การเป็นเจ้าของ",
+  "Vehicles": "ยานพาหนะ",
   "About": "เกี่ยวกับ",
   "Email not verified": "อีเมลยังไม่ได้รับการยืนยัน",
   "Verified Email": "อีเมลที่ยืนยันแล้ว",
@@ -1218,5 +1226,7 @@ const Map<String, String> thTH = {
   "la politique d'annulation": "นโยบายการยกเลิก",
   "Note": "หมายเหตุ",
   "Smoking Allowed": "อนุญาตให้สูบบุหรี่",
+  "min_rental_duration_vehicle_days":
+      "ระยะเวลาการเช่าขั้นต่ำสำหรับยานพาหนะนี้คือ @days วัน",
   "International Travel Allowed": "อนุญาตให้เดินทางระหว่างประเทศ"
 };

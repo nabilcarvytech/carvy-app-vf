@@ -18,6 +18,7 @@ import 'package:carvy/utils/theme_style.dart';
 import 'dart:io';
 import 'package:carvy/work_space.dart';
 import 'package:carvy/helper/get_data_read.dart';
+import 'package:carvy/view/splash/user_role_selection_screen.dart';
 
 class LoginScreen extends StatefulWidget implements PreferredSizeWidget {
   const LoginScreen({super.key});
@@ -345,7 +346,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   handlelogin = false;
                                   clearSignUpData();
                                   filterController.clearFilter();
-                                  Get.toNamed(WebRoutes.signUpScreen);
+                                  Get.to(() => const UserRoleSelectionScreen());
                                 },
                                 child: Text('Sign Up'.tr,
                                     style: regular2(context).copyWith(

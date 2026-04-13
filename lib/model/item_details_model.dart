@@ -117,7 +117,12 @@ class ItemDetails {
       List<String>? vehicleRules,
       List<String>? cancellationRules,
       String? depositValue,
-      String? depositManager}) {
+      String? depositManager,
+      String? weeklyDiscountValue,
+      String? monthlyDiscountValue,
+      bool? hasDiscounts,
+      ItemDetailsPriceDetails? priceDetails,
+      List<String>? categoryList}) {
     _itemId = itemId;
     _title = title;
     _price = price;
@@ -164,6 +169,11 @@ class ItemDetails {
     _cancellationRules = cancellationRules;
     _depositValue = depositValue;
     _depositManager = depositManager;
+    _weeklyDiscountValue = weeklyDiscountValue;
+    _monthlyDiscountValue = monthlyDiscountValue;
+    _hasDiscounts = hasDiscounts;
+    _priceDetails = priceDetails;
+    _categoryList = categoryList;
   }
 
   ItemDetails.fromJson(dynamic json) {
@@ -194,6 +204,9 @@ class ItemDetails {
     _monthlyDiscount = json['monthly_discount']?.toString();
     _monthlyDiscountType = json['monthly_discount_type']?.toString();
     _itemType = json['item_type']?.toString();
+    _categoryList = json['categoryList'] != null
+        ? List<String>.from(json['categoryList'])
+        : <String>[];
     // Mapper cancellation_reason avec fallback sur cancellation_reason_title
     _cancellationReason = json['cancellation_reason'] ?? json['cancellation_reason_title'];
     _bedType = json['bed_type']?.toString();
@@ -269,6 +282,14 @@ class ItemDetails {
     // Parsing deposit fields
     _depositValue = json['deposit_value']?.toString();
     _depositManager = json['deposit_manager']?.toString();
+    _weeklyDiscountValue = json['weekly_discount_value']?.toString();
+    _monthlyDiscountValue = json['monthly_discount_value']?.toString();
+    _hasDiscounts = json['has_discounts'] is bool
+        ? json['has_discounts']
+        : json['has_discounts']?.toString().toLowerCase() == 'true';
+    _priceDetails = json['price_details'] is Map<String, dynamic>
+        ? ItemDetailsPriceDetails.fromJson(json['price_details'])
+        : null;
   }
   String? _itemId;
   String? _title;
@@ -294,6 +315,7 @@ class ItemDetails {
   String? _monthlyDiscount;
   String? _monthlyDiscountType;
   String? _itemType;
+  List<String>? _categoryList;
   dynamic _cancellationReason;
   String? _bedType;
   String? _city;
@@ -317,6 +339,10 @@ class ItemDetails {
   List<String>? _cancellationRules;
   String? _depositValue;
   String? _depositManager;
+  String? _weeklyDiscountValue;
+  String? _monthlyDiscountValue;
+  bool? _hasDiscounts;
+  ItemDetailsPriceDetails? _priceDetails;
 
   String? get itemId => _itemId;
   String? get title => _title;
@@ -342,6 +368,7 @@ class ItemDetails {
   String? get monthlyDiscount => _monthlyDiscount;
   String? get monthlyDiscountType => _monthlyDiscountType;
   String? get itemType => _itemType;
+  List<String>? get categoryList => _categoryList;
   dynamic get cancellationReason => _cancellationReason;
   String? get bedType => _bedType;
   String? get city => _city;
@@ -365,6 +392,10 @@ class ItemDetails {
   List<String>? get cancellationRules => _cancellationRules;
   String? get depositValue => _depositValue;
   String? get depositManager => _depositManager;
+  String? get weeklyDiscountValue => _weeklyDiscountValue;
+  String? get monthlyDiscountValue => _monthlyDiscountValue;
+  bool? get hasDiscounts => _hasDiscounts;
+  ItemDetailsPriceDetails? get priceDetails => _priceDetails;
 
   set isInWishlist(bool? value) {
     _isInWishlist = value;
@@ -397,6 +428,7 @@ class ItemDetails {
     map['monthly_discount'] = _monthlyDiscount;
     map['monthly_discount_type'] = _monthlyDiscountType;
     map['item_type'] = _itemType;
+    map['categoryList'] = _categoryList ?? <String>[];
     map['cancellation_reason'] = _cancellationReason;
     map['bed_type'] = _bedType;
     map['city'] = _city;
@@ -432,7 +464,49 @@ class ItemDetails {
     }
     map['deposit_value'] = _depositValue;
     map['deposit_manager'] = _depositManager;
+    map['weekly_discount_value'] = _weeklyDiscountValue;
+    map['monthly_discount_value'] = _monthlyDiscountValue;
+    map['has_discounts'] = _hasDiscounts;
+    if (_priceDetails != null) {
+      map['price_details'] = _priceDetails?.toJson();
+    }
 
+    return map;
+  }
+}
+
+class ItemDetailsPriceDetails {
+  ItemDetailsPriceDetails({
+    String? originalDailyPrice,
+    String? discountedDailyPriceWeekly,
+    String? discountedDailyPriceMonthly,
+  }) {
+    _originalDailyPrice = originalDailyPrice;
+    _discountedDailyPriceWeekly = discountedDailyPriceWeekly;
+    _discountedDailyPriceMonthly = discountedDailyPriceMonthly;
+  }
+
+  ItemDetailsPriceDetails.fromJson(dynamic json) {
+    _originalDailyPrice = json['original_daily_price']?.toString();
+    _discountedDailyPriceWeekly =
+        json['discounted_daily_price_weekly']?.toString();
+    _discountedDailyPriceMonthly =
+        json['discounted_daily_price_monthly']?.toString();
+  }
+
+  String? _originalDailyPrice;
+  String? _discountedDailyPriceWeekly;
+  String? _discountedDailyPriceMonthly;
+
+  String? get originalDailyPrice => _originalDailyPrice;
+  String? get discountedDailyPriceWeekly => _discountedDailyPriceWeekly;
+  String? get discountedDailyPriceMonthly => _discountedDailyPriceMonthly;
+
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{};
+    map['original_daily_price'] = _originalDailyPrice;
+    map['discounted_daily_price_weekly'] = _discountedDailyPriceWeekly;
+    map['discounted_daily_price_monthly'] = _discountedDailyPriceMonthly;
     return map;
   }
 }

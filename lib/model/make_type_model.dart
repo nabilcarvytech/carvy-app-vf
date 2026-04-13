@@ -84,7 +84,13 @@ class Makes {
     createdAt = json['created_at'];
     updatedAt = json['updated_at'];
     deletedAt = json['deleted_at'];
-    imageUrl = json['imageURL'];
+    
+    // Parsing robuste de imageUrl avec fallbacks pour toutes les variantes possibles
+    imageUrl = json['imageURL']?.toString() ?? 
+               json['imageUrl']?.toString() ?? 
+               json['image_url']?.toString() ?? 
+               json['image']?.toString() ?? 
+               json['logo']?.toString();
 
     final dynamic imageValue = json['image'];
     image = imageValue is String || imageValue == null ? imageValue : '';

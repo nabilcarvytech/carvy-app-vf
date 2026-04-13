@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,12 +35,35 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
 
   final ImagePicker _picker = ImagePicker();
 
+  // Comptage simple par catégorie (pour la check-list)
+  int _frontCount = 0;
+  int _rearCount = 0;
+  int _damageCount = 0;
+
+  // Catégorie de capture active
+  CaptureCategory? _activeCategory;
+
   final int fileSizeThreshold = 500 * 1024; // 500KB
   final int goodQuality = 90;
   final int badQuality = 70;
   final int maxWidth = 800;
   final int maxHeight = 800;
   final int maxImages = 5;
+
+  void _incrementCategoryCount(int added) {
+    if (_activeCategory == null) return;
+    switch (_activeCategory!) {
+      case CaptureCategory.front:
+        _frontCount += added;
+        break;
+      case CaptureCategory.rear:
+        _rearCount += added;
+        break;
+      case CaptureCategory.damage:
+        _damageCount += added;
+        break;
+    }
+  }
 
   Future<void> _showImageSourceDialog({
     required bool isMultiple,
@@ -241,7 +265,8 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
       backgroundColor: notifires.getbgcolor,
       appBar: CustomAppBars(
         onBackButtonPressed: () => Navigator.pop(context),
-        title: 'Add Photos'.tr,
+        // Nouveau titre demandé
+        title: 'État du véhicule : Photos de sécurité',
         backgroundColor: notifires.getbgcolor,
         iconColor: notifires.getwhiteblackcolor,
         titleColor: notifires.getwhiteblackcolor,
@@ -251,22 +276,123 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 24),
+            // Bloc d'information (Pourquoi)
+            _buildInfoBlock(primaryColor),
+            const SizedBox(height: 20),
             _buildSectionHeader('Car Interior & Exterior'.tr, primaryColor),
             const SizedBox(height: 16),
-            // Grid for vehicle images with integrated add tiles
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1,
-              ),
-              itemCount: maxImages,
-              itemBuilder: (context, index) {
-                if (index < _vehicleImages.length) {
+
+            // Check-list stylisée (Comment)
+            Row(
+              children: [
+                Expanded(
+                  child: _ChecklistTile(
+                    icon: Icons.directions_car_filled_outlined,
+                    label: 'Avant',
+                    primaryColor: primaryColor,
+                    counter: _frontCount,
+                    onTap: () {
+                      if (_vehicleImages.length >= maxImages) return;
+                      _activeCategory = CaptureCategory.front;
+                      _showImageSourceDialog(
+                        isMultiple: true,
+                        onImagesSelected: (List<File> files) {
+                          final remaining = maxImages - _vehicleImages.length;
+                          var toAdd = files;
+                          if (files.length > remaining) {
+                            showToastMessage(
+                                "Only added $remaining images to reach the maximum of $maxImages"
+                                    .tr);
+                            toAdd = files.sublist(0, remaining);
+                          }
+                          setState(() {
+                            _vehicleImages.addAll(toAdd);
+                            _incrementCategoryCount(toAdd.length);
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ChecklistTile(
+                    icon: Icons.time_to_leave, // arrière stylisé
+                    label: 'Arrière',
+                    primaryColor: primaryColor,
+                    counter: _rearCount,
+                    onTap: () {
+                      if (_vehicleImages.length >= maxImages) return;
+                      _activeCategory = CaptureCategory.rear;
+                      _showImageSourceDialog(
+                        isMultiple: true,
+                        onImagesSelected: (List<File> files) {
+                          final remaining = maxImages - _vehicleImages.length;
+                          var toAdd = files;
+                          if (files.length > remaining) {
+                            showToastMessage(
+                                "Only added $remaining images to reach the maximum of $maxImages"
+                                    .tr);
+                            toAdd = files.sublist(0, remaining);
+                          }
+                          setState(() {
+                            _vehicleImages.addAll(toAdd);
+                            _incrementCategoryCount(toAdd.length);
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Zone spéciale "Rayures / Dégâts existants"
+            _DamageTile(
+              primaryColor: primaryColor,
+              counter: _damageCount,
+              onTap: () {
+                if (_vehicleImages.length >= maxImages) return;
+                _activeCategory = CaptureCategory.damage;
+                _showImageSourceDialog(
+                  isMultiple: true,
+                  onImagesSelected: (List<File> files) {
+                    final remaining = maxImages - _vehicleImages.length;
+                    var toAdd = files;
+                    if (files.length > remaining) {
+                      showToastMessage(
+                          "Only added $remaining images to reach the maximum of $maxImages"
+                              .tr);
+                      toAdd = files.sublist(0, remaining);
+                    }
+                    setState(() {
+                      _vehicleImages.addAll(toAdd);
+                      _incrementCategoryCount(toAdd.length);
+                    });
+                  },
+                );
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            // Aperçu des images sélectionnées (toujours présent)
+            if (_vehicleImages.isNotEmpty) _buildSectionHeader('Aperçu', primaryColor),
+            if (_vehicleImages.isNotEmpty) const SizedBox(height: 12),
+            if (_vehicleImages.isNotEmpty)
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1,
+                ),
+                itemCount: _vehicleImages.length,
+                itemBuilder: (context, index) {
                   return TweenAnimationBuilder(
                     tween: Tween<double>(begin: 0, end: 1),
                     duration: const Duration(milliseconds: 300),
@@ -280,6 +406,14 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
                       imageFile: _vehicleImages[index],
                       onRemove: () {
                         setState(() {
+                          // Suppression simple: on réduit aussi un compteur s'il en reste (>0)
+                          if (_frontCount > 0) {
+                            _frontCount--;
+                          } else if (_rearCount > 0) {
+                            _rearCount--;
+                          } else if (_damageCount > 0) {
+                            _damageCount--;
+                          }
                           _vehicleImages.removeAt(index);
                           imageListbase64.removeAt(index);
                         });
@@ -287,54 +421,8 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
                       primaryColor: primaryColor,
                     ),
                   );
-                } else {
-                  return GestureDetector(
-                    onTap: () {
-                      if (_vehicleImages.length >= maxImages) return;
-                      _showImageSourceDialog(
-                        isMultiple: true,
-                        onImagesSelected: (List<File> files) {
-                          final remaining = maxImages - _vehicleImages.length;
-                          if (files.length > remaining) {
-                            showToastMessage(
-                                "Only added $remaining images to reach the maximum of $maxImages"
-                                    .tr);
-                            files = files.sublist(0, remaining);
-                          }
-                          setState(() {
-                            _vehicleImages.addAll(files);
-                          });
-                        },
-                      );
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: notifires.getbgcolor,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: notifires.getwhiteblackcolor.withOpacity(0.2),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 6,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.add_a_photo,
-                          size: 40,
-                          color: primaryColor.withOpacity(0.6),
-                        ),
-                      ),
-                    ),
-                  );
-                }
-              },
-            ),
+                },
+              ),
           ],
         ),
       ),
@@ -427,6 +515,263 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
             ),
           ),
       ],
+    );
+  }
+}
+
+// Catégories de capture pour la check-list
+enum CaptureCategory { front, rear, damage }
+
+// Bloc d'information "Pourquoi ?"
+Widget _buildInfoBlock(Color accentColor) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: accentColor.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: accentColor.withOpacity(0.2)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: accentColor.withOpacity(0.15),
+            shape: BoxShape.circle,
+          ),
+          child: const Center(child: Text('🛡️')),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Protégez votre caution. Prenez des photos de la voiture avant de démarrer. Cela prouve l\'état initial en cas de litige.',
+            style: TextStyle(
+              color: Colors.blueGrey.shade800,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Tuile de check-list compacte
+class _ChecklistTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final int counter;
+  final Color primaryColor;
+
+  const _ChecklistTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.counter,
+    required this.primaryColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          color: notifires.getbgcolor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: notifires.getwhiteblackcolor.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, size: 36, color: primaryColor),
+                if (counter > 0)
+                  Positioned(
+                    right: -6,
+                    top: -6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$counter',
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(label, style: TextStyle(color: notifires.getwhiteblackcolor)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Tuile spéciale "Dégâts existants" (icône composite + micro-animation)
+class _DamageTile extends StatefulWidget {
+  final VoidCallback onTap;
+  final int counter;
+  final Color primaryColor;
+
+  const _DamageTile({
+    required this.onTap,
+    required this.counter,
+    required this.primaryColor,
+  });
+
+  @override
+  State<_DamageTile> createState() => _DamageTileState();
+}
+
+class _DamageTileState extends State<_DamageTile>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  Timer? _pulseTimer;
+
+  static const Color _carvyBlue = Color(0xFF27489E);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+      lowerBound: 0.0,
+      upperBound: 1.0,
+    );
+    _scale = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+
+    // Micro animation toutes les 3 secondes
+    _pulseTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted) return;
+      try {
+        await _controller.forward();
+        if (!mounted) return;
+        await _controller.reverse();
+      } catch (_) {}
+    });
+  }
+
+  @override
+  void dispose() {
+    _pulseTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: notifires.getbgcolor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: notifires.getwhiteblackcolor.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Icône composite: voiture de profil + main qui tapote
+            SizedBox(
+              width: 48,
+              height: 36,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Icon(
+                      Icons.directions_car_outlined,
+                      color: _carvyBlue,
+                      size: 36,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ScaleTransition(
+                      scale: _scale,
+                      child: Icon(
+                        Icons.touch_app_outlined,
+                        color: _carvyBlue,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Titre en gras demandé
+                  Text(
+                    'Dégâts préexistants ?',
+                    style: TextStyle(
+                      color: notifires.getwhiteblackcolor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Message plus direct
+                  Text(
+                    'Signalez chaque rayure avec votre doigt.',
+                    style: TextStyle(
+                      color: notifires.getwhiteblackcolor.withOpacity(0.85),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (widget.counter > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: widget.primaryColor,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${widget.counter}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -109,6 +109,7 @@ const Map<String, String> frFR = {
   "Check Availability": "Vérifier la disponibilité",
   "Pick Your Date": "Sélectionnez vos dates",
   "Not Available": "Non disponible",
+  "Blocking reason": "Raison du blocage",
   "Selected for Booking": "Sélectionné pour la réservation",
   "Start date": "Date de début",
   "End date": "Date de fin",
@@ -137,6 +138,7 @@ const Map<String, String> frFR = {
   "Flexible": "Flexible",
   "Contact host": "Contacter l’agence",
   "Message": "Message",
+  "Send a message": "Envoyer un message",
   "Show Less": "Afficher moins",
   "Show More": "Afficher plus",
   "Search brand...": "Rechercher une marque...",
@@ -146,6 +148,12 @@ const Map<String, String> frFR = {
   "brands": "marques",
   "Select brands": "Sélectionner les marques",
   "Validate": "Valider",
+  "Enter handover code": "Saisissez le code de remise",
+  "Please enter the 4-digit code provided by the customer to validate the vehicle return.":
+      "Veuillez saisir le code à 4 chiffres fourni par le client pour valider le retour du véhicule.",
+  "Please enter the complete 4-digit code":
+      "Veuillez saisir le code complet à 4 chiffres",
+  "Please enter only 4 digits": "Veuillez saisir uniquement 4 chiffres",
   "Clear": "Effacer",
   "Date": "Date",
   "Time": "Heure",
@@ -596,10 +604,10 @@ const Map<String, String> frFR = {
   " /night": " /jour",
   "Do you want to delete your property?":
       "Souhaitez-vous supprimer votre annonce ?",
-  "Become a User": "Devenir utilisateur",
-  "Become a Host": "Session vendeur",
+  "Become a User": "Devenir Locataire",
+  "Become a Host": "Session Agence",
   "Session client": "Session client",
-  "Session vendeur": "Session vendeur",
+  "Session Agence": "Session Agence",
   "Upload your place photos": "Téléchargez les photos de votre véhicule",
   "Front Image": "Image avant",
   "Change": "Modifier",
@@ -624,6 +632,7 @@ const Map<String, String> frFR = {
   "Trip end date": "Date de fin du trajet",
   "Live in": "Réside à",
   "Hosting": "Hébergement",
+  "Vehicles": "Véhicules",
   "About": "À propos",
   "Email not verified": "E-mail non vérifié",
   "Verified Email": "E-mail vérifié",
@@ -907,7 +916,7 @@ const Map<String, String> frFR = {
   "rent_space":
       "Transformez votre espace libre en revenu. Publiez votre studio, bureau ou entrepôt et commencez à gagner !",
   "Become a Rent": "Devenir locataire",
-  "Become a Lead": "Session vendeur",
+  "Become a Lead": "Session Agence",
   "Orders": "Commandes",
   "Financial Report": "Rapport financier",
   "Bank Account": "Compte bancaire",
@@ -1277,5 +1286,7 @@ const Map<String, String> frFR = {
   "la politique d'annulation": "la politique d'annulation",
   "Note": "Note",
   "Smoking Allowed": "Fumer autorisé",
+  "min_rental_duration_vehicle_days":
+      "La durée minimale de location pour ce véhicule est de @days jours.",
   "International Travel Allowed": "Voyage international autorisé"
 };

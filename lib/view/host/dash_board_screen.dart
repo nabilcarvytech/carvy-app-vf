@@ -508,8 +508,13 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
         return;
       }
       
-      // Appeler uniquement la fonction deleteVehicleRequest du contrôleur
-      await addItemsHostController.deleteVehicleRequest(vehicleId);
+      // Appeler la fonction toggleVehicleActiveStatus du contrôleur
+      if (indexOrId is int) {
+        await addItemsHostController.toggleVehicleActiveStatus(indexOrId, vehicleId);
+      } else {
+        // Si on ne reçoit pas l'index, tenter avec un index "0" (le refresh API garantit l'état)
+        await addItemsHostController.toggleVehicleActiveStatus(0, vehicleId);
+      }
     } catch (e) {
       showErrorToastMessage('Erreur lors de la demande de suppression: $e');
     }
@@ -2016,17 +2021,21 @@ class VehicleItemCard extends StatelessWidget {
                       const SizedBox(width: 15),
                       Expanded(
                         child: TextButton(
-                          onPressed: onDelete, 
+                          onPressed: onDelete,
                           style: TextButton.styleFrom(
-                            backgroundColor: yelloColor2,
+                            backgroundColor: _getStatus(_vehicle) == "0"
+                                ? getColorBasedOnActiveModuleid()
+                                : Colors.orangeAccent,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(25),
                             ),
                           ),
                           child: Text(
-                            'Delete'.tr,
+                            _getStatus(_vehicle) == "0"
+                                ? 'Publish'.tr
+                                : 'UnPublish'.tr,
                             style: TextStyle(
-                                color: getColorBasedOnActiveModuleid(),
+                                color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13),
                           ),

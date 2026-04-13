@@ -10,6 +10,7 @@ import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/work_space.dart';
 import '../onBoarding/vehicle/vehicle_on_boarding_screen.dart';
 import '../auth/agency_registration_screen.dart';
+import '../auth/login_screen.dart';
 import '../home/client_home_screen.dart';
 
 class UserRoleSelectionScreen extends StatefulWidget {
@@ -213,7 +214,7 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      "Choisissez votre profil pour continuer".tr,
+                      "Choisissez votre profil pour s'inscrire".tr,
                       style: heading2Grey1(context),
                       textAlign: TextAlign.center,
                     ),
@@ -251,6 +252,39 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    "J'ai déjà un compte :".tr,
+                    textAlign: TextAlign.center,
+                    style: heading2Grey1(context).copyWith(fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () => Get.to(() => const LoginScreen()),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      side: const BorderSide(color: Color(0xFF2B489A)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      "Se connecter",
+                      style: TextStyle(
+                        color: Color(0xFF2B489A),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
             // Bouton Suivant fixé en bas
             Container(
               padding: const EdgeInsets.all(16.0),

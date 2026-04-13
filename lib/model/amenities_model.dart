@@ -1,7 +1,7 @@
 
 class AmenitiesModel {
   AmenitiesModel({
-      num? status, 
+      String? status, 
       String? message, 
       Data? data, 
       String? error,}){
@@ -12,17 +12,17 @@ class AmenitiesModel {
 }
 
   AmenitiesModel.fromJson(dynamic json) {
-    _status = json['status'];
-    _message = json['message'];
+    _status = json['status']?.toString();
+    _message = json['message']?.toString();
     _data = json['data'] != null ? Data.fromJson(json['data']) : null;
-    _error = json['error'];
+    _error = json['error']?.toString();
   }
-  num? _status;
+  String? _status;
   String? _message;
   Data? _data;
   String? _error;
 
-  num? get status => _status;
+  String? get status => _status;
   String? get message => _message;
   Data? get data => _data;
   String? get error => _error;
@@ -70,7 +70,7 @@ class Data {
 
 class Amenities {
   Amenities({
-      num? id, 
+      String? id, 
       String? name, 
       String? image,}){
     _id = id;
@@ -79,15 +79,15 @@ class Amenities {
 }
 
   Amenities.fromJson(dynamic json) {
-    _id = json['id'];
-    _name = json['name'];
-    _image = json['image'];
+    _id = json['id']?.toString() ?? json['_id']?.toString() ?? '';
+    _name = json['name']?.toString();
+    _image = json['image']?.toString();
   }
-  num? _id;
+  String? _id;
   String? _name;
   String? _image;
 
-  num? get id => _id;
+  String? get id => _id;
   String? get name => _name;
   String? get image => _image;
 

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -18,6 +19,7 @@ import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/view/chat/conversation_screen.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
+import 'package:carvy/view/review/review_popup_widget.dart';
 import 'package:carvy/work_space.dart';
 
 late AndroidNotificationChannel channel;
@@ -473,11 +475,37 @@ Future<void> showNotification() async {
       print('📩 [ONESIGNAL_DEBUG] Notification reçue en premier plan : ${event.notification.body}');
       print('📩 [ONESIGNAL_DEBUG] Titre : ${event.notification.title}');
       print('📩 [ONESIGNAL_DEBUG] Données additionnelles : ${event.notification.additionalData}');
+      
+      // ========== INTERCEPTION DES NOTIFICATIONS REVIEW_REQUEST ==========
+      final additionalData = event.notification.additionalData;
+      if (additionalData != null && additionalData['type'] == 'REVIEW_REQUEST') {
+        print('⭐ [REVIEW] Notification REVIEW_REQUEST détectée');
+        print('⭐ [REVIEW] Booking ID: ${additionalData['booking_id']}');
+        print('⭐ [REVIEW] Vendor ID: ${additionalData['vendor_id']}');
+        
+        // Empêcher l'affichage de la bannière système
+        event.preventDefault();
+        
+        // Récupérer le contexte global (Get.context si on utilise GetX)
+        BuildContext? context = Get.context;
+        
+        if (context != null) {
+          // Afficher le BottomSheet d'avis
+          showReviewBottomSheet(context, additionalData);
+          print('✅ [REVIEW] BottomSheet d\'avis affiché');
+        } else {
+          print('⚠️ [REVIEW] Contexte non disponible, impossible d\'afficher le BottomSheet');
+        }
+        
+        // Ne pas continuer le traitement de cette notification
+        return;
+      }
+      // ========== FIN INTERCEPTION REVIEW_REQUEST ==========
+      
       if (markNotificationAsProcessed(event.notification.notificationId)) {
         // Intercepter le signal : Vérifier si la notification est liée au KYC
         final notification = event.notification;
         final title = notification.title?.toLowerCase() ?? '';
-        final additionalData = notification.additionalData;
         
         // Détecter une notification KYC : vérifier le titre ou les données additionnelles
         bool isKycNotification = false;

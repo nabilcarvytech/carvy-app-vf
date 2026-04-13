@@ -1,19 +1,20 @@
 class Config {
   static const googleKey = "AIzaSyCnn79a9P4jSVI2OoUBMTyfQDXWerEdGqs";
+  //static const googleKey = "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";
   static const String oneSiginalAppid = '849877b4-f438-495e-8ccd-62f016aaa09c';
   static const String oneSiginalApiKey =
       'os_v2_app_qsmhpnhuhbev5dgnmlybnkvatqcckvlx27yei5nl2dsodym3ogtcporczydtoahqxfhab6qixogr2o4qtl5p7vttac56wlbr2j43kqa';
   // ========== OLD LARAVEL BACKEND (COMMENTED) ==========
-  //static const String baseurl = 'https://admin.carvy.tech/api/v1/';
+//static const String baseurl = 'https://admin.carvy.tech/api/v1/';
   //static const String baseurlForBearer = 'https://admin.carvy.tech/api/';
 
   // ========== NEW NODE.JS BACKEND (LOCAL DEVELOPMENT) ==========
   //static const String baseurl = 'http://10.0.2.2:5000/api/v1/';
   //static const String baseurlForBearer = 'http://10.0.2.2:5000/api/v1/';
   //static const String baseurl = 'https://carvy.tech/api/v1/';
-  static const String baseurlForBearer = 'https://carvy.tech/api/v1/';
-  static const String baseurl = 'https://carvy.tech/api/v1/';
   //static const String baseurlForBearer = 'https://carvy.tech/api/v1/';
+  static const String baseurl = 'https://carvy.tech/api/v1/';
+  static const String baseurlForBearer = 'https://carvy.tech/api/v1/';
   // URL de base sans /v1 pour les routes admin (upload, vehicles, etc.)
   static String get baseUrlWithoutV1 => baseurl.replaceAll('/api/v1/', '/api/');
   static const String bookingImageBaseUrl = 'https://carvy.tech/uploads/bookings/';
@@ -102,7 +103,7 @@ class Config {
   static const String getItemPrices = 'get-item-prices';
   static const String getUserWallet = 'get-user-wallet';
   static const String updatePassword = 'update-password';
-  static const String fcmUpdate = 'fcmUpdate';
+  static const String fcmUpdate = 'fcm-update';
   static const String getItemReviews = 'get-item-reviews';
   static const String closeSupportTicket = 'closeSupportTicket';
   static const String deleteAccount = 'deleteAccount';
@@ -137,6 +138,8 @@ class Config {
       'update-item-delivered-status';
   static const String updateItemReceivedStatus = 'update-item-received-status';
   static const String updateItemReturnedStatus = 'update-item-returned-status';
+  static const String submitReview = 'submit-review';
+  static const String vendorReviews = 'vendor-reviews';
   static const String fuelType = 'get-vehicle-fuel-types';
   static const String saveDoorStepAddress = 'save-door-step-address';
   static const String getDoorStepAddress = 'get-door-step-address';
@@ -153,6 +156,19 @@ class Config {
   static const String getPaymentMethods = 'payment-methods';
   static const String uploadImages = 'upload/images';
   static const String uploadDocuments = 'upload/documents';
+
+  /// Chat admin (`httpGetAdmin` : [adminBaseUrl] + path → `.../api/chat/...`).
+  static const String chatInboxPath = 'chat/inbox';
+
+  static String chatHistoryPath(String historyId) =>
+      'chat/history/${Uri.encodeComponent(historyId)}';
+
+  /// POST multipart champ `file` — URL : [baseUrlWithoutV1] + [uploadApi].
+  static const String uploadApi = 'upload';
+
+  /// POST multipart champ `avatar` — URL : [baseUrlWithoutV1] + [uploadAvatar].
+  static const String uploadAvatar = 'user/avatar';
+
   static const String submitVehicle = 'vehicles';
   static const String myVehicles = 'vehicles/owner';
   static const String getVehicleDetails = 'vehicles'; // GET /api/v1/vehicles/:id

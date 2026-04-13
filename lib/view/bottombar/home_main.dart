@@ -48,6 +48,7 @@ class _HomeMainScreenState extends State<HomeMain>
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showNotification();
+      generalController.fetchTotalUnreadCount();
     });
     if (webPlateForm) {
       final arguments = Get.arguments as Map<String, dynamic>?;
@@ -151,16 +152,33 @@ class _HomeMainScreenState extends State<HomeMain>
                   ],
                 ),
               )
-            : Scaffold(
-                resizeToAvoidBottomInset: false,
-                backgroundColor: notifires.getbgcolor,
-                body: ConnectivityWrapper(
-                  child: TabBarView(
-                    physics: const NeverScrollableScrollPhysics(),
-                    controller: generalController.tabController,
-                    children: vehicleList,
+            : PopScope(
+                canPop: false,
+                onPopInvoked: (didPop) async {
+                  if (didPop) return;
+                  
+                  // Si on n'est pas sur l'onglet principal (index 0), on y retourne
+                  if (generalController.currentIndex.value != 0) {
+                    generalController.tabController.animateTo(0);
+                    generalController.currentIndex.value = 0;
+                    return; // Empêche de fermer l'application
+                  } else {
+                    // Si on est déjà sur l'accueil (index 0), on affiche le popup "Souhaitez-vous quitter ?"
+                    if (!webPlateForm) {
+                      dialogExit(context);
+                    }
+                  }
+                },
+                child: Scaffold(
+                  resizeToAvoidBottomInset: false,
+                  backgroundColor: notifires.getbgcolor,
+                  body: ConnectivityWrapper(
+                    child: TabBarView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      controller: generalController.tabController,
+                      children: vehicleList,
+                    ),
                   ),
-                ),
                 floatingActionButton: InkWell(
                   onTap: () {
                     if (generalController.currentIndex.value != 0) {
@@ -304,23 +322,48 @@ class _HomeMainScreenState extends State<HomeMain>
                             padding: const EdgeInsets.only(left: 5),
                             child: Column(
                               children: [
-                                generalController.currentIndex.value == 3
-                                    ? SvgPicture.asset(
-                                        'assets/images/chatIcon.svg',
-                                        width: 23,
-                                        colorFilter: ColorFilter.mode(
-                                          getColorBasedOnActiveModuleid(),
-                                          BlendMode.srcIn,
+                                Obx(() => Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        SizedBox(
+                                          width: 23,
+                                          child: generalController
+                                                      .currentIndex.value ==
+                                                  3
+                                              ? SvgPicture.asset(
+                                                  'assets/images/chatIcon.svg',
+                                                  width: 23,
+                                                  colorFilter: ColorFilter.mode(
+                                                    getColorBasedOnActiveModuleid(),
+                                                    BlendMode.srcIn,
+                                                  ),
+                                                )
+                                              : SvgPicture.asset(
+                                                  'assets/images/chatIcon.svg',
+                                                  width: 23,
+                                                  colorFilter: ColorFilter.mode(
+                                                    grey4,
+                                                    BlendMode.srcIn,
+                                                  ),
+                                                ),
                                         ),
-                                      )
-                                    : SvgPicture.asset(
-                                        'assets/images/chatIcon.svg',
-                                        width: 23,
-                                        colorFilter: ColorFilter.mode(
-                                          grey4,
-                                          BlendMode.srcIn,
-                                        ),
-                                      ),
+                                        if (generalController
+                                                .totalUnreadCount.value >
+                                            0)
+                                          Positioned(
+                                            top: -2,
+                                            right: -2,
+                                            child: Container(
+                                              width: 8,
+                                              height: 8,
+                                              decoration: BoxDecoration(
+                                                color: redColor,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    )),
                                 Text(
                                   "Chat".tr,
                                   style: regular2(context).copyWith(
@@ -331,19 +374,6 @@ class _HomeMainScreenState extends State<HomeMain>
                                             : grey4,
                                   ),
                                 ),
-                                Obx(() => generalController.msgUpdater.value ==
-                                        true
-                                    ? Expanded(
-                                        child: Container(
-                                          height: 5,
-                                          width: 5,
-                                          decoration: BoxDecoration(
-                                              color: redColor,
-                                              borderRadius:
-                                                  BorderRadius.circular(20)),
-                                        ),
-                                      )
-                                    : const SizedBox())
                               ],
                             ),
                           ),
@@ -384,6 +414,7 @@ class _HomeMainScreenState extends State<HomeMain>
                     ),
                   ),
                 ),
-              ));
+              ),
+            ));
   }
 }

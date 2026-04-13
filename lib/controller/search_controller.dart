@@ -162,8 +162,8 @@ class SearchControllerHome extends GetxController implements GetxService {
         DateFormat('yyyy-MM-dd').parse(startDateCustomDate.value);
     DateTime parsedEnd =
         DateFormat('yyyy-MM-dd').parse(endDateCustomDate.value);
-    startTimeSearch.value = "00:30";
-    endTimeSearch.value = "23:30";
+    startTimeSearch.value = "09:00";
+    endTimeSearch.value = "22:00";
     if (isToday(parsedStart)) {
       handleCurrentDateSelection(parsedStart, parsedEnd);
     } else {
@@ -216,14 +216,14 @@ class SearchControllerHome extends GetxController implements GetxService {
 
       if (selectedStartDate == selectedEndDate) {
         startTimeSearch.value = nextSlot;
-        endTimeSearch.value = "23:30";
+        endTimeSearch.value = "22:00";
         curreentStatus.value = "CurrebtDate";
-        filterTimeSlotsfunctionSameDate(startTimeSearch.value, "00:30");
+        filterTimeSlotsfunctionSameDate(startTimeSearch.value, "22:00");
       } else {
         curreentStatus.value = "StartCurrentEndOther";
         startTimeSearch.value = nextSlot;
-        endTimeSearch.value = "00:30";
-        filterTimeSlotsfunctionSameDate(startTimeSearch.value, "00:30");
+        endTimeSearch.value = "22:00";
+        filterTimeSlotsfunctionSameDate(startTimeSearch.value, "22:00");
         handleNextDaySlots(selectedEndDate);
       }
     } else {
@@ -238,16 +238,16 @@ class SearchControllerHome extends GetxController implements GetxService {
   ) {
     if (selectedStartDate == selectedEndDate) {
       curreentStatus.value = "OtherSameDate";
-      startTimeSearch.value = "00:30";
-      endTimeSearch.value = "01:30";
+      startTimeSearch.value = "09:00";
+      endTimeSearch.value = "10:00";
       filterTimeSlotsfunctionSameDate(
         startTimeSearch.value,
         endTimeSearch.value,
       );
     } else {
       curreentStatus.value = "CrossOtherDates";
-      startTimeSearch.value = "00:30";
-      endTimeSearch.value = "01:30";
+      startTimeSearch.value = "09:00";
+      endTimeSearch.value = "10:00";
       filterTimeSlotsfunctionSameDate(
         startTimeSearch.value,
         endTimeSearch.value,
@@ -293,18 +293,28 @@ class SearchControllerHome extends GetxController implements GetxService {
         selectedDate.day == currentTime.day) {
       int remainingMinutes = 30 - (currentTime.minute % 30);
       currentTime = currentTime.add(Duration(minutes: remainingMinutes));
-      DateTime endDate = DateTime(
+      final DateTime serviceStart = DateTime(
         currentTime.year,
         currentTime.month,
         currentTime.day,
-        23,
-        59,
+        9,
+        0,
       );
-      if (currentTime.hour == 23 && currentTime.minute >= 30) {
+      final DateTime serviceEnd = DateTime(
+        currentTime.year,
+        currentTime.month,
+        currentTime.day,
+        22,
+        0,
+      );
+      if (currentTime.isBefore(serviceStart)) {
+        currentTime = serviceStart;
+      }
+      if (currentTime.isAfter(serviceEnd)) {
         return [];
       }
-      while (currentTime.isBefore(endDate) ||
-          currentTime.isAtSameMomentAs(endDate)) {
+      while (currentTime.isBefore(serviceEnd) ||
+          currentTime.isAtSameMomentAs(serviceEnd)) {
         String formattedTime = DateFormat('HH:mm').format(currentTime);
         currenttimeSlots.add(formattedTime);
         currentTime = currentTime.add(const Duration(minutes: 30));
@@ -357,56 +367,21 @@ class SearchControllerHome extends GetxController implements GetxService {
     }
   }
 
+  /// Heures d'ouverture des agences : 09:00 à 22:00 (sans 22:30 ni 23:00).
   List<String> getManualTimeSlots24() {
-    return [
-      '00:30',
-      '01:00',
-      '01:30',
-      '02:00',
-      '02:30',
-      '03:00',
-      '03:30',
-      '04:00',
-      '04:30',
-      '05:00',
-      '05:30',
-      '06:00',
-      '06:30',
-      '07:00',
-      '07:30',
-      '08:00',
-      '08:30',
-      '09:00',
-      '09:30',
-      '10:00',
-      '10:30',
-      '11:00',
-      '11:30',
-      '12:00',
-      '12:30',
-      '13:00',
-      '13:30',
-      '14:00',
-      '14:30',
-      '15:00',
-      '15:30',
-      '16:00',
-      '16:30',
-      '17:00',
-      '17:30',
-      '18:00',
-      '18:30',
-      '19:00',
-      '19:30',
-      '20:00',
-      '20:30',
-      '21:00',
-      '21:30',
-      '22:00',
-      '22:30',
-      '23:00',
-      '23:30'
-    ];
+    return getServiceHours();
+  }
+
+  List<String> getServiceHours() {
+    final List<String> times = [];
+    for (int i = 9; i <= 22; i++) {
+      final String hour = i.toString().padLeft(2, '0');
+      times.add('$hour:00');
+      if (i < 22) {
+        times.add('$hour:30');
+      }
+    }
+    return times;
   }
 
   String formatTime(DateTime time) {
@@ -415,16 +390,25 @@ class SearchControllerHome extends GetxController implements GetxService {
 
   var isLoadingItems = false.obs;
   var isLoadingVehicle = false.obs;
+  bool isFetching = false;
   var isLoadingVehiclemake = false.obs;
   var isLoadingBoat = false.obs;
   List<dynamic> maketypesValus = [];
   List<dynamic> selectedtypesvalues = [];
   List<dynamic> featuresvalues = [];
-  List<dynamic> odometerValues = [];
-  List<dynamic> selectedModelYear = [];
-  List<dynamic> selectedFuelTypes = []; // Types de carburant sélectionnés
-  List<dynamic> selectedTransmissions =
-      []; // NOUVEAU: Transmissions sélectionnées
+  var selectedOdometers = <String>[].obs;
+  var selectedYears = <String>[].obs;
+  var selectedFuels = <String>[].obs;
+  var selectedTransmissions = <String>[].obs;
+  List<dynamic> get odometerValues => selectedOdometers;
+  set odometerValues(List<dynamic> value) =>
+      selectedOdometers.assignAll(value.map((e) => e.toString()));
+  List<dynamic> get selectedModelYear => selectedYears;
+  set selectedModelYear(List<dynamic> value) =>
+      selectedYears.assignAll(value.map((e) => e.toString()));
+  List<dynamic> get selectedFuelTypes => selectedFuels;
+  set selectedFuelTypes(List<dynamic> value) =>
+      selectedFuels.assignAll(value.map((e) => e.toString()));
   List<dynamic> fitvalue = [];
   List<dynamic> colorvalue = [];
   List<dynamic> sizevalue = [];
@@ -435,6 +419,10 @@ class SearchControllerHome extends GetxController implements GetxService {
   bool showMore = true;
   RxDouble startRange = 0.0.obs;
   RxDouble endRage = 0.0.obs;
+  // Filtre: n'afficher que les véhicules remboursables (politiques flexibles)
+  RxBool isRefundableOnly = false.obs;
+  // Filtre: Type d'assurance sélectionné ('BASIC' | 'FULL' | '')
+  RxString selectedInsurance = ''.obs;
   AmenitiesModel? amenitiesModelVehicle;
   Odometer? odometerModelVehicle;
   ItemTypeModel? vehicleTypeModel;
@@ -466,6 +454,8 @@ class SearchControllerHome extends GetxController implements GetxService {
   }
 
   Future getAminitiesvehicle() async {
+    if (isFetching) return;
+    isFetching = true;
     try {
       print('🚀 [API GET_AMENITIES] Début de la requête...');
       isLoadingVehicle.value = true;
@@ -502,7 +492,8 @@ class SearchControllerHome extends GetxController implements GetxService {
     } catch (e) {
       print('💥 [API GET_AMENITIES] Erreur globale de la fonction : $e');
       isLoadingVehicle.value = false;
-      update();
+    } finally {
+      isFetching = false;
     }
   }
 
@@ -683,18 +674,22 @@ class SearchControllerHome extends GetxController implements GetxService {
       selectedBathroom = 1;
     }
     selectredeShortByvalue.value = "Nearest Location";
-    selectedtypesvalues.clear();
-    featuresvalues.clear();
-    fitvalue.clear();
-    collectionvalue.clear();
-    selectedModelYear.clear();
-    selectedFuelTypes.clear();
+    selectedtypesvalues = [];
+    featuresvalues = [];
+    fitvalue = [];
+    collectionvalue = [];
+    selectedYears.clear();
+    selectedFuels.clear();
     selectedTransmissions.clear(); // NOUVEAU: Nettoyer les transmissions
-    odometerValues.clear();
-    sizevalue.clear();
+    selectedOdometers.clear();
+    sizevalue = [];
     searchFilterList.clear();
-    maketypesValus.clear();
+    maketypesValus = [];
+    startRange.value = double.tryParse("$minPricerange") ?? 0.0;
+    endRage.value = double.tryParse("$maxPriceRange") ?? 0.0;
     startDate.value = '';
+    isRefundableOnly.value = false;
+    selectedInsurance.value = '';
     endDates.value = '';
     startTimeSearch.value = '';
     endTimeSearch.value = '';
@@ -863,6 +858,13 @@ class SearchControllerHome extends GetxController implements GetxService {
     return normalized;
   }
 
+  List<dynamic> cleanList(List? list) {
+    if (list == null || list.isEmpty) return [];
+    return list
+        .where((item) => item != null && item.toString().trim().isNotEmpty)
+        .toList();
+  }
+
   Future<Map<String, dynamic>> searchItems(
     String title,
     String itemsType,
@@ -894,6 +896,38 @@ class SearchControllerHome extends GetxController implements GetxService {
       startTimeForBackend = convert24To12(startTimeSearch.value);
       endTimeForBackend = convert24To12(endTimeSearch.value);
     }
+
+    final List<dynamic> cleanedOdometer = cleanList(odometerValues);
+    final List<dynamic> cleanedModelYear = cleanList(selectedModelYear);
+    final List<dynamic> cleanedFuelTypes = cleanList(selectedFuelTypes);
+    final List<dynamic> cleanedTransmissions = cleanList(selectedTransmissions)
+        .map((t) => _normalizeTransmission(t.toString()))
+        .where((t) => t.isNotEmpty)
+        .toSet()
+        .toList();
+    final List<dynamic> cleanedMakeTypes = cleanList(maketypesValus);
+
+    dynamic metaPayload;
+    if (meta is Map) {
+      final Map<String, dynamic> sanitizedMeta = Map<String, dynamic>.from(meta);
+      if (cleanedMakeTypes.isNotEmpty) {
+        sanitizedMeta["make_type"] = cleanedMakeTypes;
+      } else {
+        sanitizedMeta.remove("make_type");
+      }
+      sanitizedMeta.removeWhere((key, value) {
+        if (value == null) return true;
+        if (value is String && value.trim().isEmpty) return true;
+        if (value is List && cleanList(value).isEmpty) return true;
+        return false;
+      });
+      if (sanitizedMeta.isNotEmpty) {
+        metaPayload = sanitizedMeta;
+      }
+    } else if (cleanedMakeTypes.isNotEmpty) {
+      metaPayload = {"make_type": cleanedMakeTypes};
+    }
+
     Map<String, dynamic> map = {
       "title": title,
       "price": price,
@@ -920,21 +954,16 @@ class SearchControllerHome extends GetxController implements GetxService {
               : selectredeShortByvalue.value == "Newest"
                   ? "newest"
                   : "cheapest_price",
-      "meta": meta,
-      "odometer": odometerValues.toString(),
+      if (metaPayload != null) "meta": metaPayload,
       "start_time": startTimeForBackend,
       "end_time": endTimeForBackend,
-      "modelYear": selectedModelYear.toString(),
-      // Envoyer fuel_type comme array de numbers [1,2,3]
-      "fuel_type":
-          selectedFuelTypes.isNotEmpty ? selectedFuelTypes.toList() : [],
-      // Envoyer transmission comme array de strings ["manual","automatic"]
-      // Normaliser les valeurs pour correspondre au format backend
-      "transmission": selectedTransmissions.isNotEmpty
-          ? selectedTransmissions
-              .map((t) => _normalizeTransmission(t.toString()))
-              .toList()
-          : [],
+      if (cleanedOdometer.isNotEmpty) "odometer": cleanedOdometer,
+      if (cleanedModelYear.isNotEmpty) "modelYear": cleanedModelYear,
+      if (cleanedFuelTypes.isNotEmpty) "fuel_type": cleanedFuelTypes,
+      if (cleanedTransmissions.isNotEmpty) "transmission": cleanedTransmissions,
+      if (isRefundableOnly.value) "isRefundable": true,
+      if (selectedInsurance.value.trim().isNotEmpty)
+        "insuranceType": selectedInsurance.value.trim(),
     };
 
     // Préparer une URL GET lisible pour le backend (debug uniquement)
@@ -975,6 +1004,7 @@ class SearchControllerHome extends GetxController implements GetxService {
         "   - transmission (normalized): ${selectedTransmissions.isNotEmpty ? selectedTransmissions.map((t) => _normalizeTransmission(t.toString())).toList() : []}");
     print("   - Map envoyée (POST ${Config.itemSearch}): $map");
     print("   🔵 [SEARCH_DEBUG_URL] $searchDebugUri");
+    print("📤 [FRONT SEARCH] Payload envoyé : $map");
 
     // Appel RÉEL à l'API de recherche (item-search)
     final dynamic response = await httpPost(Config.itemSearch, map);

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:get/get.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/customwidget/custom_bottom_sheet.dart';
@@ -521,26 +523,62 @@ class _HostErecieptState extends State<HostEreciept> {
     );
   }
 
+  String formatBookedDate(String? rawDate) {
+    if (rawDate == null || rawDate.isEmpty) return '';
+    try {
+      DateTime parsedDate = DateTime.parse(rawDate).toLocal();
+      return DateFormat('dd MMM yyyy, HH:mm').format(parsedDate);
+    } catch (e) {
+      return rawDate ?? '';
+    }
+  }
+
   Widget erecieptHostBasedOnModuleId() {
+    // Construction robuste de la liste d’URLs d’images à partir de booking_vehicle_images
     List<String> imageUrls = [];
-    if (widget.bookings.iteriorImage != null &&
-        widget.bookings.iteriorImage is List) {
+    final dynamic rawImages = widget.bookings.iteriorImage;
+
+    if (rawImages != null) {
       try {
-        final imageList = widget.bookings.iteriorImage as List;
-        imageUrls = imageList
-            .map((image) => image['url']?.toString() ?? '')
-            .where((url) => url.isNotEmpty)
-            .toList();
+        if (rawImages is List) {
+          imageUrls = rawImages
+              .map<String>((image) {
+                if (image == null) return '';
+
+                // Cas 1 : liste de Strings
+                if (image is String) {
+                  return Config.getFullImageUrl(image);
+                }
+
+                // Cas 2 : liste de Maps { url: "...", path: "..." }
+                if (image is Map<String, dynamic>) {
+                  final rawUrl = image['url']?.toString() ??
+                      image['path']?.toString() ??
+                      '';
+                  return Config.getFullImageUrl(rawUrl);
+                }
+
+                // Fallback : toString
+                return Config.getFullImageUrl(image.toString());
+              })
+              .where((url) => url.isNotEmpty)
+              .toList();
+        } else if (rawImages is String && rawImages.isNotEmpty) {
+          // Cas où le backend renvoie une seule image sous forme de String
+          imageUrls = [Config.getFullImageUrl(rawImages)];
+        }
       } catch (e) {
-        print('Error parsing interiorImage: $e');
+        debugPrint('❌ Error parsing booking_vehicle_images: $e');
       }
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          "${"Customer receipt".tr} #${widget.bookings.id}",
-          style: heading1(context),
+        Center(
+          child: Text(
+            "Reçu".tr,
+            style: heading1(context).copyWith(fontWeight: FontWeight.w700),
+          ),
         ),
         const SizedBox(
           height: 10,
@@ -568,7 +606,7 @@ class _HostErecieptState extends State<HostEreciept> {
                 height: 7,
               ),
               Text(
-                widget.bookings.createdAt?.split(" ")[0] ?? '',
+                formatBookedDate(widget.bookings.createdAt),
                 style: regular2(context),
               ),
               const SizedBox(

@@ -2,10 +2,12 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/controller/general_controller.dart';
+import 'package:carvy/controller/home_controller.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/controller/publix_profile_controller.dart';
 import 'package:carvy/controller/push_notifications.dart';
@@ -198,7 +200,21 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                 label: 'Date Range Selector',
                 child: GestureDetector(
                   onTap: () {
-                    openSearchWizard(context);
+                    final itemDetails = vehicleDetailController
+                        .vehicleDetailModel?.data?.itemDetails;
+                    final regions = Get.find<HomeController>()
+                        .homeDataModel
+                        ?.data
+                        ?.locations;
+                    openSearchWizard(
+                      context,
+                      initialLocation: buildInitialLocationForVehicle(
+                        city: itemDetails?.city ?? widget.city,
+                        vehicleLat: itemDetails?.latitude,
+                        vehicleLng: itemDetails?.longitude,
+                        homeRegions: regions,
+                      ),
+                    );
                   },
                   child: Container(
                     padding: const EdgeInsets.all(6.0),
@@ -430,6 +446,28 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                               ),
                             ),
 
+                            if ((itemDetails?.hasDiscounts ??
+                                    currentItemInfo?.hasDiscounts ??
+                                    false) ==
+                                true)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                child: _buildSpecialOffersCard(
+                                  context,
+                                  weeklyDiscount: itemDetails
+                                          ?.weeklyDiscountValue
+                                          ?.toString() ??
+                                      currentItemInfo?.weeklyDiscountValue
+                                          ?.toString(),
+                                  monthlyDiscount: itemDetails
+                                          ?.monthlyDiscountValue
+                                          ?.toString() ??
+                                      currentItemInfo?.monthlyDiscountValue
+                                          ?.toString(),
+                                ),
+                              ),
+
                             const SizedBox(
                               height: 10,
                             ),
@@ -439,10 +477,86 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                               spacing: 16,
                               runSpacing: 16,
                               children: [
-                                carItemBox(
-                                  icon: Icons.car_rental,
-                                  title: 'Vehicle Type'.tr,
-                                  desc: currentItemInfo?.type ?? itemDetails?.itemType ?? 'CAR',
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: notifires.getboxcolor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: grey6),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.car_rental,
+                                            size: 22,
+                                            color: getColorBasedOnActiveModuleid(),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Vehicle Type'.tr,
+                                            style: regular2(context).copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Builder(
+                                        builder: (context) {
+                                          final List<String> categories =
+                                              (currentItemInfo?.categoryList != null &&
+                                                      currentItemInfo!.categoryList!.isNotEmpty)
+                                                  ? currentItemInfo.categoryList!
+                                                  : (itemDetails?.categoryList ?? <String>[]);
+                                          if (categories.isNotEmpty) {
+                                            return Align(
+                                              alignment: Alignment.center,
+                                              child: Wrap(
+                                                spacing: 8,
+                                                runSpacing: 6,
+                                                alignment: WrapAlignment.center,
+                                                children: categories
+                                                    .map(
+                                                      (name) => Container(
+                                                        padding: const EdgeInsets.symmetric(
+                                                          horizontal: 12,
+                                                          vertical: 6,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          color: Theme.of(context)
+                                                              .primaryColor
+                                                              .withOpacity(0.1),
+                                                          borderRadius: BorderRadius.circular(20),
+                                                          border: Border.all(
+                                                            color: Theme.of(context).primaryColor,
+                                                          ),
+                                                        ),
+                                                        child: Text(
+                                                          name,
+                                                          style: TextStyle(
+                                                            color: Theme.of(context).primaryColor,
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    )
+                                                    .toList(),
+                                              ),
+                                            );
+                                          }
+                                          return Text(
+                                            currentItemInfo?.type ??
+                                                itemDetails?.itemType ??
+                                                'CAR',
+                                            style: regular2(context),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 if (currentItemInfo?.makeType != null)
                                   carItemBox(
@@ -450,11 +564,36 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                     title: 'Make'.tr,
                                     desc: '${currentItemInfo?.makeType}',
                                   ),
-                                if (currentItemInfo?.model != null)
-                                  carItemBox(
-                                    icon: Icons.star_border_outlined,
-                                    title: 'Model'.tr,
-                                    desc: '${currentItemInfo?.model}',
+                                if (currentItemInfo?.displayModelName != null &&
+                                    (currentItemInfo!.displayModelName).isNotEmpty)
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      carItemBox(
+                                        icon: Icons.star_border_outlined,
+                                        title: 'Model'.tr,
+                                        desc: currentItemInfo!.displayModelName,
+                                      ),
+                                      if ((currentItemInfo?.modelName ?? '')
+                                              .toLowerCase() ==
+                                          'autre')
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 6.0, left: 4.0),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'Saisie manuelle',
+                                              style: TextStyle(
+                                                  fontSize: 10, color: Colors.orange),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 if (currentItemInfo?.year != null)
                                   carItemBox(
@@ -514,6 +653,31 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                               ],
                             ),
 
+                            // Description (sans titre « À propos du véhicule »)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: Dimensions.paddingSizeDefault,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      buildDescriptionWidget(currentItemInfo),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      buildShowMoreButton(currentItemInfo),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
                             // Large Caution Card - Separate from grid
                             GetBuilder<ItemDetailsController>(
                               builder: (controller) {
@@ -532,100 +696,80 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                               },
                             ),
 
-                            const SizedBox(
-                              height: 20,
-                            ),
-                            const SizedBox(height: 5.0),
-                            ListTile(
-                              title: Padding(
-                                padding: const EdgeInsets.only(bottom: 5.0),
-                                child: Text('About the car'.tr,
-                                    style: heading2(context)),
-                              ),
-                              subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.start,
+                            const SizedBox(height: 16),
+                            _buildHomeDeliveryCard(context, currentItemInfo),
+                            Builder(
+                              builder: (context) {
+                                try {
+                                  final rawFeatures = currentItemInfo?.featuresData ?? [];
+                                  final safeFeatures = rawFeatures.where((x) {
+                                    final name = (x.name ?? '').toString().trim();
+                                    return name.isNotEmpty && name.toLowerCase() != 'null';
+                                  }).toList();
+
+                                  // Règle UX: pas de titre/section si aucune caractéristique exploitable.
+                                  if (safeFeatures.isEmpty) {
+                                    return const SizedBox.shrink();
+                                  }
+
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 5,
+                                      horizontal: Dimensions.paddingSizeDefault,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        buildDescriptionWidget(currentItemInfo),
-                                      ],
-                                    ),
-                                    const SizedBox(
-                                      height: 5,
-                                    ),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.start,
-                                      children: [
-                                        buildShowMoreButton(currentItemInfo),
-                                      ],
-                                    ),
-                                  ]),
-                            ),
-                            (currentItemInfo?.featuresData?.isEmpty ?? true)
-                            ? const SizedBox()
-                            : Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 5,
-                                    horizontal: Dimensions.paddingSizeDefault),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Car Features'.tr,
-                                        style: heading2(context)),
-                                    const SizedBox(
-                                      height: 7,
-                                    ),
-                                    for (var x
-                                        in (currentItemInfo?.featuresData ?? [])
-                                            .take(6))
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                            left: 8, top: 5),
-                                        child: Column(
-                                          children: [
-                                            featuresbox(
-                                                txt: '${x.name}',
-                                                image: "${x.imageUrl}"),
-                                            const SizedBox(
-                                                height:
-                                                    10), // Adjust the height according to your needs
-                                          ],
-                                        ),
-                                      ),
-                                    if ((currentItemInfo?.featuresData
-                                                ?.length ??
-                                            0) >
-                                        6)
-                                      InkWell(
-                                        onTap: () {
-                                          featuresBottomSheet(context,
-                                              title: 'Vehicle Features'.tr,
-                                              list: currentItemInfo
-                                                      ?.featuresData ??
-                                                  []);
-                                        },
-                                        child: Row(
-                                          children: [
-                                            Text(
-                                              'Read more'.tr,
-                                              style: regular2(context).copyWith(
-                                                  color:
-                                                      getColorBasedOnActiveModuleid()),
+                                        Text('Car Features'.tr, style: heading2(context)),
+                                        const SizedBox(height: 7),
+                                        for (var x in safeFeatures.take(6))
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 8, top: 5),
+                                            child: Column(
+                                              children: [
+                                                featuresbox(
+                                                  txt: '${x.name}',
+                                                  image: "${x.imageUrl}",
+                                                ),
+                                                const SizedBox(height: 10),
+                                              ],
                                             ),
-                                            const SizedBox(width: 5),
-                                            Icon(
-                                              Icons.arrow_forward,
-                                              size: 16,
-                                              color:
-                                                  getColorBasedOnActiveModuleid(),
-                                            )
-                                          ],
-                                        ),
-                                      )
-                                  ],
-                                ),
-                              ),
+                                          ),
+                                        if (safeFeatures.length > 6)
+                                          InkWell(
+                                            onTap: () {
+                                              featuresBottomSheet(
+                                                context,
+                                                title: 'Vehicle Features'.tr,
+                                                list: safeFeatures,
+                                              );
+                                            },
+                                            child: Row(
+                                              children: [
+                                                Text(
+                                                  'Read more'.tr,
+                                                  style: regular2(context).copyWith(
+                                                    color: getColorBasedOnActiveModuleid(),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 5),
+                                                Icon(
+                                                  Icons.arrow_forward,
+                                                  size: 16,
+                                                  color: getColorBasedOnActiveModuleid(),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                } catch (_) {
+                                  // Règle UX: un échec optionnel ne doit jamais casser le reste de la page.
+                                  return const SizedBox.shrink();
+                                }
+                              },
+                            ),
                         const SizedBox(
                           height: 15.0,
                         ),
@@ -645,106 +789,93 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.only(left: 12, right: 12),
-                              child: Card(
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Stack(
-                                  children: [
-                                    (itemDetails?.latitude ?? widget.latitute) != null &&
-                                            (itemDetails?.longitude ?? widget.longtitute) != null
-                                        ? GestureDetector(
-                                            onTap: () {
-                                              Get.to(() => FullMapScreen(
-                                                    latitude: itemDetails?.latitude ?? widget.latitute,
-                                                    longitude:
-                                                        itemDetails?.longitude ?? widget.longtitute,
-                                                  ));
-                                            },
-                                            child: SizedBox(
-                                              height: 300,
-                                              child: ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                child: Stack(
-                                                  fit: StackFit.expand,
-                                                  children: [
-                                                    Image.asset(
-                                                      "assets/images/blur.png",
-                                                      fit: BoxFit.cover,
-                                                    ),
-                                                    // Black shade with "Tap to view" message
-                                                    Container(
-                                                      color: Colors.black
-                                                          .withOpacity(
-                                                              0.2), // Semi-transparent black shade
-                                                      child: Center(
-                                                        child: Text(
-                                                          "Tap to view".tr,
-                                                          style: headingh5
-                                                              .copyWith(
-                                                            color: Colors.white,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        : Center(
-                                            child: Text(
-                                              'Map is not available'.tr,
-                                              style: headingh5,
-                                            ),
-                                          ),
-                                    Positioned(
-                                      top: 16,
-                                      left: 16,
-                                      child: Material(
-                                        elevation: 2,
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: InkWell(
-                                          onTap: () {
-                                            final lat = itemDetails?.latitude ?? widget.latitute;
-                                            final lng = itemDetails?.longitude ?? widget.longtitute;
-                                            if (lat != null && lng != null) {
-                                              Get.to(() => FullMapScreen(
-                                                    latitude: lat,
-                                                    longitude: lng,
-                                                  ));
-                                            }
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.only(
-                                                left: 6,
-                                                right: 6,
-                                                top: 4,
-                                                bottom: 4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            child: const Icon(
-                                              Icons.fullscreen,
-                                              size: 30,
-                                            ),
+                            Builder(builder: (context) {
+                              final lat = _parseCoordinate(
+                                  itemDetails?.latitude ?? widget.latitute);
+                              final lng = _parseCoordinate(
+                                  itemDetails?.longitude ?? widget.longtitute);
+                              final cityName =
+                                  (itemDetails?.city ?? widget.city ?? '')
+                                      .toString()
+                                      .trim();
+                              final countryName =
+                                  (itemDetails?.stateRegion ?? '')
+                                      .toString()
+                                      .trim();
+                              final locationLabel = [
+                                cityName,
+                                countryName,
+                              ].where((value) => value.isNotEmpty).join(', ');
+
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                child: Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey.withOpacity(0.2),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                            12, 12, 12, 0),
+                                        child: Text(
+                                          locationLabel.isNotEmpty
+                                              ? locationLabel
+                                              : "Approximate area".tr,
+                                          style: regular2(context).copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.grey[800],
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 10),
+                                      SizedBox(
+                                        height: 220,
+                                        width: double.infinity,
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          child: (lat != null && lng != null)
+                                              ? GoogleMap(
+                                                  initialCameraPosition:
+                                                      CameraPosition(
+                                                    target: LatLng(lat, lng),
+                                                    zoom: 11.5,
+                                                  ),
+                                                  liteModeEnabled: true,
+                                                  markers: const <Marker>{},
+                                                  circles: const <Circle>{},
+                                                  zoomControlsEnabled: false,
+                                                  myLocationButtonEnabled:
+                                                      false,
+                                                  mapToolbarEnabled: false,
+                                                  scrollGesturesEnabled: false,
+                                                  zoomGesturesEnabled: false,
+                                                  rotateGesturesEnabled: false,
+                                                  tiltGesturesEnabled: false,
+                                                  compassEnabled: false,
+                                                )
+                                              : Center(
+                                                  child: Text(
+                                                    'Map is not available'.tr,
+                                                    style: headingh5,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                            }),
                           ],
                         ),
                         const SizedBox(
@@ -1603,6 +1734,93 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
     });
   }
 
+  /// Carte « Livraison à domicile » — même enveloppe visuelle que [CautionCard].
+  Widget _buildHomeDeliveryCard(BuildContext context, ItemInfo? currentItemInfo) {
+    final locations = currentItemInfo?.deliveryLocations;
+    if (locations == null || locations.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: Colors.grey.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        color: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('🚚', style: TextStyle(fontSize: 22)),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Livraison à domicile'.tr,
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              Divider(
+                height: 24,
+                thickness: 1,
+                color: Colors.grey.withOpacity(0.2),
+              ),
+              for (int index = 0; index < locations.length; index++) ...[
+                if (index > 0) const SizedBox(height: 10),
+                _buildDeliveryLocationRow(context, locations[index]),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeliveryLocationRow(BuildContext context, dynamic item) {
+    final location = item is Map ? item['location'] : null;
+    final cityName = location is Map
+        ? location['cityName']?.toString()
+        : null;
+    final price = item is Map ? item['price'] : null;
+    final priceText = price?.toString() ?? '';
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            (cityName != null && cityName.trim().isNotEmpty) ? cityName : '-',
+            style: regular3(context).copyWith(
+              fontSize: 14,
+              color: notifires.getwhiteblackcolor,
+              overflow: TextOverflow.ellipsis,
+            ),
+            maxLines: 1,
+          ),
+        ),
+        Text(
+          'MAD $priceText',
+          style: regular2(context).copyWith(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: getColorBasedOnActiveModuleid(),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget buildDescriptionWidget(ItemInfo? itemInfo) {
     final description = (itemInfo?.description ?? vehicleDetailController.vehicleDetailModel?.data?.itemDetails?.description ?? "");
     return Expanded(
@@ -1653,6 +1871,11 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
             .shrink(); // If no need for Show More button, return an empty SizedBox
   }
 
+  double? _parseCoordinate(dynamic value) {
+    if (value == null) return null;
+    return double.tryParse(value.toString());
+  }
+
   String formatPlate(String? plate) {
     if (plate == null || plate.isEmpty) return 'N/A';
     if (plate.length < 3) return plate;
@@ -1680,5 +1903,126 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildDiscountBadge(BuildContext context, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF10B981), Color(0xFF059669)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x3310B981),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        style: regular2(context).copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpecialOffersCard(
+    BuildContext context, {
+    String? weeklyDiscount,
+    String? monthlyDiscount,
+  }) {
+    final weekly = _formatDiscountValue(weeklyDiscount);
+    final monthly = _formatDiscountValue(monthlyDiscount);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFBEB), Color(0xFFFFF7ED)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF59E0B),
+          width: 1.1,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14F59E0B),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 30,
+                width: 30,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEDD5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.local_offer_rounded,
+                  color: Color(0xFFEA580C),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Offres spéciales'.tr,
+                      style: heading3(context).copyWith(
+                        color: const Color(0xFF9A3412),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Réductions automatiques selon la durée'.tr,
+                      style: regular3(context).copyWith(
+                        color: const Color(0xFFB45309),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              _buildDiscountBadge(context, 'Remise 7j+ : $weekly%'),
+              _buildDiscountBadge(context, 'Remise 30j+ : $monthly%'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDiscountValue(String? rawValue) {
+    if (rawValue == null) return '0';
+    final cleaned = rawValue.replaceAll('%', '').replaceAll('-', '').trim();
+    if (cleaned.isEmpty) return '0';
+    return cleaned;
   }
 }

@@ -10,6 +10,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:pinput/pinput.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/controller/add_items_host_controller.dart';
 import 'package:carvy/controller/booking_controller.dart';
@@ -25,6 +26,7 @@ import 'package:carvy/model/booking_model.dart';
 import 'package:carvy/model/cancellation_policies_model.dart';
 import 'package:carvy/model/cancellation_reason_model.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/extension.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/utils/vehicle_common_widgets.dart';
 import 'package:carvy/view/chat/conversation_screen.dart';
@@ -35,6 +37,22 @@ import 'package:carvy/view/itemdetail/vehicle/vehicle_detail_screen.dart';
 import 'package:carvy/work_space.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../model/vehicle_home_model.dart';
+
+// ========= Helpers robustes pour comparer les valeurs dynamiques (int, double, String, null) =========
+bool isValueZero(dynamic value) {
+  if (value == null) return true; // Par défaut, on considère que ce n'est pas retourné
+  if (value == 0 || value == 0.0) return true;
+  if (value.toString().trim() == "0") return true;
+  return false;
+}
+
+bool isValueOne(dynamic value) {
+  if (value == null) return false;
+  if (value == 1 || value == 1.0) return true;
+  if (value.toString().trim() == "1") return true;
+  return false;
+}
+// ========= Fin helpers =========
 
 class EditContainer extends StatelessWidget {
   final String? subtitle;
@@ -2728,6 +2746,35 @@ class VendorOrderListView extends StatelessWidget {
         dynamic proType = itemData[0]['item_type'] ?? 'N/A'.tr;
         dynamic image = itemData[0]['image'] ?? 'N/A'.tr;
 
+        void openVendorOrderChat() {
+          final propTitle = list[index].propTitle ?? '';
+          if (propTitle.isEmpty) {
+            showErrorToastMessage("Title not available");
+            return;
+          }
+          Get.to(() => ConversationScreen(
+                bookingStatus: '${list[index].status}',
+                bookingId: '${list[index].id}',
+                image: image,
+                title: propTitle,
+                conversationId:
+                    "${list[index].userid}_${list[index].id}_${list[index].hostId}",
+                from: "${list[index].userName}",
+                senderId: "$userId",
+                reciverId: "${list[index].userid}",
+              ));
+        }
+
+        // ========= DEBUG : Log des valeurs de statut pour les réservations "Ongoing" (Live) =========
+        if (listType == "Ongoing") {
+          debugPrint('📱 [DEBUG FLUTTER] Réservation: ${list[index].id}');
+          debugPrint(
+              '   - isItemDelivered : ${list[index].isItemDelivered} (Type: ${list[index].isItemDelivered.runtimeType})');
+          debugPrint(
+              '   - isItemReturned  : ${list[index].isItemReturned} (Type: ${list[index].isItemReturned.runtimeType})');
+        }
+        // ========= FIN DEBUG =========
+
         return Padding(
           padding:
               const EdgeInsets.only(left: 13, right: 13, bottom: 10, top: 10),
@@ -2782,7 +2829,7 @@ class VendorOrderListView extends StatelessWidget {
                       showPopUpScreen(
                           context,
                           VehicleDetailSScreen(
-                            id: list.elementAt(index).id,
+                            id: list.elementAt(index).itemid?.toString(),
                             itemInfo: itemInfoData,
                             rating: list[index].rating,
                             title: list[index].propTitle,
@@ -2829,25 +2876,24 @@ class VendorOrderListView extends StatelessWidget {
                                           .copyWith(color: whiteColor)),
                                 ),
                                 // Badge de statut pour l'onglet "À venir"
-                                if (listType == "UpComing" && 
-                                    list[index].status != null &&
-                                    (list[index].status!.toUpperCase() == 'PENDING' ||
-                                     list[index].status!.toUpperCase() == 'CONFIRMED'))
+                                if (listType == "UpComing" &&
+                                    (list[index].status.isPending ||
+                                        list[index].status.isConfirmed))
                                   Padding(
                                     padding: const EdgeInsets.only(left: 6),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: list[index].status!.toUpperCase() == 'PENDING'
+                                        color: list[index].status.isPending
                                             ? orangeColor
                                             : appgreen,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
-                                        list[index].status!.toUpperCase() == 'PENDING'
+                                        list[index].status.isPending
                                             ? 'EN ATTENTE'
-                                            : 'CONFIRMÉ',
+                                            : 'CONFIRMEE',
                                         style: regular2(context).copyWith(
                                           color: whiteColor,
                                           fontWeight: FontWeight.bold,
@@ -2864,25 +2910,7 @@ class VendorOrderListView extends StatelessWidget {
                                 bottom: 10,
                                 right: 10,
                                 child: InkWell(
-                                  onTap: () {
-                                    final propTitle = list[index].propTitle ?? '';
-                                    if (propTitle.isEmpty) {
-                                      showErrorToastMessage("Title not available");
-                                      return;
-                                    }
-                                    Get.to(() => ConversationScreen(
-                                          bookingStatus:
-                                              '${list[index].status}',
-                                          bookingId: '${list[index].id}',
-                                          image: image,
-                                          title: propTitle,
-                                          conversationId:
-                                              "${list[index].userid}_${list[index].id}_${list[index].hostId}",
-                                          from: "${list[index].userName}",
-                                          senderId: "$userId",
-                                          reciverId: "${list[index].userid}",
-                                        ));
-                                  },
+                                  onTap: openVendorOrderChat,
                                   child: Container(
                                     height: 35,
                                     width: 35,
@@ -2915,24 +2943,7 @@ class VendorOrderListView extends StatelessWidget {
                                       style: regular2(context)
                                           .copyWith(color: whiteColor)),
                                 ))
-                            : listType == "Ongoing"
-                                ? Positioned(
-                                    bottom: 0,
-                                    left: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.only(
-                                          left: 8, right: 8, top: 4, bottom: 4),
-                                      decoration: BoxDecoration(
-                                          color: getColorBasedOnActiveModuleid()
-                                              .withOpacity(.8),
-                                          borderRadius:
-                                              BorderRadius.circular(10)),
-                                      child: Text(
-                                          "Drop OTP : ${list[index].dropOtp}",
-                                          style: regular2(context)
-                                              .copyWith(color: whiteColor)),
-                                    ))
-                                : SizedBox(),
+                            : SizedBox(),
                       ],
                     ),
                   ),
@@ -3343,11 +3354,89 @@ class VendorOrderListView extends StatelessWidget {
                           children: [
                             Builder(
                               builder: (context) {
+                                final standardStatus =
+                                    list[index].status.toStandardStatus();
                                 // ========== LOG DE DIAGNOSTIC ==========
-                                print('📑 [BUTTON_LOG] ID: ${list[index].id} | Status: ${list[index].status} | Affiche Accept: ${list[index].status?.toString().toUpperCase() == "PENDING"}');
-                                
-                                // ========== PRIORITÉ 1: Si status == "Pending", afficher [Accept] et [Reject] ==========
-                                if (list[index].status?.toString().toUpperCase() == "PENDING") {
+                                print(
+                                    '📑 [BUTTON_LOG] ID: ${list[index].id} | Status: ${list[index].status} | Affiche Accept: ${list[index].status.isPending}');
+
+                                // Réservation instantanée: statut CONFIRMED -> plus d'Accept/Reject.
+                                if (list[index].status.isConfirmed) {
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: openVendorOrderChat,
+                                          child: Padding(
+                                            padding:
+                                                const EdgeInsets.only(right: 8),
+                                            child: Container(
+                                              alignment: Alignment.center,
+                                              padding: const EdgeInsets.only(
+                                                  top: 10, bottom: 10),
+                                              decoration: BoxDecoration(
+                                                color: getColorBasedOnActiveModuleid(),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: Text(
+                                                "Send a message".tr,
+                                                style:
+                                                    boldstyle(context).copyWith(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: () {
+                                            Get.to(() => HostEreciept(
+                                                  bookings: list[index],
+                                                  fromPropBooking:
+                                                      fromPropBooking,
+                                                ));
+                                          },
+                                          child: Padding(
+                                            padding:
+                                                const EdgeInsets.only(left: 8),
+                                            child: Container(
+                                              alignment: Alignment.center,
+                                              padding: const EdgeInsets.only(
+                                                  top: 10, bottom: 10),
+                                              decoration: BoxDecoration(
+                                                color: notifires.getboxcolor,
+                                                border: Border.all(
+                                                  color:
+                                                      getColorBasedOnActiveModuleid(),
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: Text(
+                                                "Details".tr,
+                                                style:
+                                                    boldstyle(context).copyWith(
+                                                  color:
+                                                      getColorBasedOnActiveModuleid(),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }
+
+                                // Fallback legacy: si PENDING, garder Accept/Reject.
+                                if (list[index].status.isPending) {
                                   return Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                                     children: [
@@ -3355,7 +3444,7 @@ class VendorOrderListView extends StatelessWidget {
                                         child: InkWell(
                                           onTap: () {
                                             // ========== BOUTON ACCEPT : Ouvre directement la popup de confirmation ==========
-                                            if (list[index].status?.toString().toUpperCase() == "PENDING") {
+                                            if (list[index].status.isPending) {
                                               showDialog<void>(
                                                 context: context,
                                                 builder: (BuildContext context) {
@@ -3560,11 +3649,70 @@ class VendorOrderListView extends StatelessWidget {
                                   );
                                 }
                                 
+                                // ========== LOGIQUE DU BOUTON D'ACTION "Mark as Returned" ==========
+                                Widget actionButton = SizedBox(); // Par défaut, rien.
+                                
+                                // Logs pour comprendre ce que Flutter lit réellement :
+                                debugPrint("🛠️ [EVAL BOUTON] ID: ${list[index].id} | listType: $listType | status: ${list[index].status}");
+                                
+                                if (listType?.toLowerCase() == "ongoing" || 
+                                    listType?.toLowerCase() == "live" || 
+                                    list[index].status?.toString().toUpperCase() == "LIVE" || 
+                                    list[index].status?.toString().toUpperCase() == "ONGOING") {
+                                    
+                                    debugPrint("   👉 Condition Ongoing/Live VALIDÉE -> AFFICHAGE DU BOUTON DROP");
+                                    actionButton = Expanded(
+                                        child: InkWell(
+                                          onTap: () {
+                                            // Afficher le dialogue de saisie OTP
+                                            showDropOtpDialog(
+                                              context,
+                                              list[index].id.toString(),
+                                              list[index].dropOtp?.toString() ?? "",
+                                              () {
+                                                // Callback de succès : recharger la liste ou retirer l'item
+                                                if (self.refreshData != null) {
+                                                  self.refreshData!();
+                                                } else {
+                                                  // Fallback : retirer l'item de la liste locale
+                                                  self.onItemCancelled(index);
+                                                }
+                                              },
+                                            );
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(right: 10),
+                                            child: Container(
+                                              alignment: Alignment.center,
+                                              padding: const EdgeInsets.only(top: 10, bottom: 10),
+                                              decoration: BoxDecoration(
+                                                color: getColorBasedOnActiveModuleid(),
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  "Mark as Returned".tr,
+                                                  style: boldstyle(context).copyWith(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                } else {
+                                    debugPrint("   ❌ Ce n'est pas un onglet Ongoing/Live.");
+                                }
+                                // ========== FIN LOGIQUE DU BOUTON D'ACTION ==========
+                                
                                 // ========== PRIORITÉ 2: Bouton Is Deliver? si status == "Confirmed" ==========
                                 return Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                                   children: [
-                                    list[index].status?.toString().toUpperCase() == "CONFIRMED"
+                                    list[index].status.isConfirmed
                                         ? Expanded(
                                             child: InkWell(
                                               onTap: () async {
@@ -3820,9 +3968,7 @@ class VendorOrderListView extends StatelessWidget {
                                             ? SizedBox()
                                             : listType == 'Cancelled'
                                                 ? SizedBox()
-                                                : listType == 'Ongoing'
-                                                    ? SizedBox()
-                                                    : list[index].isItemReturned == 1
+                                                : isValueOne(list[index].isItemReturned)
                                                         ? Expanded(
                                                             child: InkWell(
                                                               onTap: () async {
@@ -3895,84 +4041,9 @@ class VendorOrderListView extends StatelessWidget {
                                                               ),
                                                             ),
                                                           )
-                                                        : listType == "Ongoing"
-                                                            ? SizedBox()
-                                                            : listType == 'Cancelled'
-                                                                ? SizedBox()
-                                                                : Expanded(
-                                                                    child: InkWell(
-                                                                      onTap: () async {
-                                                                        if (list[index].userName == null) {
-                                                                          showErrorToastMessage("user not found");
-                                                                          return;
-                                                                        }
-
-                                                                        try {
-                                                                          showLoading();
-                                                                          await Future.delayed(Duration(seconds: 1));
-                                                                          var responce = {
-                                                                            "status": 200,
-                                                                            "message": "Item details retrieved successfully",
-                                                                            "error": "",
-                                                                            "data": {
-                                                                              "ItemDetails": {
-                                                                                "item_id": int.tryParse("${list[index].itemid}") ?? 101,
-                                                                                "title": "Toyota Camry 2023 - Premium Sedan",
-                                                                                "price": "50.00",
-                                                                                "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
-                                                                                "item_rating": "4.5",
-                                                                                "status": "1",
-                                                                                "host_id": "1001"
-                                                                              }
-                                                                            }
-                                                                          };
-                                                                          
-                                                                          if (responce != null && responce["status"] == 500) {
-                                                                            closeLoading();
-                                                                            showErrorToastMessage(responce["message"]);
-                                                                            return;
-                                                                          } else {
-                                                                            closeLoading();
-                                                                          }
-                                                                        } catch (e) {
-                                                                          closeLoading();
-                                                                        }
-
-                                                                        innerMethod(context, index);
-                                                                      },
-                                                                      child: Padding(
-                                                                        padding: const EdgeInsets.only(right: 10),
-                                                                        child: Container(
-                                                                          alignment: Alignment.center,
-                                                                          padding: const EdgeInsets.only(top: 10, bottom: 10),
-                                                                          decoration: BoxDecoration(
-                                                                            color: btnText == "Cancelled"
-                                                                                ? const Color.fromARGB(128, 128, 128, 128)
-                                                                                : btnText == "Reject"
-                                                                                    ? Colors.red
-                                                                                    : list[index].reviewStatus != null && list[index].reviewStatus != "0"
-                                                                                        ? Colors.blue
-                                                                                        : themeColor,
-                                                                            borderRadius: BorderRadius.circular(10),
-                                                                          ),
-                                                                          child: Center(
-                                                                            child: Text(
-                                                                              list[index].reviewStatus != null && list[index].reviewStatus == "1"
-                                                                                  ? "View Review".tr
-                                                                                  : "$btnText".tr,
-                                                                              style: boldstyle(context).copyWith(
-                                                                                color: Colors.white,
-                                                                                fontWeight: FontWeight.bold,
-                                                                                fontSize: 14,
-                                                                              ),
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                  ),
+                                                        : actionButton,
                                     // ========== Bouton Reciept - Affiché seulement pour "Confirmed" ou "Completed", masqué pour "Pending" ==========
-                                    list[index].status?.toString().toUpperCase() != "PENDING"
+                                    !list[index].status.isPending
                                         ? Expanded(
                                             child: InkWell(
                                               onTap: () {
@@ -4107,42 +4178,174 @@ class VendorOrderListView extends StatelessWidget {
     return result;
   }
 
-  Future<String> updateItemReturnedStatus({required String bookingId}) async {
+  /// Bottom sheet (même structure que la saisie Pick-up OTP côté client) pour le code de remise.
+  void showDropOtpDialog(
+    BuildContext context,
+    String bookingId,
+    String expectedOtp,
+    VoidCallback? onSuccess,
+  ) {
+    final TextEditingController otpController = TextEditingController();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: notifires.getbgcolor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Enter handover code".tr,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: notifires.getwhiteblackcolor,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  "Please enter the 4-digit code provided by the customer to validate the vehicle return."
+                      .tr,
+                  textAlign: TextAlign.center,
+                  style: regular02.copyWith(
+                    fontSize: 13,
+                    color: notifires.getGrey2Whitecolor,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Pinput(
+                  length: 4,
+                  controller: otpController,
+                  keyboardType: TextInputType.number,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  defaultPinTheme: PinTheme(
+                    width: 50,
+                    height: 50,
+                    textStyle: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: notifires.getwhiteblackcolor,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: notifires.getwhiteblackcolor.withOpacity(0.35),
+                      ),
+                      color: notifires.getblackwhitecolor,
+                    ),
+                  ),
+                  focusedPinTheme: PinTheme(
+                    width: 50,
+                    height: 50,
+                    textStyle: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: notifires.getwhiteblackcolor,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: getColorBasedOnActiveModuleid(),
+                        width: 2,
+                      ),
+                      color: notifires.getblackwhitecolor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                CustomsButtons(
+                  text: "Validate".tr,
+                  backgroundColor: getColorBasedOnActiveModuleid(),
+                  onPressed: () async {
+                    final enteredOtp = otpController.text.trim();
+
+                    if (enteredOtp.length != 4) {
+                      showErrorToastMessage(
+                          "Please enter the complete 4-digit code".tr);
+                      return;
+                    }
+                    if (!RegExp(r'^\d{4}$').hasMatch(enteredOtp)) {
+                      showErrorToastMessage(
+                          "Please enter only 4 digits".tr);
+                      return;
+                    }
+
+                    if (expectedOtp.isNotEmpty && enteredOtp != expectedOtp) {
+                      showErrorToastMessage(
+                          "Invalid OTP. Please check and try again.".tr);
+                      return;
+                    }
+
+                    Navigator.pop(sheetContext);
+
+                    final result = await updateItemReturnedStatus(
+                      bookingId: bookingId,
+                      dropOtp: enteredOtp,
+                    );
+
+                    if (result == "no" && onSuccess != null) {
+                      onSuccess();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ).whenComplete(otpController.dispose);
+  }
+
+  Future<String> updateItemReturnedStatus({
+    required String bookingId,
+    required String dropOtp,
+  }) async {
     showLoading();
     var isItemReturned;
     String result;
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response = await httpPost(Config.updateItemReturnedStatus,
-    //     {"booking_id": bookingId, "is_item_returned": "1"});
-    
-    // MOCK: Simulate network delay
-    await Future.delayed(Duration(seconds: 1));
-    
-    // MOCK: Static success response for marking item as returned
-    Map<String, dynamic> response = {
-      "status": 200,
-      "message": "Vehicle marked as returned successfully",
-      "error": "",
-      "data": {
-        "booking_extension": {
+    try {
+      // ========== APPEL API RÉEL ==========
+      var response = await httpPost(
+        Config.updateItemReturnedStatus,
+        {
           "booking_id": bookingId,
           "is_item_returned": "1",
-          "is_item_delivered": "1",
           "is_item_received": "1",
-          "drop_otp": ""
-        }
+          "drop_otp": dropOtp,
+        },
+      );
+      // ========== END APPEL API RÉEL ==========
+      
+      closeLoading();
+      if (response != null && response["status"] == 200) {
+        isItemReturned =
+            response["data"]["booking_extension"]["is_item_returned"];
+        showToastMessage(response["message"] ?? "Vehicle marked as returned successfully".tr);
+        result = isItemReturned == "1" ? "no" : "yes";
+      } else {
+        showErrorToastMessage(response?['error'] ?? "Failed to mark vehicle as returned".tr);
+        result = "yes";
       }
-    };
-    // ========== END MOCK DATA ==========
-    closeLoading();
-    if (response["status"] == 200) {
-      isItemReturned =
-          response["data"]["booking_extension"]["is_item_returned"];
-      showToastMessage(response["message"]);
-      result = isItemReturned == "1" ? "no" : "yes";
-    } else {
-      showErrorToastMessage(response['error']);
-      result = "yes";
+    } catch (e) {
+      closeLoading();
+      print('❌ [RETURN_ERROR] : $e');
+      showErrorToastMessage("Network error: ${e.toString()}");
+      result = "yes"; // Garder le bouton visible en cas d'erreur réseau
     }
     return result;
   }

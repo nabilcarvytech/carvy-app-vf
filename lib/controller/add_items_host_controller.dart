@@ -32,6 +32,7 @@ import 'package:carvy/view/host/upload_image_screen.dart';
 import 'package:carvy/view/host/vehiclehost/addvehicle/vehicle_description.dart';
 import 'package:carvy/view/host/vehiclehost/addvehicle/vehicle_features_screen.dart';
 import 'package:carvy/view/host/vehiclehost/editvehicle/edit_vehicle_home_screen.dart';
+import 'package:carvy/utils/calendar_block_reasons.dart';
 import 'package:carvy/work_space.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -50,6 +51,8 @@ class AddItemsHostController extends GetxController implements GetxService {
   bool isAgeRestricted = false;
   RxBool isChecked1 = false.obs;
   RxBool isChecked2 = false.obs;
+  /// Raison affichée / envoyée lors d'un blocage de dates (add-editCalender).
+  RxString calendarBlockReason = CalendarBlockReasons.defaultReason.obs;
   bool numerictype = false;
   RxInt totalEditBeds = 1.obs;
   RxInt totalEditBathroom = 1.obs;
@@ -154,8 +157,10 @@ class AddItemsHostController extends GetxController implements GetxService {
   TextEditingController textEditingControllerEditCity = TextEditingController();
   TextEditingController textEditingControllerEditYear = TextEditingController();
   TextEditingController textEditingControllerEditMileage = TextEditingController();
-  TextEditingController textEditingControllerDoorstepPrice =
-      TextEditingController();
+  // Livraison à domicile multi-destinations (jusqu'à 3 villes/zones)
+  // Chaque entrée: { "location": <id>, "locationName": <name>, "price": <int> }
+  RxList<Map<String, dynamic>> deliveryLocations =
+      <Map<String, dynamic>>[].obs;
   TextEditingController textEditingControllerSecurityBoatPrice =
       TextEditingController();
   TextEditingController textEditingControllerVehicleAddRules =
@@ -229,6 +234,46 @@ class AddItemsHostController extends GetxController implements GetxService {
 
   void setInternationalTravelAllowed(bool value) {
     isInternationalTravelAllowed = value;
+    update();
+  }
+
+  // Ajoute une destination de livraison (max 3, sans doublon sur locationId)
+  void addDeliveryLocation(String locationId, String locationName) {
+    if (deliveryLocations.length >= 3) return;
+    if (locationId.isEmpty) return;
+
+    final alreadyExists = deliveryLocations.any((e) =>
+        (e['location']?.toString() ?? '') == locationId.toString());
+    if (alreadyExists) return;
+
+    deliveryLocations.add({
+      'location': locationId,
+      'locationName': locationName,
+      // Valeur par défaut (sera remplie via l'UI)
+      'price': 0,
+    });
+
+    isCheckeddoorstep = true;
+    update();
+  }
+
+  // Met à jour le prix d'une destination (index dans deliveryLocations)
+  void updateDeliveryPrice(int index, String price) {
+    if (index < 0 || index >= deliveryLocations.length) return;
+    final parsedInt = int.tryParse(price) ??
+        (double.tryParse(price)?.toInt() ?? 0);
+
+    deliveryLocations[index]['price'] = parsedInt;
+    update();
+  }
+
+  // Supprime une destination de livraison
+  void removeDeliveryLocation(int index) {
+    if (index < 0 || index >= deliveryLocations.length) return;
+    deliveryLocations.removeAt(index);
+    if (deliveryLocations.isEmpty) {
+      isCheckeddoorstep = false;
+    }
     update();
   }
 
@@ -2350,12 +2395,64 @@ class AddItemsHostController extends GetxController implements GetxService {
           textEditingControllerEditSecurityMoney.text = itemInfoDescription["security_fee"].toString();
         }
         
-        // Prix livraison à domicile
-        if (itemInfoDescription["doorStep_price"] != null) {
+        // Livraison à domicile (multi-destinations)
+        deliveryLocations.clear();
+        if (itemInfoDescription["deliveryLocations"] != null &&
+            itemInfoDescription["deliveryLocations"] is List) {
+          try {
+            for (final rawEntry
+                in (itemInfoDescription["deliveryLocations"] as List)) {
+              if (rawEntry is! Map) continue;
+              final locationId =
+                  rawEntry['location']?.toString() ?? rawEntry['locationId']?.toString() ?? '';
+              final locationName =
+                  rawEntry['locationName']?.toString() ?? rawEntry['name']?.toString() ?? '';
+              final priceInt = int.tryParse(rawEntry['price']?.toString() ?? '') ??
+                  (double.tryParse(rawEntry['price']?.toString() ?? '')?.toInt() ?? 0);
+
+              // Fallback pour le nom si le backend ne renvoie pas locationName
+              String finalLocationName = locationName;
+              if (finalLocationName.isEmpty && locationId.isNotEmpty) {
+                final match = listLocation
+                    .where((l) => l.id?.toString() == locationId)
+                    .toList();
+                finalLocationName = match.isNotEmpty ? (match.first.name ?? '') : finalLocationName;
+              }
+
+              if (locationId.isNotEmpty) {
+                deliveryLocations.add({
+                  'location': locationId,
+                  'locationName': finalLocationName,
+                  'price': priceInt,
+                });
+              }
+            }
+          } catch (_) {
+            // Parsing best-effort
+          }
+        } else if (itemInfoDescription["doorStep_price"] != null) {
+          // Backward compatibility (anciens véhicules): 1 seule destination sans ID
           final doorstepPrice = itemInfoDescription["doorStep_price"].toString();
-          textEditingControllerDoorstepPrice.text = doorstepPrice;
-          isCheckeddoorstep = doorstepPrice.isNotEmpty && doorstepPrice != "0";
+          final parsedPrice = int.tryParse(doorstepPrice) ??
+              (double.tryParse(doorstepPrice)?.toInt() ?? 0);
+          if (parsedPrice != 0) {
+            // Tentative: utiliser la ville sélectionnée comme destination
+            final fallbackCity = selectedCityName;
+            final match = listLocation.firstWhere(
+              (l) => l.name == fallbackCity,
+              orElse: () => LocationsHost(id: 0, cityName: '', description: '', image: '', latitude: '', longitude: null, countryCode: ''),
+            );
+            if (match.id != null && match.id!.toString().isNotEmpty) {
+              deliveryLocations.add({
+                'location': match.id.toString(),
+                'locationName': match.name ?? '',
+                'price': parsedPrice,
+              });
+            }
+          }
         }
+
+        isCheckeddoorstep = deliveryLocations.isNotEmpty;
         
         // Nombre de sièges
         if (itemInfoDescription["number_of_seats"] != null) {
@@ -2945,10 +3042,78 @@ class AddItemsHostController extends GetxController implements GetxService {
         if (itemInfoDescription["transmission"] != null) {
           selectTransmission = itemInfoDescription["transmission"];
         }
-        if (itemInfoDescription["doorStep_price"] != null) {
-          textEditingControllerDoorstepPrice.text =
-              itemInfoDescription["doorStep_price"].toString();
+        // Livraison à domicile (multi-destinations)
+        deliveryLocations.clear();
+        if (itemInfoDescription["deliveryLocations"] != null &&
+            itemInfoDescription["deliveryLocations"] is List) {
+          try {
+            for (final rawEntry
+                in (itemInfoDescription["deliveryLocations"] as List)) {
+              if (rawEntry is! Map) continue;
+
+              final locationId = rawEntry['location']?.toString() ??
+                  rawEntry['locationId']?.toString() ??
+                  '';
+              final locationName = rawEntry['locationName']?.toString() ??
+                  rawEntry['name']?.toString() ??
+                  '';
+
+              final rawPrice = rawEntry['price'];
+              final priceInt = int.tryParse(rawPrice?.toString() ?? '') ??
+                  (double.tryParse(rawPrice?.toString() ?? '')?.toInt() ??
+                      0);
+
+              String finalLocationName = locationName;
+              if (finalLocationName.isEmpty && locationId.isNotEmpty) {
+                final match = listLocation
+                    .where((l) => l.id?.toString() == locationId)
+                    .toList();
+                finalLocationName =
+                    match.isNotEmpty ? (match.first.name ?? '') : '';
+              }
+
+              if (locationId.isNotEmpty) {
+                deliveryLocations.add({
+                  'location': locationId,
+                  'locationName': finalLocationName,
+                  'price': priceInt,
+                });
+              }
+            }
+          } catch (_) {
+            // best-effort
+          }
+        } else if (itemInfoDescription["doorStep_price"] != null) {
+          // Compatibilité avec ancien champ unique: utiliser la ville sélectionnée
+          final doorstepPrice = itemInfoDescription["doorStep_price"].toString();
+          final parsedPrice = int.tryParse(doorstepPrice) ??
+              (double.tryParse(doorstepPrice)?.toInt() ?? 0);
+
+          if (parsedPrice != 0) {
+            final fallbackCity = selectedCityName;
+            final match = listLocation.firstWhere(
+              (l) => l.name == fallbackCity,
+              orElse: () => LocationsHost(
+                id: 0,
+                cityName: '',
+                description: '',
+                image: '',
+                latitude: '',
+                longitude: null,
+                countryCode: 'US',
+              ),
+            );
+            if (match.id != null && match.id!.toString().isNotEmpty) {
+              deliveryLocations.add({
+                'location': match.id.toString(),
+                'locationName': match.name ?? '',
+                'price': parsedPrice,
+              });
+            }
+          }
         }
+
+        isCheckeddoorstep = deliveryLocations.isNotEmpty;
         if (itemInfoDescription["security_fee"] != null) {
           textEditingControllerSecurityDeposit.text =
               itemInfoDescription["security_fee"].toString();
@@ -3009,9 +3174,14 @@ class AddItemsHostController extends GetxController implements GetxService {
   String vehicleHostMetaData() {
     Map<String, dynamic> map = {
       "rules": selectedRulesList,
-      "doorStep_price": isCheckeddoorstep == true
-          ? textEditingControllerDoorstepPrice.text
-          : "",
+      "deliveryLocations": isCheckeddoorstep == true
+          ? deliveryLocations
+              .map((e) => {
+                    "location": e["location"],
+                    "price": e["price"],
+                  })
+              .toList()
+          : [],
       "security_fee": isCheckedSecurityDeposit == true
           ? textEditingControllerSecurityDeposit.text
           : "",
@@ -3086,7 +3256,7 @@ class AddItemsHostController extends GetxController implements GetxService {
     selectTransmission = "";
     selectedOdometerId.value = "";
     selectedFueltypeid.value = "";
-    textEditingControllerDoorstepPrice.clear();
+    deliveryLocations.clear();
     seatcapicity.clear();
   }
 
@@ -4072,5 +4242,87 @@ class AddItemsHostController extends GetxController implements GetxService {
     
     // Log de fin : Ajoute debugPrint
     debugPrint('🏁 [FIN_PROCEDURE] Fin de la fonction sans crash.');
+  }
+
+  /// Bascule l'état actif/inactif d'un véhicule (Publish / Unpublish).
+  /// Endpoint côté backend : PATCH /api/v1/vehicles/:id/toggle-active (sans body)
+  Future<void> toggleVehicleActiveStatus(int index, String vehicleId) async {
+    // 1) Confirmation : recommandée (surtout pour "désactiver")
+    bool confirmed = false;
+
+    final vehicleController = Get.find<VehicleController>();
+
+    // Déterminer l'état actuel si possible pour afficher le bon message
+    String? currentStatus;
+    try {
+      final matching = vehicleController.myVehiclesItems.firstWhereOrNull(
+        (v) => v.id?.toString() == vehicleId,
+      );
+      currentStatus = matching?.status;
+    } catch (_) {}
+
+    final bool isCurrentlyActive = currentStatus != null && currentStatus.toString() != '0';
+    final String actionVerb = isCurrentlyActive ? 'désactiver' : 'activer';
+    final Color actionColor = isCurrentlyActive ? Colors.orange : Colors.green;
+
+    await Get.defaultDialog(
+      title: 'Confirmation'.tr,
+      middleText: 'Êtes-vous sûr de vouloir ${actionVerb} ce véhicule ? Il ne sera plus visible par les clients.'.tr,
+      textConfirm: isCurrentlyActive ? 'Désactiver'.tr : 'Activer'.tr,
+      textCancel: 'Annuler'.tr,
+      confirmTextColor: Colors.white,
+      cancelTextColor: Colors.grey,
+      buttonColor: actionColor,
+      barrierDismissible: false,
+      onConfirm: () {
+        confirmed = true;
+        Get.back();
+      },
+      onCancel: () {
+        confirmed = false;
+        Get.back();
+      },
+    );
+
+    if (!confirmed) return;
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    try {
+      isLoadingEdit.value = true;
+      update();
+
+      final String togglePath = 'vehicles/$vehicleId/toggle-active';
+      final response = await httpPatch(togglePath);
+
+      isLoadingEdit.value = false;
+      update();
+
+      final bool ok = response != null &&
+          (response is Map<String, dynamic>) &&
+          (response['success'] == true ||
+              response['status'] == 200 ||
+              response['status'] == 201 ||
+              response['statusCode'] == 200 ||
+              response['statusCode'] == 201);
+
+      if (ok) {
+        // Recharger la liste pour garantir l'état à jour
+        try {
+          await vehicleController.fetchMyVehicles();
+          update();
+        } catch (e) {
+          debugPrint('⚠️ [TOGGLE_ACTIVE] Erreur refresh: $e');
+        }
+        showToastMessage('Statut du véhicule mis à jour'.tr);
+      } else {
+        final String message =
+            response?['error'] ?? response?['message'] ?? 'Erreur lors de la mise à jour du statut'.tr;
+        showErrorToastMessage(message);
+      }
+    } catch (e) {
+      isLoadingEdit.value = false;
+      update();
+      showErrorToastMessage('Erreur lors de la mise à jour du statut: ${e.toString()}');
+    }
   }
 }

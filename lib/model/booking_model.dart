@@ -121,6 +121,9 @@ class Bookings {
     String? itemid,
     String? userid,
     String? hostId,
+    String? hostAddress,
+    double? hostLat,
+    double? hostLng,
     String? checkIn,
     String? checkOut,
     String? status,
@@ -176,6 +179,7 @@ class Bookings {
     String? isItemReturnedButton,
     String? isItemRecivedButton,
     String? pickOtp,
+    String? pickupOtp,
     String? dropOtp,
     String? doorStepAddress,
         dynamic iteriorImage,
@@ -185,6 +189,9 @@ class Bookings {
     _itemid = itemid;
     _userid = userid;
     _hostId = hostId;
+    _hostAddress = hostAddress;
+    _hostLat = hostLat;
+    _hostLng = hostLng;
     _checkIn = checkIn;
     _checkOut = checkOut;
     _status = status;
@@ -241,6 +248,7 @@ class Bookings {
     _isItemReturnedButton = isItemReturnedButton;
     _isItemRecivedButton = isItemRecivedButton;
     _pickOtp = pickOtp;
+    _pickOtp ??= pickupOtp;
     _dropOtp = dropOtp;
     _doorStepAddress = doorStepAddress;
 
@@ -288,7 +296,7 @@ class Bookings {
       // Mapping avec fallback pour compatibilité avec différentes versions de l'API
       _itemid = json['itemid']?.toString() ?? json['item_id']?.toString();
       _userid = json['userid']?.toString();
-      _hostId = json['host_id']?.toString();
+      _hostId = json['host_id']?.toString() ?? json['owner']?['_id']?.toString();
       
       // ========== CHAMPS DATES ET STATUS (String) ==========
       _checkIn = safeToString(json['check_in']);
@@ -360,6 +368,23 @@ class Bookings {
       // ========== MÉTADONNÉES (String) ==========
       _module = safeToString(json['module']);
       _token = safeToString(json['token']);
+      
+      // ========== HOST ADDRESS & GEO (nouveaux champs) ==========
+      _hostAddress = safeToString(json['host_address']);
+      try {
+        _hostLat = json['host_lat'] == null
+            ? null
+            : double.tryParse(json['host_lat'].toString());
+      } catch (_) {
+        _hostLat = null;
+      }
+      try {
+        _hostLng = json['host_lng'] == null
+            ? null
+            : double.tryParse(json['host_lng'].toString());
+      } catch (_) {
+        _hostLng = null;
+      }
       _startTime = safeToString(json['start_time']);
       _endTime = safeToString(json['end_time']);
       _bookingMeta = safeToString(json['booking_meta']);
@@ -376,8 +401,11 @@ class Bookings {
 
       // ========== OTP (String mais peuvent être num) ==========
       // Mapping avec fallback pour compatibilité avec différentes versions de l'API
-      _pickOtp = json['pickOtp']?.toString() ?? json['pick_otp']?.toString();
-      _dropOtp = json['dropOtp']?.toString() ?? json['drop_otp']?.toString();
+      _pickOtp = json['pickOtp']?.toString() ??
+          json['pick_otp']?.toString() ??
+          json['pickup_otp']?.toString() ??
+          json['otp']?.toString();
+      _dropOtp = json['drop_otp']?.toString() ?? json['dropOtp']?.toString();
 
       // ========== ADRESSE (String) ==========
       _doorStepAddress = safeToString(json['doorStep_address']);
@@ -448,6 +476,9 @@ class Bookings {
   String? _itemid;
   String? _userid;
   String? _hostId;
+  String? _hostAddress;
+  double? _hostLat;
+  double? _hostLng;
   String? _checkIn;
   String? _checkOut;
   String? _status;
@@ -514,6 +545,9 @@ class Bookings {
   String? get itemid => _itemid;
   String? get userid => _userid;
   String? get hostId => _hostId;
+  String? get hostAddress => _hostAddress;
+  double? get hostLat => _hostLat;
+  double? get hostLng => _hostLng;
   String? get checkIn => _checkIn;
   String? get checkOut => _checkOut;
   String? get status => _status;
@@ -571,6 +605,7 @@ class Bookings {
   String? get isItemReturnedButton => _isItemReturnedButton;
   String? get isItemRecivedButton => _isItemRecivedButton;
   String? get pickOtp => _pickOtp?.toString();
+  String? get pickupOtp => _pickOtp?.toString();
   String? get dropOtp => _dropOtp?.toString();
   String? get doorStepAddress => _doorStepAddress;
 
@@ -657,6 +692,9 @@ class Bookings {
     map['user_email'] = _userEmail;
     map['module'] = _module;
     map['token'] = _token;
+    map['host_address'] = _hostAddress;
+    map['host_lat'] = _hostLat;
+    map['host_lng'] = _hostLng;
     map['start_time'] = _startTime;
     map['end_time'] = _endTime;
     map['booking_meta'] = _bookingMeta;
@@ -667,6 +705,7 @@ class Bookings {
     map['is_item_returned_button'] = _isItemReturnedButton;
     map['is_received_button'] = _isItemRecivedButton;
     map['pick_otp'] = _pickOtp;
+    map['pickup_otp'] = _pickOtp;
     map['drop_otp'] = _dropOtp;
     map['doorStep_address'] = _doorStepAddress;
     

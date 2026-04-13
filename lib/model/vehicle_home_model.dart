@@ -1,4 +1,5 @@
 import 'make_type_model.dart';
+import 'items_model.dart' show resolveMinRentalDaysForSearchItem;
 
 class HomeDataModel {
   int? status;
@@ -109,6 +110,8 @@ class ItemsData {
   bool? isInWishlist;
   String? itemType;
   String? distance;
+  /// Aligné sur [Items.parsedMinRentalDays] pour la pagination des recherches.
+  int parsedMinRentalDays;
   ItemsData({
     this.id,
     this.name,
@@ -129,6 +132,7 @@ class ItemsData {
     this.isInWishlist,
     this.itemType,
     this.distance,
+    this.parsedMinRentalDays = 1,
   });
   set wishlistSetter(bool value) {
     isInWishlist = value;
@@ -184,6 +188,7 @@ class ItemsData {
       isInWishlist: json['is_in_wishlist'],
       itemType: json['item_type'],
       distance: json['distance'],
+      parsedMinRentalDays: resolveMinRentalDaysForSearchItem(json),
     );
   }
 
@@ -248,6 +253,8 @@ class ItemInfo {
   List<dynamic>? rules;
   dynamic vehicleType;
   final String? type;
+  final List<String>? categoryList;
+  final String? customModelName;
   dynamic makeType;
   dynamic model;
   dynamic year;
@@ -284,12 +291,19 @@ class ItemInfo {
   List<dynamic>? reviewData;
   dynamic totalReviews;
   dynamic doorStepPrice;
+  List<dynamic>? deliveryLocations;
+  dynamic weeklyDiscountValue;
+  dynamic monthlyDiscountValue;
+  bool? hasDiscounts;
+  ItemInfoPriceDetails? priceDetails;
 
   ItemInfo({
     this.serviceType,
     this.rules,
     this.vehicleType,
     this.type,
+    this.categoryList,
+    this.customModelName,
     this.makeType,
     this.model,
     this.year,
@@ -326,6 +340,11 @@ class ItemInfo {
     this.reviewData,
     this.totalReviews,
     this.doorStepPrice,
+    this.deliveryLocations,
+    this.weeklyDiscountValue,
+    this.monthlyDiscountValue,
+    this.hasDiscounts,
+    this.priceDetails,
   });
 
   factory ItemInfo.fromJson(Map<String, dynamic> json) {
@@ -340,6 +359,10 @@ class ItemInfo {
       rules: List<String>.from(json['rules'] ?? []),
       vehicleType: json['vehicleType']?.toString() ?? json['item_type']?.toString() ?? 'CAR',
       type: typeValue,
+      customModelName: json['customModelName']?.toString(),
+      categoryList: json['categoryList'] != null
+          ? List<String>.from(json['categoryList'])
+          : <String>[],
       makeType: json['make_type'],
       model: json['model'],
       year: json['year'],
@@ -379,6 +402,63 @@ class ItemInfo {
       reviewData: json['review_data'],
       totalReviews: json['total_reviews'],
       doorStepPrice: json['doorStep_price'],
+      deliveryLocations: (json['deliveryLocations'] as List<dynamic>?) ?? [],
+      weeklyDiscountValue: json['weekly_discount_value'],
+      monthlyDiscountValue: json['monthly_discount_value'],
+      hasDiscounts: json['has_discounts'] is bool
+          ? json['has_discounts']
+          : json['has_discounts']?.toString().toLowerCase() == 'true',
+      priceDetails: json['price_details'] is Map<String, dynamic>
+          ? ItemInfoPriceDetails.fromJson(json['price_details'])
+          : null,
+    );
+  }
+
+  // Nom du modèle en String
+  String? get modelName => model?.toString();
+
+  // Getter d'affichage pour l'UI
+  String get displayModelName {
+    final String base = modelName?.trim() ?? '';
+    if (base.toLowerCase() == 'autre' &&
+        customModelName != null &&
+        customModelName!.trim().isNotEmpty) {
+      return customModelName!.trim();
+    }
+    return base;
+  }
+
+  bool get isSmokingAllowed {
+    return smokingStatus == true ||
+        smokingStatus == "true" ||
+        smokingStatus == "1" ||
+        smokingStatus == 1;
+  }
+
+  bool get isInternationalTravelAllowed {
+    return internationalTravel == true ||
+        internationalTravel == "true" ||
+        internationalTravel == "1" ||
+        internationalTravel == 1;
+  }
+}
+
+class ItemInfoPriceDetails {
+  final dynamic originalDailyPrice;
+  final dynamic discountedDailyPriceWeekly;
+  final dynamic discountedDailyPriceMonthly;
+
+  ItemInfoPriceDetails({
+    this.originalDailyPrice,
+    this.discountedDailyPriceWeekly,
+    this.discountedDailyPriceMonthly,
+  });
+
+  factory ItemInfoPriceDetails.fromJson(Map<String, dynamic> json) {
+    return ItemInfoPriceDetails(
+      originalDailyPrice: json['original_daily_price'],
+      discountedDailyPriceWeekly: json['discounted_daily_price_weekly'],
+      discountedDailyPriceMonthly: json['discounted_daily_price_monthly'],
     );
   }
 }

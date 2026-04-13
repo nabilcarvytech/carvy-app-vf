@@ -1,3 +1,5 @@
+import 'package:carvy/model/vendor_model.dart';
+
 class GetUserProfile {
   GetUserProfile({
     num? status,
@@ -92,32 +94,36 @@ class Data {
   }
 
   Data.fromJson(dynamic json) {
-    _name = json['name'];
-    _profileImage = json['profile_image'];
-    _profileBackground = json['profile_background'];
-    _introText = json['intro_text'];
-    
+    final m = json is Map
+        ? Map<String, dynamic>.from(json as Map)
+        : <String, dynamic>{};
+    _name = m['name'];
+    final rawImg = Vendor.rawImageFromJson(m);
+    _profileImage = Vendor.resolveImageUrl(rawImg);
+    _profileBackground = m['profile_background'];
+    _introText = m['intro_text'];
+
     // Sécurisation du parsing numérique : Node.js peut envoyer des nombres sous forme de String
-    _totalReviewsOnItems = json['total_reviews_on_items'] != null
-        ? (json['total_reviews_on_items'] is num
-            ? json['total_reviews_on_items']
-            : num.tryParse(json['total_reviews_on_items'].toString()))
+    _totalReviewsOnItems = m['total_reviews_on_items'] != null
+        ? (m['total_reviews_on_items'] is num
+            ? m['total_reviews_on_items']
+            : num.tryParse(m['total_reviews_on_items'].toString()))
         : null;
-    
-    _averageRatingOnItems = json['average_rating_on_items'] != null
-        ? (json['average_rating_on_items'] is num
-            ? json['average_rating_on_items']
-            : num.tryParse(json['average_rating_on_items'].toString()))
+
+    _averageRatingOnItems = m['average_rating_on_items'] != null
+        ? (m['average_rating_on_items'] is num
+            ? m['average_rating_on_items']
+            : num.tryParse(m['average_rating_on_items'].toString()))
         : null;
-    
-    _yearsOfHosting = json['years_of_hosting'];
-    _languages = json['languages'];
-    _liveCity = json['livecity'];
-    _age = json['age'];
-    _joinIn = json['join_in'];
-    _verifiedIdentity = json['verified_identity'];
-    _verifiedEmail = json['verified_email'];
-    _verifiedPhone = json['verified_phone'];
+
+    _yearsOfHosting = m['years_of_hosting'];
+    _languages = m['languages'];
+    _liveCity = m['livecity'];
+    _age = m['age'];
+    _joinIn = m['join_in'];
+    _verifiedIdentity = m['verified_identity'];
+    _verifiedEmail = m['verified_email'];
+    _verifiedPhone = m['verified_phone'];
   }
 
   String? _name;

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -7,6 +8,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/controller/global_scope_controller.dart';
@@ -15,6 +18,8 @@ import 'package:carvy/model/check_email.dart';
 import 'package:carvy/model/check_mobile_model.dart';
 import 'package:carvy/model/login_model.dart' as logmod;
 import 'package:carvy/model/login_model.dart';
+import 'package:carvy/model/get_user_profile.dart';
+import 'package:carvy/model/vendor_model.dart';
 import 'package:carvy/model/update_profile.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/view/auth/otp_screen.dart';
@@ -81,9 +86,15 @@ class ProfileController extends GetxController implements GetxService {
       if (loginModel!.data!.email != null) {
         textEditingProfileControllerEmail.text = loginModel!.data!.email!;
       }
-      if (loginModel!.data!.profileImage != null &&
-          loginModel!.data!.profileImage!['url'] != null) {
-        myImage.value = loginModel!.data!.profileImage!['url'];
+      final avatarMap = <String, dynamic>{
+        'profile_image': loginModel!.data!.profileImage,
+        'agency_logo': loginModel!.data!.agencyLogo,
+      };
+      final rawAvatar = Vendor.rawImageFromJson(avatarMap);
+      final resolvedAvatar = Vendor.resolveImageUrl(rawAvatar);
+      if (resolvedAvatar != null && resolvedAvatar.isNotEmpty) {
+        print('📸 [DEBUG] URL Image Agence : $resolvedAvatar');
+        myImage.value = resolvedAvatar;
       }
       if (loginModel!.data!.intro != null) {
         textEditingProfileControllerDescription.text = loginModel!.data!.intro;
@@ -113,10 +124,7 @@ class ProfileController extends GetxController implements GetxService {
   }
 
   clear() {
-    if (loginModel!.data!.profileImage != null &&
-        loginModel!.data!.profileImage!['url'] != null) {
-      myImage.value = "";
-    }
+    myImage.value = "";
   }
 
   Future updateProfileData(
@@ -398,7 +406,6 @@ class ProfileController extends GetxController implements GetxService {
     );
 
     int compressedSize = compressedImage!.length;
-    var base64Image = base64Encode(compressedImage);
 
     String format = '';
     if (compressedSize > 8) {
@@ -408,40 +415,14 @@ class ProfileController extends GetxController implements GetxService {
         format = 'png';
       }
     }
-    uploadProfileMethod("data:image/$format;base64,$base64Image");
+    final ext = format == 'png' ? 'png' : 'jpeg';
+    await uploadProfileBytes(compressedImage, 'avatar.$ext');
   }
 
-  myNetworkImage(String image) {
+  Widget myNetworkImage(String image) {
     return Container(
       color: grey4,
-      child: Image.network(
-        image,
-        fit: BoxFit.fitHeight,
-        loadingBuilder: (BuildContext context, Widget child,
-            ImageChunkEvent? loadingProgress) {
-          if (loadingProgress == null) {
-            return child;
-          } else {
-            return Container(
-              color: const Color.fromARGB(255, 250, 247, 247),
-              child: Center(
-                child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          (loadingProgress.expectedTotalBytes ?? 1)
-                      : null,
-                ),
-              ),
-            );
-          }
-        },
-        errorBuilder: (context, exception, stackTrace) {
-          return Image.asset(
-            "assets/images/ezgif.com-crop.gif",
-            fit: BoxFit.fill,
-          );
-        },
-      ),
+      child: buildAvatarImage(image, fit: BoxFit.fitHeight),
     );
   }
 
@@ -494,51 +475,166 @@ class ProfileController extends GetxController implements GetxService {
     }
   }
 
-  uploadProfileMethod(image) async {
-    globalScopeController.isUploadingImage.value = true;
-    showLoading();
-    // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-    // var response =
-    //     await httpPost(Config.uploadProfileImage, {"profile_image": image});
-
-    // MOCK: Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // MOCK: Static success response for uploading profile image
-    var response = {
-      "status": 200,
-      "message": "Profile image uploaded successfully",
-      "error": "",
-      "data": {
-        "profile_image": {"url": image, "thumbnail": image, "preview": image}
+  String? _extractAvatarUrlFromResponse(Map<String, dynamic> json) {
+    final d = json['data'];
+    if (d is Map) {
+      if (d['url'] != null) return d['url'].toString();
+      final inner = d['data'];
+      if (inner is Map && inner['url'] != null) {
+        return inner['url'].toString();
       }
-    };
-    // ========== END MOCK DATA ==========
-    globalScopeController.isUploadingImage.value = false;
-    update();
-    if (response != null) {
-      if (response['status'] == 200) {
-        closeLoading();
-        final data = response['data'] as Map<String, dynamic>?;
-        final profileImage = data?['profile_image'] as Map<String, dynamic>?;
-        final imageUrl =
-            profileImage?['url'] ?? data?['profile_image_url'] ?? "";
-        loginModel!.data!.profileImageSetter = imageUrl;
-        myImage.value = imageUrl;
-        update();
-        closeLoading();
-        showToastMessage(response['message']);
+      final pi = d['profile_image'];
+      if (pi is Map && pi['url'] != null) return pi['url'].toString();
+    }
+    if (json['url'] != null) return json['url'].toString();
+    return null;
+  }
+
+  MediaType _mediaTypeForAvatar(String filename, Uint8List bytes) {
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.png')) return MediaType('image', 'png');
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+      return MediaType('image', 'jpeg');
+    }
+    if (bytes.length > 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50) {
+      return MediaType('image', 'png');
+    }
+    return MediaType('image', 'jpeg');
+  }
+
+  String? _profileImageUrlFromGetUserResponse(Map<String, dynamic> response) {
+    final d = response['data'];
+    if (d is! Map) return null;
+    final m = Map<String, dynamic>.from(d as Map);
+    final raw = Vendor.rawImageFromJson(m);
+    return Vendor.resolveImageUrl(raw);
+  }
+
+  Future<void> refreshUserProfileAfterAvatar() async {
+    try {
+      if (loginModel?.data?.id == null) return;
+      final response = await httpGet(Config.getUserProfile, {
+        "userid": loginModel!.data!.id,
+      });
+      if (response is! Map<String, dynamic>) return;
+      final st = response['status'];
+      if (st != 200 && st != '200') return;
+      final vendorDiag = Vendor.fromJson(response['data']);
+      print(
+          '📸 [CRITICAL DEBUG] URL Image reçue du Backend : "${vendorDiag.image}"');
+      String? img = _profileImageUrlFromGetUserResponse(response);
+      if (img == null || img.isEmpty) {
+        final gp = GetUserProfile.fromJson(response);
+        img = gp.data?.profileImage;
+      }
+      img = Vendor.resolveImageUrl(img);
+      if (img != null && img.isNotEmpty) {
+        print('📸 [DEBUG] URL Image Agence : $img');
+        loginModel!.data!.profileImageSetter = img;
+        myImage.value = img;
+        authController.setLoginModel(loginModel!);
         UserData userObj = UserData();
         userObj.saveLoginData("UserData", jsonEncode(loginModel!.toJson()));
-      } else {
-        showErrorToastMessage(response['error']);
-        closeLoading();
+        update();
       }
+    } catch (_) {}
+  }
+
+  Future<void> uploadProfileBytes(Uint8List bytes, String filename) async {
+    globalScopeController.isUploadingImage.value = true;
+    showLoading();
+    try {
+      if (bearerToken.isEmpty) {
+        showErrorToastMessage("Session expired. Please log in again.".tr);
+        return;
+      }
+      if (loginModel?.data == null) {
+        showErrorToastMessage("User data missing.".tr);
+        return;
+      }
+
+      final uri = Uri.parse(
+          '${Config.baseUrlWithoutV1}${Config.uploadAvatar}');
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $bearerToken';
+      if (token.isNotEmpty) {
+        request.headers['x-auth-token'] = token;
+      }
+
+      final file = http.MultipartFile.fromBytes(
+        'avatar',
+        bytes,
+        filename: filename,
+        contentType: _mediaTypeForAvatar(filename, bytes),
+      );
+      request.files.add(file);
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+
+      if (response.statusCode != 200) {
+        String msg = 'Upload failed'.tr;
+        try {
+          final errJson = jsonDecode(response.body);
+          if (errJson is Map &&
+              (errJson['message'] != null || errJson['error'] != null)) {
+            msg = (errJson['message'] ?? errJson['error']).toString();
+          }
+        } catch (_) {}
+        showErrorToastMessage(msg);
+        return;
+      }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        showErrorToastMessage('Invalid server response'.tr);
+        return;
+      }
+
+      final st = decoded['status'];
+      final ok = st == null ||
+          st == 200 ||
+          st == '200' ||
+          st == true ||
+          decoded['success'] == true;
+      if (!ok) {
+        showErrorToastMessage(
+            (decoded['error'] ?? decoded['message'] ?? 'Upload failed')
+                .toString());
+        return;
+      }
+
+      final imageUrl = _extractAvatarUrlFromResponse(decoded);
+      if (imageUrl == null || imageUrl.isEmpty) {
+        showErrorToastMessage('No image URL in response'.tr);
+        return;
+      }
+
+      loginModel!.data!.profileImageSetter = imageUrl;
+      myImage.value = imageUrl;
+      authController.setLoginModel(loginModel!);
+      update();
+      UserData userObj = UserData();
+      userObj.saveLoginData("UserData", jsonEncode(loginModel!.toJson()));
+      final okMsg = decoded['message']?.toString();
+      showToastMessage(okMsg != null && okMsg.isNotEmpty
+          ? okMsg
+          : 'Profile image uploaded successfully'.tr);
+
+      await refreshUserProfileAfterAvatar();
+    } catch (e) {
+      showErrorToastMessage(e.toString());
+    } finally {
+      globalScopeController.isUploadingImage.value = false;
+      closeLoading();
+      update();
     }
   }
 
   void selectImageForweb() async {
-    profileController.profileimageForWeb = null;
+    profileimageForWeb = null;
 
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
@@ -549,13 +645,10 @@ class ProfileController extends GetxController implements GetxService {
     if (result != null && result.files.isNotEmpty) {
       for (var file in result.files) {
         Uint8List fileBytes = file.bytes!;
-        String base64Image = base64Encode(fileBytes);
-        String format = detectImageFormat(fileBytes);
         XFile xfile = XFile.fromData(fileBytes, name: file.name);
 
-        profileController.profileimageForWeb = xfile;
-        profileController
-            .uploadProfileMethod("data:image/$format;base64,$base64Image");
+        profileimageForWeb = xfile;
+        await uploadProfileBytes(fileBytes, file.name);
       }
     }
   }
