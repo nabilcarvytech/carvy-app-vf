@@ -107,6 +107,13 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
       debugPrint(
           '✅ [initState] addPostFrameCallback exécuté - Framework Flutter prêt');
 
+      if (bookingController.startDate.value.isNotEmpty &&
+          bookingController.endDate.value.isNotEmpty &&
+          bookingController.selectedStartTime.value.isNotEmpty &&
+          bookingController.selectedEndTime.value.isNotEmpty) {
+        bookingController.vehicleBookingTunnelComplete.value = true;
+      }
+
       if (token.isNotEmpty) {
         print('🔐 [initState] Token présent, appel de getData()');
         debugPrint('🔐 [initState] Token présent, appel de getData()');
@@ -122,13 +129,23 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
     });
   }
 
+  void _onSummaryAppBarBack() {
+    if (handleBoackfromPayment == true) {
+      bookingScetionClean(context);
+      return;
+    }
+    setdefultData();
+    Get.back();
+  }
+
   @override
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvoked: (bool didPop) {
         if (didPop) return;
+        _onSummaryAppBarBack();
       },
       child: Align(
         alignment: Alignment.center,
@@ -195,7 +212,11 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                     width: double.infinity, height: 50.0),
                                 child: ElevatedButton(
                                     onPressed: (bookingController
-                                            .isProcessingBooking.value || !isPolicyAccepted)
+                                            .isProcessingBooking.value ||
+                                            !isPolicyAccepted ||
+                                            !bookingController
+                                                .vehicleBookingTunnelComplete
+                                                .value)
                                         ? null
                                         : () {
                                             // Afficher un message si la politique n'est pas acceptée
@@ -281,9 +302,9 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                           .endDate.value);
                                               if (checkInDate != null &&
                                                   checkOutDate != null) {
-                                                final totalNight =
+                                                final billableDays =
                                                     bookingController
-                                                        .getDaysInBetween(
+                                                        .vehicleBillableNightCount(
                                                   checkInDate,
                                                   checkOutDate,
                                                 );
@@ -294,7 +315,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 if (minRentalDaysRequired !=
                                                         null &&
                                                     minRentalDaysRequired > 0 &&
-                                                    totalNight.length <
+                                                    billableDays <
                                                         minRentalDaysRequired) {
                                                   showErrorToastMessage(
                                                     'min_rental_duration_vehicle_days'
@@ -355,9 +376,9 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                           .endDate.value);
                                               if (checkInDate != null &&
                                                   checkOutDate != null) {
-                                                final totalNight =
+                                                final billableDays =
                                                     bookingController
-                                                        .getDaysInBetween(
+                                                        .vehicleBillableNightCount(
                                                   checkInDate,
                                                   checkOutDate,
                                                 );
@@ -368,7 +389,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 if (minRentalDaysRequired !=
                                                         null &&
                                                     minRentalDaysRequired > 0 &&
-                                                    totalNight.length <
+                                                    billableDays <
                                                         minRentalDaysRequired) {
                                                   showErrorToastMessage(
                                                     'min_rental_duration_vehicle_days'
@@ -399,7 +420,10 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             right: 5,
                                             top: 10,
                                             bottom: 10),
-                                        backgroundColor: isPolicyAccepted
+                                        backgroundColor: (isPolicyAccepted &&
+                                                bookingController
+                                                    .vehicleBookingTunnelComplete
+                                                    .value)
                                             ? getColorBasedOnActiveModuleid()
                                             : Colors.grey, // Gris quand désactivé
                                         disabledBackgroundColor: Colors.grey,
@@ -445,15 +469,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
               scrolledUnderElevation: 0,
               leadingWidth: 80,
               leading: GestureDetector(
-                  onTap: () {
-                    if (handleBoackfromPayment == true) {
-                      bookingScetionClean(context);
-
-                      return;
-                    }
-                    setdefultData();
-                    Get.back();
-                  },
+                  onTap: _onSummaryAppBarBack,
                   child: Padding(
                     padding: const EdgeInsets.only(
                         left: 20, top: 8, bottom: 8, right: 20),
@@ -949,15 +965,18 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                 ),
                               ),
                             ),
-                            // ========== SECTION "Votre voyage" (masquée si pas de dates) ==========
+                            // ========== SECTION "Votre voyage" (tirets si pas encore renseigné) ==========
                             Obx(() {
-                              final hasDatesSelected = bookingController
-                                          .startDate.value.isNotEmpty &&
-                                      bookingController.endDate.value.isNotEmpty;
-                              
-                              return Visibility(
-                                visible: hasDatesSelected,
-                                child: Padding(
+                              final startEmpty =
+                                  bookingController.startDate.value.isEmpty;
+                              final endEmpty =
+                                  bookingController.endDate.value.isEmpty;
+                              final startTimeEmpty = bookingController
+                                  .selectedStartTime.value.isEmpty;
+                              final endTimeEmpty = bookingController
+                                  .selectedEndTime.value.isEmpty;
+
+                              return Padding(
                                   padding: const EdgeInsets.only(
                                       left: 20, right: 20),
                                   child: Container(
@@ -1010,8 +1029,9 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 const Spacer(),
                                                 Obx(
                                                   () => Text(
-                                                      '${bookingController.startDate}'
-                                                          .tr,
+                                                      startEmpty
+                                                          ? '---'
+                                                          : '${bookingController.startDate}',
                                                       style: regular2(context)
                                                           .copyWith(
                                                               color: notifires
@@ -1034,8 +1054,9 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 const Spacer(),
                                                 Obx(
                                                   () => Text(
-                                                    '${bookingController.endDate}'
-                                                        .tr,
+                                                    endEmpty
+                                                        ? '---'
+                                                        : '${bookingController.endDate}',
                                                     style: regular2(context)
                                                         .copyWith(
                                                             color: notifires
@@ -1058,10 +1079,12 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 ),
                                                 const Spacer(),
                                                 Text(
-                                                    TimeFormatter.to24Hour(
-                                                        bookingController
-                                                            .selectedStartTime
-                                                            .toString()),
+                                                    startTimeEmpty
+                                                        ? '---'
+                                                        : TimeFormatter.to24Hour(
+                                                            bookingController
+                                                                .selectedStartTime
+                                                                .toString()),
                                                     style: regular2(context)
                                                         .copyWith(
                                                             color: notifires
@@ -1082,10 +1105,12 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 ),
                                                 const Spacer(),
                                                 Text(
-                                                  TimeFormatter.to24Hour(
-                                                      bookingController
-                                                          .selectedEndTime
-                                                          .toString()),
+                                                    endTimeEmpty
+                                                        ? '---'
+                                                        : TimeFormatter.to24Hour(
+                                                            bookingController
+                                                                .selectedEndTime
+                                                                .toString()),
                                                   style: regular2(context)
                                                       .copyWith(
                                                           color: notifires
@@ -1486,9 +1511,26 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                 final discountedTotal =
                                                     selectedDailyPrice *
                                                         totalNights;
+                                                // Total locatif issu du résumé API / controller (cohérent avec « Payer maintenant »).
+                                                final modelRentalSubtotal =
+                                                    double.tryParse(bookingController
+                                                                .getItemPrices
+                                                                ?.data
+                                                                ?.priceAfterDiscount ??
+                                                            '') ??
+                                                        double.tryParse(bookingController
+                                                                .getItemPrices
+                                                                ?.data
+                                                                ?.priceBeforeDiscount ??
+                                                            '') ??
+                                                        0.0;
+                                                final lineGreenAmount =
+                                                    modelRentalSubtotal > 0
+                                                        ? modelRentalSubtotal
+                                                        : discountedTotal;
                                                 final savedAmount =
                                                     (initialTotal -
-                                                            discountedTotal)
+                                                            lineGreenAmount)
                                                         .clamp(
                                                             0, double.infinity);
 
@@ -1514,7 +1556,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                         ),
                                                         const Spacer(),
                                                         Text(
-                                                          "${bookingController.currency} ${discountedTotal.toStringAsFixed(2)}",
+                                                          "${bookingController.currency} ${lineGreenAmount.toStringAsFixed(2)}",
                                                           style: regular2(
                                                                   context)
                                                               .copyWith(
@@ -1900,7 +1942,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             child: GestureDetector(
                                               onTap: () {
                                                 rulesbuttomSheet(context,
-                                                    title: 'Rules'.tr,
+                                                    title: 'Vehicle Rules'.tr,
                                                     list: widget
                                                         .itemDetails!.rules!);
                                               },
@@ -1927,7 +1969,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                         width: 10,
                                                       ),
                                                       Text(
-                                                        "Rules".tr,
+                                                        'Vehicle Rules'.tr,
                                                         style: regular3(context)
                                                             .copyWith(
                                                                 color:
@@ -1939,7 +1981,8 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                           rulesbuttomSheet(
                                                             context,
                                                             title:
-                                                                'Car Rules'.tr,
+                                                                'Vehicle Rules'
+                                                                    .tr,
                                                             list:
                                                                 itemInfoDetails[
                                                                     "rules"],
@@ -1967,8 +2010,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                   ],
                                 ),
                               ),
-                            ),
-                              );
+                            );
                             }),
                             const SizedBox(
                               height: 20,

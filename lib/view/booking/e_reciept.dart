@@ -94,18 +94,27 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
       alignment: Alignment.center,
       child: SizedBox(
         width: Dimensions.containerWidth,
-        child: Scaffold(
-          backgroundColor: notifires.getbgcolor,
-          appBar: CustomAppBars(
-            title: 'Customer Receipt'.tr,
+        child: PopScope(
+          canPop: false,
+          onPopInvoked: (bool didPop) {
+            if (didPop) return;
+            Get.back();
+          },
+          child: Scaffold(
             backgroundColor: notifires.getbgcolor,
-            iconColor: notifires.getwhiteblackcolor,
-            titleColor: notifires.getwhiteblackcolor,
-          ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 15, right: 15),
-              child: erecieptBasedOnModuleId(),
+            appBar: CustomAppBars(
+              title: 'Customer Receipt'.tr,
+              backgroundColor: notifires.getbgcolor,
+              iconColor: notifires.getwhiteblackcolor,
+              titleColor: notifires.getwhiteblackcolor,
+              elevation: 0,
+              onBackButtonPressed: () => Get.back(),
+            ),
+            body: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 15, right: 15),
+                child: erecieptBasedOnModuleId(),
+              ),
             ),
           ),
         ),
@@ -446,7 +455,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                           }
                         },
                         icon: const Icon(Icons.directions_car),
-                        label: Text('Voir l\'itinéraire'.tr),
+                        label: Text('View itinerary'.tr),
                       ),
                     );
                   },

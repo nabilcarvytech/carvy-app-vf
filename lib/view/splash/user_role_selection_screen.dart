@@ -11,7 +11,7 @@ import 'package:carvy/work_space.dart';
 import '../onBoarding/vehicle/vehicle_on_boarding_screen.dart';
 import '../auth/agency_registration_screen.dart';
 import '../auth/login_screen.dart';
-import '../home/client_home_screen.dart';
+import '../auth/register/register_wizard_screen.dart';
 
 class UserRoleSelectionScreen extends StatefulWidget {
   const UserRoleSelectionScreen({super.key});
@@ -87,15 +87,16 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
         );
       }
     } else if (selectedRole == UserRole.client) {
-      // Pour Client : naviguer vers ClientHomeScreen
-      debugPrint('Navigating to ClientHomeScreen');
+      // Nouveau client : inscription (wizard). Ne pas passer par ClientHomeScreen :
+      // sans UserData ça envoyait onboarding → Login.
+      debugPrint('Navigating to RegisterWizardScreen (client signup)');
       if (webPlateForm) {
-        Get.offNamed(WebRoutes.clientHomeScreen);
+        Get.offNamed(WebRoutes.registerWizardScreen);
       } else {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => const ClientHomeScreen(),
+            builder: (context) => const RegisterWizardScreen(),
           ),
         );
       }

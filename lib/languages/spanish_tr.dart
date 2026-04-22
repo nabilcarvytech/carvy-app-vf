@@ -345,6 +345,13 @@ const Map<String, String> esES = {
   "Product Details ": "Detalles del producto ",
   "Space Details": "Detalles del espacio",
   "My Booking": "Mis reservas",
+  "Special offers": "Ofertas especiales",
+  "Automatic discounts based on duration":
+      "Descuentos automáticos según la duración",
+  "Discount 7d+: @pct": "Descuento +7 días: @pct",
+  "Discount 30d+: @pct": "Descuento +30 días: @pct",
+  "Confirm reception": "Confirmar la recepción",
+  "View itinerary": "Ver el itinerario",
   "Upcoming": "Próximas",
   "Previous": "Anteriores",
   "No Completed Available": "No hay reservas completadas disponibles",
@@ -1072,6 +1079,9 @@ const Map<String, String> esES = {
       "Por favor, ingresa el número de casa y el número de piso.",
   "Please select the address from the map.":
       "Por favor, selecciona la dirección desde el mapa.",
+  "Retrieving your location...": "Obteniendo tu ubicación...",
+  "Select a location on the map or use the search field.":
+      "Selecciona una ubicación en el mapa o usa el campo de búsqueda.",
   "Error: Invalid Google API key. Please check your configuration.":
       "Error: Clave de API de Google inválida. Por favor, verifica tu configuración.",
   "The Price field must be a Number": "El campo de precio debe ser un número",
@@ -1131,6 +1141,8 @@ const Map<String, String> esES = {
   "By": "Por",
   "SeatsTap to view": "Toca para ver",
   "Vehicle Rules": "Reglas del vehículo",
+  "No vehicle rules specified by the host.":
+      "El anfitrión no ha indicado reglas específicas para este vehículo.",
   "Something went wrong. Please try again.":
       "Algo salió mal. Por favor, inténtalo de nuevo.",
   "Dates": "Fechas",
@@ -1210,6 +1222,9 @@ const Map<String, String> esES = {
   "Choose Payment Method": "Elegir método de pago",
   "InvalidNumber": "Número inválido",
   "Payment Method": "Método de pago",
+  "Details": "Detalles",
+  "Pickup OTP: @code": "OTP de recogida: @code",
+  "Drop OTP: @code": "OTP de entrega: @code",
   "Pickup OTP?": "¿OTP de recogida?",
   "Interior Image Required'": "Se requiere imagen interior",
   "Enter the pickup OTP given by the vendor\"":
@@ -1263,5 +1278,34 @@ const Map<String, String> esES = {
   "Smoking Allowed": "Fumar permitido",
   "min_rental_duration_vehicle_days":
       "La duración mínima del alquiler para este vehículo es de @days días.",
-  "International Travel Allowed": "Viaje internacional permitido"
+  "International Travel Allowed": "Viaje internacional permitido",
+  "register_wizard_app_bar_title": "Crear una cuenta",
+  "register_wizard_who_are_you": "¿Quién eres?",
+  "register_wizard_choose_profile": "Elige tu perfil para registrarte",
+  "register_wizard_role_agency": "Agencia",
+  "register_wizard_role_agency_desc": "Quiero alquilar mis vehículos",
+  "register_wizard_role_client": "Cliente",
+  "register_wizard_role_client_desc": "Busco un vehículo para alquilar",
+  "register_wizard_already_have_intro": "Ya tengo una cuenta:",
+  "register_wizard_login_outline": "Iniciar sesión",
+  "register_wizard_otp_placeholder": "Introduce el código OTP",
+  "terms_summary_payments_title": "Pagos",
+  "terms_summary_payments_body":
+      "Los importes pueden incluir alquiler, depósito e impuestos.",
+  "terms_summary_cancel_title": "Cancelaciones",
+  "terms_summary_cancel_body":
+      "Las reglas de cancelación siguen la política indicada en cada anuncio.",
+  "terms_summary_support_title": "Asistencia",
+  "terms_summary_support_body":
+      "Contáctanos por la aplicación para ayuda con reservas o tu cuenta.",
+  "Register step identity": "Tu perfil",
+  "Register step identity subtitle":
+      "Completa tus datos para crear tu cuenta Carvy.",
+  "Register step phone": "Verifica tu teléfono",
+  "Register step phone subtitle":
+      "Enviaremos un código por SMS (Twilio) para confirmar tu número.",
+  "Register step terms": "Condiciones generales",
+  "Register step terms subtitle":
+      "Lee los siguientes puntos antes de continuar.",
+  "register_wizard_resend_in_seconds": "Reenviar código en @n s"
 };

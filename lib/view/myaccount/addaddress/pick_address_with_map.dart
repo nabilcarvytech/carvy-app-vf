@@ -28,19 +28,61 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
   AddAddressController addAddressController = Get.find();
   late GoogleMapController mapController;
   BitmapDescriptor? customMarkerIcon;
+  LatLng? _pendingCameraTarget;
+  bool _mapControllerReady = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      addAddressController.getDoorStepAddressp(true);
-      final initialPosition = LatLng(
-        double.parse(addAddressController.doorSteplatitude.value),
-        double.parse(addAddressController.doorSteplongitude.value),
-      );
-      _onMapTapped(initialPosition);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initializeMapFlow());
     _setCustomMarkerIcon();
+  }
+
+  Future<void> _initializeMapFlow() async {
+    await addAddressController.getDoorStepAddressp(true);
+    await _setCustomMarkerIcon();
+    if (!mounted) return;
+
+    if (addAddressController.hasValidDoorstepCoordinates) {
+      final lat = double.parse(addAddressController.doorSteplatitude.value);
+      final lng = double.parse(addAddressController.doorSteplongitude.value);
+      final target = LatLng(lat, lng);
+      _updateMarkerPosition(target);
+      _pendingCameraTarget = target;
+      _applyPendingCamera();
+      final needsResolve = addAddressController.addressText.value.trim().isEmpty &&
+          addAddressController.fullAddressController.text.trim().isEmpty;
+      if (needsResolve) {
+        await addAddressController.resolveAddressFromLatLng(lat, lng);
+      }
+    } else {
+      await addAddressController.getUserLocationForBetterSearch(context);
+      if (!mounted) return;
+      if (addAddressController.hasValidDoorstepCoordinates) {
+        final lat = double.parse(addAddressController.doorSteplatitude.value);
+        final lng = double.parse(addAddressController.doorSteplongitude.value);
+        final target = LatLng(lat, lng);
+        _updateMarkerPosition(target);
+        _pendingCameraTarget = target;
+        _applyPendingCamera();
+      } else {
+        final fallback = LatLng(
+          AddAddressController.fallbackMapLat,
+          AddAddressController.fallbackMapLng,
+        );
+        _updateMarkerPosition(fallback);
+        _pendingCameraTarget = fallback;
+        _applyPendingCamera();
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _applyPendingCamera() {
+    final t = _pendingCameraTarget;
+    if (t == null || !_mapControllerReady) return;
+    mapController.animateCamera(CameraUpdate.newLatLng(t));
+    _pendingCameraTarget = null;
   }
 
   Future<void> _setCustomMarkerIcon() async {
@@ -54,32 +96,35 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
   }
 
   Timer? _debounceTimer;
+  LatLng? _lastCameraTarget;
 
   void _onMapTapped(LatLng position) async {
     if (customMarkerIcon == null) {
       await _setCustomMarkerIcon();
     }
-    _updateMarkerPosition(position);
-    updateMapLocation(position);
     addAddressController.doorSteplatitude.value = position.latitude.toString();
     addAddressController.doorSteplongitude.value =
         position.longitude.toString();
+    _updateMarkerPosition(position);
+    await updateMapLocation(position);
   }
 
   void updatePosition(CameraPosition position) {
+    _lastCameraTarget = position.target;
+  }
+
+  void _onCameraIdle() {
+    final target = _lastCameraTarget;
+    if (target == null) return;
     if (_debounceTimer?.isActive ?? false) {
       _debounceTimer!.cancel();
     }
-
-    _debounceTimer = Timer(const Duration(milliseconds: 250), () {
-      final newLatLng =
-          LatLng(position.target.latitude, position.target.longitude);
-      _updateMarkerPosition(newLatLng);
-      updateMapLocation(newLatLng);
-      addAddressController.doorSteplatitude.value =
-          position.target.latitude.toString();
-      addAddressController.doorSteplongitude.value =
-          position.target.longitude.toString();
+    // Debounce 500ms pour éviter les appels API à chaque micro-ajustement.
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      addAddressController.doorSteplatitude.value = target.latitude.toString();
+      addAddressController.doorSteplongitude.value = target.longitude.toString();
+      _updateMarkerPosition(target);
+      updateMapLocation(target);
     });
   }
 
@@ -96,6 +141,10 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
           draggable: true,
           icon: customMarkerIcon ?? BitmapDescriptor.defaultMarker,
           onDragEnd: (LatLng newPosition) {
+            addAddressController.doorSteplatitude.value =
+                newPosition.latitude.toString();
+            addAddressController.doorSteplongitude.value =
+                newPosition.longitude.toString();
             updateMapLocation(newPosition);
           },
         ),
@@ -119,24 +168,17 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
   Future<void> updateMapLocation(LatLng newPosition) async {
     addAddressController.selectedLat = newPosition.latitude.toString();
     addAddressController.selectedLong = newPosition.longitude.toString();
-    await addAddressController.getPlaceDetailFromLatLng(
-        newPosition.latitude, newPosition.longitude);
-    String mainAddress = await addAddressController.getMainAddress(
-        newPosition.latitude, newPosition.longitude);
-    int maxLength = 75;
-    String shortAddress = shortenAddress(mainAddress, maxLength);
-    addAddressController.fullAddressController.text = shortAddress;
-    setState(() {});
-  }
-
-  String shortenAddress(String address, int maxLength) {
-    return address.length <= maxLength
-        ? address
-        : '${address.substring(0, maxLength)}...';
+    await addAddressController.resolveAddressFromLatLng(
+      newPosition.latitude,
+      newPosition.longitude,
+    );
+    if (mounted) setState(() {});
   }
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
+    _mapControllerReady = true;
+    _applyPendingCamera();
   }
 
   void _zoomIn() {
@@ -186,12 +228,54 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            maxLines: 2,
-                            addAddressController.fullAddressController.text,
-                            style: boldstyle(context)
-                                .copyWith(fontWeight: FontWeight.bold),
-                          ),
+                          child: Obx(() {
+                            if (addAddressController.isAddressLoading.value) {
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      "Retrieving your location...".tr,
+                                      maxLines: 3,
+                                      style: boldstyle(context).copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+                            final addr = addAddressController
+                                    .addressText.value.isNotEmpty
+                                ? addAddressController.addressText.value
+                                : addAddressController
+                                    .fullAddressController.text;
+                            if (addr.isEmpty) {
+                              return Text(
+                                "Select a location on the map or use the search field."
+                                    .tr,
+                                maxLines: 3,
+                                style: boldstyle(context).copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            }
+                            return Text(
+                              addr,
+                              maxLines: 2,
+                              style: boldstyle(context)
+                                  .copyWith(fontWeight: FontWeight.bold),
+                            );
+                          }),
                         ),
                       ],
                     ),
@@ -202,27 +286,41 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
                     child: SizedBox(
                       height: 50,
                       width: Get.width,
-                      child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (builder) => const UserAddress()));
-                          },
+                      child: Obx(() {
+                        final ok =
+                            addAddressController.canConfirmDoorstepAddress;
+                        return ElevatedButton(
+                          onPressed: ok
+                              ? () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (builder) =>
+                                          const UserAddress(),
+                                    ),
+                                  );
+                                }
+                              : null,
                           style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.only(
-                                  left: 5, right: 5, top: 10, bottom: 10),
-                              backgroundColor: getColorBasedOnActiveModuleid(),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12))),
+                            padding: const EdgeInsets.only(
+                                left: 5, right: 5, top: 10, bottom: 10),
+                            backgroundColor: getColorBasedOnActiveModuleid(),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            disabledBackgroundColor: Colors.grey.shade400,
+                          ),
                           child: Text(
                             "Pick Address".tr,
-                            style:
-                                heading2(context).copyWith(color: whiteColor),
+                            style: heading2(context).copyWith(
+                              color: ok ? whiteColor : Colors.white70,
+                            ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
-                          )),
+                          ),
+                        );
+                      }),
                     ),
                   ),
                 ],
@@ -239,29 +337,32 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Obx(
-              () => addAddressController.doorSteplatitude.value == "" &&
-                      addAddressController.doorSteplongitude.value == ""
-                  ? const SizedBox()
-                  : Stack(
+              () => Stack(
                       children: [
                         Container(
                             decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(12)),
                             child: GoogleMap(
-                                circles: {
-                                  Circle(
-                                    circleId: const CircleId("radius_circle"),
-                                    center: LatLng(
-                                        double.parse(addAddressController
-                                            .doorSteplatitude.value),
-                                        double.parse(addAddressController
-                                            .doorSteplongitude.value)),
-                                    radius: 500, // Set the radius in meters
-                                    fillColor: Colors.blue.withOpacity(0.2),
-                                    strokeColor: Colors.blue,
-                                    strokeWidth: 2,
-                                  ),
-                                },
+                                circles: addAddressController
+                                        .hasValidDoorstepCoordinates
+                                    ? {
+                                        Circle(
+                                          circleId:
+                                              const CircleId("radius_circle"),
+                                          center: LatLng(
+                                            double.parse(addAddressController
+                                                .doorSteplatitude.value),
+                                            double.parse(addAddressController
+                                                .doorSteplongitude.value),
+                                          ),
+                                          radius: 500,
+                                          fillColor:
+                                              Colors.blue.withOpacity(0.2),
+                                          strokeColor: Colors.blue,
+                                          strokeWidth: 2,
+                                        ),
+                                      }
+                                    : {},
                                 scrollGesturesEnabled: true,
                                 rotateGesturesEnabled: true,
                                 zoomGesturesEnabled: true,
@@ -273,12 +374,10 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
                                 markers: addAddressController.markers,
                                 onTap: _onMapTapped,
                                 onCameraMove: updatePosition,
+                                onCameraIdle: _onCameraIdle,
                                 initialCameraPosition: CameraPosition(
-                                    target: LatLng(
-                                        double.parse(addAddressController
-                                            .doorSteplatitude.value),
-                                        double.parse(addAddressController
-                                            .doorSteplongitude.value)),
+                                    target:
+                                        addAddressController.doorstepMapCenter,
                                     zoom: 14))),
                         Positioned(
                           top: 150,
@@ -381,28 +480,43 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
                                             ),
                                             isLatLngRequired: true,
                                             getPlaceDetailWithLatLng:
-                                                (Prediction prediction) {
-                                              addAddressController
-                                                  .clearAddressFields();
-
-                                              setState(() {
-                                                mapController.animateCamera(
-                                                  CameraUpdate.newLatLng(LatLng(
-                                                      double.parse(
-                                                          prediction.lat!),
-                                                      double.parse(
-                                                          prediction.lng!))),
-                                                );
-                                              });
+                                                (Prediction prediction) async {
+                                              if (prediction.lat == null ||
+                                                  prediction.lng == null) {
+                                                return;
+                                              }
+                                              final lat =
+                                                  double.parse(prediction.lat!);
+                                              final lng =
+                                                  double.parse(prediction.lng!);
                                               _focusNode.unfocus();
-
+                                              if (customMarkerIcon == null) {
+                                                await _setCustomMarkerIcon();
+                                              }
+                                              if (_mapControllerReady) {
+                                                mapController.animateCamera(
+                                                  CameraUpdate.newLatLng(
+                                                    LatLng(lat, lng),
+                                                  ),
+                                                );
+                                              } else {
+                                                _pendingCameraTarget =
+                                                    LatLng(lat, lng);
+                                              }
                                               addAddressController
-                                                  .getPlaceDetailFromId(
-                                                prediction.placeId,
-                                              );
-                                              // addAddressController
-                                              //     .updateMapLocationForSeachWithAutoSuggestation();
-                                              setState(() {});
+                                                      .doorSteplatitude
+                                                      .value =
+                                                  prediction.lat!;
+                                              addAddressController
+                                                      .doorSteplongitude
+                                                      .value =
+                                                  prediction.lng!;
+                                              _updateMarkerPosition(
+                                                  LatLng(lat, lng));
+                                              await addAddressController
+                                                  .resolveAddressFromLatLng(
+                                                      lat, lng);
+                                              if (mounted) setState(() {});
                                             },
                                             itemClick: (Prediction prediction) {
                                               addAddressController
@@ -453,19 +567,27 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
                                       addAddressController
                                           .getUserLocationForBetterSearch(
                                               context)
-                                          .then((v) {
+                                          .then((_) {
+                                        if (!mounted) return;
                                         setState(() {});
-
-                                        mapController.animateCamera(
-                                          CameraUpdate.newLatLng(
-                                            LatLng(
-                                              double.parse(addAddressController
-                                                  .doorSteplatitude.value),
-                                              double.parse(addAddressController
-                                                  .doorSteplongitude.value),
-                                            ),
-                                          ),
+                                        if (!addAddressController
+                                            .hasValidDoorstepCoordinates) {
+                                          return;
+                                        }
+                                        final t = LatLng(
+                                          double.parse(addAddressController
+                                              .doorSteplatitude.value),
+                                          double.parse(addAddressController
+                                              .doorSteplongitude.value),
                                         );
+                                        _updateMarkerPosition(t);
+                                        if (_mapControllerReady) {
+                                          mapController.animateCamera(
+                                            CameraUpdate.newLatLng(t),
+                                          );
+                                        } else {
+                                          _pendingCameraTarget = t;
+                                        }
                                       }).catchError((e) {
                                         print("Error: $e");
                                       });

@@ -25,14 +25,6 @@ class _UserAddressState extends State<UserAddress> {
   bool isOtherSelected = false;
   AddAddressController addAddressController = Get.find();
   final _formKey = GlobalKey<FormState>();
-  LatLng? _parseLatLng(String? latitude, String? longitude) {
-    try {
-      if (latitude != null && longitude != null) {
-        return LatLng(double.parse(latitude), double.parse(longitude));
-      }
-    } catch (e) {}
-    return null;
-  }
 
   late GoogleMapController mapController;
   void _onMapTapped(LatLng position) async {
@@ -107,21 +99,10 @@ class _UserAddressState extends State<UserAddress> {
     setState(() {});
     addAddressController.selectedLat = newPosition.latitude.toString();
     addAddressController.selectedLong = newPosition.longitude.toString();
-    await addAddressController.getPlaceDetailFromLatLng(
-        newPosition.latitude, newPosition.longitude);
-    String mainAddress = await addAddressController.getMainAddress(
-        newPosition.latitude, newPosition.longitude);
-    int maxLength = 75;
-    String shortAddress = shortenAddress(mainAddress, maxLength);
-
-    addAddressController.fullAddressController.text = shortAddress;
-  }
-
-  String shortenAddress(String address, int maxLength) {
-    if (address.length <= maxLength) {
-      return address;
-    }
-    return '${address.substring(0, maxLength)}...';
+    await addAddressController.resolveAddressFromLatLng(
+      newPosition.latitude,
+      newPosition.longitude,
+    );
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -164,12 +145,21 @@ class _UserAddressState extends State<UserAddress> {
         // backgroundColor: white,
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.all(18.0),
-          child: CustomsButtons(
-              text: "Save Address".tr,
-              backgroundColor: getColorBasedOnActiveModuleid(),
-              onPressed: () {
-                addAddressController.updateAddress(context);
-              }),
+          child: Obx(() {
+            final ok = addAddressController.canConfirmDoorstepAddress;
+            return Opacity(
+              opacity: ok ? 1.0 : 0.55,
+              child: CustomsButtons(
+                text: "Save Address".tr,
+                backgroundColor: getColorBasedOnActiveModuleid(),
+                onPressed: ok
+                    ? () {
+                        addAddressController.updateAddress(context);
+                      }
+                    : () {},
+              ),
+            );
+          }),
         ),
         appBar: CustomAppBars(
           backgroundColor: notifires.getbgcolor,
@@ -192,10 +182,7 @@ class _UserAddressState extends State<UserAddress> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Obx(
-                    () => addAddressController.doorSteplatitude.value == "" &&
-                            addAddressController.doorSteplongitude.value == ""
-                        ? const SizedBox()
-                        : Stack(
+                    () => Stack(
                             children: [
                               SizedBox(
                                 height: 270,
@@ -204,27 +191,30 @@ class _UserAddressState extends State<UserAddress> {
                                         borderRadius:
                                             BorderRadius.circular(12)),
                                     child: GoogleMap(
-                                        circles: {
-                                          Circle(
-                                            circleId:
-                                                const CircleId("radius_circle"),
-                                            center: LatLng(
-                                                double.parse(
-                                                    addAddressController
-                                                        .doorSteplatitude
-                                                        .value),
-                                                double.parse(
-                                                    addAddressController
-                                                        .doorSteplongitude
-                                                        .value)),
-                                            radius:
-                                                500, // Set the radius in meters
-                                            fillColor:
-                                                Colors.blue.withOpacity(0.2),
-                                            strokeColor: Colors.blue,
-                                            strokeWidth: 2,
-                                          ),
-                                        },
+                                        circles: addAddressController
+                                                .hasValidDoorstepCoordinates
+                                            ? {
+                                                Circle(
+                                                  circleId: const CircleId(
+                                                      "radius_circle"),
+                                                  center: LatLng(
+                                                    double.parse(
+                                                        addAddressController
+                                                            .doorSteplatitude
+                                                            .value),
+                                                    double.parse(
+                                                        addAddressController
+                                                            .doorSteplongitude
+                                                            .value),
+                                                  ),
+                                                  radius: 500,
+                                                  fillColor: Colors.blue
+                                                      .withOpacity(0.2),
+                                                  strokeColor: Colors.blue,
+                                                  strokeWidth: 2,
+                                                ),
+                                              }
+                                            : {},
                                         scrollGesturesEnabled: true,
                                         rotateGesturesEnabled: true,
                                         zoomGesturesEnabled: true,
@@ -235,13 +225,8 @@ class _UserAddressState extends State<UserAddress> {
                                         markers: addAddressController.markers,
                                         onMapCreated: _onMapCreated,
                                         initialCameraPosition: CameraPosition(
-                                          target: _parseLatLng(
-                                                addAddressController
-                                                    .doorSteplatitude.value,
-                                                addAddressController
-                                                    .doorSteplongitude.value,
-                                              ) ??
-                                              const LatLng(0, 0),
+                                          target: addAddressController
+                                              .doorstepMapCenter,
                                           zoom: 14,
                                         ))),
                               ),
@@ -306,12 +291,53 @@ class _UserAddressState extends State<UserAddress> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Text(
-                          maxLines: 4,
-                          addAddressController.fullAddressController.text,
-                          style: regular3(context)
-                              .copyWith(fontWeight: FontWeight.bold),
-                        ),
+                        child: Obx(() {
+                          if (addAddressController.isAddressLoading.value) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    "Retrieving your location...".tr,
+                                    maxLines: 4,
+                                    style: regular3(context).copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                          final addr = addAddressController
+                                  .addressText.value.isNotEmpty
+                              ? addAddressController.addressText.value
+                              : addAddressController.fullAddressController.text;
+                          if (addr.isEmpty) {
+                            return Text(
+                              "Select a location on the map or use the search field."
+                                  .tr,
+                              maxLines: 4,
+                              style: regular3(context).copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey,
+                              ),
+                            );
+                          }
+                          return Text(
+                            addr,
+                            maxLines: 4,
+                            style: regular3(context)
+                                .copyWith(fontWeight: FontWeight.bold),
+                          );
+                        }),
                       ),
                       GestureDetector(
                         onTap: () {

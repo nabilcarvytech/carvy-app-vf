@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +8,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:location/location.dart';
 import 'package:get/get.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/api/data_store.dart';
@@ -32,6 +34,7 @@ import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/work_space.dart';
+import 'package:carvy/services/auth_service.dart';
 import '../helper/http_service.dart';
 import '../view/auth/reset_password_screen.dart';
 
@@ -223,6 +226,209 @@ class AuthController extends GetxController implements GetxService {
   RxBool isValidEmail = false.obs;
   RxBool isResendLoading = false.obs;
   RxString newpassword = ''.obs;
+
+  // --- Inscription wizard (multi-étapes) ---
+  final RxBool registerWizardTermsAccepted = false.obs;
+  final RxBool registerWizardPhoneCodeSent = false.obs;
+  final RxInt registerWizardResendSeconds = 0.obs;
+  final RxString phoneError = ''.obs;
+  /// `true` = Agence (vendor), `false` = Client.
+  /// Wizard « Créer un compte » : inscription client uniquement (pas d’étape Agence/Client dans le PageView).
+  /// Les agences utilisent un autre flux ; reste à `false` pour `role: user` et navigation `HomeMain`.
+  final RxBool registerWizardIsAgency = false.obs;
+  final RxBool registerWizardSubmitting = false.obs;
+  /// `true` tant que l’utilisateur est sur [RegisterWizardScreen] (OTP → [NavPageView]).
+  final RxBool registerWizardEmbarked = false.obs;
+  Timer? _registerWizardResendTimer;
+
+  void toggleRegisterWizardTerms() {
+    registerWizardTermsAccepted.toggle();
+  }
+
+  void resetRegisterWizardFlow() {
+    registerWizardTermsAccepted.value = false;
+    registerWizardPhoneCodeSent.value = false;
+    registerWizardResendSeconds.value = 0;
+    phoneError.value = '';
+    registerWizardIsAgency.value = false;
+    registerWizardSubmitting.value = false;
+    textEditingOtpController.clear();
+    _registerWizardResendTimer?.cancel();
+    _registerWizardResendTimer = null;
+  }
+
+  void startRegisterWizardResendCountdown([int seconds = 60]) {
+    _registerWizardResendTimer?.cancel();
+    registerWizardResendSeconds.value = seconds;
+    _registerWizardResendTimer =
+        Timer.periodic(const Duration(seconds: 1), (t) {
+      if (registerWizardResendSeconds.value <= 1) {
+        t.cancel();
+        registerWizardResendSeconds.value = 0;
+      } else {
+        registerWizardResendSeconds.value--;
+      }
+    });
+  }
+
+  Future<void> registerWizardSendPhoneCode(
+    BuildContext context,
+    String dialCode,
+    String isoCode,
+  ) async {
+    phoneError.value = '';
+    if (textEditingSingUpControllerPhoneNumber.text.isEmpty) {
+      showErrorToastMessage('Fill valid mobile number'.tr);
+      return;
+    }
+    final dial = dialCode.startsWith('+') ? dialCode : '+$dialCode';
+    try {
+      buildShowDialog(context);
+      final data = await httpPost(Config.registerUser, {
+        'phone': textEditingSingUpControllerPhoneNumber.text,
+        'email': textEditingSignUpControllerEmail.text,
+        'first_name': textEditingSignUpControllerFirstName.text,
+        'password': textEditingSignUpControllerPassword.text,
+        'phone_country': dial,
+        'default_country': isoCode,
+        'last_name': textEditingSingUpControllerlastName.text,
+        'birthdate': textEditingSingUpControllerDOB.text,
+        'role': registerWizardIsAgency.value ? 'vendor' : 'user',
+      });
+      Get.back();
+      if (data == null) {
+        showErrorToastMessage('Something went wrong'.tr);
+        return;
+      }
+      final loginModel = LoginModel.fromJson(data);
+      if (loginModel.status != 200) {
+        phoneError.value = loginModel.error ?? '';
+        showErrorToastMessage(loginModel.error ?? 'Error'.tr);
+        return;
+      }
+
+      GetStorage().write('Remember', true);
+      GetStorage().write('Firstuser', true);
+      getFCMToken();
+      token = loginModel.data!.token!;
+      GetStorage().remove('bearerToken');
+      bearerToken = '';
+      userId = loginModel.data!.id!;
+      try {
+        await OneSignal.login(userId.toString());
+      } catch (_) {}
+      database.child(userId.toString()).set({
+        'userId': userId.toString(),
+        'playerId': oneSiginalplayerid ?? 'null',
+      });
+
+      registerWizardPhoneCodeSent.value = true;
+      final otpVal = loginModel.data?.otpValue;
+      if (otpVal != null && otpVal.isNotEmpty) {
+        textEditingOtpController.text = otpVal;
+      }
+      startRegisterWizardResendCountdown(60);
+      showToastMessage(loginModel.message ?? 'Code sent'.tr);
+      update();
+    } catch (e) {
+      if (Get.isDialogOpen ?? false) Get.back();
+      showErrorToastMessage(e.toString());
+    }
+  }
+
+  Future<void> registerWizardResendOtp(
+    BuildContext context,
+    String cuntryCode,
+  ) async {
+    isResendLoading.value = true;
+    try {
+      final result = await resendOtp({
+        'phone': textEditingSingUpControllerPhoneNumber.text,
+        'phone_country': cuntryCode,
+      });
+      if (result != null && result['status'] == 200) {
+        showToastMessage('${result['message']}');
+        if (result['data'] != null && result['data']['otp_value'] != null) {
+          textEditingOtpController.text =
+              '${result['data']['otp_value']}';
+        }
+        startRegisterWizardResendCountdown(60);
+      } else if (result != null) {
+        showErrorToastMessage(result['error'] ?? 'Error'.tr);
+      }
+    } finally {
+      isResendLoading.value = false;
+    }
+  }
+
+  /// Après OTP + acceptation des CGU (étape finale du wizard) : navigation home sans nouvel appel API.
+  Future<void> registerWizardCompleteToHome(BuildContext context) async {
+    if (!registerWizardTermsAccepted.value) return;
+    if (registerWizardSubmitting.value) return;
+
+    registerWizardSubmitting.value = true;
+    try {
+      final vendorFlow = registerWizardIsAgency.value;
+      isHostMode.value = vendorFlow;
+      GetStorage().write('isHostMode', vendorFlow);
+
+      showToastMessage('Registration successful'.tr);
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      registerWizardEmbarked.value = false;
+
+      if (webPlateForm) {
+        Get.offAllNamed(
+          vendorFlow ? WebRoutes.buttomHost : WebRoutes.homeMain,
+        );
+      } else {
+        if (vendorFlow) {
+          Get.offAll(() => const BottomHost(initialIndex: 0));
+        } else {
+          Get.offAll(() => const NavPageView());
+        }
+      }
+    } catch (e, st) {
+      debugPrint('registerWizardCompleteToHome error: $e\n$st');
+      showErrorToastMessage('Something went wrong'.tr);
+    } finally {
+      registerWizardSubmitting.value = false;
+    }
+  }
+
+  /// OneSignal + sync backend push + FCM + RTDB (peut être lourd — après OTP wizard on le lance en arrière-plan).
+  Future<void> _runPostOtpVerifiedHeavyWork() async {
+    try {
+      debugPrint(
+          '🆔 [ONESIGNAL_DEBUG] login userId=$userId');
+      await OneSignal.login(userId.toString());
+      debugPrint(
+          '🆔 [ONESIGNAL_DEBUG] pushSubscription: ${OneSignal.User.pushSubscription.id}');
+    } catch (e) {
+      debugPrint('❌ [OneSignal] post-OTP: $e');
+    }
+    try {
+      await AuthService.handleAuthenticatedUser(
+        authToken: token,
+        userId: userId,
+      );
+    } catch (e) {
+      debugPrint('❌ [AuthService] post-OTP: $e');
+    }
+    try {
+      await getFCMToken();
+    } catch (e) {
+      debugPrint('❌ [FCM] post-OTP: $e');
+    }
+    try {
+      database.child(userId.toString()).set({
+        'userId': userId.toString(),
+        'playerId': oneSiginalplayerid ?? 'null',
+      });
+    } catch (e) {
+      debugPrint('❌ [RTDB] post-OTP: $e');
+    }
+  }
 
   verifyOtp(map) async {
     // DEBUG: Print the exact payload being sent
@@ -572,6 +778,7 @@ class AuthController extends GetxController implements GetxService {
     number,
     cuntryCode,
     defaultCountry,
+    VoidCallback? onRegisterWizardPhoneVerified,
   }) async {
     if (otp == "") {
       showErrorToastMessage("Please fill the Otp".tr);
@@ -677,27 +884,30 @@ class AuthController extends GetxController implements GetxService {
           LoginModel loginModel = LoginModel.fromJson(result);
           if (loginModel.status == 200) {
             showToastMessage(loginModel.message);
-            
-            // Sauvegarder TOUT l'objet dans 'user_data' pour inclure le rôle
+
             GetStorage().write('user_data', jsonEncode(result));
             print('💾 [VERIFY_OTP] Données sauvegardées dans user_data');
-            
+
             UserData userObj = UserData();
             userObj.saveLoginData("UserData", jsonEncode(result));
             token = loginModel.data!.token!;
             userId = loginModel.data!.id!;
-          // Lier l'utilisateur à OneSignal avec External User ID
-          try {
-            print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
-            await OneSignal.login(userId.toString());
-            String? pushToken = OneSignal.User.pushSubscription.id;
-            print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
-            print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
-          } catch (e) {
-            print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
-          }
+            GetStorage().write('token', token);
+            GetStorage().write('userIdGlobal', userId.toString());
+            GetStorage().remove('bearerToken');
+            bearerToken = '';
+            setLoginModel(loginModel);
             generalController.currentIndex.value = 0;
             shouldLogout = false;
+
+            if (onRegisterWizardPhoneVerified != null) {
+              onRegisterWizardPhoneVerified();
+              unawaited(_runPostOtpVerifiedHeavyWork());
+              return;
+            }
+
+            await _runPostOtpVerifiedHeavyWork();
+
             if (webPlateForm) {
               Get.toNamed(WebRoutes.homeMain);
             } else {
@@ -908,6 +1118,71 @@ class AuthController extends GetxController implements GetxService {
     if (loginModel!.data!.email != null) {
       profileController.emailControllerSocialMedialogin.text =
           loginModel!.data!.email!;
+    }
+  }
+
+  /// Remplit uniquement le formulaire d'inscription (prénom, nom, email) depuis le compte Google.
+  /// N'appelle pas l'API sociale ni [signUp] — l'utilisateur valide avec « Continuer ».
+  Future<void> prefillSignUpFormFromGoogle(BuildContext context) async {
+    final googleSignIn = GoogleSignIn.instance;
+    showLoading();
+    try {
+      await googleSignIn.initialize(
+        serverClientId:
+            "165062133214-vjalpnirifhehf3vm91ashd5f0mm19g1.apps.googleusercontent.com",
+      );
+      await googleSignIn.signOut();
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.authenticate(
+        scopeHint: <String>['email', 'profile'],
+      );
+
+      if (googleUser == null) {
+        closeLoading();
+        return;
+      }
+
+      final String email = googleUser.email;
+      final String? displayName = googleUser.displayName;
+
+      String givenName = '';
+      String familyName = '';
+
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+      final Map<String, dynamic>? payload =
+          idToken != null ? JwtDecoder.tryDecode(idToken) : null;
+      if (payload != null) {
+        final gn = payload['given_name'];
+        final fn = payload['family_name'];
+        if (gn is String && gn.trim().isNotEmpty) givenName = gn.trim();
+        if (fn is String && fn.trim().isNotEmpty) familyName = fn.trim();
+      }
+
+      if (givenName.isEmpty &&
+          familyName.isEmpty &&
+          displayName != null &&
+          displayName.trim().isNotEmpty) {
+        final parts = displayName.trim().split(RegExp(r'\s+'));
+        givenName = parts.first;
+        if (parts.length > 1) {
+          familyName = parts.sublist(1).join(' ');
+        }
+      }
+
+      textEditingSignUpControllerFirstName.text = givenName;
+      textEditingSingUpControllerlastName.text = familyName;
+      textEditingSignUpControllerEmail.text = email;
+
+      await googleSignIn.signOut();
+      closeLoading();
+      update();
+    } on GoogleSignInException catch (e) {
+      closeLoading();
+      showErrorToastMessage("Erreur lors de la connexion Google: $e");
+    } catch (e) {
+      closeLoading();
+      showErrorToastMessage("Une erreur inattendue s'est produite: $e");
     }
   }
 

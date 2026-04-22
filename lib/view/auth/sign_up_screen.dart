@@ -311,7 +311,9 @@ class _SignUpState extends State<SignUp> {
                                   children: [
                                     InkWell(
                                         onTap: () {
-                                          authController.googleLogin(context);
+                                          authController
+                                              .prefillSignUpFormFromGoogle(
+                                                  context);
                                         },
                                         child: Container(
                                           height: 84,

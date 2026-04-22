@@ -107,13 +107,11 @@ class SearchControllerHome extends GetxController implements GetxService {
   @override
   void onInit() {
     super.onInit();
-    selectedDate = DateTime.now();
     currenttimeSlots = <String>[].obs;
     filteredTimeSlotsEndTime = <String>[].obs;
     avalibleSlots = <String>[];
   }
 
-  late DateTime selectedDate;
   late RxList<String> currenttimeSlots;
   late RxList<String> filteredTimeSlots;
   late RxList<String> filteredTimeSlotsEndTime;
@@ -144,31 +142,36 @@ class SearchControllerHome extends GetxController implements GetxService {
     return outputFormat.format(dateTime);
   }
 
+  /// Réinitialise les dates / créneaux du bandeau de recherche (aucun préremplissage).
   void setDefaultDates({
     required RxString startDateCustomDate,
     required RxString endDateCustomDate,
     required RxString startDate,
     required RxString endDates,
   }) {
-    DateTime currentDate = DateTime.now();
-    DateTime futureDate = currentDate.add(const Duration(days: 2));
-    startDateCustomDate.value = DateFormat('yyyy-MM-dd').format(currentDate);
-    endDateCustomDate.value = DateFormat('yyyy-MM-dd').format(futureDate);
-    startDate.value = DateFormat('MMM d, EEE').format(currentDate);
-    endDates.value = DateFormat('MMM d, EEE').format(futureDate);
-    dateRangePickerControllerCustom.selectedRange =
-        PickerDateRange(currentDate, futureDate);
-    DateTime parsedStart =
-        DateFormat('yyyy-MM-dd').parse(startDateCustomDate.value);
-    DateTime parsedEnd =
-        DateFormat('yyyy-MM-dd').parse(endDateCustomDate.value);
-    startTimeSearch.value = "09:00";
-    endTimeSearch.value = "22:00";
-    if (isToday(parsedStart)) {
-      handleCurrentDateSelection(parsedStart, parsedEnd);
-    } else {
-      handleOtherDateSelection(parsedStart, parsedEnd);
-    }
+    startDateCustomDate.value = '';
+    endDateCustomDate.value = '';
+    startDate.value = '';
+    endDates.value = '';
+    startTimeSearch.value = '';
+    endTimeSearch.value = '';
+    dateRangePickerControllerCustom.selectedRange = null;
+    avalibleSlots.clear();
+    curreentStatus.value = '';
+    update();
+  }
+
+  /// Vide les dates du bandeau (détail véhicule) sans préremplissage automatique.
+  void clearVehicleDetailSearchDates() {
+    startDate.value = '';
+    endDates.value = '';
+    startTimeSearch.value = '';
+    endTimeSearch.value = '';
+    generalScopeController.startDateCustomDate.value = '';
+    generalScopeController.endDateCustomDate.value = '';
+    dateRangePickerControllerCustom.selectedRange = null;
+    curreentStatus.value = '';
+    update();
   }
 
   void onSelectionChangedCustomDatePicker(
@@ -760,22 +763,15 @@ class SearchControllerHome extends GetxController implements GetxService {
         return;
       }
 
-      if (startDate.value == "" || endDates.value == "") {
-        // BUG FIX: était && startDate au lieu de || endDates
-        print("❌ BLOQUÉ: Dates vides - Please Select Dates");
-        showErrorToastMessage("Please Select Dates".tr);
-        return;
-      }
-      if (startDate.value != "") {
-        if (startDate.value == endDates.value) {
-          print("rjhafvblj");
-          print(startTimeSearch.value);
-          print(endTimeSearch.value);
-          if (isEndTimeBeforeStartTime(
-              startTimeSearch.value, endTimeSearch.value)) {
-            showErrorToastMessage("End time must be after Start time".tr);
-            return;
-          }
+      if (startDate.value.isNotEmpty &&
+          endDates.value.isNotEmpty &&
+          startDate.value == endDates.value) {
+        if (startTimeSearch.value.isNotEmpty &&
+            endTimeSearch.value.isNotEmpty &&
+            isEndTimeBeforeStartTime(
+                startTimeSearch.value, endTimeSearch.value)) {
+          showErrorToastMessage("End time must be after Start time".tr);
+          return;
         }
       }
     }

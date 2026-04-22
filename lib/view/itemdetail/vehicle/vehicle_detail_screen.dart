@@ -25,6 +25,7 @@ import 'package:carvy/view/itemdetail/vehicle/reviews/item_review_screen.dart';
 import 'package:carvy/view/itemdetail/vehicle/vehicle_check_availability_screen.dart';
 import 'package:carvy/view/wishlist/wish_list_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../controller/booking_controller.dart';
 import '../../../controller/items_detail_controller.dart';
 import '../../../customwidget/miscellaneous_project_elements.dart';
 import '../../../utils/vehicle_common_widgets.dart';
@@ -78,6 +79,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
   final PageController vehiclePagereviewController = PageController();
   PageController vehiclepageControllerslider = PageController();
   SearchControllerHome filterController = Get.find();
+  BookingController bookingController = Get.find();
   PublicProfileController publicProfileController = Get.find();
   final ValueNotifier<int> vehiclecurrentPageSliderNotifier =
       ValueNotifier<int>(0);
@@ -120,12 +122,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
         // Continuer même si le KYC échoue
       }
       if (handleDirectBooking == false) {
-        filterController.setDefaultDates(
-          startDateCustomDate: generalScopeController.startDateCustomDate,
-          endDateCustomDate: generalScopeController.endDateCustomDate,
-          startDate: filterController.startDate,
-          endDates: filterController.endDates,
-        );
+        filterController.clearVehicleDetailSearchDates();
       }
       // Load vehicle details data
       print(
@@ -161,31 +158,9 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print("🔨 VehicleDetailSScreen build() - Starting build");
-    print(
-        "🔨 VehicleDetailSScreen build() - widget.itemInfo: ${widget.itemInfo}");
-    print(
-        "🔨 VehicleDetailSScreen build() - widget.itemInfo?.reviewData: ${widget.itemInfo?.reviewData}");
-    print(
-        "🔨 VehicleDetailSScreen build() - vehicleDetailModel: ${vehicleDetailController.vehicleDetailModel}");
-    print(
-        "🔨 VehicleDetailSScreen build() - vehicleDetailModel?.data: ${vehicleDetailController.vehicleDetailModel?.data}");
-    print(
-        "🔨 VehicleDetailSScreen build() - vehicleDetailModel?.data?.itemDetails: ${vehicleDetailController.vehicleDetailModel?.data?.itemDetails}");
-
-    // Safe null check for reviewData
-    if (widget.itemInfo != null && widget.itemInfo?.reviewData != null) {
-      print(
-          "✅ VehicleDetailSScreen build() - reviewData exists: ${widget.itemInfo?.reviewData}");
-    } else {
-      print(
-          "⚠️ VehicleDetailSScreen build() - reviewData is null or itemInfo is null");
-    }
-
-    String? vehicleRating = vehicleDetailController
-                .vehicleDetailModel?.data?.itemDetails?.itemRating ??
-            "0";
-    print("🔨 VehicleDetailSScreen build() - vehicleRating: $vehicleRating");
+    final String? vehicleRating = vehicleDetailController
+            .vehicleDetailModel?.data?.itemDetails?.itemRating ??
+        "0";
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     return Scaffold(
       appBar: AppBar(
@@ -266,7 +241,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                             filterController
                                                 .endDates.value.isNotEmpty
                                         ? "${filterController.startDate.value}-${filterController.startTimeSearch.value}  -  ${filterController.endDates.value} ${filterController.endTimeSearch.value} "
-                                        : "Tap to select".tr,
+                                        : "---",
                                     style: regular3(context).copyWith(
                                       fontSize: 12,
                                       color: notifires.getwhiteblackcolor,
@@ -1105,8 +1080,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                     title: 'Vehicle Rules'.tr,
                                     list: vehicleRules.isEmpty
                                         ? [
-                                            "Aucune règle spécifique spécifiée par l'hôte."
-                                                .tr
+                                            'No vehicle rules specified by the host.',
                                           ]
                                         : vehicleRules,
                                   );
@@ -1131,7 +1105,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                           width: 10,
                                         ),
                                         Text(
-                                          "Règles du véhicule".tr,
+                                          'Vehicle Rules'.tr,
                                           style: regular3(context)
                                               .copyWith(color: acentColor),
                                         ),
@@ -1143,8 +1117,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                               title: 'Vehicle Rules'.tr,
                                               list: vehicleRules.isEmpty
                                                   ? [
-                                                      "Aucune règle spécifique spécifiée par l'hôte."
-                                                          .tr
+                                                      'No vehicle rules specified by the host.',
                                                     ]
                                                   : vehicleRules,
                                             );
@@ -1442,19 +1415,6 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                           final itemDetails = controller.vehicleDetailModel?.data?.itemDetails;
                           final hostId = itemDetails?.hostId ?? currentItemInfo?.hostId;
                           final serviceType = currentItemInfo?.serviceType?.toString() ?? itemDetails?.itemType;
-                          
-                          // ========== DEBUG BOUTON SUIVANT ==========
-                          final isOwner = loginModel != null && hostId?.toString() == userId.toString();
-                          final isHostModeActive = isHostMode.value;
-                          print('🔍 DEBUG BOUTON SUIVANT:');
-                          print('   - isOwner: $isOwner (hostId: $hostId, userId: $userId)');
-                          print('   - isHostMode: $isHostModeActive');
-                          print('   - serviceType: $serviceType');
-                          print('   - loginModel != null: ${loginModel != null}');
-                          
-                          // ========== FORCER L'AFFICHAGE POUR TESTS ==========
-                          // TEMPORAIRE : Le bouton s'affiche TOUJOURS pour les tests
-                          // TODO: Retirer cette modification après les tests
                           return SizedBox(
                             height: 40,
                             child: ElevatedButton(
@@ -1604,31 +1564,32 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
     // Si le statut est 'pending', 'waiting', 'review' ou 'verified' (ou si l'utilisateur a passé l'étape),
     // ignorer l'étape KYC et continuer avec la navigation normale
 
-    late SearchControllerHome searchController = Get.find();
+    final SearchControllerHome searchController = Get.find();
 
-    bookingController.selectedStartTime.value =
-        searchController.startTimeSearch.value;
+    final hasSearchDates = generalScopeController
+            .startDateCustomDate.value.isNotEmpty &&
+        generalScopeController.endDateCustomDate.value.isNotEmpty;
 
-    bookingController.selectedEndTime.value =
-        searchController.endTimeSearch.value;
+    if (hasSearchDates) {
+      bookingController.selectedStartTime.value =
+          searchController.startTimeSearch.value;
+      bookingController.selectedEndTime.value =
+          searchController.endTimeSearch.value;
+      bookingController.startDate.value =
+          generalScopeController.startDateCustomDate.value;
+      bookingController.endDate.value =
+          generalScopeController.endDateCustomDate.value;
+    } else {
+      bookingController.selectedStartTime.value = '';
+      bookingController.selectedEndTime.value = '';
+      bookingController.startDate.value = '';
+      bookingController.endDate.value = '';
+    }
 
-    bookingController.startDate.value =
-        generalScopeController.startDateCustomDate.value;
-
-    bookingController.endDate.value =
-        generalScopeController.endDateCustomDate.value;
-
-    // if allready filteres
     if (handleDirectBooking == true) {
-      // Utiliser itemInfo du controller qui a été mis à jour par getdataVehicle
-      final itemDetailToSend = vehicleDetailController.itemInfo ?? widget.itemInfo;
-      
-      // Debug : Juste AVANT le Get.to
-      print('🚀 [FINAL_SEND_CHECK] Title: ${itemDetailToSend?.cancellationReasonTitle?.toString() ?? 'null'}');
-      print('🚀 [FINAL_SEND_CHECK] CancellationReason: ${itemDetailToSend?.cancellationReason?.toString() ?? 'null'}');
-      debugPrint('🚀 [FINAL_SEND_CHECK] itemDetailToSend is null: ${itemDetailToSend == null}');
-      debugPrint('🚀 [FINAL_SEND_CHECK] Full itemDetailToSend: ${itemDetailToSend?.toString()}');
-      
+      final itemDetailToSend =
+          vehicleDetailController.itemInfo ?? widget.itemInfo;
+
       bookingController.commonNavigateToBookingSummary(
         context,
         widget.id,
@@ -1644,94 +1605,23 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
       return;
     }
 
-    showLoading();
-    bookingController.checkDateApi(idFeatured: '${widget.id}').then((value) {
-      closeLoading();
-      try {
-        final data = value?["data"];
-        if (data == null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VehicleCheckAvailability(
-                idFeatured: widget.id,
-                itemDetails: widget.itemInfo,
-                address: widget.address,
-                frontImage: widget.frontImage,
-                title: widget.title,
-                rating: widget.rating,
-                itemType: widget.itemType,
-                price: widget.price,
-              ),
-            ),
-          );
-          return;
-        }
-        String? startTime = data["next_start_time"];
-        String? endTime = data["next_end_time"];
-        final availability = data["availability"];
-        if (availability != null) {
-          startTime = availability["next_start_time"] ?? startTime;
-          endTime = availability["next_end_time"] ?? endTime;
-          startTime ??= "12:00 AM";
-          endTime ??= "11:30 AM";
-          bookingController.selectedStartTime.value = startTime;
-          bookingController.selectedEndTime.value = endTime;
-
-          // Utiliser itemInfo du controller qui a été mis à jour par getdataVehicle
-          final itemDetailToSend = vehicleDetailController.itemInfo ?? widget.itemInfo;
-          
-          // Debug : Juste AVANT le Get.to
-          print('🚀 [FINAL_SEND_CHECK] Title: ${itemDetailToSend?.cancellationReasonTitle?.toString() ?? 'null'}');
-          print('🚀 [FINAL_SEND_CHECK] CancellationReason: ${itemDetailToSend?.cancellationReason?.toString() ?? 'null'}');
-          debugPrint('🚀 [FINAL_SEND_CHECK] itemDetailToSend is null: ${itemDetailToSend == null}');
-          debugPrint('🚀 [FINAL_SEND_CHECK] Full itemDetailToSend: ${itemDetailToSend?.toString()}');
-
-          bookingController.commonNavigateToBookingSummary(
-            context,
-            widget.id,
-            itemDetailToSend,
-            widget.address,
-            widget.frontImage,
-            widget.title,
-            widget.rating,
-            widget.itemType,
-            widget.price,
-            "",
-          );
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VehicleCheckAvailability(
-                idFeatured: widget.id,
-                itemDetails: widget.itemInfo,
-                address: widget.address,
-                frontImage: widget.frontImage,
-                title: widget.title,
-                rating: widget.rating,
-                itemType: widget.itemType,
-                price: widget.price,
-              ),
-            ),
-          );
-        }
-
-        debugPrint(
-          '✅ Checkout Time -> Start: $startTime | End: $endTime',
-        );
-
-        closeLoading();
-      } catch (e) {
-        debugPrint('Error parsing checkDateApi response: $e');
-        showErrorToastMessage("Something went wrong. Please try again.".tr);
-      }
-    }).catchError((error) {
-      closeLoading();
-      debugPrint('❌ Error in checkDateApi: $error');
-      showErrorToastMessage(
-          "An error occurred while checking availability.".tr);
-    });
+    bookingController.vehicleBookingTunnelComplete.value = false;
+    if (!context.mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VehicleCheckAvailability(
+          idFeatured: widget.id,
+          itemDetails: widget.itemInfo,
+          address: widget.address,
+          frontImage: widget.frontImage,
+          title: widget.title,
+          rating: widget.rating,
+          itemType: widget.itemType,
+          price: widget.price,
+        ),
+      ),
+    );
   }
 
   /// Carte « Livraison à domicile » — même enveloppe visuelle que [CautionCard].
@@ -1987,14 +1877,14 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Offres spéciales'.tr,
+                      'Special offers'.tr,
                       style: heading3(context).copyWith(
                         color: const Color(0xFF9A3412),
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     Text(
-                      'Réductions automatiques selon la durée'.tr,
+                      'Automatic discounts based on duration'.tr,
                       style: regular3(context).copyWith(
                         color: const Color(0xFFB45309),
                         fontSize: 11,
@@ -2010,8 +1900,14 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
             spacing: 10,
             runSpacing: 8,
             children: [
-              _buildDiscountBadge(context, 'Remise 7j+ : $weekly%'),
-              _buildDiscountBadge(context, 'Remise 30j+ : $monthly%'),
+              _buildDiscountBadge(
+                context,
+                'Discount 7d+: @pct'.trParams({'pct': '$weekly%'}),
+              ),
+              _buildDiscountBadge(
+                context,
+                'Discount 30d+: @pct'.trParams({'pct': '$monthly%'}),
+              ),
             ],
           ),
         ],

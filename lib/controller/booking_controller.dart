@@ -41,6 +41,30 @@ import '../work_space.dart';
 
 ItemDetailsController spaceDetailController = Get.find();
 
+/// Une ligne par nuit, prix uniforme [perNight], pour que la somme = [afterDiscount].
+List<Prices> _buildAlignedRentalPrices(int totalNightsIn, double afterDiscount) {
+  var totalNights = totalNightsIn;
+  if (totalNights < 1) totalNights = 1;
+  final perNight = (afterDiscount / totalNights).toStringAsFixed(2);
+  BookingController? bc;
+  try {
+    bc = Get.find<BookingController>();
+  } catch (_) {
+    bc = null;
+  }
+  DateTime start =
+      DateTime.tryParse(bc?.startDate.value ?? '') ?? DateTime.now();
+  final out = <Prices>[];
+  for (var i = 0; i < totalNights; i++) {
+    out.add(Prices(
+      date: DateFormat('yyyy-MM-dd').format(start.add(Duration(days: i))),
+      price: perNight,
+      status: 'Available',
+    ));
+  }
+  return out;
+}
+
 /// Ticket véhicule simplifié : taxe, dépôt, nettoyage et frais de service à 0 ;
 /// total = prix jours − remise − coupon (sans frais cachés).
 GetItemPrices applySimplifiedVehicleBookingPrices(GetItemPrices src) {
@@ -79,12 +103,22 @@ GetItemPrices applySimplifiedVehicleBookingPrices(GetItemPrices src) {
   if (total < 0) total = 0;
   final afterDiscStr = afterDiscount.toStringAsFixed(2);
   final totalStr = total.toStringAsFixed(2);
+  final perNightStr = totalNights > 0
+      ? (afterDiscount / totalNights).toStringAsFixed(2)
+      : d.pricePerNight;
+  final alignedPrices = _buildAlignedRentalPrices(totalNights, afterDiscount);
+
   return src.copyWith(
     data: d.copyWith(
       serviceCharge: '0.00',
       cleaningCharge: '0.00',
       tax: '0.00',
       securityDeposit: '0.00',
+      // Aligner l’UI / API sur le total locatif réellement calculé (ex. 1046 MAD),
+      // pas sur un prix/jour issu seul du détail véhicule (ex. 92).
+      priceBeforeDiscount: afterDiscStr,
+      pricePerNight: perNightStr,
+      prices: alignedPrices,
       priceAfterDiscount: afterDiscStr,
       grossPrice: totalStr,
     ),
@@ -95,7 +129,6 @@ class BookingController extends GetxController implements GetxService {
   @override
   void onInit() {
     super.onInit();
-    selectedDate = DateTime.now();
     currenttimeSlots = <String>[].obs;
     filteredTimeSlotsEndTime = <String>[].obs;
     avalibleSlots = <String>[];
@@ -148,6 +181,19 @@ class BookingController extends GetxController implements GetxService {
   RxBool openOtpAfterImageSubmit = false.obs;
   RxString currentBookingIdForOtp = "".obs;
   List availableDatesPrice = [];
+
+  /// Tunnel calendrier + sélection d’heure terminé — requis pour activer « Payer maintenant ».
+  RxBool vehicleBookingTunnelComplete = false.obs;
+
+  /// Jours facturés pour le véhicule : du départ jusqu’au jour avant le retour (jour de retour exclu).
+  int vehicleBillableNightCount(DateTime checkIn, DateTime checkOut) {
+    final sd = DateTime(checkIn.year, checkIn.month, checkIn.day);
+    final ed = DateTime(checkOut.year, checkOut.month, checkOut.day);
+    final diff = ed.difference(sd).inDays;
+    if (diff < 1) return 1;
+    return diff;
+  }
+
   List<DateTime> getDaysInBetween(DateTime startDate, DateTime endDate) {
     List<DateTime> days = [];
     for (int i = 0; i <= endDate.difference(startDate).inDays; i++) {
@@ -1990,6 +2036,39 @@ class BookingController extends GetxController implements GetxService {
     }
   }
 
+  /// Si l’utilisateur appuie sur « Suivant » sans calendrier (écran détail),
+  /// on pose des dates/heures par défaut pour débloquer le tunnel de réservation.
+  void _ensureDatesAndTimesForSummary(dynamic itemDetails) {
+    final fmt = DateFormat('yyyy-MM-dd');
+    final today = DateTime.now();
+    final tomorrow =
+        DateTime(today.year, today.month, today.day).add(const Duration(days: 1));
+    final minBillable = _resolveMinRentalDaysForBooking(itemDetails) ?? 1;
+    final nights = max(1, minBillable);
+
+    if (startDate.value.isEmpty || endDate.value.isEmpty) {
+      final checkIn = tomorrow;
+      final checkOut = checkIn.add(Duration(days: nights));
+      startDate.value = fmt.format(checkIn);
+      endDate.value = fmt.format(checkOut);
+    }
+
+    if (selectedStartTime.value.isEmpty) {
+      final slots = getManualTimeSlots24();
+      selectedStartTime.value = slots.isNotEmpty ? slots.first : '09:00';
+    }
+    if (selectedEndTime.value.isEmpty) {
+      final slots = getManualTimeSlots24();
+      final idx18 = slots.indexWhere((e) => e == '18:00');
+      final pick = idx18 >= 0
+          ? slots[idx18]
+          : (slots.length > 12
+              ? slots[12]
+              : (slots.isNotEmpty ? slots.last : '18:00'));
+      selectedEndTime.value = pick;
+    }
+  }
+
   commonNavigateToBookingSummary(BuildContext context, idFeatured, itemDetails,
       address, frontimage, title, rating, itemtypes, price, addDoorStepPrice) {
     // Log pour vérifier que itemDetails contient les données de cancellation_reason
@@ -1999,6 +2078,8 @@ class BookingController extends GetxController implements GetxService {
     debugPrint('🛡️ [NAV_BOOKING_SUMMARY] itemDetails is null: ${itemDetails == null}');
     debugPrint('🛡️ [NAV_BOOKING_SUMMARY] Full itemDetails: ${itemDetails?.toString()}');
     chack == true;
+    _ensureDatesAndTimesForSummary(itemDetails);
+
     if (startDate.value.isEmpty || endDate.value.isEmpty) {
       showErrorToastMessage("Select date to continue".tr);
 
@@ -2021,14 +2102,15 @@ class BookingController extends GetxController implements GetxService {
       }
     }
 
-    List totalNight = getDaysInBetween(
-      DateTime.tryParse(startDate.value)!,
-      DateTime.tryParse(endDate.value)!,
-    );
+    vehicleBookingTunnelComplete.value = true;
+
+    final parsedIn = DateTime.tryParse(startDate.value)!;
+    final parsedOut = DateTime.tryParse(endDate.value)!;
+    final billableNights = vehicleBillableNightCount(parsedIn, parsedOut);
     if (webPlateForm) {
       Get.toNamed(WebRoutes.vehicleBookingSummaryScreen, arguments: {
         "idFeatured": idFeatured,
-        "totalNight": totalNight.length,
+        "totalNight": billableNights,
         "itemDetails": itemDetails,
         "address": address,
         "rating": rating,
@@ -2043,7 +2125,7 @@ class BookingController extends GetxController implements GetxService {
         MaterialPageRoute(
           builder: (context) => VehicleBookingSummary(
               idFeatured: idFeatured,
-              totalNight: totalNight.length,
+              totalNight: billableNights,
               itemDetails: itemDetails,
               address: address,
               rating: rating,
@@ -2057,7 +2139,6 @@ class BookingController extends GetxController implements GetxService {
     }
   }
 
-  late DateTime selectedDate;
   late RxList<String> currenttimeSlots;
   late RxList<String> filteredTimeSlots;
   late RxList<String> filteredTimeSlotsEndTime;
@@ -2161,6 +2242,7 @@ class BookingController extends GetxController implements GetxService {
   final Duration _snackbarDebounceDuration = const Duration(minutes: 1);
 
   void onSelectionChanged(DateRangePickerSelectionChangedArgs args) {
+    vehicleBookingTunnelComplete.value = false;
     selectedStartTime.value = "";
     nextStartTime.value = "";
     nextEndTime.value = "";
@@ -2170,7 +2252,8 @@ class BookingController extends GetxController implements GetxService {
     isDateAvailale.value = false;
     handleTimeSlotsOnCurrentDate.value = false;
     avalibleSlots.clear();
-    update();
+    // Ne pas appeler update() ici : rebuild synchrone du SfDateRangePicker (GetBuilder)
+    // pouvait relancer onSelectionChanged → boucle inflateWidget / écran noir.
     final now = DateTime.now();
     if (_lastSelectionTime != null &&
         now.difference(_lastSelectionTime!) < _debounceDuration) {
@@ -2289,7 +2372,6 @@ class BookingController extends GetxController implements GetxService {
               curreentStatus.value = "otherDates";
             }
           }
-          setDefaultTime();
           update();
         } else {
           print("7");
@@ -2384,6 +2466,7 @@ class BookingController extends GetxController implements GetxService {
   }
 
   clearMethod() {
+    vehicleBookingTunnelComplete.value = false;
     isDateAvailale.value = false;
     startDate.value = "";
     endDate.value = "";

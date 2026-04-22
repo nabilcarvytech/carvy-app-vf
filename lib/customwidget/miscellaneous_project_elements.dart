@@ -628,7 +628,7 @@ bottomSheet() {
             ),
             InkWell(
               onTap: () {
-                Get.toNamed(WebRoutes.signUpScreen);
+                Get.toNamed(WebRoutes.registerWizardScreen);
               },
               child: Container(
                 padding: const EdgeInsets.only(

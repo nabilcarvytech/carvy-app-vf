@@ -1345,8 +1345,7 @@ Widget customDatePickerForFilter(BuildContext context) {
                     controllerHome.startDate.value != "" &&
                             controllerHome.endDates.value != ""
                         ? "${controllerHome.startDate.value} ${controllerHome.startTimeSearch.value} - ${controllerHome.endDates.value} ${controllerHome.endTimeSearch.value}"
-                            .tr
-                        : "Selected date".tr,
+                        : "Select Dates".tr,
                     style: regular3(context).copyWith(
                         color: notifires.getGrey1Whitecolor, fontSize: 13),
                     overflow: TextOverflow.ellipsis,
@@ -1497,11 +1496,6 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
                               sLongSearch.toString().isNotEmpty) {
                             if (searchController.hitApiOnMap == true) {
                               searchMethod();
-                            } else if (searchController.startDate.value == "" &&
-                                searchController.endDates.value == "") {
-                              showErrorToastMessage(
-                                  "Please Select the dates".tr);
-                              return;
                             } else if (generalScopeController
                                     .homeSearchLocation.value !=
                                 "") {
@@ -1509,7 +1503,7 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
                             }
                           } else {
                             showErrorToastMessage(
-                                "Please Select location and Dates");
+                                "Please Select Location".tr);
                           }
                         },
                         text: 'Continue'.tr,
@@ -2003,16 +1997,18 @@ Widget customSearchContainer(
                         ),
                       ),
                       Obx(
-                        () => filterController.startDate.value == "" ||
-                                filterController.endDates.value == "" ||
-                                generalScopeController
-                                        .textEditingControllerCity.text ==
-                                    "" ||
-                                generalScopeController
-                                        .homeSearchLocation.value ==
-                                    ""
-                            ? const SizedBox()
-                            : Expanded(
+                        () {
+                          final hasLocation = generalScopeController
+                                  .homeSearchLocation.value.isNotEmpty ||
+                              generalScopeController
+                                  .textEditingControllerCity.text.isNotEmpty;
+                          final hasDates = filterController
+                                  .startDate.value.isNotEmpty &&
+                              filterController.endDates.value.isNotEmpty;
+                          if (!hasLocation && !hasDates) {
+                            return const SizedBox();
+                          }
+                          return Expanded(
                                 flex: 1,
                                 child: GestureDetector(
                                   onTap: () {
@@ -2050,7 +2046,8 @@ Widget customSearchContainer(
                                     ),
                                   ),
                                 ),
-                              ),
+                              );
+                        },
                       ),
                     ],
                   ),

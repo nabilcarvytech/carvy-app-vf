@@ -242,7 +242,13 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = getColorBasedOnActiveModuleid();
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) {
+        if (didPop) return;
+        Get.back();
+      },
+      child: Scaffold(
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(8.0),
         child: CustomsButtons(
@@ -264,7 +270,8 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
       ),
       backgroundColor: notifires.getbgcolor,
       appBar: CustomAppBars(
-        onBackButtonPressed: () => Navigator.pop(context),
+        onBackButtonPressed: () => Get.back(),
+        elevation: 0,
         // Nouveau titre demandé
         title: 'État du véhicule : Photos de sécurité',
         backgroundColor: notifires.getbgcolor,
@@ -426,6 +433,7 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
           ],
         ),
       ),
+    ),
     );
   }
 

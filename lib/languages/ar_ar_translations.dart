@@ -339,6 +339,13 @@ const Map<String, String> arAR = {
   "Product Details ": "تفاصيل المنتج ",
   "Space Details": "تفاصيل المساحة",
   "My Booking": "حجوزاتي",
+  "Special offers": "عروض خاصة",
+  "Automatic discounts based on duration":
+      "خصومات تلقائية حسب مدة الإيجار",
+  "Discount 7d+: @pct": "خصم +7 أيام: @pct",
+  "Discount 30d+: @pct": "خصم +30 يومًا: @pct",
+  "Confirm reception": "تأكيد الاستلام",
+  "View itinerary": "عرض المسار",
   "Upcoming": "القادمة",
   "Previous": "السابقة",
   "No Completed Available": "لا توجد حجوزات مكتملة",
@@ -1036,6 +1043,9 @@ const Map<String, String> arAR = {
   "Please enter the house number and floor number.":
       "يرجى إدخال رقم المنزل ورقم الطابق.",
   "Please select the address from the map.": "يرجى اختيار العنوان من الخريطة.",
+  "Retrieving your location...": "جارٍ استرداد موقعك...",
+  "Select a location on the map or use the search field.":
+      "حدد موقعًا على الخريطة أو استخدم حقل البحث.",
   "Error: Invalid Google API key. Please check your configuration.":
       "خطأ: مفتاح Google API غير صالح. يرجى التحقق من إعداداتك.",
   "The Price field must be a Number": "يجب أن يكون حقل السعر رقمًا",
@@ -1088,6 +1098,8 @@ const Map<String, String> arAR = {
   "By": "بواسطة",
   "Tap to view": "المقاعداضغط للعرض",
   "Vehicle Rules": "قواعد المركبة",
+  "No vehicle rules specified by the host.":
+      "لم يحدد المضيف أي قواعد خاصة لهذه المركبة.",
   "Something went wrong. Please try again.":
       "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
   "Dates": "التواريخ",
@@ -1163,6 +1175,9 @@ const Map<String, String> arAR = {
   "Choose Payment Method": "اختر طريقة الدفع",
   "InvalidNumber": "رقم غير صالح",
   "Payment Method": "طريقة الدفع",
+  "Details": "التفاصيل",
+  "Pickup OTP: @code": "رمز الاستلام: @code",
+  "Drop OTP: @code": "رمز التسليم: @code",
   "Pickup OTP?": "رمز التحقق للاستلام؟",
   "Interior Image Required'": "الصورة الداخلية مطلوبة",
   "Enter the pickup OTP given by the vendor\"":
@@ -1223,5 +1238,33 @@ const Map<String, String> arAR = {
   "Smoking Allowed": "التدخين مسموح",
   "min_rental_duration_vehicle_days":
       "الحد الأدنى لمدة إيجار هذه المركبة هو @days أيام.",
-  "International Travel Allowed": "السفر الدولي مسموح"
+  "International Travel Allowed": "السفر الدولي مسموح",
+  "register_wizard_app_bar_title": "إنشاء حساب",
+  "register_wizard_who_are_you": "من أنت؟",
+  "register_wizard_choose_profile": "اختر نوع حسابك للتسجيل",
+  "register_wizard_role_agency": "وكالة",
+  "register_wizard_role_agency_desc": "أريد تأجير مركباتي",
+  "register_wizard_role_client": "عميل",
+  "register_wizard_role_client_desc": "أبحث عن مركبة للإيجار",
+  "register_wizard_already_have_intro": "لدي حساب بالفعل:",
+  "register_wizard_login_outline": "تسجيل الدخول",
+  "register_wizard_otp_placeholder": "أدخل رمز OTP",
+  "terms_summary_payments_title": "المدفوعات",
+  "terms_summary_payments_body":
+      "قد تشمل المبالغ الإيجار والتأمين والضرائب.",
+  "terms_summary_cancel_title": "الإلغاء",
+  "terms_summary_cancel_body":
+      "تتبع قواعد الإلغاء السياسة المعروضة في كل إعلان.",
+  "terms_summary_support_title": "الدعم",
+  "terms_summary_support_body":
+      "تواصل معنا عبر التطبيق للمساعدة في الحجوزات أو الحساب.",
+  "Register step identity": "ملفك الشخصي",
+  "Register step identity subtitle":
+      "أدخل معلوماتك لإنشاء حساب Carvy.",
+  "Register step phone": "تحقق من هاتفك",
+  "Register step phone subtitle":
+      "سنرسل رمزًا عبر SMS (Twilio) لتأكيد رقمك.",
+  "Register step terms": "الشروط العامة",
+  "Register step terms subtitle": "اقرأ النقاط التالية قبل المتابعة.",
+  "register_wizard_resend_in_seconds": "إعادة الإرسال خلال @n ث"
 };

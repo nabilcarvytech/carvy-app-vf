@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get/get_navigation/get_navigation.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:bot_toast/bot_toast.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -20,6 +21,24 @@ import 'package:carvy/view/splash/initial_screen.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'helper/get_di.dart' as di;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+/// Identifiant `intl` pour [initializeDateFormatting] (ex. fr_FR, en_US).
+String _dateSymbolLocaleFor(Locale l) {
+  final c = l.countryCode;
+  if (c != null && c.isNotEmpty) return '${l.languageCode}_$c';
+  switch (l.languageCode) {
+    case 'fr':
+      return 'fr_FR';
+    case 'en':
+      return 'en_US';
+    case 'es':
+      return 'es_ES';
+    case 'ar':
+      return 'ar';
+    default:
+      return 'fr_FR';
+  }
+}
 
 void main() {
   // S'assurer que le binding Flutter est initialisé AVANT tout
@@ -162,6 +181,19 @@ void main() {
       // CRITIQUE: Définir Get.locale AVANT runApp pour que GetX l'utilise
       Get.locale = selectedLocale;
 
+      // Données de symboles de date pour DateFormat.yMMMEd etc. (évite LocaleDataException)
+      try {
+        await initializeDateFormatting('fr_FR', null);
+        final sym = _dateSymbolLocaleFor(selectedLocale);
+        if (sym != 'fr_FR') {
+          await initializeDateFormatting(sym, null);
+        }
+        debugPrint('✅ [MAIN] initializeDateFormatting ok (fr_FR + $sym)');
+      } catch (e, stackTrace) {
+        debugPrint('🔴 [MAIN] initializeDateFormatting failed: $e');
+        debugPrint('🔴 STACKTRACE: $stackTrace');
+      }
+
       debugPrint('globallanguage initialized to: $globallanguage');
       debugPrint(
           'Selected locale: ${selectedLocale.languageCode}_${selectedLocale.countryCode}');
@@ -206,6 +238,14 @@ void main() {
         // En production, on montre juste un Container vide pour ne pas choquer l'utilisateur.
         return Container();
       };
+
+      try {
+        await initializeDateFormatting('fr_FR', null);
+        debugPrint('✅ [MAIN] initializeDateFormatting(fr_FR) avant runApp');
+      } catch (e, stackTrace) {
+        debugPrint('🔴 [MAIN] initializeDateFormatting(fr_FR) avant runApp: $e');
+        debugPrint('🔴 STACKTRACE: $stackTrace');
+      }
 
       runApp(
         _MyApp(initialLocale: selectedLocale),

@@ -96,7 +96,13 @@ class _HostErecieptState extends State<HostEreciept> {
       alignment: Alignment.center,
       child: SizedBox(
         width: Dimensions.containerWidth,
-        child: Scaffold(
+        child: PopScope(
+          canPop: false,
+          onPopInvoked: (bool didPop) {
+            if (didPop) return;
+            Get.back();
+          },
+          child: Scaffold(
           bottomNavigationBar: widget.bookings.userName == null
               ? const SizedBox()
               : widget.conformBooking == "UpComing" &&
@@ -511,6 +517,8 @@ class _HostErecieptState extends State<HostEreciept> {
             backgroundColor: notifires.getbgcolor,
             iconColor: notifires.getwhiteblackcolor,
             titleColor: notifires.getwhiteblackcolor,
+            elevation: 0,
+            onBackButtonPressed: () => Get.back(),
           ),
           body: SingleChildScrollView(
             child: Padding(
@@ -518,6 +526,7 @@ class _HostErecieptState extends State<HostEreciept> {
               child: erecieptHostBasedOnModuleId(),
             ),
           ),
+        ),
         ),
       ),
     );
@@ -529,7 +538,7 @@ class _HostErecieptState extends State<HostEreciept> {
       DateTime parsedDate = DateTime.parse(rawDate).toLocal();
       return DateFormat('dd MMM yyyy, HH:mm').format(parsedDate);
     } catch (e) {
-      return rawDate ?? '';
+      return rawDate;
     }
   }
 

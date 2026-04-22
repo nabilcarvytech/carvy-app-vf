@@ -425,7 +425,23 @@ class HomeController extends GetxController implements GetxService {
         return "cheapest_price";
     }
   }
-  
+
+  /// Filtres avancés (prix, marque, assurance, etc.) — utilisés pour invalider le cache home et enrichir l’appel API.
+  bool _homeHasAdvancedFilters(SearchControllerHome sc) {
+    if (sc.maketypesValus.isNotEmpty) return true;
+    if (sc.isRefundableOnly.value) return true;
+    if (sc.selectedInsurance.value.trim().isNotEmpty) return true;
+    if (sc.selectedFuels.isNotEmpty) return true;
+    if (sc.selectedTransmissions.isNotEmpty) return true;
+    if (sc.selectedOdometers.isNotEmpty) return true;
+    if (sc.selectedYears.isNotEmpty) return true;
+    final double defMin = double.tryParse("$minPricerange") ?? 0.0;
+    final double defMax = double.tryParse("$maxPriceRange") ?? 20000.0;
+    if ((sc.startRange.value - defMin).abs() > 0.01) return true;
+    if ((sc.endRage.value - defMax).abs() > 0.01) return true;
+    return false;
+  }
+
   Future<void> getHomeData({bool forceRefresh = false}) async {
     print("🔵 [HOME_DATA] getHomeData() called");
     homeDataLoading.value = true;
@@ -438,9 +454,13 @@ class HomeController extends GetxController implements GetxService {
     String currentItemType = filterController.globalItemType.value;
     print("🔵 [HOME_DATA] Current item_type filter: $currentItemType");
     
-    // 3. Si on a un tri (pas 'Nearest Location' par défaut) OU un filtre de catégorie (pas '0') OU si on force, on ignore le cache
+    // 3. Ignorer le cache si tri, catégorie, filtres avancés ou refresh forcé
     bool hasCategoryFilter = currentItemType != '0' && currentItemType.isNotEmpty;
-    bool shouldSkipCache = sortValue != "Nearest Location" || hasCategoryFilter || forceRefresh;
+    bool hasAdvancedFilters = _homeHasAdvancedFilters(filterController);
+    bool shouldSkipCache = sortValue != "Nearest Location" ||
+        hasCategoryFilter ||
+        hasAdvancedFilters ||
+        forceRefresh;
     
     var storedData = shouldSkipCache ? null : GetStorage().read("homeData");
     
@@ -486,7 +506,26 @@ class HomeController extends GetxController implements GetxService {
         } else {
           print("🔵 [HOME_DATA] No item_type filter (showing all categories)");
         }
-        
+
+        if (hasAdvancedFilters) {
+          apiParams["min_price"] =
+              filterController.startRange.value.round().toString();
+          apiParams["max_price"] =
+              filterController.endRage.value.round().toString();
+          if (filterController.maketypesValus.isNotEmpty) {
+            apiParams["make_type"] =
+                filterController.maketypesValus.join(",");
+          }
+          if (filterController.selectedInsurance.value.trim().isNotEmpty) {
+            apiParams["insurance_type"] =
+                filterController.selectedInsurance.value.trim();
+          }
+          if (filterController.isRefundableOnly.value) {
+            apiParams["is_refundable"] = "1";
+          }
+          print("🔵 [HOME_DATA] Advanced filters: $apiParams");
+        }
+
         var response = await httpGet(Config.homeDataApi, apiParams);
 
         print("🔵 [HOME_DATA] Response received from API");

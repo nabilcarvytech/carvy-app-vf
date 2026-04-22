@@ -29,7 +29,6 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   TabController? tabController;
   int index = 0;
   @override
-  @override
   void initState() {
     super.initState();
     handleBoackfromPayment = false;
@@ -93,10 +92,29 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  Future<bool> handleWillPop() async {
-    generalController.tabController.index = 0;
+  /// Retour depuis l’écran poussé (ex. compte) : réinitialise l’onglet accueil puis ferme la route.
+  void _onExitPushedBooking(BuildContext context) {
+    generalController.tabController.animateTo(0);
     generalController.currentIndex.value = 0;
-    return false;
+    if (Navigator.of(context).canPop()) {
+      Get.back();
+    }
+  }
+
+  /// Retour depuis l’onglet « Mes réservations » dans la barre du bas : aller à l’accueil (Explorer).
+  void _goToHomeTab() {
+    if (generalController.tabController.index != 0) {
+      generalController.tabController.animateTo(0);
+    }
+    generalController.currentIndex.value = 0;
+  }
+
+  void _onBackPressed(BuildContext context) {
+    if (Navigator.of(context).canPop()) {
+      _onExitPushedBooking(context);
+    } else {
+      _goToHomeTab();
+    }
   }
 
   @override
@@ -104,7 +122,10 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     return PopScope(
       canPop: false,
-      onPopInvoked: (v) => handleWillPop,
+      onPopInvoked: (bool didPop) {
+        if (didPop) return;
+        _onBackPressed(context);
+      },
       child: Align(
         alignment: Alignment.center,
         child: SizedBox(
@@ -114,39 +135,20 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
                 backgroundColor: notifires.getbgcolor,
                 appBar: AppBar(
                   backgroundColor: vehicalThemColor,
+                  surfaceTintColor: Colors.transparent,
                   elevation: 0,
-                  leadingWidth: 80,
+                  scrolledUnderElevation: 0,
+                  leadingWidth: 56,
                   centerTitle: true,
-                  leading: widget.fromPropBooking == false
-                      ? const SizedBox()
-                      : GestureDetector(
-                          onTap: () {
-                            if (widget.fromPropBooking == true) {
-                              Get.back();
-                              return;
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                                left: 20, top: 8, bottom: 8, right: 20),
-                            child: PhysicalModel(
-                              color: Colors.transparent,
-                              shadowColor: notifires.getGrey4Whitecolor,
-                              elevation:
-                                  5.0, // Adjust the elevation value as needed
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                alignment: Alignment.center,
-                                height: 40,
-                                width: 40,
-                                decoration: BoxDecoration(
-                                    color: notifires.getboxcolor,
-                                    borderRadius: BorderRadius.circular(8)),
-                                child: Icon(Icons.arrow_back,
-                                    color: getColorBasedOnActiveModuleid()),
-                              ),
-                            ),
-                          )),
+                  leading: IconButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () => _onBackPressed(context),
+                    icon: Icon(
+                      Icons.arrow_back_ios_new,
+                      color: whiteColor,
+                      size: 20,
+                    ),
+                  ),
                   title: Text("My Booking".tr,
                       style:
                           heading2Grey1(context).copyWith(color: whiteColor)),
@@ -184,13 +186,17 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
                             controller: tabController,
                             children: [
                               MyUpCommingTrip(
-                                  fromPropBooking: widget.fromPropBooking!),
+                                  fromPropBooking:
+                                      widget.fromPropBooking ?? false),
                               LiveBooking(
-                                  fromPropBooking: widget.fromPropBooking!),
+                                  fromPropBooking:
+                                      widget.fromPropBooking ?? false),
                               PreviousTrip(
-                                  fromPropBooking: widget.fromPropBooking!),
+                                  fromPropBooking:
+                                      widget.fromPropBooking ?? false),
                               CancelledTrip(
-                                  fromPropBooking: widget.fromPropBooking!),
+                                  fromPropBooking:
+                                      widget.fromPropBooking ?? false),
                             ],
                           ),
                         ),

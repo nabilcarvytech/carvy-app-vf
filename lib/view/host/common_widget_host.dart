@@ -2939,7 +2939,11 @@ class VendorOrderListView extends StatelessWidget {
                                           .withOpacity(.8),
                                       borderRadius: BorderRadius.circular(10)),
                                   child: Text(
-                                      "Pickup OTP : ${list[index].pickOtp}",
+                                      "Pickup OTP: @code".trParams({
+                                        'code':
+                                            list[index].pickOtp?.toString() ??
+                                                '',
+                                      }),
                                       style: regular2(context)
                                           .copyWith(color: whiteColor)),
                                 ))

@@ -26,6 +26,14 @@ class HomeMain extends StatefulWidget {
   State<HomeMain> createState() => _HomeMainScreenState();
 }
 
+/// Navigation principale client après inscription OTP (alias explicite pour Home).
+class NavPageView extends StatelessWidget {
+  const NavPageView({super.key});
+
+  @override
+  Widget build(BuildContext context) => const HomeMain(initialIndex: 0);
+}
+
 class _HomeMainScreenState extends State<HomeMain>
     with TickerProviderStateMixin {
   GlobalScopeController globalScopeController =

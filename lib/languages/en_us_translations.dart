@@ -14,6 +14,9 @@ const Map<String, String> enUs = {
   "Total Price(INR)": "Total Price (MAD)",
   "Cancellation Policy": "Cancellation Policy",
   "Ground rules": "Rental Rules",
+  "Vehicle Rules": "Vehicle Rules",
+  "No vehicle rules specified by the host.":
+      "No vehicle rules specified by the host.",
   "Confirm and Pay": "Confirm and Pay",
   "Setting": "Settings",
   "Popular locations": "Popular pickup locations",
@@ -340,6 +343,13 @@ const Map<String, String> enUs = {
   "Product Details ": "Product Details ",
   "Space Details": "Space Details",
   "My Booking": "My Bookings",
+  "Special offers": "Special offers",
+  "Automatic discounts based on duration":
+      "Automatic discounts based on duration",
+  "Discount 7d+: @pct": "7d+ discount: @pct",
+  "Discount 30d+: @pct": "30d+ discount: @pct",
+  "Confirm reception": "Confirm reception",
+  "View itinerary": "View itinerary",
   "Upcoming": "Upcoming",
   "Previous": "Previous",
   "No Completed Available": "No Completed Bookings Available",
@@ -1026,6 +1036,9 @@ const Map<String, String> enUs = {
       "Location permission denied. Please go to Settings and allow Location access.",
   "Please enable location services to show the nearest vehicles around you.":
       "Please enable location services to show the nearest vehicles around you.",
+  "Retrieving your location...": "Retrieving your location...",
+  "Select a location on the map or use the search field.":
+      "Select a location on the map or use the search field.",
   "Odometers": "Odometers",
   "Features": "Features",
   "Sort By": "Sort By",
@@ -1070,5 +1083,38 @@ const Map<String, String> enUs = {
   "Smoking Allowed": "Smoking Allowed",
   "min_rental_duration_vehicle_days":
       "The minimum rental duration for this vehicle is @days days.",
-  "International Travel Allowed": "International Travel Allowed"
+  "International Travel Allowed": "International Travel Allowed",
+  "register_wizard_app_bar_title": "Create an account",
+  "register_wizard_who_are_you": "Who are you?",
+  "register_wizard_choose_profile": "Choose your profile to register",
+  "register_wizard_role_agency": "Agency",
+  "register_wizard_role_agency_desc": "I want to rent out my vehicles",
+  "register_wizard_role_client": "Client",
+  "register_wizard_role_client_desc": "I'm looking for a vehicle to rent",
+  "register_wizard_already_have_intro": "I already have an account:",
+  "register_wizard_login_outline": "Sign in",
+  "register_wizard_otp_placeholder": "Enter the OTP code",
+  "terms_summary_payments_title": "Payments",
+  "terms_summary_payments_body":
+      "Amounts may include rental, deposit, and taxes.",
+  "terms_summary_cancel_title": "Cancellations",
+  "terms_summary_cancel_body":
+      "Cancellation rules follow the policy shown on each listing.",
+  "terms_summary_support_title": "Support",
+  "terms_summary_support_body":
+      "Contact us through the app for help with bookings or your account.",
+  "Register step identity": "Your profile",
+  "Register step identity subtitle":
+      "Fill in your information to create your Carvy account.",
+  "Register step phone": "Verify your phone",
+  "Register step phone subtitle":
+      "We will send an SMS code (Twilio) to confirm your number.",
+  "Register step terms": "Terms and conditions",
+  "Register step terms subtitle":
+      "Read the following points before continuing.",
+  "register_wizard_resend_in_seconds": "Resend code in @n s",
+  "Details": "Details",
+  "Pickup OTP: @code": "Pickup OTP: @code",
+  "Drop OTP: @code": "Drop-off OTP: @code",
+  "Pickup OTP?": "Pickup OTP?",
 };

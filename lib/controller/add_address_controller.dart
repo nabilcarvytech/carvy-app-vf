@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -24,12 +25,95 @@ class AddAddressController extends GetxController implements GetxService {
   TextEditingController stateController = TextEditingController();
   TextEditingController countryController = TextEditingController();
   TextEditingController postalCodeController = TextEditingController();
-  RxString doorSteplatitude = "34.020882".obs;
-  RxString doorSteplongitude = "-6.841650".obs;
+  /// Vide jusqu'à géolocalisation / sélection carte (pas d'adresse fictive type Los Angeles).
+  RxString doorSteplatitude = "".obs;
+  RxString doorSteplongitude = "".obs;
   String? selectedLat, selectedLong;
   var markers = <Marker>{}.obs;
   RxString fulladdress = "".obs;
   var preventDate = false.obs;
+
+  /// Ligne affichée sous la carte ; mise à jour après géocodage.
+  RxString addressText = "".obs;
+  RxBool isAddressLoading = false.obs;
+  bool _isInternalAddressWrite = false;
+
+  @override
+  void onInit() {
+    super.onInit();
+    // Synchronise le champ texte (saisie / autocomplete) avec la valeur réactive affichée.
+    fullAddressController.addListener(_syncAddressTextFromController);
+  }
+
+  @override
+  void onClose() {
+    fullAddressController.removeListener(_syncAddressTextFromController);
+    super.onClose();
+  }
+
+  void _syncAddressTextFromController() {
+    if (_isInternalAddressWrite) return;
+    final txt = fullAddressController.text.trim();
+    if (addressText.value != txt) {
+      addressText.value = txt;
+      update();
+    }
+  }
+
+  /// Cible caméra si pas encore de coordonnées précises (centre Maroc, pas d'adresse affichée).
+  static const double fallbackMapLat = 31.7917;
+  static const double fallbackMapLng = -7.0926;
+
+  /// Centre carte : coordonnées porte-à-porte si valides, sinon [fallbackMapLat]/[fallbackMapLng].
+  LatLng get doorstepMapCenter {
+    final lat = double.tryParse(doorSteplatitude.value);
+    final lng = double.tryParse(doorSteplongitude.value);
+    if (lat != null && lng != null) return LatLng(lat, lng);
+    return const LatLng(fallbackMapLat, fallbackMapLng);
+  }
+
+  bool get hasValidDoorstepCoordinates {
+    final lat = double.tryParse(doorSteplatitude.value);
+    final lng = double.tryParse(doorSteplongitude.value);
+    return lat != null && lng != null;
+  }
+
+  /// Enregistrement autorisé uniquement avec coordonnées valides et adresse résolue.
+  bool get canConfirmDoorstepAddress {
+    if (!hasValidDoorstepCoordinates) return false;
+    if (isAddressLoading.value) return false;
+    if (addressText.value.trim().isEmpty &&
+        fullAddressController.text.trim().isEmpty) {
+      return false;
+    }
+    return true;
+  }
+
+  /// Géocodage inverse + remplissage des champs ; notifie l'UI (GetBuilder/update + Rx).
+  Future<void> resolveAddressFromLatLng(double lat, double lng) async {
+    isAddressLoading.value = true;
+    addressText.value = "";
+    update();
+    try {
+      await getPlaceDetailFromLatLng(lat, lng);
+      final mainAddress =
+          await getMainAddress(lat.toString(), lng.toString());
+      final short = shortenAddress(mainAddress, 75);
+      _isInternalAddressWrite = true;
+      fullAddressController.text = short;
+      _isInternalAddressWrite = false;
+      addressText.value = short;
+    } catch (e, st) {
+      debugPrint('resolveAddressFromLatLng: $e\n$st');
+      _isInternalAddressWrite = true;
+      fullAddressController.clear();
+      _isInternalAddressWrite = false;
+      addressText.value = "";
+    } finally {
+      isAddressLoading.value = false;
+      update();
+    }
+  }
 
   Future<void> getPlaceDetailFromLatLng(double lat, double lng) async {
     final request =
@@ -166,16 +250,8 @@ class AddAddressController extends GetxController implements GetxService {
       if (locationData.latitude != null && locationData.longitude != null) {
         doorSteplatitude.value = locationData.latitude.toString();
         doorSteplongitude.value = locationData.longitude.toString();
-        getPlaceDetailFromLatLng(
+        await resolveAddressFromLatLng(
             locationData.latitude!, locationData.longitude!);
-        String mainAddress = await getMainAddress(
-            doorSteplatitude.value, doorSteplongitude.value);
-        int maxLength = 75;
-        String shortAddress = shortenAddress(mainAddress, maxLength);
-
-        fullAddressController.text = shortAddress;
-
-        update();
       } else {
         closeLoading();
         showErrorToastMessage("Failed to get current location.".tr);
@@ -198,6 +274,22 @@ class AddAddressController extends GetxController implements GetxService {
 
   AddressResponse? addressResponse;
   Future<void> updateAddress(BuildContext context) async {
+    if (isAddressLoading.value) {
+      showErrorToastMessage("Retrieving your location...".tr);
+      return;
+    }
+    if (!hasValidDoorstepCoordinates ||
+        doorSteplatitude.value.isEmpty ||
+        doorSteplongitude.value.isEmpty) {
+      showErrorToastMessage("Please select the address from the map.".tr);
+      return;
+    }
+    if (fullAddressController.text.trim().isEmpty &&
+        addressText.value.trim().isEmpty) {
+      showErrorToastMessage("Please select the address from the map.".tr);
+      return;
+    }
+
     if (houseFloorNumberController.text.isEmpty) {
       showErrorToastMessage(
           "Please enter the house number and floor number.".tr);
@@ -206,12 +298,6 @@ class AddAddressController extends GetxController implements GetxService {
 
     if (fullAddressController.text.isEmpty) {
       showErrorToastMessage("Please select the address from the map.".tr);
-      return;
-    }
-
-    if (doorSteplongitude.value.isEmpty && doorSteplatitude.value.isEmpty) {
-      showErrorToastMessage(
-          "Error: Invalid Google API key. Please check your configuration.".tr);
       return;
     }
 
@@ -279,25 +365,12 @@ class AddAddressController extends GetxController implements GetxService {
         // MOCK: Simulate network delay
         await Future.delayed(const Duration(seconds: 1));
 
-        // MOCK: Static doorstep address data
+        // Pas d'adresse fictive : nouveaux utilisateurs démarrent sans lieu par défaut.
         var response = {
           "status": 200,
-          "message": "Doorstep address retrieved successfully",
+          "message": "No doorstep address saved",
           "error": "",
-          "data": {
-            "door_step_address": {
-              "house_floor_number": "2",
-              "building_block_number": "A",
-              "landmark": "Near Central Park",
-              "full_address": "123 Main Street, Los Angeles, CA 90001",
-              "city": "Los Angeles",
-              "state": "California",
-              "country": "United States",
-              "postal_code": "90001",
-              "doorstep_latitude": "34.0522",
-              "doorstep_longitude": "-118.2437"
-            }
-          }
+          "data": null,
         };
         // ========== END MOCK DATA ==========
         if (sholoading == true) {
@@ -356,9 +429,10 @@ class AddAddressController extends GetxController implements GetxService {
         postalCodeController.text =
             doorStepAddress?.postalCode?.toString() ?? '';
         doorSteplatitude.value =
-            doorStepAddress?.doorstepLatitude.toString() ?? "34.020882";
+            doorStepAddress?.doorstepLatitude?.toString() ?? "";
         doorSteplongitude.value =
-            doorStepAddress?.doorstepLongitude.toString() ?? "-6.841650";
+            doorStepAddress?.doorstepLongitude?.toString() ?? "";
+        addressText.value = fullAddressController.text;
         fulladdress.value =
             "${houseFloorNumberController.text.isNotEmpty ? houseFloorNumberController.text : ""} "
             "${buildingBlockNumberController.text.isNotEmpty ? buildingBlockNumberController.text : ""} "
@@ -379,8 +453,11 @@ class AddAddressController extends GetxController implements GetxService {
     stateController.clear();
     countryController.clear();
     postalCodeController.clear();
-    doorSteplatitude.value = "34.020882";
-    doorSteplongitude.value = "-6.841650";
+    doorSteplatitude.value = "";
+    doorSteplongitude.value = "";
+    addressText.value = "";
+    isAddressLoading.value = false;
     fulladdress.value = "";
+    update();
   }
 }

@@ -4,7 +4,6 @@ import 'package:get_storage/get_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:carvy/controller/add_address_controller.dart';
-import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:get/get.dart';
 import 'package:carvy/utils/common_widget.dart';
@@ -15,7 +14,7 @@ import 'package:carvy/work_space.dart';
 import '../../../controller/booking_controller.dart';
 import '../../../customwidget/miscellaneous_project_elements.dart';
 import '../../../model/vehicle_home_model.dart';
-import '../../../view/kyc/user_kyc.dart';
+import '../../../view/itemdetail/vehicle/vehicle_select_time_screen.dart';
 
 class VehicleCheckAvailability extends StatefulWidget {
   final dynamic idFeatured;
@@ -47,7 +46,6 @@ class VehicleCheckAvailability extends StatefulWidget {
 
 class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
   late BookingController bookingController;
-  KycController kycController = Get.find();
   AddAddressController addAddressController = Get.find();
   
   getData() async {
@@ -59,64 +57,39 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
       print('❌ Erreur dans getData(): $e');
     }
   }
-  Future<void> onpress(BuildContext contex) async {
-    if (bookingController.selectedStartTime.value == "") {
-      showErrorToastMessage("Select Start  time to continue".tr);
-      return;
+  /// Dernier jour sélectionné = jour de restitution : pas de prix sous la date (multi‑jours).
+  bool _hideDailyPriceForCell(DateTime cellDate) {
+    if (bookingController.startDate.value.isEmpty ||
+        bookingController.endDate.value.isEmpty) {
+      return false;
     }
-    if (bookingController.selectedEndTime.value == "") {
-      showErrorToastMessage("Select  End time to continue".tr);
-      return;
-    }
-    if (bookingController.startDate.value == bookingController.endDate.value) {
-      if (bookingController.isEndTimeBeforeStartTime(
-          bookingController.selectedStartTime.value,
-          bookingController.selectedEndTime.value)) {
-        showErrorToastMessage("End time must be after Start time".tr);
-        return;
-      }
-    }
-    if (bookingController.addDoorStepPrice == true) {
-      if (addAddressController.fulladdress.value == "") {
-        addAddressController.preventDate.value = true;
-        addAddressAlert(context);
-        return;
-      }
-    }
+    final s = DateTime.tryParse(bookingController.startDate.value);
+    final e = DateTime.tryParse(bookingController.endDate.value);
+    if (s == null || e == null) return false;
+    final sd = DateTime(s.year, s.month, s.day);
+    final ed = DateTime(e.year, e.month, e.day);
+    if (sd == ed) return false;
+    final cd =
+        DateTime(cellDate.year, cellDate.month, cellDate.day);
+    return cd == ed;
+  }
 
-    // ========== VÉRIFICATION DU STATUT KYC ==========
-    final kycStatus = kycController.activeStatus.value.toLowerCase();
-
-    // Si le statut est 'none' ou 'no' ET que l'utilisateur n'a pas passé cette étape dans cette session,
-    // rediriger vers UserKyc()
-    if ((kycStatus == "none" || kycStatus == "no" || kycStatus.isEmpty) &&
-        !kycController.hasSkippedInSession.value) {
-      Get.to(() => const UserKyc());
-      return;
-    }
-
-    // Si le statut est 'pending', 'waiting', 'review' ou 'verified' (ou si l'utilisateur a passé l'étape),
-    // ignorer l'étape KYC et continuer avec la navigation normale
-
-    try {
-      if (bookingController.isDateAvailale.value == true) {
-        bookingController.commonNavigateToBookingSummary(
-            context,
-            widget.idFeatured,
-            widget.itemDetails,
-            widget.address,
-            widget.frontImage,
-            widget.title,
-            widget.rating,
-            widget.itemType,
-            widget.price,
-            bookingController.addDoorStepPrice
-                ? widget.itemDetails?.doorStepPrice
-                : "0");
-      }
-    } finally {
-      setState(() {});
-    }
+  void _openSelectTimeScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VehicleSelectTimeScreen(
+          idFeatured: widget.idFeatured,
+          itemDetails: widget.itemDetails,
+          frontImage: widget.frontImage,
+          address: widget.address,
+          rating: widget.rating,
+          itemType: widget.itemType,
+          title: widget.title,
+          price: widget.price,
+        ),
+      ),
+    );
   }
 
   @override
@@ -181,10 +154,8 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                         height: 70,
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: ElevatedButton(
-                            onPressed: () {
-                              onpress(context);
-                            },
+                            child: ElevatedButton(
+                            onPressed: _openSelectTimeScreen,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: getColorBasedOnActiveModuleid(),
                               elevation: 0,
@@ -196,7 +167,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  "Continue".tr,
+                                  "Next".tr,
                                   style: heading2(context)
                                       .copyWith(color: bgColor),
                                 ),
@@ -298,12 +269,6 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                             ),
                             GetBuilder<BookingController>(
                               builder: (controller) {
-                                print('🔔 UI REBUILD - Dates dispo: ${controller.availableDates.length}');
-                                print('🔄 GetBuilder<BookingController> rebuild - availableDates.length: ${controller.availableDates.length}, alreadySelectedList.length: ${controller.alreadySelectedList.length}');
-                                if (controller.availableDates.isNotEmpty) {
-                                  print('   - Première date disponible: ${controller.availableDates.first.toString().split(' ')[0]}');
-                                  print('   - Dernière date disponible: ${controller.availableDates.last.toString().split(' ')[0]}');
-                                }
                                 return Container(
                                   height: 400,
                                   padding: const EdgeInsets.only(left: 8, right: 8),
@@ -370,7 +335,9 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                   }
                                   
                                   String? priceText;
-                                  if (isDateAvailable) {
+                                  if (_hideDailyPriceForCell(cellDate)) {
+                                    priceText = null;
+                                  } else if (isDateAvailable) {
                                     // Trouver l'index en utilisant la même logique de comparaison
                                     int index = -1;
                                     for (int i = 0; i < bookingController.availableDates.length; i++) {
@@ -405,6 +372,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                         }
                                       }
                                     }
+                                    priceText ??= 'MAD 1000';
                                   }
                                   DateTime today =
                                       DateTime(now.year, now.month, now.day);
@@ -612,10 +580,10 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                           Obx(
                                             () => Text(
                                                 bookingController.startDate
-                                                            .toString() !=
-                                                        ''
-                                                    ? '${bookingController.startDate} ${bookingController.selectedStartTime.value}'
-                                                    : 'YYYY-MM-DD',
+                                                        .toString()
+                                                        .isNotEmpty
+                                                    ? '${bookingController.startDate}'
+                                                    : '---',
                                                 style:
                                                     regular2(context).copyWith(
                                                   color: notifires
@@ -656,10 +624,10 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                           Obx(
                                             () => Text(
                                                 bookingController.endDate
-                                                            .toString() !=
-                                                        ''
-                                                    ? '${bookingController.endDate} ${bookingController.selectedEndTime.value}'
-                                                    : 'YYYY-MM-DD',
+                                                        .toString()
+                                                        .isNotEmpty
+                                                    ? '${bookingController.endDate}'
+                                                    : '---',
                                                 style:
                                                     regular2(context).copyWith(
                                                   color: notifires
@@ -675,57 +643,6 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                             ),
                             const SizedBox(
                               height: 16,
-                            ),
-                            Obx(
-                              () => bookingController.isDateAvailale.value ==
-                                      false
-                                  ? const SizedBox()
-                                  : Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Expanded(
-                                            child: Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: 0),
-                                              child: Text("Start time".tr,
-                                                  style: heading3(context)),
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: 15),
-                                              child: Text(" End time".tr,
-                                                  style: heading3(context)),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                            ),
-                            Obx(
-                              () => bookingController.isDateAvailale.value ==
-                                      false
-                                  ? const SizedBox()
-                                  : Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 5),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          bookingController.startTime(),
-                                          const SizedBox(
-                                            width: 10,
-                                          ),
-                                          bookingController.endTime(),
-                                        ],
-                                      ),
-                                    ),
                             ),
                             widget.itemDetails!.doorStepPrice == "null" ||
                                     widget.itemDetails!.doorStepPrice == null
@@ -873,7 +790,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     ),
                                   ),
                             const SizedBox(
-                              height: 156,
+                              height: 96,
                             ),
                           ]),
                         )),

@@ -46,18 +46,24 @@ class _OrdersScreenState extends State<OrdersScreen>
     super.dispose();
   }
 
-  Future<bool> handleWillPop() async {
+  void _onExitPushedOrders(BuildContext context) {
     generalController.tabController.index = 0;
     generalController.currentIndex.value = 0;
-    return false;
+    if (Navigator.of(context).canPop()) {
+      Get.back();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
+    final bool isPushedRoute = Navigator.of(context).canPop();
     return PopScope(
-      canPop: false,
-      onPopInvoked: (v) => handleWillPop,
+      canPop: !isPushedRoute,
+      onPopInvoked: (bool didPop) {
+        if (didPop) return;
+        _onExitPushedOrders(context);
+      },
       child: Align(
         alignment: Alignment.center,
         child: SizedBox(
@@ -66,43 +72,30 @@ class _OrdersScreenState extends State<OrdersScreen>
               backgroundColor: notifires.getbgcolor,
               appBar: AppBar(
                 automaticallyImplyLeading: false,
-                backgroundColor: notifires.getbgcolor,
+                backgroundColor: getColorBasedOnActiveModuleid(),
+                foregroundColor: whiteColor,
+                surfaceTintColor: Colors.transparent,
                 elevation: 0,
+                scrolledUnderElevation: 0,
                 leadingWidth: 80,
                 centerTitle: true,
-                leading: widget.fromPropBooking == false
+                leading: !isPushedRoute
                     ? const SizedBox()
-                    : GestureDetector(
-                        onTap: () {
-                          if (widget.fromPropBooking == true) {
-                            Get.back();
-                            return;
-                          }
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.only(
-                              left: 20, top: 8, bottom: 8, right: 20),
-                          child: PhysicalModel(
-                            color: Colors.transparent,
-                            shadowColor: notifires.getGrey4Whitecolor,
-                            elevation:
-                                5.0, // Adjust the elevation value as needed
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              alignment: Alignment.center,
-                              height: 40,
-                              width: 40,
-                              decoration: BoxDecoration(
-                                  color: notifires.getboxcolor,
-                                  borderRadius: BorderRadius.circular(8)),
-                              child: Icon(Icons.arrow_back,
-                                  color: getColorBasedOnActiveModuleid()),
-                            ),
-                          ),
-                        )),
+                    : IconButton(
+                        padding: const EdgeInsets.only(left: 12),
+                        onPressed: () => _onExitPushedOrders(context),
+                        icon: Icon(
+                          Icons.arrow_back_ios_new,
+                          color: whiteColor,
+                          size: 20,
+                        ),
+                      ),
                 title: Padding(
                   padding: const EdgeInsets.only(left: 10),
-                  child: Text("Orders".tr, style: heading2Grey1(context)),
+                  child: Text(
+                    "Orders".tr,
+                    style: heading2Grey1(context).copyWith(color: whiteColor),
+                  ),
                 ),
               ),
               body: showerrorWhenloginwithOtherDevice == "token not match"

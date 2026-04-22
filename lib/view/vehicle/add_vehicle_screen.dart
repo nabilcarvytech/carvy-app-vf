@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:carvy/controller/vehicle_controller.dart';
@@ -18,6 +21,7 @@ import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/view/auth/login_screen.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:carvy/work_space.dart';
+import 'package:carvy/services/google_places_service.dart';
 
 class AddVehicleScreen extends StatefulWidget {
   const AddVehicleScreen({super.key});
@@ -30,6 +34,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   final VehicleController vehicleController = Get.find<VehicleController>();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final PageController _pageController = PageController();
+  final ScrollController _step1ScrollController = ScrollController();
+  final GlobalKey _modelCardKey = GlobalKey();
+  final GlobalKey _odometerCardKey = GlobalKey();
 
   // Variables de sélection
   dynamic _selectedVehicleType;
@@ -84,9 +91,14 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   // Champs pour l'étape Localisation
   dynamic _selectedLocation;
   final TextEditingController _addressController = TextEditingController();
+  final GooglePlacesService _googlePlacesService = GooglePlacesService();
   GoogleMapController? _mapController;
   LatLng _selectedLatLng = const LatLng(33.5731, -7.5898); // Casablanca par défaut
   final Set<Marker> _markers = {};
+  Timer? _mapIdleDebounce;
+  LatLng? _lastCameraTarget;
+  /// Évite les appels Autocomplete pendant un remplissage du champ par la carte / géocodage.
+  bool _isMapMoving = false;
 
   int _currentStep = 0;
   final int _totalSteps = 8; // 8 étapes logiques
@@ -517,6 +529,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       _selectedVehicleType = vehicleType;
       _selectedMake = null;
       _selectedModel = null;
+      _selectedOdometer = null;
     });
 
     if (vehicleType != null) {
@@ -536,6 +549,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     setState(() {
       _selectedMake = make;
       _selectedModel = null;
+      _isOtherModelSelected = false;
+      _otherModelController.clear();
     });
 
     if (make != null && make.id != null && make.id!.isNotEmpty) {
@@ -551,6 +566,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         typeId: typeId,
         makeId: make.id,
       );
+      _scrollToField(_modelCardKey);
     }
   }
 
@@ -560,6 +576,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   }
 
   void _nextStep() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_currentStep < _totalSteps - 1) {
       // Recharger les données si nécessaire quand on arrive sur l'étape 4
       if (_currentStep == 3) {
@@ -582,6 +599,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   }
 
   void _previousStep() {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_currentStep > 0) {
       setState(() {
         _currentStep--;
@@ -590,69 +608,6 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-    }
-  }
-
-  bool _canProceedToNextStep() {
-    switch (_currentStep) {
-      case 0: // Identité - Tous les champs doivent être remplis
-        return _selectedCategoryIds.isNotEmpty &&
-            _selectedMake != null &&
-            _selectedModel != null &&
-            _selectedOdometer != null &&
-            _yearController.text.isNotEmpty &&
-            _seatsController.text.isNotEmpty &&
-            _selectedFuelType != null;
-      case 1: // Technique - Plaque et assurance requises
-        final plateComplete = _plateNumber1Controller.text.isNotEmpty &&
-            _plateNumber2Controller.text.isNotEmpty &&
-            _plateNumber3Controller.text.isNotEmpty;
-        return plateComplete && _selectedInsurance != null && _selectedInsurance!.isNotEmpty;
-      case 2: // Tarification - Prix par jour requis (doit être > 0)
-        final price = double.tryParse(_pricePerDayController.text);
-        if (price == null || price <= 0) return false;
-
-        if (_hasHomeDelivery) {
-          if (_deliveryLocations.isEmpty) return false;
-
-          for (final loc in _deliveryLocations) {
-            final double locPrice = (loc['price'] as num?)?.toDouble() ?? 0.0;
-            if (locPrice <= 0) return false;
-          }
-        }
-
-        return true;
-      case 3: // Localisation - Ville requise
-        return _selectedLocation != null;
-      case 4: // Équipements - Au moins un équipement requis
-        return vehicleController.selectedFeatures.isNotEmpty;
-      case 5: // Politiques & Règles
-        if (vehicleController.selectedPolicyId.value.isEmpty) {
-          return false;
-        }
-        // Si Flexible, exiger que tous les paliers aient une valeur valide 0-100
-        if (vehicleController.selectedPolicyId.value == 'flexible') {
-          final policiesList = vehicleController.policiesList.toList();
-          if (policiesList.isEmpty) return false;
-          for (var tier in policiesList) {
-            if (tier is! Map<String, dynamic>) return false;
-            final String tierId = tier['_id']?.toString() ?? tier['id']?.toString() ?? '';
-            if (tierId.isEmpty) return false;
-            final String? fee = vehicleController.tierRetentionFees[tierId];
-            if (fee == null || fee.trim().isEmpty) return false;
-            final double? v = double.tryParse(fee.trim());
-            if (v == null || v < 0 || v > 100) return false;
-          }
-        }
-        return true;
-      case 6: // Photos - Au moins une image requise
-        return vehicleController.selectedImages.isNotEmpty;
-      case 7: // Documents - Les 3 documents obligatoires doivent être présents
-        return vehicleController.registrationCardRecto.value != null &&
-               vehicleController.registrationCardVerso.value != null &&
-               vehicleController.ministryAuthorization.value != null;
-      default:
-        return true; // Les autres étapes n'ont pas de validation stricte
     }
   }
 
@@ -897,7 +852,6 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   }
 
   @override
-  @override
   void dispose() {
     print('👋 [BYE] Écran d\'ajout détruit');
     _pricePerDayController.dispose();
@@ -912,8 +866,38 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     _plateNumber3Controller.dispose();
     _minRentalDaysController.dispose();
     _minAgeController.dispose();
+    _addressController.dispose();
+    _mapIdleDebounce?.cancel();
     _pageController.dispose();
+    _step1ScrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToField(GlobalKey key) {
+    final context = key.currentContext;
+    if (context == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        alignment: 0.15,
+      );
+    });
+  }
+
+  void _scrollStep1NearBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_step1ScrollController.hasClients) return;
+      final max = _step1ScrollController.position.maxScrollExtent;
+      final target = (max - 120).clamp(0.0, max);
+      _step1ScrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   @override
@@ -1022,6 +1006,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   // ========== ÉTAPE 1 : IDENTITÉ ==========
   Widget _buildStep1Identity() {
     return SingleChildScrollView(
+      controller: _step1ScrollController,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1105,6 +1090,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                           setState(() {
                             _selectedMake = newValue;
                             _selectedModel = null;
+                            _isOtherModelSelected = false;
+                            _otherModelController.clear();
                           });
                           vehicleController.modelsList.clear();
                           if (newValue != null && newValue.id != null && newValue.id!.isNotEmpty) {
@@ -1113,6 +1100,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                               typeId: typeId,
                               makeId: newValue.id,
                             );
+                            _scrollToField(_modelCardKey);
                           }
                         },
                         hint: makesCount == 0 ? 'Chargement...'.tr : 'Sélectionnez une option'.tr,
@@ -1128,6 +1116,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
           // Carte Modèle
           _buildCard(
+            key: _modelCardKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1166,6 +1155,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                   _isOtherModelSelected = selectedName.toLowerCase() == 'autre';
                                   debugPrint('SÉLECTION MODÈLE: $selectedName | IS_OTHER: $_isOtherModelSelected');
                                 });
+                                _scrollToField(_odometerCardKey);
                               },
                               hint: isLoading
                                   ? 'Chargement...'.tr
@@ -1193,6 +1183,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
           // Carte Kilométrage (champ + slider + mappage automatique d'intervalle)
           _buildCard(
+            key: _odometerCardKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1231,6 +1222,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                           setState(() {
                             _selectedOdometer = odometer;
                           });
+                          _scrollStep1NearBottom();
                         },
                         hint: odometersCount == 0 ? 'Chargement...'.tr : 'Sélectionnez une option'.tr,
                         icon: Icons.speed,
@@ -2415,14 +2407,184 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                _buildModernTextField(
+                TypeAheadField<PlaceSuggestion>(
                   controller: _addressController,
-                  hint: 'Ex: 123 Rue Mohammed V, Casablanca'.tr,
-                  icon: Icons.location_on_outlined,
-                  keyboardType: TextInputType.streetAddress,
-                  onChanged: (value) {
-                    vehicleController.fullAddress.value = value;
+                  debounceDuration: const Duration(milliseconds: 400),
+                  hideOnLoading: false,
+                  decorationBuilder: (context, child) {
+                    return Material(
+                      elevation: 0,
+                      color: Colors.transparent,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: child,
+                      ),
+                    );
                   },
+                  suggestionsCallback: (pattern) async {
+                    if (_isMapMoving) return [];
+                    print('🚀 Callback déclenché pour : $pattern');
+                    if (pattern.trim().length < 2) return [];
+                    print('📡 APPEL GOOGLE PLACES POUR : $pattern');
+                    return await _googlePlacesService.searchAddress(pattern);
+                  },
+                  itemSeparatorBuilder: (context, index) => Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: Colors.grey.shade200,
+                  ),
+                  itemBuilder: (context, suggestion) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.location_on_outlined,
+                          color: vehicalThemColor,
+                        ),
+                        title: Text(
+                          suggestion.mainText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.blueGrey[900],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: suggestion.secondaryText.isEmpty
+                            ? null
+                            : Text(
+                                suggestion.secondaryText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.blueGrey[400],
+                                  fontSize: 12,
+                                ),
+                              ),
+                      ),
+                    );
+                  },
+                  onSelected: (suggestion) async {
+                    print('✅ [TypeAhead] onSelected placeId=${suggestion.placeId} main="${suggestion.mainText}"');
+                    final details = await _googlePlacesService
+                        .getPlaceDetails(suggestion.placeId);
+                    final selected = details ?? suggestion;
+                    final lat = selected.latitude;
+                    final lng = selected.longitude;
+                    print('📌 [TypeAhead] selected resolved lat=$lat lng=$lng desc="${selected.description}"');
+                    _addressController.text = selected.description;
+                    vehicleController.fullAddress.value = selected.description;
+                    if (lat == null || lng == null) return;
+                    final target = LatLng(lat, lng);
+                    _selectedLatLng = target;
+                    _updateMarker(target);
+                    vehicleController.selectedLatitude.value = lat;
+                    vehicleController.selectedLongitude.value = lng;
+                    if (_mapController != null) {
+                      await _mapController!.animateCamera(
+                        CameraUpdate.newLatLngZoom(target, 16),
+                      );
+                    }
+                    _googlePlacesService.completeSession();
+                  },
+                  emptyBuilder: (context) => Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Text(
+                      _googlePlacesService.lastAutocompleteError?.isNotEmpty ==
+                              true
+                          ? '${'Aucun résultat'.tr}\n${_googlePlacesService.lastAutocompleteError}'
+                          : 'Aucun résultat'.tr,
+                    ),
+                  ),
+                  builder: (context, controller, focusNode) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        keyboardType: TextInputType.streetAddress,
+                        decoration: InputDecoration(
+                          hintText: 'Ex: 123 Rue Mohammed V, Casablanca'.tr,
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: vehicalThemColor,
+                              width: 2,
+                            ),
+                          ),
+                          prefixIcon: Icon(
+                            Icons.location_on_outlined,
+                            color: vehicalThemColor,
+                          ),
+                          suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: _addressController,
+                            builder: (_, value, __) {
+                              if (value.text.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () {
+                                  print('🧹 [TypeAhead] clear address pressed');
+                                  _addressController.clear();
+                                  vehicleController.fullAddress.value = '';
+                                  _googlePlacesService.completeSession();
+                                },
+                              );
+                            },
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          _isMapMoving = false;
+                          print('⌨️ Saisie Clavier : $value');
+                          vehicleController.fullAddress.value = value;
+                        },
+                        onEditingComplete: () {
+                          print('🛑 [TypeAhead] onEditingComplete');
+                        },
+                        onSubmitted: (_) {
+                          print('📨 [TypeAhead] onSubmitted');
+                        },
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _moveToCurrentLocation,
+                    icon: const Icon(Icons.my_location),
+                    label: Text('Ma localisation actuelle'.tr),
+                  ),
                 ),
               ],
             ),
@@ -2465,14 +2627,16 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                       ),
                       markers: _markers,
                       onTap: (LatLng position) {
-                        setState(() {
-                          _selectedLatLng = position;
-                          _updateMarker(position);
-                        });
+                        print('🗺️ [Map] onTap lat=${position.latitude} lng=${position.longitude}');
+                        _selectedLatLng = position;
+                        _updateMarker(position);
                         // Synchroniser avec le controller
                         vehicleController.selectedLatitude.value = position.latitude;
                         vehicleController.selectedLongitude.value = position.longitude;
+                        _reverseGeocodeAndFillAddress(position);
                       },
+                      onCameraMove: _onMapCameraMove,
+                      onCameraIdle: _onMapCameraIdle,
                       myLocationEnabled: true,
                       myLocationButtonEnabled: true,
                       zoomControlsEnabled: true,
@@ -2490,6 +2654,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
   // Méthode pour mettre à jour le marqueur
   void _updateMarker(LatLng position) {
+    print('📍 [Map] updateMarker lat=${position.latitude} lng=${position.longitude}');
     setState(() {
       _markers.clear();
       _markers.add(
@@ -2498,16 +2663,90 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           position: position,
           draggable: true,
           onDragEnd: (LatLng newPosition) {
+            print('🤏 [Map] marker dragEnd lat=${newPosition.latitude} lng=${newPosition.longitude}');
             setState(() {
               _selectedLatLng = newPosition;
             });
             // Synchroniser avec le controller
             vehicleController.selectedLatitude.value = newPosition.latitude;
             vehicleController.selectedLongitude.value = newPosition.longitude;
+            _reverseGeocodeAndFillAddress(newPosition);
           },
         ),
       );
     });
+  }
+
+  void _onMapCameraMove(CameraPosition position) {
+    print('🎥 [Map] cameraMove lat=${position.target.latitude} lng=${position.target.longitude}');
+    _lastCameraTarget = position.target;
+  }
+
+  void _onMapCameraIdle() {
+    final t = _lastCameraTarget;
+    if (t == null) return;
+    print('⏸️ [Map] cameraIdle lat=${t.latitude} lng=${t.longitude}');
+    _mapIdleDebounce?.cancel();
+    _mapIdleDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      _selectedLatLng = t;
+      _updateMarker(t);
+      vehicleController.selectedLatitude.value = t.latitude;
+      vehicleController.selectedLongitude.value = t.longitude;
+      _reverseGeocodeAndFillAddress(t);
+    });
+  }
+
+  Future<void> _reverseGeocodeAndFillAddress(LatLng pos) async {
+    _isMapMoving = true;
+    try {
+      print(
+          '🔁 [UI] reverseGeocodeAndFillAddress lat=${pos.latitude} lng=${pos.longitude}');
+      final addr = await _googlePlacesService.reverseGeocode(
+        pos.latitude,
+        pos.longitude,
+      );
+      if (!mounted) return;
+      if (addr == null || addr.trim().isEmpty) {
+        print('⚠️ [UI] reverse geocode empty address');
+        return;
+      }
+      print('✅ [UI] reverse geocode fill address="$addr"');
+      _addressController.text = addr;
+      vehicleController.fullAddress.value = addr;
+    } finally {
+      if (mounted) {
+        _isMapMoving = false;
+      }
+    }
+  }
+
+  Future<void> _moveToCurrentLocation() async {
+    print('📍 [Geo] moveToCurrentLocation start');
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      showErrorToastMessage(
+          'Location permission denied. Please enable it in settings.'.tr);
+      print('❌ [Geo] permission denied: $permission');
+      return;
+    }
+    final p = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+    final target = LatLng(p.latitude, p.longitude);
+    print('✅ [Geo] current position lat=${target.latitude} lng=${target.longitude}');
+    _selectedLatLng = target;
+    _updateMarker(target);
+    vehicleController.selectedLatitude.value = target.latitude;
+    vehicleController.selectedLongitude.value = target.longitude;
+    await _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(target, 16),
+    );
+    await _reverseGeocodeAndFillAddress(target);
   }
 
   // ========== ÉTAPE 5 : ÉQUIPEMENTS ==========
@@ -2915,7 +3154,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Règles du véhicule'.tr,
+                  'Vehicle Rules'.tr,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -3458,8 +3697,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
   // ========== WIDGETS RÉUTILISABLES ==========
 
-  Widget _buildCard({required Widget child}) {
+  Widget _buildCard({Key? key, required Widget child}) {
     return Container(
+      key: key,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -3616,8 +3856,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
             child: Obx(() {
               final bool isSubmitting = vehicleController.isSubmittingVehicle.value;
               final bool isLoading = vehicleController.isLoading.value || isSubmitting;
-              final bool enabled = _canProceedToNextStep() && !isLoading;
-
+              final bool enabled = !isLoading;
               return InkWell(
                 onTap: enabled ? _nextStep : null,
                 child: Container(
@@ -3645,7 +3884,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
                         : Row(
@@ -3653,7 +3893,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                _currentStep == _totalSteps - 1 ? 'Envoyer'.tr : 'Suivant'.tr,
+                                _currentStep == _totalSteps - 1
+                                    ? 'Envoyer'.tr
+                                    : 'Suivant'.tr,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,

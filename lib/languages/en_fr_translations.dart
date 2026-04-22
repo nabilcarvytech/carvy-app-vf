@@ -346,6 +346,13 @@ const Map<String, String> frFR = {
   "Product Details ": "Détails du produit ",
   "Space Details": "Détails de l’espace",
   "My Booking": "Mes réservations",
+  "Special offers": "Offres spéciales",
+  "Automatic discounts based on duration":
+      "Réductions automatiques selon la durée",
+  "Discount 7d+: @pct": "Remise 7 jours+ : @pct",
+  "Discount 30d+: @pct": "Remise 30 jours+ : @pct",
+  "Confirm reception": "Confirmer la réception",
+  "View itinerary": "Voir l'itinéraire",
   "Upcoming": "À venir",
   "Previous": "Précédentes",
   "No Completed Available": "Aucune réservation terminée disponible",
@@ -1098,6 +1105,9 @@ const Map<String, String> frFR = {
       "Veuillez entrer le numéro de la maison et le numéro d'étage.",
   "Please select the address from the map.":
       "Veuillez sélectionner l'adresse sur la carte.",
+  "Retrieving your location...": "Récupération de votre position...",
+  "Select a location on the map or use the search field.":
+      "Sélectionnez un lieu sur la carte ou utilisez la recherche.",
   "Error: Invalid Google API key. Please check your configuration.":
       "Erreur : Clé API Google invalide. Veuillez vérifier votre configuration.",
   "The Price field must be a Number": "Le champ de prix doit être un nombre",
@@ -1155,6 +1165,8 @@ const Map<String, String> frFR = {
   "By": "Par",
   "SeatsTap to view": "SiègesTouchez pour voir",
   "Vehicle Rules": "Règles du véhicule",
+  "No vehicle rules specified by the host.":
+      "Aucune règle spécifique indiquée par l'hôte.",
   "Something went wrong. Please try again.":
       "Quelque chose s'est mal passé. Veuillez réessayer.",
   "Dates": "Dates",
@@ -1235,6 +1247,9 @@ const Map<String, String> frFR = {
   "Choose Payment Method": "Choisir le mode de paiement",
   "InvalidNumber": "Numéro invalide",
   "Payment Method": "Mode de paiement",
+  "Details": "Détails",
+  "Pickup OTP: @code": "OTP de récupération : @code",
+  "Drop OTP: @code": "OTP de restitution : @code",
   "Pickup OTP?": "OTP de récupération ?",
   "Interior Image Required'": "Image intérieure requise",
   "Enter the pickup OTP given by the vendor\"":
@@ -1288,5 +1303,37 @@ const Map<String, String> frFR = {
   "Smoking Allowed": "Fumer autorisé",
   "min_rental_duration_vehicle_days":
       "La durée minimale de location pour ce véhicule est de @days jours.",
-  "International Travel Allowed": "Voyage international autorisé"
+  "International Travel Allowed": "Voyage international autorisé",
+  "register_wizard_app_bar_title": "Créer un compte",
+  "register_wizard_who_are_you": "Qui êtes-vous ?",
+  "register_wizard_choose_profile":
+      "Choisissez votre profil pour s'inscrire",
+  "register_wizard_role_agency": "Agence",
+  "register_wizard_role_agency_desc":
+      "Je veux louer mes véhicules",
+  "register_wizard_role_client": "Client",
+  "register_wizard_role_client_desc":
+      "Je cherche un véhicule à louer",
+  "register_wizard_already_have_intro": "J'ai déjà un compte :",
+  "register_wizard_login_outline": "Se connecter",
+  "register_wizard_otp_placeholder": "Saisissez le code OTP",
+  "terms_summary_payments_title": "Paiements",
+  "terms_summary_payments_body":
+      "Les montants peuvent inclure la location, la caution et les taxes.",
+  "terms_summary_cancel_title": "Annulations",
+  "terms_summary_cancel_body":
+      "Les règles d'annulation suivent la politique indiquée sur chaque annonce.",
+  "terms_summary_support_title": "Assistance",
+  "terms_summary_support_body":
+      "Contactez-nous via l'application pour l'aide aux réservations ou au compte.",
+  "Register step identity": "Votre profil",
+  "Register step identity subtitle":
+      "Renseignez vos informations pour créer votre compte Carvy.",
+  "Register step phone": "Vérifiez votre téléphone",
+  "Register step phone subtitle":
+      "Nous enverrons un code par SMS (Twilio) pour confirmer votre numéro.",
+  "Register step terms": "Conditions générales",
+  "Register step terms subtitle":
+      "Lisez les points suivants avant de continuer.",
+  "register_wizard_resend_in_seconds": "Renvoyer le code dans @n s"
 };

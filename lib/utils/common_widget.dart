@@ -11,7 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:pinput/pinput.dart';
 import 'package:carvy/controller/booking_controller.dart';
@@ -1921,7 +1921,9 @@ myBookingListWidget(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
-                                    "Drop OTP : $dropOtpValue",
+                                    "Drop OTP: @code".trParams({
+                                      'code': dropOtpValue,
+                                    }),
                                     style: regular2(context)
                                         .copyWith(color: whiteColor),
                                   ),
@@ -3454,7 +3456,13 @@ myBookingListWidget(
                                             borderRadius: BorderRadius.circular(13),
                                             color: Colors.red,
                                           ),
-                                          child: Text("CONFIRMER RÉCEPTION", style: boldstyle(context).copyWith(color: Colors.white, fontSize: 14)),
+                                          child: Text(
+                                            'Confirm reception'.tr,
+                                            style: boldstyle(context)
+                                                .copyWith(
+                                                    color: Colors.white,
+                                                    fontSize: 14),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -3729,7 +3737,7 @@ myBookingListWidget(
                                                 size: 20,
                                               ),
                                               label: Text(
-                                                'Voir l\'itinéraire'.tr,
+                                                'View itinerary'.tr,
                                                 style: boldstyle(context)
                                                     .copyWith(
                                                   color: Colors.purple,
@@ -4669,27 +4677,169 @@ featuresBottomSheet(BuildContext context, {final String? title, dynamic list}) {
   );
 }
 
-// Helper function to map backend text to translation keys
-String _getCancellationPolicyTranslation(String text) {
-  // Normalize the text (remove extra spaces, handle variations)
-  String normalized = text.trim().toLowerCase();
+bool _rulesTextHasArabicScript(String s) =>
+    RegExp(r'[\u0600-\u06FF]').hasMatch(s);
 
-  // Map to translation keys based on content
-  if (normalized.contains('15%') && normalized.contains('48 hours')) {
+/// Accent / ponctuation / apostrophes neutralisés pour retrouver la règle canonique.
+String _foldRuleTextForLookup(String raw) {
+  var s = raw.toLowerCase().trim();
+  const Map<String, String> accent = {
+    'à': 'a', 'â': 'a', 'ä': 'a', 'á': 'a', 'ã': 'a', 'å': 'a', 'ā': 'a',
+    'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e', 'ē': 'e', 'ė': 'e', 'ę': 'e',
+    'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i', 'ī': 'i', 'į': 'i',
+    'ó': 'o', 'ò': 'o', 'ô': 'o', 'ö': 'o', 'õ': 'o', 'ō': 'o', 'ø': 'o',
+    'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u', 'ū': 'u', 'ų': 'u',
+    'ç': 'c', 'œ': 'oe', 'æ': 'ae',
+  };
+  for (final e in accent.entries) {
+    s = s.replaceAll(e.key, e.value);
+  }
+  s = s.replaceAll(RegExp(r"[''`´]"), ' ');
+  s = s.replaceAll(RegExp(r'[^a-z0-9\s%]'), ' ');
+  s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return s;
+}
+
+/// Phrases FR/EN (toutes variantes pliées) → clé anglaise GetX existante.
+const Map<String, String> _kFoldedVehicleRuleToEnglishKey = {
+  // FR (API / écrans)
+  'il est interdit de preter louer ou sous louer le vehicule a un tiers':
+      'It is forbidden to lend, rent, or sublease the car to a third party.',
+  'il est interdit de preter louer ou sous louer la voiture a un tiers':
+      'It is forbidden to lend, rent, or sublease the car to a third party.',
+  'le vehicule doit etre retourne avec le meme niveau de carburant qu au moment de la prise en charge':
+      'The vehicle must be returned with the same fuel level as at pickup.',
+  'le vehicule doit etre restitue avec le meme niveau de carburant qu a la prise en charge':
+      'The vehicle must be returned with the same fuel level as at pickup.',
+  'il est interdit de fumer et de manger a l interieur du vehicule':
+      'Smoking and eating inside the car are not allowed.',
+  'il est interdit de fumer et de manger a l interieur de la voiture':
+      'Smoking and eating inside the car are not allowed.',
+  'le vehicule doit etre retourne a la date a l heure et au lieu convenus':
+      'The vehicle must be returned on the agreed date, time, and location.',
+  'le vehicule doit etre retourne a la date l heure et au lieu convenus':
+      'The vehicle must be returned on the agreed date, time, and location.',
+  // EN (backend)
+  'it is forbidden to lend rent or sublease the car to a third party':
+      'It is forbidden to lend, rent, or sublease the car to a third party.',
+  'the vehicle must be returned with the same fuel level as at pickup':
+      'The vehicle must be returned with the same fuel level as at pickup.',
+  'smoking and eating inside the car are not allowed':
+      'Smoking and eating inside the car are not allowed.',
+  'the vehicle must be returned on the agreed date time and location':
+      'The vehicle must be returned on the agreed date, time, and location.',
+};
+
+/// Politique d’annulation (EN/FR) + règles véhicule standard (EN/FR depuis l’API).
+String _translateRulesSheetLine(String text) {
+  final normalized = text.trim().toLowerCase();
+  if (normalized.isEmpty) return text;
+
+  final foldedRule = _foldRuleTextForLookup(text);
+  final canonVehicle = _kFoldedVehicleRuleToEnglishKey[foldedRule];
+  if (canonVehicle != null) {
+    return canonVehicle.tr;
+  }
+
+  if (normalized.contains('15%') &&
+      (normalized.contains('48 hours') || normalized.contains('48 heures'))) {
     return "15% deduction will apply if canceled at least 48 hours before the rental start time"
         .tr;
-  } else if (normalized.contains('80%') && normalized.contains('12 hours')) {
+  }
+  if (normalized.contains('80%') &&
+      (normalized.contains('12 hours') || normalized.contains('12 heures'))) {
     return "80% deduction will apply if canceled within 12 hours of the rental start time."
         .tr;
-  } else if (normalized.contains('50%') &&
-      (normalized.contains('12') && normalized.contains('24'))) {
+  }
+  if (normalized.contains('50%') &&
+      normalized.contains('12') &&
+      normalized.contains('24')) {
     return "50% deduction will be issued if canceled between 12 and 24 hours prior to the rental start time."
         .tr;
   }
 
-  // If no match, try direct translation
+  if (_matchesVehicleRuleLend(normalized)) {
+    return "It is forbidden to lend, rent, or sublease the car to a third party.".tr;
+  }
+  if (_matchesVehicleRuleFuel(normalized)) {
+    return "The vehicle must be returned with the same fuel level as at pickup.".tr;
+  }
+  if (_matchesVehicleRuleSmoking(normalized)) {
+    return "Smoking and eating inside the car are not allowed.".tr;
+  }
+  if (_matchesVehicleRuleDateTime(normalized)) {
+    return "The vehicle must be returned on the agreed date, time, and location.".tr;
+  }
+
   return text.tr;
 }
+
+bool _matchesVehicleRuleLend(String s) {
+  if (s.contains('third party')) return true;
+  if (s.contains('sublease')) return true;
+  if (s.contains('forbidden') && s.contains('lend')) return true;
+  if (s.contains('interdit') &&
+      (s.contains('prêter') ||
+          s.contains('preter') ||
+          s.contains('louer') ||
+          s.contains('sous-louer') ||
+          s.contains('sous louer')) &&
+      s.contains('tiers')) {
+    return true;
+  }
+  return false;
+}
+
+bool _matchesVehicleRuleFuel(String s) {
+  if (s.contains('fuel level') || (s.contains('same') && s.contains('fuel'))) {
+    return true;
+  }
+  if (s.contains('carburant') ||
+      (s.contains('niveau') && s.contains('carburant'))) {
+    return true;
+  }
+  if ((s.contains('même niveau') || s.contains('meme niveau')) &&
+      s.contains('carburant')) {
+    return true;
+  }
+  if (s.contains('prise en charge') && s.contains('carburant')) return true;
+  return false;
+}
+
+bool _matchesVehicleRuleSmoking(String s) {
+  if (s.contains('smoking') && s.contains('eating')) return true;
+  if (s.contains('fumer') && s.contains('manger')) return true;
+  if (s.contains('interdit') &&
+      s.contains('fumer') &&
+      (s.contains('manger') || s.contains('véhicule') || s.contains('vehicule'))) {
+    return true;
+  }
+  return false;
+}
+
+bool _matchesVehicleRuleDateTime(String s) {
+  if (s.contains('agreed date') && s.contains('location')) return true;
+  if (s.contains('date') &&
+      s.contains('heure') &&
+      (s.contains('lieu') || s.contains('convenus'))) {
+    return true;
+  }
+  return false;
+}
+
+Widget _rulesSheetLineText(String translated) {
+  final isRtl = _rulesTextHasArabicScript(translated);
+  return Text(
+    translated,
+    style: const TextStyle(fontSize: 14),
+    textAlign: TextAlign.start,
+    textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+  );
+}
+
+// Compat: ancien nom
+String _getCancellationPolicyTranslation(String text) =>
+    _translateRulesSheetLine(text);
 
 rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
   showModalBottomSheet(
@@ -4742,17 +4892,31 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
               ],
             ),
             const SizedBox(height: 25),
-            // Titre dynamique : utilise le titre passé en paramètre si disponible,
-            // sinon fallback sur "Politique d'annulation"
-            Text(
-              (title != null && title.isNotEmpty)
-                  ? title.tr
-                  : "Politique d'annulation".tr,
-              style: boldstyle(context).copyWith(
-                color: notifires.getGrey2Whitecolor,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+            // Titre : ne pas re-traduire si déjà localisé (arabe) ou texte API long.
+            Builder(
+              builder: (ctx) {
+                String headerText = "Politique d'annulation".tr;
+                if (title != null && title!.trim().isNotEmpty) {
+                  final t = title!.trim();
+                  if (_rulesTextHasArabicScript(t) || t.length > 72) {
+                    headerText = t;
+                  } else {
+                    headerText = t.tr;
+                  }
+                }
+                return Text(
+                  headerText,
+                  style: boldstyle(context).copyWith(
+                    color: notifires.getGrey2Whitecolor,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.start,
+                  textDirection: _rulesTextHasArabicScript(headerText)
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
+                );
+              },
             ),
             const SizedBox(height: 20),
             // Liste des règles avec icônes
@@ -4772,9 +4936,8 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: Text(
+                                child: _rulesSheetLineText(
                                   "Aucune politique spécifique définie.".tr,
-                                  style: const TextStyle(fontSize: 14),
                                 ),
                               ),
                             ],
@@ -4793,9 +4956,8 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: Text(
-                                    _getCancellationPolicyTranslation(rule),
-                                    style: const TextStyle(fontSize: 14),
+                                  child: _rulesSheetLineText(
+                                    _translateRulesSheetLine(rule),
                                   ),
                                 ),
                               ],

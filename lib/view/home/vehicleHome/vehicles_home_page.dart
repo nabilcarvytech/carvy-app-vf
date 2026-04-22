@@ -12,7 +12,9 @@ import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:carvy/view/home/location_screen.dart';
 import 'package:carvy/view/home/top_categories.dart';
+import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/search/after_search.dart';
+import 'package:carvy/view/search/vehicle/vehicle_filter.dart';
 import '../../../controller/search_controller.dart';
 import '../../../controller/home_controller.dart';
 import '../../../customwidget/custom_active_module_id_widget.dart';
@@ -66,6 +68,19 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {});
     });
+  }
+
+  /// Même feuille de filtres que sur le flux recherche (prix, assurance, marques, etc.).
+  void _openVehicleFilterSheet(BuildContext context) {
+    showPopUpScreen(
+      context,
+      VehicleFilter(
+        mode: false,
+        onRefresh: () {
+          fetchData();
+        },
+      ),
+    );
   }
 
   // Ouvre la bottom sheet de tri pour la Home
@@ -384,6 +399,43 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                             Icons.arrow_drop_down,
                             size: 20,
                             color: whiteColor,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6, right: 6),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _openVehicleFilterSheet(context),
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.28),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.filter_alt,
+                                      size: 18,
+                                      color: whiteColor,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Filter'.tr,
+                                      style: regular3(context).copyWith(
+                                        color: whiteColor,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                         profilePhotoOnHomeScreen(context),
@@ -706,12 +758,39 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                 thickness: 0.8,
               ),
             ),
-            buildAction(
-              icon: Icons.filter_list,
-              label: "Filter",
-              onTap: () {
-                print("Open Filter");
-              },
+            Expanded(
+              child: InkWell(
+                onTap: () => _openVehicleFilterSheet(context),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  margin:
+                      const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: primary,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.filter_alt,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Filter'.tr,
+                        style: regular3(context).copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),

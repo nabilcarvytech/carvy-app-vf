@@ -7,6 +7,7 @@ import 'package:carvy/view/auth/login_screen.dart';
 import 'package:carvy/view/auth/otp_screen.dart';
 import 'package:carvy/view/auth/phone_update_screen.dart';
 import 'package:carvy/view/auth/sign_up_screen.dart';
+import 'package:carvy/view/auth/register/register_wizard_screen.dart';
 import 'package:carvy/view/auth/success_change_password.dart';
 import 'package:carvy/view/auth/user_google_sign_up_screen.dart';
 import 'package:carvy/view/auth/agency_registration_screen.dart';
@@ -114,6 +115,8 @@ class WebRoutes {
   static String agencySignUpScreen = "/agencySignUpScreen";
   static String agencyRegistrationPendingScreen = "/agencyRegistrationPendingScreen";
   static String clientHomeScreen = "/clientHomeScreen";
+  /// Inscription client / agence (wizard multi-étapes)
+  static String registerWizardScreen = "/registerWizardScreen";
 }
 
 final getPagesforweb = [
@@ -136,6 +139,9 @@ final getPagesforweb = [
   GetPage(
       name: WebRoutes.clientHomeScreen,
       page: () => const ClientHomeScreen()),
+  GetPage(
+      name: WebRoutes.registerWizardScreen,
+      page: () => const RegisterWizardScreen()),
   GetPage(name: WebRoutes.signUpScreen, page: () => const SignUp()),
   GetPage(
       name: WebRoutes.homeMain, page: () => const HomeMain(initialIndex: 0)),

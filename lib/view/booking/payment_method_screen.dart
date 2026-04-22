@@ -87,10 +87,17 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   @override
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) {
+        if (didPop) return;
+        Get.back();
+      },
+      child: Scaffold(
       backgroundColor: notifires.getbgcolor,
       appBar: AppBar(
         backgroundColor: notifires.getbgcolor,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         leadingWidth: 80,
@@ -479,6 +486,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           ),
         );
       }),
+    ),
     );
   }
 }
