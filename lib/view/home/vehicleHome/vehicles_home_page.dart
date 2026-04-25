@@ -15,6 +15,7 @@ import 'package:carvy/view/home/top_categories.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/search/after_search.dart';
 import 'package:carvy/view/search/vehicle/vehicle_filter.dart';
+import 'package:carvy/customwidget/search_wizard.dart';
 import '../../../controller/search_controller.dart';
 import '../../../controller/home_controller.dart';
 import '../../../customwidget/custom_active_module_id_widget.dart';
@@ -39,6 +40,12 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   final RefreshController refreshController = RefreshController();
   final ScrollController scrollController = ScrollController();
 
+  /// Barre blanche compacte : visible seulement quand le header bleu est totalement réduit.
+  bool _compactStickyVisible = false;
+
+  /// Distance de scroll pour réduire tout le [SliverAppBar] (mis à jour chaque build).
+  double _homeHeaderCollapseThresholdPx = 200;
+
   @override
   void initState() {
     super.initState();
@@ -53,11 +60,31 @@ class _VehicleHomePageState extends State<VehicleHomePage>
           GetStorage().read("selectedVehicleTypeName") ?? "";
       fetchData();
     });
-    scrollController.addListener(() {});
+    scrollController.addListener(_syncCompactStickyFromScroll);
+  }
+
+  void _updateCompactStickyForPixels(double pixels) {
+    if (!mounted) return;
+    final next = pixels >= _homeHeaderCollapseThresholdPx - 1.0;
+    if (next != _compactStickyVisible) {
+      setState(() => _compactStickyVisible = next);
+    }
+  }
+
+  void _syncCompactStickyFromScroll() {
+    if (!scrollController.hasClients) return;
+    _updateCompactStickyForPixels(scrollController.offset);
+  }
+
+  bool _onHomeScrollNotification(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    _updateCompactStickyForPixels(n.metrics.pixels);
+    return false;
   }
 
   @override
   void dispose() {
+    scrollController.removeListener(_syncCompactStickyFromScroll);
     refreshController.dispose();
     scrollController.dispose();
     homeController.disposeFunctionVehicle();
@@ -250,6 +277,280 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     }
   }
 
+  /// Hauteur du header bleu mobile : status bar + toolbar + bloc recherche / dates.
+  double _expandedHomeHeaderExtent(BuildContext context) {
+    final double top = MediaQuery.paddingOf(context).top;
+    return top + kToolbarHeight + 200;
+  }
+
+  double _homeHeaderCollapseThreshold(BuildContext context) {
+    return _expandedHomeHeaderExtent(context) -
+        MediaQuery.paddingOf(context).top -
+        kToolbarHeight;
+  }
+
+  Widget _buildCompactStickySearchBar(BuildContext context) {
+    final Color hintColor = Colors.grey.shade600;
+    final TextStyle valueStyle = TextStyle(
+      fontSize: 12.5,
+      fontWeight: FontWeight.w500,
+      color: Colors.grey.shade900,
+    );
+    final TextStyle hintStyle = TextStyle(
+      fontSize: 12.5,
+      fontWeight: FontWeight.w400,
+      color: hintColor,
+    );
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          openSearchWizard(
+            context,
+            onSearch: () => filterController.submitMethod(context),
+          );
+        },
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Obx(() {
+                  final loc = generalScopeController.homeSearchLocation.value;
+                  final city =
+                      generalScopeController.textEditingControllerCity.text;
+                  final bool isHint = loc.isEmpty && city.isEmpty;
+                  final String label =
+                      loc.isNotEmpty ? loc : (city.isNotEmpty ? city : 'Destination ?'.tr);
+                  return Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 18,
+                        color: isHint ? hintColor : themeColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: isHint ? hintStyle : valueStyle,
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 6),
+                width: 1,
+                height: 22,
+                color: Colors.grey.shade300,
+              ),
+              Expanded(
+                child: Obx(() {
+                  final String s = filterController.startDate.value;
+                  final String e = filterController.endDates.value;
+                  final bool isHint = s.isEmpty || e.isEmpty;
+                  final String label =
+                      isHint ? 'Dates ?'.tr : '$s – $e';
+                  return Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: isHint ? hintColor : themeColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: isHint ? hintStyle : valueStyle,
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.search, size: 22, color: themeColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHomeToolbarRow(BuildContext context) {
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: () {
+            _openBottomSheet(context);
+          },
+          child: Icon(
+            Icons.location_on_outlined,
+            size: 20,
+            color: whiteColor,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Obx(
+          () => GestureDetector(
+            onTap: () {
+              _openBottomSheet(context);
+            },
+            child: Text(
+              generalScopeController.homeSearchLocation.value.length > 20
+                  ? "${generalScopeController.homeSearchLocation.value.substring(0, 17)}..."
+                  : generalScopeController.homeSearchLocation.value.isEmpty
+                      ? "All location".tr
+                      : generalScopeController.homeSearchLocation.value,
+              style: regular3(context).copyWith(
+                color: whiteColor,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                overflow:
+                    generalScopeController.homeSearchLocation.value.length > 20
+                        ? TextOverflow.ellipsis
+                        : TextOverflow.visible,
+              ),
+              maxLines:
+                  generalScopeController.homeSearchLocation.value.length > 20
+                      ? 2
+                      : 1,
+              textAlign: TextAlign.start,
+            ),
+          ),
+        ),
+        Icon(
+          Icons.arrow_drop_down,
+          size: 20,
+          color: whiteColor,
+        ),
+        const Spacer(),
+        GestureDetector(
+          onTap: () {
+            _openBottomSheetforvehicleType(context);
+          },
+          child: Icon(
+            Icons.merge_type_sharp,
+            size: 20,
+            color: whiteColor,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Obx(
+          () => GestureDetector(
+            onTap: () {
+              _openBottomSheetforvehicleType(context);
+            },
+            child: Text(
+              filterController.globalItemTypNamee.value.isEmpty
+                  ? "All".tr
+                  : filterController.globalItemTypNamee.value,
+              style: heading3(context).copyWith(color: whiteColor),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.start,
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: () {
+            _openBottomSheetforvehicleType(context);
+          },
+          child: Icon(
+            Icons.arrow_drop_down,
+            size: 20,
+            color: whiteColor,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 6, right: 6),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _openVehicleFilterSheet(context),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.28),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.filter_alt,
+                      size: 18,
+                      color: whiteColor,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Filter'.tr,
+                      style: regular3(context).copyWith(
+                        color: whiteColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        profilePhotoOnHomeScreen(context),
+      ],
+    );
+  }
+
+  Widget _homePullToRefreshHeader(BuildContext context) {
+    return ClassicHeader(
+      height: 100.0,
+      completeDuration: const Duration(milliseconds: 500),
+      releaseText: 'Release to refresh',
+      refreshingText: 'Refreshing...',
+      idleText: 'Pull down to refresh',
+      failedText: 'Refresh failed',
+      completeText: 'Refresh completed',
+      refreshingIcon: Container(
+        width: 24.0,
+        height: 24.0,
+        padding: const EdgeInsets.all(2.0),
+        decoration: BoxDecoration(
+          color: getColorBasedOnActiveModuleid(),
+          shape: BoxShape.circle,
+        ),
+        child: CircularProgressIndicator(
+          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+          strokeWidth: 2.0,
+          backgroundColor: Colors.transparent,
+        ),
+      ),
+      textStyle: regular2(context),
+    );
+  }
+
   @override
   bool get wantKeepAlive => true;
 
@@ -257,196 +558,15 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   Widget build(BuildContext context) {
     super.build(context);
     final notifires = Provider.of<ColorNotifires>(context, listen: true);
-    const double spacingHeight = 13.0;
-
-    bool _isSectionActive(String section) {
-      bool isActive;
-      switch (section) {
-        case 'VehicleType':
-          isActive = showhideItemType != "Inactive";
-          break;
-        case 'PopularRegion':
-          isActive = showHidePopularRegion != "Inactive" &&
-              filterController.globalItemType.value == 0;
-          break;
-        case 'VehiclesNearYou':
-          isActive = showHideNrarYou != "Inactive" &&
-              filterController.globalItemType.value == 0;
-          break;
-        case 'Make':
-          isActive = showHideMake != "Inactive" &&
-              filterController.globalItemType.value == 0;
-          break;
-        case 'BecomeHost':
-          isActive = showHideBecomeHost != "Inactive" &&
-              filterController.globalItemType.value == 0;
-          break;
-        case 'MostViewed':
-          isActive = showHideMustView != "Inactive";
-          break;
-        default:
-          isActive = false;
-      }
-
-      return isActive;
-    }
-
-    Widget dynamicSpacer(String currentSection, String nextSection) {
-      bool isCurrentActive = _isSectionActive(currentSection);
-      bool isNextActive = _isSectionActive(nextSection);
-      if (isCurrentActive && isNextActive) {
-        return const SizedBox(height: spacingHeight);
-      }
-      return const SizedBox.shrink();
-    }
+    _homeHeaderCollapseThresholdPx = _homeHeaderCollapseThreshold(context);
 
     return Scaffold(
-        resizeToAvoidBottomInset: false,
-        backgroundColor: notifires.getbgcolor,
-        appBar: kIsWeb
-            ? const CustomAppBarHeaders()
-            : AppBar(
-                automaticallyImplyLeading: false,
-                scrolledUnderElevation: 0,
-                title: Column(
-                  children: [
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            _openBottomSheet(context);
-                          },
-                          child: Icon(
-                            Icons.location_on_outlined,
-                            size: 20,
-                            color: whiteColor,
-                          ),
-                        ),
-                        const SizedBox(width: 3),
-                        Obx(
-                          () => GestureDetector(
-                            onTap: () {
-                              _openBottomSheet(context);
-                            },
-                            child: Text(
-                              generalScopeController
-                                          .homeSearchLocation.value.length >
-                                      20
-                                  ? "${generalScopeController.homeSearchLocation.value.substring(0, 17)}..."
-                                  : generalScopeController
-                                          .homeSearchLocation.value.isEmpty
-                                      ? "All location".tr
-                                      : generalScopeController
-                                          .homeSearchLocation.value,
-                              style: regular3(context).copyWith(
-                                color: whiteColor,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                overflow: generalScopeController
-                                            .homeSearchLocation.value.length >
-                                        20
-                                    ? TextOverflow.ellipsis
-                                    : TextOverflow.visible,
-                              ),
-                              maxLines: generalScopeController
-                                          .homeSearchLocation.value.length >
-                                      20
-                                  ? 2
-                                  : 1,
-                              textAlign: TextAlign.start,
-                            ),
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_drop_down,
-                          size: 20,
-                          color: whiteColor,
-                        ),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () {
-                            _openBottomSheetforvehicleType(context);
-                          },
-                          child: Icon(
-                            Icons.merge_type_sharp,
-                            size: 20,
-                            color: whiteColor,
-                          ),
-                        ),
-                        const SizedBox(width: 3),
-                        Obx(
-                          () => GestureDetector(
-                            onTap: () {
-                              _openBottomSheetforvehicleType(context);
-                            },
-                            child: Text(
-                              filterController.globalItemTypNamee.value.isEmpty
-                                  ? "All".tr
-                                  : filterController.globalItemTypNamee.value,
-                              style:
-                                  heading3(context).copyWith(color: whiteColor),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.start,
-                            ),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            _openBottomSheetforvehicleType(context);
-                          },
-                          child: Icon(
-                            Icons.arrow_drop_down,
-                            size: 20,
-                            color: whiteColor,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 6, right: 6),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () => _openVehicleFilterSheet(context),
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.28),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.filter_alt,
-                                      size: 18,
-                                      color: whiteColor,
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      'Filter'.tr,
-                                      style: regular3(context).copyWith(
-                                        color: whiteColor,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        profilePhotoOnHomeScreen(context),
-                      ],
-                    ),
-                  ],
-                ),
-                backgroundColor: themeColor,
-              ),
-        body: GetBuilder<HomeController>(
-          builder: (controller) {
+      resizeToAvoidBottomInset: false,
+      backgroundColor: notifires.getbgcolor,
+      appBar: kIsWeb ? const CustomAppBarHeaders() : null,
+      body: GetBuilder<HomeController>(
+        builder: (controller) {
+          if (kIsWeb) {
             return Column(
               children: [
                 Padding(
@@ -465,7 +585,6 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                   ),
                 ),
                 const SizedBox(height: 10),
-                // Barre de filtres fixe (Map / Sort / Filter)
                 HomeFilterBar(),
                 const SizedBox(height: 10),
                 Expanded(
@@ -473,30 +592,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                     controller: refreshController,
                     enablePullDown: true,
                     enablePullUp: false,
-                    header: ClassicHeader(
-                        height: 100.0,
-                        completeDuration: const Duration(milliseconds: 500),
-                        releaseText: 'Release to refresh',
-                        refreshingText: 'Refreshing...',
-                        idleText: 'Pull down to refresh',
-                        failedText: 'Refresh failed',
-                        completeText: 'Refresh completed',
-                        refreshingIcon: Container(
-                          width: 24.0,
-                          height: 24.0,
-                          padding: const EdgeInsets.all(2.0),
-                          decoration: BoxDecoration(
-                            color: getColorBasedOnActiveModuleid(),
-                            shape: BoxShape.circle,
-                          ),
-                          child: CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                            strokeWidth: 2.0,
-                            backgroundColor: Colors.transparent,
-                          ),
-                        ),
-                        textStyle: regular2(context)),
+                    header: _homePullToRefreshHeader(context),
                     onRefresh: onRefresh,
                     child: ListView.builder(
                       controller: scrollController,
@@ -511,8 +607,138 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                 ),
               ],
             );
-          },
-        ),
+          }
+
+          return SmartRefresher(
+            controller: refreshController,
+            enablePullDown: true,
+            enablePullUp: false,
+            header: _homePullToRefreshHeader(context),
+            onRefresh: onRefresh,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _onHomeScrollNotification,
+              child: CustomScrollView(
+                controller: scrollController,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
+                ),
+                slivers: [
+                  SliverAppBar(
+                  expandedHeight: _expandedHomeHeaderExtent(context),
+                  floating: true,
+                  pinned: true,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  clipBehavior: Clip.none,
+                  backgroundColor: themeColor,
+                  surfaceTintColor: Colors.transparent,
+                  automaticallyImplyLeading: false,
+                  toolbarHeight: kToolbarHeight,
+                  titleSpacing: 0,
+                  centerTitle: false,
+                  // Ne pas lier l’affichage à constraints.maxHeight du title : le framework
+                  // donne souvent une hauteur >> kToolbarHeight, donc la barre restait invisible.
+                  title: AnimatedOpacity(
+                    opacity: _compactStickyVisible ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOut,
+                    child: AnimatedSlide(
+                      offset: _compactStickyVisible
+                          ? Offset.zero
+                          : const Offset(0, 0.06),
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOut,
+                      child: IgnorePointer(
+                        ignoring: !_compactStickyVisible,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8, right: 8),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final double w =
+                                  constraints.maxWidth.isFinite &&
+                                          constraints.maxWidth > 0
+                                      ? constraints.maxWidth
+                                      : MediaQuery.sizeOf(context).width - 16;
+                              return SizedBox(
+                                width: w,
+                                child: _buildCompactStickySearchBar(context),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  flexibleSpace: FlexibleSpaceBar(
+                    collapseMode: CollapseMode.parallax,
+                    background: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Color.lerp(themeColor, const Color(0xFF0D1B4A), 0.28) ?? themeColor,
+                            themeColor,
+                            Color.lerp(themeColor, Colors.white, 0.14) ?? themeColor,
+                          ],
+                          stops: const [0.0, 0.42, 1.0],
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(35),
+                          bottomRight: Radius.circular(35),
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(height: MediaQuery.paddingOf(context).top),
+                          SizedBox(
+                            height: kToolbarHeight,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                child: _buildHomeToolbarRow(context),
+                              ),
+                            ),
+                          ),
+                          customSearchContainer(context, () {
+                            filterController.submitMethod(context);
+                          }, false),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _HomeFilterBarPinnedDelegate(
+                    backgroundColor: notifires.getbgcolor,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10, bottom: 8),
+                      child: HomeFilterBar(),
+                    ),
+                  ),
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, index) => _buildSection(
+                      index,
+                      notifires,
+                      stateSetter,
+                      ctx,
+                    ),
+                    childCount: _calculateItemCount(),
+                  ),
+                ),
+              ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -1353,5 +1579,43 @@ class _VehicleHomePageState extends State<VehicleHomePage>
         );
       },
     );
+  }
+}
+
+/// Garde la barre [Map / Tri / Filtre] collée en dessous de la zone bleue quand le header défile.
+class _HomeFilterBarPinnedDelegate extends SliverPersistentHeaderDelegate {
+  _HomeFilterBarPinnedDelegate({
+    required this.backgroundColor,
+    required this.child,
+  });
+
+  final Color backgroundColor;
+  final Widget child;
+
+  @override
+  double get minExtent => _kPinnedHeight;
+
+  @override
+  double get maxExtent => _kPinnedHeight;
+
+  static const double _kPinnedHeight = 90;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(
+      color: backgroundColor,
+      elevation: overlapsContent ? 1.5 : 0,
+      shadowColor: Colors.black26,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _HomeFilterBarPinnedDelegate oldDelegate) {
+    return oldDelegate.backgroundColor != backgroundColor;
   }
 }

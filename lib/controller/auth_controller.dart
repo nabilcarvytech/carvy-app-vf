@@ -35,6 +35,7 @@ import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/work_space.dart';
 import 'package:carvy/services/auth_service.dart';
+import 'package:carvy/service/onesignal_service.dart';
 import '../helper/http_service.dart';
 import '../view/auth/reset_password_screen.dart';
 
@@ -555,6 +556,9 @@ class AuthController extends GetxController implements GetxService {
             String? pushToken = OneSignal.User.pushSubscription.id;
             print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
             print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
+            if (pushToken != null && pushToken.isNotEmpty) {
+              await OneSignalService.updateServerPlayerId(pushToken);
+            }
           } catch (e) {
             print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
           }

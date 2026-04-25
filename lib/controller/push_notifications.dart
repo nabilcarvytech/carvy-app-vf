@@ -308,15 +308,8 @@ Future<void> ensurePlayerIdIsSynced() async {
   try {
     print('🛡️ [FORCE SYNC] Vérification pré-réservation...');
     
-    // 1. Récupération de l'ID (avec retry rapide)
+    // 1. Récupération directe de l'ID (sans retry)
     var id = OneSignal.User.pushSubscription.id;
-    int retries = 0;
-    while ((id == null || id.isEmpty) && retries < 3) {
-      print('⏳ [FORCE SYNC] Tentative ${retries + 1}/3 pour récupérer l\'ID...');
-      await Future.delayed(const Duration(milliseconds: 500));
-      id = OneSignal.User.pushSubscription.id;
-      retries++;
-    }
     
     if (id == null || id.isEmpty) {
       print('⚠️ [FORCE SYNC] Impossible de récupérer l\'ID OneSignal (Mobile).');
@@ -379,7 +372,7 @@ Future<void> fetchPlayerId(fcmToken) async {
       return;
     }
     
-    // Récupération de l'ID OneSignal avec logique de retry détaillée
+    // Récupération directe de l'ID OneSignal (sans retry)
     print('🏁 [DEBUG] Démarrage de la récupération ID...');
     
     // Vérifier le statut actuel
@@ -387,19 +380,8 @@ Future<void> fetchPlayerId(fcmToken) async {
     var id = OneSignal.User.pushSubscription.id;
     print('🧐 [DEBUG] Statut initial - OptedIn: $status, ID: $id');
     
-    int retries = 0;
-    while ((id == null || id.isEmpty) && retries < 10) {
-      retries++;
-      print('⏳ [DEBUG] Tentative $retries/10 : ID est toujours vide...');
-      await Future.delayed(const Duration(seconds: 1));
-      id = OneSignal.User.pushSubscription.id;
-      print('🔍 [DEBUG] Après attente de 1 seconde, ID récupéré: ${id ?? "NULL"}');
-    }
-    
     if (id == null || id.isEmpty) {
-      print('💀 [DEBUG] ÉCHEC TOTAL : Impossible de récupérer l\'ID après 10 secondes.');
-      print('💀 [DEBUG] Le code s\'arrête ici - return sans envoyer au backend');
-      // C'est ici que ça s'arrête !
+      print('💀 [DEBUG] ID OneSignal indisponible pour l\'instant, on attendra l\'observer.');
       return;
     }
     
@@ -409,51 +391,46 @@ Future<void> fetchPlayerId(fcmToken) async {
     GetStorage().write('oneSiginalplayerid', oneSiginalplayerid);
     print('💾 [DEBUG] ID sauvegardé dans le storage');
     
-    if (id != null && id.isNotEmpty) {
-      print('🚀 [FLUTTER SEND] Envoi vers API...');
-      // Envoi du Player ID vers le backend Node.js
-      print('📤 [OneSignal] Envoi du Player ID au backend...');
-      print('📤 [OneSignal] FCM Token: ${fcmToken.substring(0, 20)}...');
-      print('📤 [OneSignal] Player ID: $oneSiginalplayerid');
-      
-      // ========== LOGS AVANT L'APPEL HTTP ==========
-      print('🚀 [FLUTTER SEND] Envoi vers ${Config.fcmUpdate} | Body: {"player_id": "$id"}');
-      print('📦 [DEBUG FLUTTER] Body complet: {"fcm": "$fcmToken", "player_id": "$id"}');
-      print('🌐 [DEBUG FLUTTER] URL complète sera: ${Config.baseurl}${Config.fcmUpdate}');
-      
-      try {
-        // Utilisation de httpPost pour mettre à jour le token FCM et le Player ID
-        // Éviter le blocage : Même si l'appel échoue, l'application continue
-        var response = await httpPost(
-          Config.fcmUpdate,
-          {"fcm": fcmToken, "player_id": id},
-        );
-        
-        // ========== LOGS APRÈS LA RÉPONSE ==========
-        print('✅ [DEBUG FLUTTER] Réponse du serveur reçue');
-        print('📊 [DEBUG FLUTTER] Type de réponse: ${response.runtimeType}');
-        if (response is Map) {
-          print('📊 [DEBUG FLUTTER] Status: ${response['status'] ?? response['ResponseCode'] ?? 'N/A'}');
-          print('📊 [DEBUG FLUTTER] Message: ${response['message'] ?? response['ResponseMsg'] ?? 'N/A'}');
-          if (response['error'] != null) {
-            print('❌ [DEBUG FLUTTER] Erreur: ${response['error']}');
-          }
-        } else {
-          print('📊 [DEBUG FLUTTER] Réponse complète: $response');
+    print('🚀 [FLUTTER SEND] Envoi vers API...');
+    // Envoi du Player ID vers le backend Node.js
+    print('📤 [OneSignal] Envoi du Player ID au backend...');
+    print('📤 [OneSignal] FCM Token: ${fcmToken.substring(0, 20)}...');
+    print('📤 [OneSignal] Player ID: $oneSiginalplayerid');
+
+    // ========== LOGS AVANT L'APPEL HTTP ==========
+    print('🚀 [FLUTTER SEND] Envoi vers ${Config.fcmUpdate} | Body: {"player_id": "$id"}');
+    print('📦 [DEBUG FLUTTER] Body complet: {"fcm": "$fcmToken", "player_id": "$id"}');
+    print('🌐 [DEBUG FLUTTER] URL complète sera: ${Config.baseurl}${Config.fcmUpdate}');
+
+    try {
+      // Utilisation de httpPost pour mettre à jour le token FCM et le Player ID
+      // Éviter le blocage : Même si l'appel échoue, l'application continue
+      var response = await httpPost(
+        Config.fcmUpdate,
+        {"fcm": fcmToken, "player_id": id},
+      );
+
+      // ========== LOGS APRÈS LA RÉPONSE ==========
+      print('✅ [DEBUG FLUTTER] Réponse du serveur reçue');
+      print('📊 [DEBUG FLUTTER] Type de réponse: ${response.runtimeType}');
+      if (response is Map) {
+        print('📊 [DEBUG FLUTTER] Status: ${response['status'] ?? response['ResponseCode'] ?? 'N/A'}');
+        print('📊 [DEBUG FLUTTER] Message: ${response['message'] ?? response['ResponseMsg'] ?? 'N/A'}');
+        if (response['error'] != null) {
+          print('❌ [DEBUG FLUTTER] Erreur: ${response['error']}');
         }
-        print('✅ [OneSignal] Player ID envoyé avec succès au backend');
-      } catch (apiError) {
-        print('❌ [OneSignal] Erreur lors de l\'envoi du Player ID: $apiError');
-        print('❌ [DEBUG FLUTTER] Exception détaillée: $apiError');
-        print('⚠️ [OneSignal] L\'application continue vers le Dashboard malgré l\'erreur');
-        // On continue même en cas d'erreur pour ne pas bloquer l'application
+      } else {
+        print('📊 [DEBUG FLUTTER] Réponse complète: $response');
       }
-      
-      print('📱 [OneSignal] Player ID récupéré: $oneSiginalplayerid');
-    } else {
-      print('❌ [DEBUG FLUTTER] STOP: L\'ID est null, on n\'envoie rien.');
-      print('⚠️ [OneSignal] Player ID est null, impossible d\'envoyer au backend');
+      print('✅ [OneSignal] Player ID envoyé avec succès au backend');
+    } catch (apiError) {
+      print('❌ [OneSignal] Erreur lors de l\'envoi du Player ID: $apiError');
+      print('❌ [DEBUG FLUTTER] Exception détaillée: $apiError');
+      print('⚠️ [OneSignal] L\'application continue vers le Dashboard malgré l\'erreur');
+      // On continue même en cas d'erreur pour ne pas bloquer l'application
     }
+
+    print('📱 [OneSignal] Player ID récupéré: $oneSiginalplayerid');
   } catch (error) {
     print('❌ [OneSignal] Erreur lors de la récupération du Player ID: $error');
     print('❌ [DEBUG FLUTTER] Exception dans fetchPlayerId: $error');

@@ -8,7 +8,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:bot_toast/bot_toast.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:carvy/controller/push_notifications.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/get_data_read.dart';
@@ -105,14 +105,12 @@ void main() {
               // Attendre un peu que OneSignal et Firebase soient complètement prêts
               Future.delayed(const Duration(seconds: 3), () async {
                 try {
-                  // Récupérer le FCM token
-                  var fcmToken = await FirebaseMessaging.instance.getToken();
-                  if (fcmToken != null && fcmToken.isNotEmpty) {
-                    debugPrint('✅ [MAIN] FCM Token récupéré, envoi du Player ID au backend...');
-                    await fetchPlayerId(fcmToken);
-                    debugPrint('✅ [MAIN] Player ID envoyé au backend avec succès');
+                  final String? currentId = OneSignal.User.pushSubscription.id;
+                  if (currentId != null && currentId.isNotEmpty) {
+                    debugPrint('🚀 [NOTIF_SYNC] ID déjà présent au démarrage, envoi immédiat');
+                    await OneSignalService.updateServerPlayerId(currentId);
                   } else {
-                    debugPrint('⚠️ [MAIN] FCM Token est null, impossible d\'envoyer le Player ID');
+                    debugPrint('ℹ️ [NOTIF_SYNC] ID OneSignal non prêt au démarrage (observer actif)');
                   }
                 } catch (e, stackTrace) {
                   debugPrint('❌ [MAIN] Erreur lors de la mise à jour OneSignal au démarrage: $e');

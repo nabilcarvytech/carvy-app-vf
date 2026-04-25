@@ -104,6 +104,7 @@ class Config {
   static const String getUserWallet = 'get-user-wallet';
   static const String updatePassword = 'update-password';
   static const String fcmUpdate = 'fcm-update';
+  static const String updateOneSignalId = 'update-onesignal-id';
   static const String getItemReviews = 'get-item-reviews';
   static const String closeSupportTicket = 'closeSupportTicket';
   static const String deleteAccount = 'deleteAccount';
