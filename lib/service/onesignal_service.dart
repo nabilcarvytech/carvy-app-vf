@@ -7,6 +7,7 @@ import 'package:carvy/work_space.dart';
 
 class OneSignalService {
   static bool _observerAttached = false;
+  static String? _lastSentPlayerId;
 
   static Future<void> initialize() async {
     if (kIsWeb) return;
@@ -34,10 +35,25 @@ class OneSignalService {
     _observerAttached = true;
   }
 
+  /// Sync immédiate, sans attente/retry: si l'ID est déjà disponible on l'envoie.
+  static Future<void> forceUpdatePlayerId() async {
+    if (kIsWeb) return;
+    final String? currentId = OneSignal.User.pushSubscription.id;
+    if (currentId == null || currentId.isEmpty) {
+      debugPrint('ℹ️ [NOTIF_SYNC] ID OneSignal non prêt, observer en attente');
+      return;
+    }
+    await updateServerPlayerId(currentId);
+  }
+
   static Future<void> updateServerPlayerId(String id) async {
     if (kIsWeb) return;
 
     try {
+      if (_lastSentPlayerId == id) {
+        debugPrint('ℹ️ [NOTIF_SYNC] ID déjà synchronisé, skip: $id');
+        return;
+      }
       final String? authToken = _readAuthToken();
       if (authToken == null || authToken.isEmpty) {
         debugPrint('🚀 [NOTIF_SYNC] Skip: token utilisateur absent');
@@ -57,6 +73,7 @@ class OneSignalService {
 
       oneSiginalplayerid = id;
       GetStorage().write('oneSiginalplayerid', id);
+      _lastSentPlayerId = id;
       debugPrint('✅ [NOTIF_SYNC] ID envoyé au serveur : $id');
     } catch (e) {
       debugPrint('❌ [NOTIF_SYNC] Échec de synchronisation OneSignal: $e');

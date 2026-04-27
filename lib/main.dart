@@ -90,7 +90,6 @@ void main() {
         try {
           debugPrint('🔔 [MAIN] Starting OneSignal initialization...');
           await OneSignalService.initialize();
-          await setupOneSignal();
           debugPrint('✅ [MAIN] OneSignal initialized successfully');
           
           // Vérification au démarrage : si l'utilisateur est déjà connecté, mettre à jour OneSignal
@@ -101,23 +100,13 @@ void main() {
               // Initialiser la variable globale token pour que fetchPlayerId puisse l'utiliser
               token = storedToken;
               debugPrint('🔑 [MAIN] Token global initialisé depuis le storage');
-              
-              // Attendre un peu que OneSignal et Firebase soient complètement prêts
-              Future.delayed(const Duration(seconds: 3), () async {
-                try {
-                  final String? currentId = OneSignal.User.pushSubscription.id;
-                  if (currentId != null && currentId.isNotEmpty) {
-                    debugPrint('🚀 [NOTIF_SYNC] ID déjà présent au démarrage, envoi immédiat');
-                    await OneSignalService.updateServerPlayerId(currentId);
-                  } else {
-                    debugPrint('ℹ️ [NOTIF_SYNC] ID OneSignal non prêt au démarrage (observer actif)');
-                  }
-                } catch (e, stackTrace) {
-                  debugPrint('❌ [MAIN] Erreur lors de la mise à jour OneSignal au démarrage: $e');
-                  debugPrint('❌ [MAIN] StackTrace: $stackTrace');
-                  // Ne pas bloquer l'application en cas d'erreur
-                }
-              });
+
+              try {
+                await OneSignalService.forceUpdatePlayerId();
+              } catch (e, stackTrace) {
+                debugPrint('❌ [MAIN] Erreur lors de la mise à jour OneSignal au démarrage: $e');
+                debugPrint('❌ [MAIN] StackTrace: $stackTrace');
+              }
             } else {
               debugPrint('ℹ️ [MAIN] Aucun token trouvé, utilisateur non connecté');
             }

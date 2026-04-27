@@ -103,7 +103,8 @@ class Config {
   static const String getItemPrices = 'get-item-prices';
   static const String getUserWallet = 'get-user-wallet';
   static const String updatePassword = 'update-password';
-  static const String fcmUpdate = 'fcm-update';
+  // Legacy alias kept for old call-sites; routed to the unified endpoint.
+  static const String fcmUpdate = 'update-onesignal-id';
   static const String updateOneSignalId = 'update-onesignal-id';
   static const String getItemReviews = 'get-item-reviews';
   static const String closeSupportTicket = 'closeSupportTicket';

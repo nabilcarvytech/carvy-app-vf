@@ -317,6 +317,7 @@ class AuthController extends GetxController implements GetxService {
       userId = loginModel.data!.id!;
       try {
         await OneSignal.login(userId.toString());
+        await OneSignalService.forceUpdatePlayerId();
       } catch (_) {}
       database.child(userId.toString()).set({
         'userId': userId.toString(),
@@ -403,6 +404,7 @@ class AuthController extends GetxController implements GetxService {
       debugPrint(
           '🆔 [ONESIGNAL_DEBUG] login userId=$userId');
       await OneSignal.login(userId.toString());
+      await OneSignalService.forceUpdatePlayerId();
       debugPrint(
           '🆔 [ONESIGNAL_DEBUG] pushSubscription: ${OneSignal.User.pushSubscription.id}');
     } catch (e) {
@@ -553,11 +555,14 @@ class AuthController extends GetxController implements GetxService {
           try {
             print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
             await OneSignal.login(userId.toString());
+            await Future.delayed(const Duration(seconds: 1));
             String? pushToken = OneSignal.User.pushSubscription.id;
             print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
             print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
             if (pushToken != null && pushToken.isNotEmpty) {
               await OneSignalService.updateServerPlayerId(pushToken);
+            } else {
+              print('ℹ️ [ONESIGNAL_DEBUG] ID non prêt après login, observer prendra le relais');
             }
           } catch (e) {
             print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
@@ -683,6 +688,7 @@ class AuthController extends GetxController implements GetxService {
             String? pushToken = OneSignal.User.pushSubscription.id;
             print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
             print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
+            await OneSignalService.forceUpdatePlayerId();
           } catch (e) {
             print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
           }
@@ -1263,6 +1269,7 @@ class AuthController extends GetxController implements GetxService {
             String? pushToken = OneSignal.User.pushSubscription.id;
             print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
             print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
+            await OneSignalService.forceUpdatePlayerId();
           } catch (e) {
             print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
           }
@@ -1368,6 +1375,7 @@ class AuthController extends GetxController implements GetxService {
         String? pushToken = OneSignal.User.pushSubscription.id;
         print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
         print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
+        await OneSignalService.forceUpdatePlayerId();
       } catch (e) {
         print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
       }

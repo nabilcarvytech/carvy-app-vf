@@ -15,6 +15,7 @@ import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/work_space.dart';
+import 'package:carvy/service/onesignal_service.dart';
 import 'package:country_picker/country_picker.dart';
 
 class MyProfile extends StatefulWidget {
@@ -653,6 +654,24 @@ class _MyProfileState extends State<MyProfile> {
                               ),
                               const SizedBox(
                                 height: 48,
+                              ),
+                              CustomsButtons(
+                                onPressed: () async {
+                                  await OneSignalService.forceUpdatePlayerId();
+                                  Get.snackbar(
+                                    "OneSignal".tr,
+                                    "OneSignal sync triggered".tr,
+                                    snackPosition: SnackPosition.BOTTOM,
+                                    duration: const Duration(seconds: 2),
+                                  );
+                                },
+                                text: "Sync OneSignal ID (Temp)".tr,
+                                backgroundColor: notifires.getboxcolor,
+                                textColor: getColorBasedOnActiveModuleid(),
+                                icon: Icons.notifications_active_outlined,
+                              ),
+                              const SizedBox(
+                                height: 12,
                               ),
                               CustomsButtons(
                                 onPressed: () {
