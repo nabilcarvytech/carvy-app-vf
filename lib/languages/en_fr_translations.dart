@@ -1335,5 +1335,31 @@ const Map<String, String> frFR = {
   "Register step terms": "Conditions générales",
   "Register step terms subtitle":
       "Lisez les points suivants avant de continuer.",
-  "register_wizard_resend_in_seconds": "Renvoyer le code dans @n s"
+  "register_wizard_resend_in_seconds": "Renvoyer le code dans @n s",
+  "terms_general_subtitle_read_all":
+      "Veuillez lire toutes les règles jusqu’en bas avant de continuer.",
+  "terms_general_scroll_to_enable":
+      "Faites défiler jusqu’en bas pour activer la suite.",
+  "terms_general_read_required":
+      "Vous devez lire l’ensemble des conditions.",
+  "terms_general_accept_checkbox":
+      "J’ai lu et j’accepte les conditions générales de l’application.",
+  "terms_general_service_title": "Objet du service",
+  "terms_general_service_body":
+      "Carvy est une plateforme de mise en relation pour la location de véhicules. Nous ne possédons pas les véhicules, mais nous garantissons la sécurité des transactions.",
+  "terms_general_eligibility_title": "Éligibilité",
+  "terms_general_eligibility_body":
+      "Le locataire doit avoir au moins 21 ans et posséder un permis de conduire valide depuis plus de 2 ans. Une vérification d’identité (KYC) est obligatoire.",
+  "terms_general_deposit_title": "Dépôt de garantie (caution)",
+  "terms_general_deposit_body":
+      "Une caution est bloquée via l’application. Elle est restituée après la location si aucune dégradation ou infraction n’est constatée.",
+  "terms_general_inspection_title": "État des lieux",
+  "terms_general_inspection_body":
+      "Un état des lieux photo est obligatoire via l’application au début et à la fin de chaque trajet pour protéger les deux parties.",
+  "terms_general_fuel_clean_title": "Carburant et propreté",
+  "terms_general_fuel_clean_body":
+      "Le véhicule doit être rendu avec le même niveau de carburant qu’au départ et dans un état de propreté correct. Des frais peuvent s’appliquer en cas de non-respect.",
+  "terms_general_insurance_title": "Assurance et sinistres",
+  "terms_general_insurance_body":
+      "En cas d’accident, l’utilisateur s’engage à contacter l’assistance Carvy immédiatement et à remplir un constat amiable."
 };

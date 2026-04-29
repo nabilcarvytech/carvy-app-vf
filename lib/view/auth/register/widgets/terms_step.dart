@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -7,7 +6,6 @@ import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
-import 'package:carvy/view/myaccount/static_page_screen.dart';
 import 'package:carvy/work_space.dart';
 
 /// Étape 3 du wizard : cartes récap CGU, scroll jusqu’en bas, acceptation, Continuer.
@@ -28,17 +26,11 @@ class _TermsStepState extends State<TermsStep>
   late AnimationController _checkPopController;
   late Animation<double> _checkPopScale;
 
-  late final TapGestureRecognizer _tapTerms;
-  late final TapGestureRecognizer _tapPrivacy;
-
-  bool _reachedBottom = false;
+  bool _hasReadEverything = false;
 
   @override
   void initState() {
     super.initState();
-    _tapTerms = TapGestureRecognizer()..onTap = _openTermsSheet;
-    _tapPrivacy = TapGestureRecognizer()..onTap = _openPrivacySheet;
-
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 480),
@@ -63,52 +55,20 @@ class _TermsStepState extends State<TermsStep>
     WidgetsBinding.instance.addPostFrameCallback((_) => _onScroll());
   }
 
-  void _openTermsSheet() {
-    showModalBottomSheet<void>(
-      useRootNavigator: true,
-      backgroundColor: notifires.getbgcolor,
-      isScrollControlled: true,
-      useSafeArea: true,
-      context: context,
-      builder: (ctx) => StaticPage(data: 'Terms and Condition'.tr),
-    );
-  }
-
-  void _openPrivacySheet() {
-    showModalBottomSheet<void>(
-      useRootNavigator: true,
-      backgroundColor: notifires.getbgcolor,
-      isScrollControlled: true,
-      useSafeArea: true,
-      context: context,
-      builder: (ctx) => StaticPage(
-        data: 'Terms of Service for Users & Privacy Policy'.tr,
-      ),
-    );
-  }
-
   void _onScroll() {
     if (!_scrollController.hasClients) return;
-    final pos = _scrollController.position;
-
-    if (pos.maxScrollExtent <= 0) {
-      _markReachedBottom();
-      return;
+    final position = _scrollController.position;
+    if (position.maxScrollExtent <= 0 ||
+        position.pixels >= position.maxScrollExtent) {
+      if (!_hasReadEverything) {
+        setState(() => _hasReadEverything = true);
+        _fadeController.forward(from: 0);
+      }
     }
-
-    final atBottom = pos.atEdge && pos.pixels != 0;
-    if (atBottom) {
-      _markReachedBottom();
-    }
-  }
-
-  void _markReachedBottom() {
-    if (_reachedBottom) return;
-    setState(() => _reachedBottom = true);
-    _fadeController.forward(from: 0);
   }
 
   void _onToggleTerms() {
+    if (!_hasReadEverything) return;
     final wasAccepted = widget.controller.registerWizardTermsAccepted.value;
     widget.controller.toggleRegisterWizardTerms();
     if (!wasAccepted && widget.controller.registerWizardTermsAccepted.value) {
@@ -122,68 +82,46 @@ class _TermsStepState extends State<TermsStep>
     _scrollController.dispose();
     _fadeController.dispose();
     _checkPopController.dispose();
-    _tapTerms.dispose();
-    _tapPrivacy.dispose();
     super.dispose();
   }
 
-  Widget _featureCard(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String body,
-  }) {
-    notifires = Provider.of<ColorNotifires>(context, listen: true);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      color: notifires.getboxcolor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: notifires.getGrey4Whitecolor.withOpacity(0.4),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: themeColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: themeColor, size: 26),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: heading3(context)),
-                  const SizedBox(height: 6),
-                  Text(body, style: regular2(context)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  bool get _isArabic => Get.locale?.languageCode.toLowerCase() == 'ar';
+
+  List<Map<String, String>> _termsContent() {
+    return [
+      {
+        'title': 'terms_general_service_title',
+        'body': 'terms_general_service_body',
+      },
+      {
+        'title': 'terms_general_eligibility_title',
+        'body': 'terms_general_eligibility_body',
+      },
+      {
+        'title': 'terms_general_deposit_title',
+        'body': 'terms_general_deposit_body',
+      },
+      {
+        'title': 'terms_general_inspection_title',
+        'body': 'terms_general_inspection_body',
+      },
+      {
+        'title': 'terms_general_fuel_clean_title',
+        'body': 'terms_general_fuel_clean_body',
+      },
+      {
+        'title': 'terms_general_insurance_title',
+        'body': 'terms_general_insurance_body',
+      },
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     final primary = getColorBasedOnActiveModuleid();
-
-    final baseStyle = regular2(context);
-    final linkStyle = baseStyle.copyWith(
-      color: primary,
-      fontWeight: FontWeight.w700,
-    );
+    final terms = _termsContent();
+    final bodyColor = Colors.black87;
 
     return Column(
       children: [
@@ -195,10 +133,13 @@ class _TermsStepState extends State<TermsStep>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 16),
-              Text('Register step terms'.tr, style: heading1(context)),
+              Text(
+                'Register step terms'.tr,
+                style: heading1(context),
+              ),
               const SizedBox(height: 8),
               Text(
-                'Register step terms subtitle'.tr,
+                'terms_general_subtitle_read_all'.tr,
                 style: regular2(context)
                     .copyWith(color: notifires.getGrey3Whitecolor),
               ),
@@ -213,26 +154,34 @@ class _TermsStepState extends State<TermsStep>
               vertical: 12,
             ),
             child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _featureCard(
-                  context,
-                  icon: Icons.account_balance_wallet_outlined,
-                  title: 'terms_summary_payments_title'.tr,
-                  body: 'terms_summary_payments_body'.tr,
-                ),
-                _featureCard(
-                  context,
-                  icon: Icons.cancel_outlined,
-                  title: 'terms_summary_cancel_title'.tr,
-                  body: 'terms_summary_cancel_body'.tr,
-                ),
-                _featureCard(
-                  context,
-                  icon: Icons.support_agent_outlined,
-                  title: 'terms_summary_support_title'.tr,
-                  body: 'terms_summary_support_body'.tr,
-                ),
-                const SizedBox(height: 24),
+                  for (int i = 0; i < terms.length; i++) ...[
+                    Text(
+                      '${i + 1}. ${terms[i]['title']!.tr}',
+                      textAlign: _isArabic ? TextAlign.right : TextAlign.left,
+                      style: heading3(context).copyWith(
+                        color: notifires.getwhiteblackcolor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      terms[i]['body']!.tr,
+                      textAlign: _isArabic ? TextAlign.right : TextAlign.left,
+                      style: regular2(context).copyWith(color: bodyColor),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  const SizedBox(height: 24),
+                  if (!_hasReadEverything)
+                    Text(
+                      'terms_general_scroll_to_enable'.tr,
+                      style: regular3(context).copyWith(
+                        color: notifires.getGrey3Whitecolor,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
               ],
             ),
           ),
@@ -241,93 +190,77 @@ class _TermsStepState extends State<TermsStep>
           padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
           child: Column(
             children: [
-              if (!_reachedBottom)
+              if (!_hasReadEverything)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
-                    'Scroll to bottom to continue'.tr,
+                    'terms_general_read_required'.tr,
                     style: regular3(context).copyWith(
                       color: notifires.getGrey3Whitecolor,
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ),
-              if (_reachedBottom)
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: Obx(() => GestureDetector(
+                      onTap: _hasReadEverything ? _onToggleTerms : null,
+                      behavior: HitTestBehavior.opaque,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ScaleTransition(
+                            scale: _checkPopScale,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: widget.controller
+                                        .registerWizardTermsAccepted.value
+                                    ? primary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: _hasReadEverything
+                                      ? primary
+                                      : notifires.getGrey4Whitecolor,
+                                  width: 2,
+                                ),
+                              ),
+                              child: widget
+                                      .controller.registerWizardTermsAccepted.value
+                                  ? const Icon(
+                                      Icons.check,
+                                      size: 18,
+                                      color: Colors.white,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'terms_general_accept_checkbox'.tr,
+                              textAlign:
+                                  _isArabic ? TextAlign.right : TextAlign.left,
+                              style: regular2(context).copyWith(
+                                color: _hasReadEverything
+                                    ? notifires.getGrey3Whitecolor
+                                    : notifires.getGrey4Whitecolor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+              ),
+              if (!_hasReadEverything) const SizedBox(height: 8),
+              if (_hasReadEverything)
                 FadeTransition(
                   opacity: _fadeAnimation,
-                  child: Obx(() => GestureDetector(
-                        onTap: _onToggleTerms,
-                        behavior: HitTestBehavior.opaque,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ScaleTransition(
-                              scale: _checkPopScale,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color: widget.controller
-                                          .registerWizardTermsAccepted.value
-                                      ? primary
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: primary,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: widget.controller
-                                        .registerWizardTermsAccepted.value
-                                    ? const Icon(
-                                        Icons.check,
-                                        size: 18,
-                                        color: Colors.white,
-                                      )
-                                    : null,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: baseStyle.copyWith(
-                                    color: notifires.getGrey3Whitecolor,
-                                  ),
-                                  children: [
-                                    TextSpan(
-                                      text: 'register_wizard_terms_rich_prefix'
-                                          .tr,
-                                    ),
-                                    TextSpan(
-                                      text:
-                                          'register_wizard_terms_link_cgu'.tr,
-                                      style: linkStyle,
-                                      recognizer: _tapTerms,
-                                    ),
-                                    TextSpan(
-                                      text: 'register_wizard_terms_rich_middle'
-                                          .tr,
-                                    ),
-                                    TextSpan(
-                                      text: 'register_wizard_terms_link_privacy'
-                                          .tr,
-                                      style: linkStyle,
-                                      recognizer: _tapPrivacy,
-                                    ),
-                                    TextSpan(
-                                      text: 'register_wizard_terms_rich_suffix'
-                                          .tr,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
+                  child: const SizedBox.shrink(),
                 ),
               const SizedBox(height: 16),
               Obx(() {
@@ -335,11 +268,12 @@ class _TermsStepState extends State<TermsStep>
                     widget.controller.registerWizardTermsAccepted.value;
                 final loading =
                     widget.controller.registerWizardSubmitting.value;
+                final canContinue = _hasReadEverything && accepted;
                 return SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: !accepted
+                    onPressed: !canContinue
                         ? null
                         : () {
                             if (widget
@@ -350,15 +284,15 @@ class _TermsStepState extends State<TermsStep>
                                 .registerWizardCompleteToHome(context);
                           },
                     style: ElevatedButton.styleFrom(
-                      elevation: accepted && !loading ? 3 : 0,
-                      shadowColor: accepted && !loading
+                      elevation: canContinue && !loading ? 3 : 0,
+                      shadowColor: canContinue && !loading
                           ? primary.withOpacity(0.38)
                           : Colors.transparent,
-                      backgroundColor: accepted
+                      backgroundColor: canContinue
                           ? primary
                           : notifires.getGrey4Whitecolor.withOpacity(0.55),
                       foregroundColor:
-                          accepted ? Colors.white : notifires.getGrey3Whitecolor,
+                          canContinue ? Colors.white : notifires.getGrey3Whitecolor,
                       disabledBackgroundColor:
                           notifires.getGrey4Whitecolor.withOpacity(0.55),
                       disabledForegroundColor: notifires.getGrey3Whitecolor,
@@ -378,7 +312,7 @@ class _TermsStepState extends State<TermsStep>
                         : Text(
                             'Continue'.tr,
                             style: heading2(context).copyWith(
-                              color: accepted
+                              color: canContinue
                                   ? Colors.white
                                   : notifires.getGrey3Whitecolor,
                             ),

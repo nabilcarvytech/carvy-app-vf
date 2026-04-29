@@ -120,6 +120,17 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
         bookingController.hindTimeSEnd.value = "";
         bookingController.isenqablestarttime.value = false;
         bookingController.isenableendTime.value = false;
+      } else {
+        final start = DateTime.tryParse(bookingController.startDate.value);
+        final end = DateTime.tryParse(bookingController.endDate.value);
+        if (start != null && end != null) {
+          bookingController.dateRangePickerController.selectedRange =
+              PickerDateRange(start, end);
+          bookingController.dateRangePickerController.displayDate = start;
+          bookingController.isDateAvailale.value = true;
+          print(
+              '📅 Préremplissage calendrier: ${bookingController.startDate.value} -> ${bookingController.endDate.value}');
+        }
       }
       bookingController.availableDates.clear();
       bookingController.availableDatesPrice.clear();

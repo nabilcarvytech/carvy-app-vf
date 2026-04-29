@@ -1,4 +1,5 @@
 import 'package:firebase_database/firebase_database.dart';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_svg/svg.dart';
@@ -1685,30 +1686,48 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
         : null;
     final price = item is Map ? item['price'] : null;
     final priceText = price?.toString() ?? '';
-
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            (cityName != null && cityName.trim().isNotEmpty) ? cityName : '-',
-            style: regular3(context).copyWith(
-              fontSize: 14,
-              color: notifires.getwhiteblackcolor,
-              overflow: TextOverflow.ellipsis,
-            ),
-            maxLines: 1,
-          ),
-        ),
-        Text(
-          'MAD $priceText',
-          style: regular2(context).copyWith(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: getColorBasedOnActiveModuleid(),
-          ),
-        ),
-      ],
+    final translatedCity = getTranslatedCity(
+      (cityName != null && cityName.trim().isNotEmpty) ? cityName : '-',
     );
+
+    return Directionality(
+      textDirection: ui.TextDirection.rtl,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              translatedCity,
+              textAlign: TextAlign.right,
+              style: regular3(context).copyWith(
+                fontSize: 14,
+                color: notifires.getwhiteblackcolor,
+                overflow: TextOverflow.ellipsis,
+              ),
+              maxLines: 1,
+            ),
+          ),
+          Text(
+            'MAD $priceText',
+            textAlign: TextAlign.left,
+            style: regular2(context).copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: getColorBasedOnActiveModuleid(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String getTranslatedCity(String cityName) {
+    final translations = {
+      'Salé': 'سلا',
+      'Rabat': 'الرباط',
+      'Casablanca': 'الدار البيضاء',
+      'Marrakech': 'مراكش',
+    };
+    return translations[cityName] ?? cityName;
   }
 
   Widget buildDescriptionWidget(ItemInfo? itemInfo) {

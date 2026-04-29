@@ -34,6 +34,12 @@ class _MyProfileState extends State<MyProfile> {
   List listCountry = [];
 
   String? imageUrl;
+
+  /// Photo de profil : édition réservée aux vendeurs / hôtes (aligné sur `loginModel.data.role`).
+  bool get _canEditProfilePhoto {
+    final r = (loginModel?.data?.role ?? '').toLowerCase();
+    return r == 'vendor' || r == 'host';
+  }
   @override
   void initState() {
     super.initState();
@@ -326,20 +332,13 @@ class _MyProfileState extends State<MyProfile> {
                                                               ),
                                                       ),
                                                     )),
-                                            Positioned(
-                                              bottom: 5,
-                                              right: 0,
-                                              child: InkWell(
-                                                onTap: () {
-                                                  profileController
-                                                      .selectImagePopup(
-                                                          context);
-                                                },
+                                            if (_canEditProfilePhoto)
+                                              Positioned(
+                                                bottom: 5,
+                                                right: 0,
                                                 child: profileController
-                                                    .selectImagePopup(
-                                                        context), // This might need to be replaced with the appropriate widget.
+                                                    .selectImagePopup(context),
                                               ),
-                                            ),
                                           ],
                                         ),
                                       ),

@@ -233,6 +233,7 @@ class AuthController extends GetxController implements GetxService {
   final RxBool registerWizardPhoneCodeSent = false.obs;
   final RxInt registerWizardResendSeconds = 0.obs;
   final RxString phoneError = ''.obs;
+  final RxString registerWizardEmailError = ''.obs;
   /// `true` = Agence (vendor), `false` = Client.
   /// Wizard « Créer un compte » : inscription client uniquement (pas d’étape Agence/Client dans le PageView).
   /// Les agences utilisent un autre flux ; reste à `false` pour `role: user` et navigation `HomeMain`.
@@ -251,6 +252,7 @@ class AuthController extends GetxController implements GetxService {
     registerWizardPhoneCodeSent.value = false;
     registerWizardResendSeconds.value = 0;
     phoneError.value = '';
+    registerWizardEmailError.value = '';
     registerWizardIsAgency.value = false;
     registerWizardSubmitting.value = false;
     textEditingOtpController.clear();
@@ -272,12 +274,73 @@ class AuthController extends GetxController implements GetxService {
     });
   }
 
+  bool _isDuplicateEmailMessage(String message) {
+    final m = message.toLowerCase();
+    return m.contains('duplicate entry') ||
+        m.contains('email already') ||
+        m.contains('already used') ||
+        m.contains('already in use');
+  }
+
+  String _extractApiError(dynamic response) {
+    if (response is Map) {
+      final err = response['error']?.toString();
+      final msg = response['message']?.toString();
+      if (err != null && err.trim().isNotEmpty) return err;
+      if (msg != null && msg.trim().isNotEmpty) return msg;
+    }
+    return response?.toString() ?? '';
+  }
+
+  Future<bool> registerWizardCheckEmailAvailability(BuildContext context) async {
+    registerWizardEmailError.value = '';
+    final email = textEditingSignUpControllerEmail.text.trim();
+    if (email.isEmpty) return false;
+    try {
+      showLoading();
+      final response = await httpPost(Config.checkEmail, {'email': email});
+      closeLoading();
+
+      final String apiError = _extractApiError(response);
+      final bool duplicateByMessage = _isDuplicateEmailMessage(apiError);
+      final bool duplicateByFlag = response is Map &&
+          (response['exists'] == true ||
+              (response['data'] is Map && response['data']['exists'] == true));
+
+      if (duplicateByMessage || duplicateByFlag) {
+        registerWizardEmailError.value = 'Cet email est déjà utilisé';
+        return false;
+      }
+
+      if (response is Map && response['status'] != null) {
+        final status = int.tryParse(response['status'].toString()) ?? 0;
+        if (status >= 400) {
+          registerWizardEmailError.value =
+              apiError.isNotEmpty ? apiError : 'Something went wrong'.tr;
+          return false;
+        }
+      }
+      return true;
+    } catch (e) {
+      closeLoading();
+      final msg = e.toString();
+      if (_isDuplicateEmailMessage(msg)) {
+        registerWizardEmailError.value = 'Cet email est déjà utilisé';
+        return false;
+      }
+      showErrorToastMessage(msg);
+      return false;
+    }
+  }
+
   Future<void> registerWizardSendPhoneCode(
     BuildContext context,
     String dialCode,
     String isoCode,
+    {VoidCallback? onDuplicateEmail}
   ) async {
     phoneError.value = '';
+    registerWizardEmailError.value = '';
     if (textEditingSingUpControllerPhoneNumber.text.isEmpty) {
       showErrorToastMessage('Fill valid mobile number'.tr);
       return;
@@ -303,6 +366,13 @@ class AuthController extends GetxController implements GetxService {
       }
       final loginModel = LoginModel.fromJson(data);
       if (loginModel.status != 200) {
+        final err = (loginModel.error ?? '').toString();
+        if (_isDuplicateEmailMessage(err)) {
+          registerWizardEmailError.value = 'Cet email est déjà utilisé';
+          registerWizardPhoneCodeSent.value = false;
+          onDuplicateEmail?.call();
+          return;
+        }
         phoneError.value = loginModel.error ?? '';
         showErrorToastMessage(loginModel.error ?? 'Error'.tr);
         return;
@@ -334,6 +404,12 @@ class AuthController extends GetxController implements GetxService {
       update();
     } catch (e) {
       if (Get.isDialogOpen ?? false) Get.back();
+      if (_isDuplicateEmailMessage(e.toString())) {
+        registerWizardEmailError.value = 'Cet email est déjà utilisé';
+        registerWizardPhoneCodeSent.value = false;
+        onDuplicateEmail?.call();
+        return;
+      }
       showErrorToastMessage(e.toString());
     }
   }
@@ -789,6 +865,7 @@ class AuthController extends GetxController implements GetxService {
     cuntryCode,
     defaultCountry,
     VoidCallback? onRegisterWizardPhoneVerified,
+    VoidCallback? onRegisterWizardDuplicateEmail,
   }) async {
     if (otp == "") {
       showErrorToastMessage("Please fill the Otp".tr);
@@ -924,6 +1001,13 @@ class AuthController extends GetxController implements GetxService {
               Get.offAll(() => const HomeMain(initialIndex: 0));
             }
           } else {
+            final err = (loginModel.error ?? '').toString();
+            if (_isDuplicateEmailMessage(err)) {
+              registerWizardEmailError.value = 'Cet email est déjà utilisé';
+              registerWizardPhoneCodeSent.value = false;
+              onRegisterWizardDuplicateEmail?.call();
+              return;
+            }
             showErrorToastMessage(loginModel.error);
             textEditingOtpController.clear();
           }

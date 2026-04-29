@@ -13,6 +13,7 @@ import 'package:carvy/model/items_model.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/utils/vehicle_common_widgets.dart';
+import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/itemdetail/vehicle/view_on_map_screen.dart';
 import '../../controller/search_controller.dart';
@@ -267,6 +268,26 @@ class _AfterSearchState extends State<AfterSearch> {
   }
 
   stateSetter(fn) => setState(() {});
+
+  void _popAfterSearch(BuildContext context) {
+    filterController.globalItemType.value = temdidforsearch;
+    if (Get.key.currentState?.canPop() ?? false) {
+      Get.back();
+      return;
+    }
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+      return;
+    }
+    generalController.currentIndex.value = 0;
+    if (webPlateForm) {
+      Get.offNamed(WebRoutes.homeMain);
+    } else {
+      Get.offAll(() => const HomeMain(initialIndex: 0));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -407,133 +428,149 @@ class _AfterSearchState extends State<AfterSearch> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: InkWell(
-                            onTap: () {
-                              filterController.aftersearch = true;
-                              openSearchWizard(context, onSearch: () {
-                                onRefresh();
-                              });
-                            },
-                            child: Container(
-                              height: 50,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8),
-                              decoration: BoxDecoration(
-                                color: notifires.getbgcolor,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: notifires.getGrey2Whitecolor),
-                              ),
-                              child: Row(
-                                children: [
-                                  IconButton(
-                                    onPressed: () {
-                                      filterController.globalItemType.value =
-                                          temdidforsearch;
-                                      Get.offNamed(WebRoutes.homeMain);
-                                      generalController.currentIndex.value = 0;
-                                      setState(() {});
-                                    },
-                                    icon: Icon(
-                                      Icons.arrow_back,
-                                      color: getColorBasedOnActiveModuleid(),
-                                    ),
+                          child: Container(
+                            height: 50,
+                            padding:
+                                const EdgeInsets.only(left: 4, right: 8),
+                            decoration: BoxDecoration(
+                              color: notifires.getbgcolor,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: notifires.getGrey2Whitecolor),
+                            ),
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 40,
+                                    minHeight: 40,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Obx(
-                                    () {
-                                      return Expanded(
-                                        child: Text(
-                                          generalScopeController
-                                                  .homeSearchLocation
-                                                  .value
-                                                  .isEmpty
-                                              ? "All Locations".tr
-                                              : (generalScopeController
-                                                          .homeSearchLocation
-                                                          .value
-                                                          .length >
-                                                      25
-                                                  ? "${generalScopeController.homeSearchLocation.value.substring(0, 25 - 3)}..."
-                                                  : generalScopeController
-                                                      .homeSearchLocation
-                                                      .value),
-                                          style: regular3(context).copyWith(
-                                            color: notifires.getGrey1Whitecolor,
-                                            fontSize: 14,
-                                            overflow: TextOverflow
-                                                .ellipsis, // Handles text overflow properly
-                                          ),
-                                          maxLines: 1,
-                                        ),
-                                      );
-                                    },
+                                  onPressed: () => _popAfterSearch(context),
+                                  icon: Icon(
+                                    Icons.arrow_back,
+                                    color: getColorBasedOnActiveModuleid(),
                                   ),
-                                  const Spacer(),
-                                  Container(
-                                    height: 40,
-                                    width: 150,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                          color: notifires.getGrey2Whitecolor),
-                                    ),
+                                ),
+                                Expanded(
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () {
+                                      filterController.aftersearch = true;
+                                      openSearchWizard(context,
+                                          onSearch: () {
+                                        onRefresh();
+                                      });
+                                    },
                                     child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
                                       children: [
-                                        Expanded(
-                                          child: Obx(
-                                            () => Text(
-                                              filterController.startDate.value
-                                                      .isNotEmpty
-                                                  ? "${filterController.startDate.value}-${filterController.startTimeSearch.value} "
-                                                  : '',
-                                              style: regular3(context).copyWith(
-                                                color: notifires
-                                                    .getGrey1Whitecolor,
-                                                fontSize: 10,
-                                                overflow: TextOverflow.ellipsis,
+                                        Obx(
+                                          () {
+                                            return Expanded(
+                                              child: Text(
+                                                generalScopeController
+                                                        .homeSearchLocation
+                                                        .value
+                                                        .isEmpty
+                                                    ? "All Locations".tr
+                                                    : (generalScopeController
+                                                                .homeSearchLocation
+                                                                .value
+                                                                .length >
+                                                            25
+                                                        ? "${generalScopeController.homeSearchLocation.value.substring(0, 25 - 3)}..."
+                                                        : generalScopeController
+                                                            .homeSearchLocation
+                                                            .value),
+                                                style: regular3(context)
+                                                    .copyWith(
+                                                  color: notifires
+                                                      .getGrey1Whitecolor,
+                                                  fontSize: 14,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                                maxLines: 1,
                                               ),
-                                              maxLines: 2,
-                                            ),
-                                          ),
+                                            );
+                                          },
                                         ),
-                                        Padding(
-                                          padding: const EdgeInsets.all(4.0),
-                                          child: Container(
-                                            width: 2,
-                                            height: 25,
-                                            color: grey4,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Obx(
-                                            () => Text(
-                                              filterController
-                                                      .endDates.value.isNotEmpty
-                                                  ? "${filterController.endDates.value}-${filterController.endTimeSearch.value} "
-                                                  : '',
-                                              style: regular3(context).copyWith(
+                                        Container(
+                                          height: 40,
+                                          width: 150,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            border: Border.all(
                                                 color: notifires
-                                                    .getGrey1Whitecolor,
-                                                fontSize: 10,
-                                                overflow: TextOverflow.ellipsis,
+                                                    .getGrey2Whitecolor),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
+                                            children: [
+                                              Expanded(
+                                                child: Obx(
+                                                  () => Text(
+                                                    filterController
+                                                            .startDate
+                                                            .value
+                                                            .isNotEmpty
+                                                        ? "${filterController.startDate.value}-${filterController.startTimeSearch.value} "
+                                                        : '',
+                                                    style: regular3(context)
+                                                        .copyWith(
+                                                      color: notifires
+                                                          .getGrey1Whitecolor,
+                                                      fontSize: 10,
+                                                      overflow: TextOverflow
+                                                          .ellipsis,
+                                                    ),
+                                                    maxLines: 2,
+                                                  ),
+                                                ),
                                               ),
-                                              maxLines: 2,
-                                            ),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.all(4.0),
+                                                child: Container(
+                                                  width: 2,
+                                                  height: 25,
+                                                  color: grey4,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Obx(
+                                                  () => Text(
+                                                    filterController.endDates
+                                                            .value.isNotEmpty
+                                                        ? "${filterController.endDates.value}-${filterController.endTimeSearch.value} "
+                                                        : '',
+                                                    style: regular3(context)
+                                                        .copyWith(
+                                                      color: notifires
+                                                          .getGrey1Whitecolor,
+                                                      fontSize: 10,
+                                                      overflow: TextOverflow
+                                                          .ellipsis,
+                                                    ),
+                                                    maxLines: 2,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
+                                        const SizedBox(width: 5),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 5),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

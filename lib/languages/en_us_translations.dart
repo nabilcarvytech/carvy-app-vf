@@ -1113,6 +1113,32 @@ const Map<String, String> enUs = {
   "Register step terms subtitle":
       "Read the following points before continuing.",
   "register_wizard_resend_in_seconds": "Resend code in @n s",
+  "terms_general_subtitle_read_all":
+      "Please read all rules to the end before continuing.",
+  "terms_general_scroll_to_enable":
+      "Scroll to the bottom to enable continue.",
+  "terms_general_read_required":
+      "You must read all terms first.",
+  "terms_general_accept_checkbox":
+      "I have read and accept the general terms of the application.",
+  "terms_general_service_title": "Service scope",
+  "terms_general_service_body":
+      "Carvy is a vehicle rental marketplace platform. We do not own the vehicles, but we secure transactions.",
+  "terms_general_eligibility_title": "Eligibility",
+  "terms_general_eligibility_body":
+      "The renter must be at least 21 years old and hold a valid driving license for more than 2 years. Identity verification (KYC) is mandatory.",
+  "terms_general_deposit_title": "Security deposit",
+  "terms_general_deposit_body":
+      "A deposit is held via the application and returned after the rental if no damage or violations are reported.",
+  "terms_general_inspection_title": "Vehicle inspection",
+  "terms_general_inspection_body":
+      "A photo inspection is mandatory via the app at both pickup and return to protect both parties.",
+  "terms_general_fuel_clean_title": "Fuel and cleanliness",
+  "terms_general_fuel_clean_body":
+      "The vehicle must be returned with the same fuel level and in proper cleanliness. Fees may apply in case of non-compliance.",
+  "terms_general_insurance_title": "Insurance and incidents",
+  "terms_general_insurance_body":
+      "In case of an accident, the user must contact Carvy support immediately and complete an amicable accident report.",
   "Details": "Details",
   "Pickup OTP: @code": "Pickup OTP: @code",
   "Drop OTP: @code": "Drop-off OTP: @code",

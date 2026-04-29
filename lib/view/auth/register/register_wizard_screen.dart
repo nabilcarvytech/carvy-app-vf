@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/controller/profile_controller.dart';
@@ -30,17 +32,21 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
   final GlobalKey<FormState> _formKeyPhone = GlobalKey<FormState>();
 
   int _currentPage = 0;
+  late final TapGestureRecognizer _supportTapRecognizer;
 
   @override
   void initState() {
     super.initState();
     auth.resetRegisterWizardFlow();
     auth.registerWizardEmbarked.value = true;
+    _supportTapRecognizer =
+        TapGestureRecognizer()..onTap = _showSupportBottomSheet;
   }
 
   @override
   void dispose() {
     auth.registerWizardEmbarked.value = false;
+    _supportTapRecognizer.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -54,6 +60,138 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
     } else {
       backbuttonforWeb(context);
     }
+  }
+
+  Future<void> _launchSupportUri(Uri uri) async {
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text("Impossible d'ouvrir ce lien"),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showSupportBottomSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final primary = getColorBasedOnActiveModuleid();
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: Text(
+                    "Besoin d'aide ?",
+                    textAlign: TextAlign.center,
+                    style:
+                        heading2(context).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: Text(
+                    "Notre équipe est là pour vous accompagner.",
+                    textAlign: TextAlign.center,
+                    style: regular2(context).copyWith(color: Colors.black87),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _supportTile(
+                  icon: Icons.wechat_rounded,
+                  iconColor: Colors.green,
+                  title: "Chatter avec nous",
+                  subtitle: "Réponse en quelques minutes",
+                  onTap: () => _launchSupportUri(
+                    Uri.parse(
+                      "https://wa.me/212660060079?text=Bonjour%20Carvy%2C%20j%27ai%20un%20probl%C3%A8me%20lors%20de%20mon%20inscription.",
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _supportTile(
+                  icon: Icons.phone_rounded,
+                  iconColor: Colors.blue,
+                  title: "Appeler le support",
+                  subtitle: "Disponible de 9h à 20h",
+                  onTap: () => _launchSupportUri(Uri.parse("tel:+212660060079")),
+                ),
+                const SizedBox(height: 10),
+                _supportTile(
+                  icon: Icons.mail_rounded,
+                  iconColor: Colors.deepOrange,
+                  title: "Envoyer un email",
+                  subtitle: "Réponse sous 24h",
+                  onTap: () => _launchSupportUri(
+                    Uri.parse(
+                      "mailto:nabil.carvytech@gmail.com?subject=Aide%20Inscription",
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: Text(
+                      "Fermer",
+                      style: regular3(context).copyWith(color: primary),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _supportTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        leading: Icon(icon, color: iconColor),
+        title: Text(title, style: heading3(context)),
+        subtitle: Text(
+          subtitle,
+          style: regular3(context).copyWith(color: Colors.black87),
+        ),
+      ),
+    );
   }
 
   /// Barre de progression sur 3 étapes.
@@ -119,7 +257,20 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
                   auth.textEditingSignUpControllerEmail,
               inputType: TextInputType.emailAddress,
               validator: (v) => validateEmail(v!),
+              onChange: (v) {
+                auth.registerWizardEmailError.value = '';
+                return null;
+              },
             ),
+            Obx(() => auth.registerWizardEmailError.value.isEmpty
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      auth.registerWizardEmailError.value,
+                      style: regular3(context).copyWith(color: redColor),
+                    ),
+                  )),
             const SizedBox(height: 16),
             CustomTextFields(
               txt: 'Password'.tr,
@@ -165,8 +316,11 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
             ),
             const SizedBox(height: 32),
             CustomsButtons(
-              onPressed: () {
+              onPressed: () async {
                 if (_formKeyIdentity.currentState?.validate() ?? false) {
+                  final available =
+                      await auth.registerWizardCheckEmailAvailability(context);
+                  if (!available) return;
                   _pageController.nextPage(
                     duration: const Duration(milliseconds: 320),
                     curve: Curves.easeOut,
@@ -265,6 +419,16 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
                         context,
                         profileController.selectedCountry.value,
                         profileController.defaultCountry.value,
+                        onDuplicateEmail: () {
+                          if (!mounted) return;
+                          if (_currentPage != 0) {
+                            _pageController.animateToPage(
+                              0,
+                              duration: const Duration(milliseconds: 280),
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        },
                       );
                     }
                   },
@@ -369,6 +533,16 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
                             curve: Curves.easeOut,
                           );
                         },
+                        onRegisterWizardDuplicateEmail: () {
+                          if (!mounted) return;
+                          if (_currentPage != 0) {
+                            _pageController.animateToPage(
+                              0,
+                              duration: const Duration(milliseconds: 280),
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        },
                       );
                     },
                     text: 'Verify'.tr,
@@ -429,14 +603,42 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: TextButton(
-                onPressed: () => Get.toNamed(WebRoutes.loginScreen),
-                child: Text(
-                  'Already have an account?'.tr,
-                  style: regular3(context).copyWith(
-                    color: notifires.getGrey3Whitecolor,
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  Center(
+                    child: Text.rich(
+                      TextSpan(
+                        text: "Besoin d'aide ? ",
+                        style: regular3(context).copyWith(
+                          color: notifires.getGrey3Whitecolor,
+                          fontSize: 12.5,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: "Contactez le support",
+                            recognizer: _supportTapRecognizer,
+                            style: regular3(context).copyWith(
+                              color: getColorBasedOnActiveModuleid(),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
+                  TextButton(
+                    onPressed: () => Get.toNamed(WebRoutes.loginScreen),
+                    child: Text(
+                      'Already have an account?'.tr,
+                      style: regular3(context).copyWith(
+                        color: notifires.getGrey3Whitecolor,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

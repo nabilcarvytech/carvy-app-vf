@@ -900,11 +900,13 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
                                 onTap: () {
-                                  // Logique récupérée de l'ancien IconButton stylo
-                                  setdefultData();
-                                  showPopUpScreen(
-                                      context,
-                                      VehicleCheckAvailability(
+                                  print(
+                                      "📅 Dates conservées : ${bookingController.startDate} - ${bookingController.endDate}");
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          VehicleCheckAvailability(
                                         idFeatured: widget.idFeatured,
                                         itemDetails: widget.itemDetails,
                                         address: widget.address,
@@ -914,7 +916,9 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                         itemType: widget.itemType,
                                         price: widget.price,
                                         cleanvalue: true,
-                                      ));
+                                      ),
+                                    ),
+                                  );
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.all(16),

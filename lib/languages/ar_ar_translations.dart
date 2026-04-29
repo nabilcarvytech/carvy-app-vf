@@ -1266,5 +1266,31 @@ const Map<String, String> arAR = {
       "سنرسل رمزًا عبر SMS (Twilio) لتأكيد رقمك.",
   "Register step terms": "الشروط العامة",
   "Register step terms subtitle": "اقرأ النقاط التالية قبل المتابعة.",
-  "register_wizard_resend_in_seconds": "إعادة الإرسال خلال @n ث"
+  "register_wizard_resend_in_seconds": "إعادة الإرسال خلال @n ث",
+  "terms_general_subtitle_read_all":
+      "يرجى قراءة جميع القواعد حتى النهاية قبل المتابعة.",
+  "terms_general_scroll_to_enable":
+      "مرّر حتى أسفل الصفحة لتفعيل المتابعة.",
+  "terms_general_read_required":
+      "يجب قراءة كامل الشروط أولًا.",
+  "terms_general_accept_checkbox":
+      "لقد قرأت وأوافق على الشروط العامة للتطبيق.",
+  "terms_general_service_title": "موضوع الخدمة",
+  "terms_general_service_body":
+      "كارفي منصة للربط بين المستخدمين لتأجير المركبات. نحن لا نمتلك المركبات، لكننا نضمن أمان المعاملات.",
+  "terms_general_eligibility_title": "الأهلية",
+  "terms_general_eligibility_body":
+      "يجب أن يكون المستأجر 21 سنة على الأقل، وأن يمتلك رخصة قيادة سارية منذ أكثر من سنتين. التحقق من الهوية (KYC) إلزامي.",
+  "terms_general_deposit_title": "الوديعة (الضمان)",
+  "terms_general_deposit_body":
+      "يتم حجز مبلغ الضمان عبر التطبيق، ويُعاد بعد نهاية الإيجار إذا لم تُسجّل أي أضرار أو مخالفات.",
+  "terms_general_inspection_title": "معاينة الحالة",
+  "terms_general_inspection_body":
+      "المعاينة بالصور إلزامية عبر التطبيق عند بداية الرحلة ونهايتها لحماية الطرفين.",
+  "terms_general_fuel_clean_title": "الوقود والنظافة",
+  "terms_general_fuel_clean_body":
+      "يجب إعادة المركبة بنفس مستوى الوقود وبحالة نظافة مناسبة. قد تُطبَّق رسوم إضافية عند عدم الالتزام.",
+  "terms_general_insurance_title": "التأمين والحوادث",
+  "terms_general_insurance_body":
+      "في حالة وقوع حادث، يلتزم المستخدم بالتواصل الفوري مع دعم كارفي وتعبئة محضر ودي."
 };

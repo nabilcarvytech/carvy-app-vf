@@ -39,12 +39,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   SearchControllerHome filterController = Get.find();
   final RefreshController refreshController = RefreshController();
   final ScrollController scrollController = ScrollController();
-
-  /// Barre blanche compacte : visible seulement quand le header bleu est totalement réduit.
-  bool _compactStickyVisible = false;
-
-  /// Distance de scroll pour réduire tout le [SliverAppBar] (mis à jour chaque build).
-  double _homeHeaderCollapseThresholdPx = 200;
+  double _headerOpacity = 0.0;
 
   @override
   void initState() {
@@ -60,31 +55,17 @@ class _VehicleHomePageState extends State<VehicleHomePage>
           GetStorage().read("selectedVehicleTypeName") ?? "";
       fetchData();
     });
-    scrollController.addListener(_syncCompactStickyFromScroll);
-  }
-
-  void _updateCompactStickyForPixels(double pixels) {
-    if (!mounted) return;
-    final next = pixels >= _homeHeaderCollapseThresholdPx - 1.0;
-    if (next != _compactStickyVisible) {
-      setState(() => _compactStickyVisible = next);
-    }
-  }
-
-  void _syncCompactStickyFromScroll() {
-    if (!scrollController.hasClients) return;
-    _updateCompactStickyForPixels(scrollController.offset);
-  }
-
-  bool _onHomeScrollNotification(ScrollNotification n) {
-    if (n.metrics.axis != Axis.vertical) return false;
-    _updateCompactStickyForPixels(n.metrics.pixels);
-    return false;
+    scrollController.addListener(() {
+      final double newOpacity =
+          (scrollController.offset / 160).clamp(0.0, 1.0);
+      if (newOpacity != _headerOpacity) {
+        setState(() => _headerOpacity = newOpacity);
+      }
+    });
   }
 
   @override
   void dispose() {
-    scrollController.removeListener(_syncCompactStickyFromScroll);
     refreshController.dispose();
     scrollController.dispose();
     homeController.disposeFunctionVehicle();
@@ -277,17 +258,8 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     }
   }
 
-  /// Hauteur du header bleu mobile : status bar + toolbar + bloc recherche / dates.
-  double _expandedHomeHeaderExtent(BuildContext context) {
-    final double top = MediaQuery.paddingOf(context).top;
-    return top + kToolbarHeight + 200;
-  }
-
-  double _homeHeaderCollapseThreshold(BuildContext context) {
-    return _expandedHomeHeaderExtent(context) -
-        MediaQuery.paddingOf(context).top -
-        kToolbarHeight;
-  }
+  /// Hauteur du header bleu mobile (bloc large).
+  double _expandedHomeHeaderExtent(BuildContext context) => 280.0;
 
   Widget _buildCompactStickySearchBar(BuildContext context) {
     final Color hintColor = Colors.grey.shade600;
@@ -558,7 +530,6 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   Widget build(BuildContext context) {
     super.build(context);
     final notifires = Provider.of<ColorNotifires>(context, listen: true);
-    _homeHeaderCollapseThresholdPx = _homeHeaderCollapseThreshold(context);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -615,99 +586,80 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             enablePullUp: false,
             header: _homePullToRefreshHeader(context),
             onRefresh: onRefresh,
-            child: NotificationListener<ScrollNotification>(
-              onNotification: _onHomeScrollNotification,
-              child: CustomScrollView(
+            child: CustomScrollView(
                 controller: scrollController,
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: ClampingScrollPhysics(),
-                ),
+                physics: const ClampingScrollPhysics(),
                 slivers: [
                   SliverAppBar(
                   expandedHeight: _expandedHomeHeaderExtent(context),
-                  floating: true,
+                  floating: false,
+                  snap: false,
                   pinned: true,
                   elevation: 0,
+                  forceElevated: true,
                   scrolledUnderElevation: 0,
                   clipBehavior: Clip.none,
-                  backgroundColor: themeColor,
+                  backgroundColor: const Color(0xFF1A3A8A),
                   surfaceTintColor: Colors.transparent,
                   automaticallyImplyLeading: false,
                   toolbarHeight: kToolbarHeight,
                   titleSpacing: 0,
-                  centerTitle: false,
-                  // Ne pas lier l’affichage à constraints.maxHeight du title : le framework
-                  // donne souvent une hauteur >> kToolbarHeight, donc la barre restait invisible.
+                  centerTitle: true,
                   title: AnimatedOpacity(
-                    opacity: _compactStickyVisible ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 220),
+                    opacity: _headerOpacity,
+                    duration: const Duration(milliseconds: 120),
                     curve: Curves.easeOut,
-                    child: AnimatedSlide(
-                      offset: _compactStickyVisible
-                          ? Offset.zero
-                          : const Offset(0, 0.06),
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOut,
-                      child: IgnorePointer(
-                        ignoring: !_compactStickyVisible,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 8, right: 8),
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              final double w =
-                                  constraints.maxWidth.isFinite &&
-                                          constraints.maxWidth > 0
-                                      ? constraints.maxWidth
-                                      : MediaQuery.sizeOf(context).width - 16;
-                              return SizedBox(
-                                width: w,
-                                child: _buildCompactStickySearchBar(context),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.9,
+                      alignment: Alignment.center,
+                      child: _buildCompactStickySearchBar(context),
                     ),
                   ),
                   flexibleSpace: FlexibleSpaceBar(
-                    collapseMode: CollapseMode.parallax,
-                    background: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Color.lerp(themeColor, const Color(0xFF0D1B4A), 0.28) ?? themeColor,
-                            themeColor,
-                            Color.lerp(themeColor, Colors.white, 0.14) ?? themeColor,
-                          ],
-                          stops: const [0.0, 0.42, 1.0],
+                    collapseMode: CollapseMode.pin,
+                    background: Opacity(
+                      opacity: 1.0 - _headerOpacity,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color.lerp(
+                                      themeColor, const Color(0xFF0D1B4A), 0.28) ??
+                                  themeColor,
+                              themeColor,
+                              Color.lerp(themeColor, Colors.white, 0.14) ??
+                                  themeColor,
+                            ],
+                            stops: const [0.0, 0.42, 1.0],
+                          ),
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(35),
+                            bottomRight: Radius.circular(35),
+                          ),
                         ),
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(35),
-                          bottomRight: Radius.circular(35),
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(height: MediaQuery.paddingOf(context).top),
-                          SizedBox(
-                            height: kToolbarHeight,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 4),
-                                child: _buildHomeToolbarRow(context),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(height: MediaQuery.paddingOf(context).top),
+                            SizedBox(
+                              height: kToolbarHeight,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                  child: _buildHomeToolbarRow(context),
+                                ),
                               ),
                             ),
-                          ),
-                          customSearchContainer(context, () {
-                            filterController.submitMethod(context);
-                          }, false),
-                        ],
+                            customSearchContainer(context, () {
+                              filterController.submitMethod(context);
+                            }, false),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -734,7 +686,6 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                   ),
                 ),
               ],
-              ),
             ),
           );
         },

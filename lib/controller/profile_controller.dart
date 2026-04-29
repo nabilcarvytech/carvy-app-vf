@@ -278,6 +278,8 @@ class ProfileController extends GetxController implements GetxService {
     GlobalKey<FormState> formKey, {
     selectedCountries,
     selectedCountryIso,
+    void Function(String otpValue, Map<String, dynamic> changeMobiles)?
+        onOtpSentInline,
   }) async {
     if (formKey.currentState!.validate()) {
       if (textEditingPhoneUpdateController.text.isEmpty) {
@@ -290,32 +292,45 @@ class ProfileController extends GetxController implements GetxService {
         return;
       }
       AuthController controller = Get.find();
+      final email = emailControllerSocialMedialogin.text.trim().isNotEmpty
+          ? emailControllerSocialMedialogin.text.trim()
+          : (loginModel?.data?.email?.trim() ?? '');
+      if (email.isEmpty) {
+        showErrorToastMessage(
+            "Email utilisateur introuvable. Veuillez vous reconnecter.");
+        return;
+      }
+      print("📧 Email injecté pour check: $email");
       Map map = {
         "phone": textEditingPhoneUpdateController.text,
         "phone_country": selectedCountries,
-        "email": emailControllerSocialMedialogin.text,
+        "email": email,
         "default_country": selectedCountryIso,
       };
 
       CheckMobileModel model = await controller.checkMobileNumber(map);
       if (model.status == 200) {
-        Map mapx = {
+        final Map<String, dynamic> mapx = {
           "phone": textEditingPhoneUpdateController.text,
           "phone_country": selectedCountries,
           "first_name": firetnameControllerSocialMedialogin.text,
           "last_name": lastnameControllerSocialMedialogin.text,
-          "email": emailControllerSocialMedialogin.text,
+          "email": email,
           "default_country": selectedCountryIso,
         };
-        Get.off(() => OtpScreen(
-              number: textEditingPhoneUpdateController.text,
-              countryCode: selectedCountries,
-              otpValue: "${model.data!.otp}",
-              defaultCountry: selectedCountryIso,
-              email: "",
-              changeMobile: true,
-              changeMobiles: mapx,
-            ));
+        if (onOtpSentInline != null) {
+          onOtpSentInline("${model.data!.otp}", mapx);
+        } else {
+          Get.off(() => OtpScreen(
+                number: textEditingPhoneUpdateController.text,
+                countryCode: selectedCountries,
+                otpValue: "${model.data!.otp}",
+                defaultCountry: selectedCountryIso,
+                email: "",
+                changeMobile: true,
+                changeMobiles: mapx,
+              ));
+        }
       } else {
         showErrorToastMessage(model.error);
       }

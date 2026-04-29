@@ -60,20 +60,30 @@ SearchControllerHome filterController = Get.find();
 setdefultData() {
   addAddressController.preventDate.value = true;
   late SearchControllerHome searchController = Get.find();
-  bookingController.selectedStartTime.value =
-      searchController.startTimeSearch.value;
-  bookingController.selectedEndTime.value =
-      searchController.endTimeSearch.value;
-  bookingController.startDate.value =
-      generalScopeController.startDateCustomDate.value;
-  bookingController.endDate.value =
-      generalScopeController.endDateCustomDate.value;
-  DateTime parsedStart =
-      DateFormat('yyyy-MM-dd').parse(bookingController.startDate.value);
-  DateTime parsedEnd =
-      DateFormat('yyyy-MM-dd').parse(bookingController.endDate.value);
-  bookingController.dateRangePickerController.selectedRange =
-      PickerDateRange(parsedStart, parsedEnd);
+  final incomingStartTime = searchController.startTimeSearch.value.trim();
+  final incomingEndTime = searchController.endTimeSearch.value.trim();
+  final incomingStartDate = generalScopeController.startDateCustomDate.value.trim();
+  final incomingEndDate = generalScopeController.endDateCustomDate.value.trim();
+
+  if (incomingStartTime.isNotEmpty) {
+    bookingController.selectedStartTime.value = incomingStartTime;
+  }
+  if (incomingEndTime.isNotEmpty) {
+    bookingController.selectedEndTime.value = incomingEndTime;
+  }
+  if (incomingStartDate.isNotEmpty) {
+    bookingController.startDate.value = incomingStartDate;
+  }
+  if (incomingEndDate.isNotEmpty) {
+    bookingController.endDate.value = incomingEndDate;
+  }
+
+  final parsedStart = DateTime.tryParse(bookingController.startDate.value);
+  final parsedEnd = DateTime.tryParse(bookingController.endDate.value);
+  if (parsedStart != null && parsedEnd != null) {
+    bookingController.dateRangePickerController.selectedRange =
+        PickerDateRange(parsedStart, parsedEnd);
+  }
 }
 
 bool handlelogin = false;
