@@ -52,6 +52,35 @@ import 'extension.dart';
 
 import '../work_space.dart';
 
+/// Extrait un ObjectId Mongo de conversation depuis le JSON booking si le backend le fournit.
+String mongoChatIdFromBooking(Bookings b) {
+  try {
+    final map = b.toJson();
+    for (final key in <String>[
+      'mongoId',
+      'conversationMongoId',
+      'chatMongoId',
+      'chat_mongo_id',
+      'conversation_mongo_id',
+    ]) {
+      final v = map[key]?.toString().trim() ?? '';
+      if (RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(v)) return v;
+    }
+    final cid = map['conversation_id']?.toString().trim() ??
+        map['conversationId']?.toString().trim() ??
+        '';
+    if (RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(cid)) return cid;
+    for (final nestedKey in ['conversation', 'chat']) {
+      final nested = map[nestedKey];
+      if (nested is Map) {
+        final v = nested['_id']?.toString().trim() ?? '';
+        if (RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(v)) return v;
+      }
+    }
+  } catch (_) {}
+  return '';
+}
+
 class BookingStatusDetails {
   final String label;
   final Color color;
@@ -2034,14 +2063,31 @@ myBookingListWidget(
 
                                     final String conversationId =
                                         "${userId}_${list[index].id}_$finalHostId";
+                                    final Bookings bookingRow = list[index];
+                                    final String mongoChat =
+                                        mongoChatIdFromBooking(bookingRow);
+                                    final String bookingIdStr =
+                                        '${bookingRow.id}'.trim();
 
+                                    // Comme inbox_screen : mongoId + historyId = Mongo conversation uniquement.
+                                    // Ne pas passer bookingId dans historyId (évite GET chat/history sur l’ID réservation).
                                     Get.to(() => ConversationScreen(
-                                          bookingStatus: list[index].status,
-                                          bookingId: '${list[index].id}',
+                                          booking: bookingRow,
+                                          bookingStatus: bookingRow.status,
+                                          bookingId: bookingIdStr,
                                           image: image,
-                                          title: list[index].propTitle!,
+                                          title: bookingRow.propTitle!,
                                           conversationId: conversationId,
-                                          from: "${list[index].hostName}",
+                                          mongoId: mongoChat.isNotEmpty
+                                              ? mongoChat
+                                              : null,
+                                          historyId: mongoChat.isNotEmpty
+                                              ? mongoChat
+                                              : null,
+                                          socketRoomId: conversationId,
+                                          buyerId: '$userId',
+                                          sellerId: finalHostId,
+                                          from: "${bookingRow.hostName}",
                                           senderId: "$userId",
                                           reciverId: finalHostId,
                                         ));

@@ -16,6 +16,7 @@ import 'package:carvy/work_space.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/locale_string.dart';
 import 'package:carvy/service/onesignal_service.dart';
+import 'package:carvy/services/auth_service.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/view/splash/initial_screen.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
@@ -89,27 +90,18 @@ void main() {
       if (!kIsWeb) {
         try {
           debugPrint('🔔 [MAIN] Starting OneSignal initialization...');
+          debugPrint(
+              '🚨 [DIAG_MAIN] Niveau verbeux SDK + audit App ID (main) puis init service');
+          OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+          OneSignalService.logAppIdConfigDiagnostic(source: 'DIAG_MAIN_CONFIG');
           await OneSignalService.initialize();
+          debugPrint(
+              '🚨 [DIAG_MAIN] Observateur pushSubscription actif (logs [DIAG_FCM]/[DIAG_ONESIGNAL]/[DIAG_PERM] depuis OneSignalService)');
           debugPrint('✅ [MAIN] OneSignal initialized successfully');
           
-          // Vérification au démarrage : si l'utilisateur est déjà connecté, mettre à jour OneSignal
+          // Vérification au démarrage : si l'utilisateur est déjà connecté, synchroniser OneSignal
           try {
-            String? storedToken = GetStorage().read('token');
-            if (storedToken != null && storedToken.isNotEmpty) {
-              debugPrint('🚀 [MAIN] Utilisateur déjà connecté, mise à jour OneSignal...');
-              // Initialiser la variable globale token pour que fetchPlayerId puisse l'utiliser
-              token = storedToken;
-              debugPrint('🔑 [MAIN] Token global initialisé depuis le storage');
-
-              try {
-                await OneSignalService.forceUpdatePlayerId();
-              } catch (e, stackTrace) {
-                debugPrint('❌ [MAIN] Erreur lors de la mise à jour OneSignal au démarrage: $e');
-                debugPrint('❌ [MAIN] StackTrace: $stackTrace');
-              }
-            } else {
-              debugPrint('ℹ️ [MAIN] Aucun token trouvé, utilisateur non connecté');
-            }
+            await AuthService.initializeAuthenticatedSessionFromStorage();
           } catch (e) {
             debugPrint('⚠️ [MAIN] Erreur lors de la vérification du token: $e');
             // Ne pas bloquer l'application

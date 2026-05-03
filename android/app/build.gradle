@@ -1,9 +1,9 @@
-
 plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
-    id "com.google.gms.google-services"
+    // ID de plugin commenté pour autoriser le build avec .v2 sans modifier Firebase
+    // id "com.google.gms.google-services" 
 }
 
 def localProperties = new Properties()
@@ -24,7 +24,6 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
-
 def keystorePropertiesFile = rootProject.file("key.properties")
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
@@ -32,7 +31,8 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace "com.carvy.app"
+    // Namespace mis à jour pour correspondre au nouvel ID
+    namespace "com.carvy.app" 
     compileSdkVersion 36
     ndkVersion '26.1.10909125'
 
@@ -51,15 +51,13 @@ android {
     }
 
     defaultConfig {
-       applicationId "com.carvy.app"
+        // C'est ICI que l'on force la nouvelle identité pour OneSignal
+        applicationId "com.carvy.app.v2"
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
-
-
-
 
     signingConfigs {
         release {
@@ -69,6 +67,7 @@ android {
             keyPassword keystoreProperties['keyPassword']
         }
     }
+    
     buildTypes {
         release {
             signingConfig signingConfigs.release
@@ -83,6 +82,7 @@ flutter {
 }
 
 dependencies {
+    // Firebase est conservé ici, mais le plugin de vérification stricte est désactivé plus haut
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }

@@ -185,13 +185,40 @@ class BookingController extends GetxController implements GetxService {
   /// Tunnel calendrier + sélection d’heure terminé — requis pour activer « Payer maintenant ».
   RxBool vehicleBookingTunnelComplete = false.obs;
 
-  /// Jours facturés pour le véhicule : du départ jusqu’au jour avant le retour (jour de retour exclu).
+  /// Jours facturés pour le véhicule selon le cycle 24h.
+  /// Si l'heure de fin est strictement supérieure à l'heure de début,
+  /// une journée supplémentaire est ajoutée.
+  int calculateRentalDays(
+      DateTime start, DateTime end, TimeOfDay startTime, TimeOfDay endTime) {
+    final startDate = DateTime(start.year, start.month, start.day);
+    final endDate = DateTime(end.year, end.month, end.day);
+    final diffDays = endDate.difference(startDate).inDays;
+    final timeStart = startTime.hour + (startTime.minute / 60.0);
+    final timeEnd = endTime.hour + (endTime.minute / 60.0);
+    final billableDays = timeEnd > timeStart ? diffDays + 1 : diffDays;
+    return billableDays < 1 ? 1 : billableDays;
+  }
+
+  /// Backward-compatible helper used by existing summary screens.
+  /// Falls back to date-only billing when times are not provided here.
   int vehicleBillableNightCount(DateTime checkIn, DateTime checkOut) {
-    final sd = DateTime(checkIn.year, checkIn.month, checkIn.day);
-    final ed = DateTime(checkOut.year, checkOut.month, checkOut.day);
-    final diff = ed.difference(sd).inDays;
-    if (diff < 1) return 1;
-    return diff;
+    final startTime = _parseStringToTimeOfDay(selectedStartTime.value);
+    final endTime = _parseStringToTimeOfDay(selectedEndTime.value);
+    return calculateRentalDays(checkIn, checkOut, startTime, endTime);
+  }
+
+  TimeOfDay _parseStringToTimeOfDay(String value) {
+    if (value.isEmpty) return const TimeOfDay(hour: 9, minute: 0);
+    try {
+      if (RegExp(r'^[0-9]{1,2}:[0-9]{2}$').hasMatch(value)) {
+        final parts = value.split(':');
+        return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+      }
+      final parsed = DateFormat('h:mm a').parse(value);
+      return TimeOfDay(hour: parsed.hour, minute: parsed.minute);
+    } catch (_) {
+      return const TimeOfDay(hour: 9, minute: 0);
+    }
   }
 
   List<DateTime> getDaysInBetween(DateTime startDate, DateTime endDate) {
@@ -535,7 +562,7 @@ class BookingController extends GetxController implements GetxService {
       // MOCK: Simulate network delay
       await Future.delayed(const Duration(seconds: 1));
 
-      // MOCK: Calculate total nights from dates
+      // MOCK: Calculate billable days from dates + times (cycle 24h)
       int totalNights = 1;
       if (startDate.value.isNotEmpty && endDate.value.isNotEmpty) {
         try {
@@ -543,8 +570,12 @@ class BookingController extends GetxController implements GetxService {
               DateTime.tryParse(startDate.value) ?? DateTime.now();
           DateTime checkOut =
               DateTime.tryParse(endDate.value) ?? DateTime.now();
-          totalNights = checkOut.difference(checkIn).inDays;
-          if (totalNights < 1) totalNights = 1;
+          totalNights = calculateRentalDays(
+            checkIn,
+            checkOut,
+            _parseStringToTimeOfDay(selectedStartTime.value),
+            _parseStringToTimeOfDay(selectedEndTime.value),
+          );
         } catch (e) {
           totalNights = 1;
         }
@@ -2106,7 +2137,12 @@ class BookingController extends GetxController implements GetxService {
 
     final parsedIn = DateTime.tryParse(startDate.value)!;
     final parsedOut = DateTime.tryParse(endDate.value)!;
-    final billableNights = vehicleBillableNightCount(parsedIn, parsedOut);
+    final billableNights = calculateRentalDays(
+      parsedIn,
+      parsedOut,
+      _parseStringToTimeOfDay(selectedStartTime.value),
+      _parseStringToTimeOfDay(selectedEndTime.value),
+    );
     if (webPlateForm) {
       Get.toNamed(WebRoutes.vehicleBookingSummaryScreen, arguments: {
         "idFeatured": idFeatured,

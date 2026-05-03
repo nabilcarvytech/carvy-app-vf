@@ -22,6 +22,7 @@ import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/chat_message_payload.dart';
 import 'package:carvy/model/booking_model.dart';
+import 'package:carvy/model/conversation_model.dart';
 import 'package:carvy/services/socket_service.dart';
 import '../../controller/global_scope_controller.dart';
 import '../../utils/theme_style.dart';
@@ -87,6 +88,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
   List<dynamic> catList = [];
 
   List<ChatMessagePayload> _messages = [];
+  /// Dernier identifiant utilisé pour `GET /chat/history/...` (Mongo ou bookingId).
+  String? _activeRestHistoryId;
   bool _loadingHistory = true;
   bool _isMarkedAsRead = false;
   StreamSubscription<dynamic>? _socketSubscription;
@@ -96,7 +99,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   Future<void> _markConversationAsReadOnce() async {
     if (_isMarkedAsRead) return;
-    final id = (widget.mongoId ?? widget.historyId ?? '').trim();
+    final id =
+        (widget.mongoId ?? _activeRestHistoryId ?? widget.historyId ?? '')
+            .trim();
     if (id.isEmpty) return;
     _isMarkedAsRead = true;
 
@@ -158,28 +163,88 @@ class _ConversationScreenState extends State<ConversationScreen> {
     return v;
   }
 
-  String? _getEffectiveHistoryId() {
-    // 1) Ultra-agressif: si historyId "ressemble" à un ObjectId ou commence par '69c', on le prend
-    final history = (widget.historyId ?? '').trim();
-    if (history.isNotEmpty) {
-      if (history.startsWith('69c') || _looksLikeMongoId(history)) {
-        return _resolveMongoHistoryId(history);
+  /// Même logique que [InboxScreen._extractConversationsList] pour GET /chat/inbox.
+  List<dynamic> _extractInboxConversationsList(dynamic res) {
+    if (res is! Map) return [];
+    if (res['error'] != null) return [];
+    final d = res['data'];
+    if (d is List) return d;
+    if (d is Map) {
+      if (d['conversations'] is List) return d['conversations'] as List;
+      if (d['items'] is List) return d['items'] as List;
+      if (d['inbox'] is List) return d['inbox'] as List;
+    }
+    if (res['conversations'] is List) return res['conversations'] as List;
+    return [];
+  }
+
+  /// Résout l’`_id` Mongo de la **conversation** (comme l’inbox) à partir du booking.
+  Future<String?> _mongoFromInboxByBookingId(String bookingId) async {
+    final bid = bookingId.trim();
+    if (bid.isEmpty || token.isEmpty) return null;
+    try {
+      debugPrint(
+          '🔎 [CHAT_INBOX_LOOKUP] GET ${Config.chatInboxPath} — recherche bookingId=$bid');
+      final res = await httpGetAdmin(Config.chatInboxPath, {});
+      final raw = _extractInboxConversationsList(res);
+      final uid = userId.toString();
+      for (final e in raw) {
+        if (e is! Map) continue;
+        final conv = ConversationModel.fromJson(
+          Map<String, dynamic>.from(e),
+          uid,
+        );
+        if ((conv.bookingId ?? '').trim() != bid) continue;
+        final mid = (conv.mongoId ?? '').trim();
+        if (_looksLikeMongoId(mid)) return mid;
+        final cid = conv.conversationId.trim();
+        if (_looksLikeMongoId(cid)) return cid;
+        final extracted =
+            RegExp(r'([a-fA-F0-9]{24})').firstMatch(cid)?.group(1) ?? '';
+        if (_looksLikeMongoId(extracted)) return extracted;
+      }
+      debugPrint(
+          '⚠️ [CHAT_INBOX_LOOKUP] Aucune conversation inbox pour bookingId=$bid');
+    } catch (e, st) {
+      log('inbox by booking', error: e, stackTrace: st);
+    }
+    return null;
+  }
+
+  /// Identifiant Mongo du **document conversation** pour `GET .../chat/history/:id`
+  /// (jamais l’ObjectId « réservation » seul sans résolution).
+  Future<String?> _resolveConversationMongoForHistory() async {
+    final m = (widget.mongoId ?? '').trim();
+    if (_looksLikeMongoId(m)) {
+      debugPrint('📜 [CHAT_REST] Mongo conversation = widget.mongoId → $m');
+      return m;
+    }
+
+    final bid = (widget.bookingId ?? widget.booking?.id ?? '').trim();
+    if (bid.isNotEmpty) {
+      final inboxMongo = await _mongoFromInboxByBookingId(bid);
+      if (inboxMongo != null && _looksLikeMongoId(inboxMongo)) {
+        debugPrint(
+            '📜 [CHAT_REST] Mongo conversation = inbox (bookingId=$bid) → $inboxMongo');
+        return inboxMongo;
+      }
+      final apiMongo = await _tryResolveConversationMongoFromBooking(bid);
+      if (apiMongo != null && _looksLikeMongoId(apiMongo)) {
+        debugPrint(
+            '📜 [CHAT_REST] Mongo conversation = API conversation-for-booking → $apiMongo');
+        return apiMongo;
       }
     }
-    // 2) Sinon, tester conversationId
-    final conversation = (widget.conversationId ?? '').trim();
-    if (conversation.isNotEmpty) {
-      if (conversation.startsWith('69c') || _looksLikeMongoId(conversation)) {
-        return _resolveMongoHistoryId(conversation);
-      }
+
+    final h = (widget.historyId ?? '').trim();
+    if (h.isNotEmpty && !h.contains('_') && _looksLikeMongoId(h)) {
+      debugPrint(
+          '📜 [CHAT_REST] Mongo conversation = widget.historyId (fallback) → $h');
+      return h;
     }
-    // 3) Dernier recours : booking.id (mais log d'avertissement si ce n'est pas un ObjectId attendu)
-    final bookingId = (widget.booking?.id ?? '').trim();
-    if (bookingId.isNotEmpty) {
-      // ignore: avoid_print
-      print('⚠️ ATTENTION : ID reçu est un BookingID, pas un ConversationID');
-      return bookingId;
-    }
+
+    debugPrint(
+        '❌ [CHAT_REST] Impossible de résoudre un Mongo **conversation** pour /chat/history');
     return null;
   }
 
@@ -325,11 +390,13 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final socketRoomId = _socketRoomId.trim();
     final conversationId = (widget.conversationId ?? '').trim();
     final historyId = _historyId.trim();
+    final restLayer = (_activeRestHistoryId ?? '').trim();
 
     // Accepte les différents identifiants utilisés selon les écrans/backend.
     return incomingCid == socketRoomId ||
         incomingCid == conversationId ||
-        incomingCid == historyId;
+        incomingCid == historyId ||
+        (restLayer.isNotEmpty && incomingCid == restLayer);
   }
 
   Future<void> _fetchBookingContext() async {
@@ -365,50 +432,44 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
-  Future<void> _fetchChatHistory() async {
-    final historyId = _historyId;
+  Future<String?> _tryResolveConversationMongoFromBooking(
+      String bookingId) async {
+    try {
+      debugPrint(
+          '🔎 [CHAT_RESOLVE] GET ${Config.chatConversationForBookingPath(bookingId)}');
+      final res = await httpGetAdmin(
+          Config.chatConversationForBookingPath(bookingId), {});
+      if (res is! Map || res['error'] != null) return null;
+      final dynamic d = res['data'];
+      if (d is Map) {
+        for (final key in ['mongoId', '_id', 'conversationMongoId', 'id']) {
+          final v = d[key]?.toString().trim() ?? '';
+          if (v.isNotEmpty && _looksLikeMongoId(v)) return v;
+        }
+        final conv = d['conversation'];
+        if (conv is Map) {
+          final v = conv['_id']?.toString().trim() ?? '';
+          if (v.isNotEmpty && _looksLikeMongoId(v)) return v;
+        }
+      }
+    } catch (e, st) {
+      debugPrint('⚠️ [CHAT_RESOLVE] échec ou endpoint absent: $e');
+      log('chat resolve by booking', error: e, stackTrace: st);
+    }
+    return null;
+  }
+
+  Future<void> _fetchChatHistory(String historyRestId) async {
+    final historyId = historyRestId.trim();
     if (historyId.isEmpty) {
-      if (mounted) setState(() => _loadingHistory = false);
       return;
     }
-    // ignore: avoid_print
-    print('📡 API CALL: GET /api/chat/history/$historyId');
-    // ignore: avoid_print
-    print('🔗 APPEL API HISTORIQUE : ${Config.chatHistoryPath(historyId)}');
-    setState(() => _loadingHistory = true);
+    debugPrint('📡 [CHAT_REST] GET /api/chat/history/$historyId');
+    debugPrint('🔗 [CHAT_REST] URL admin : ${Config.chatHistoryPath(historyId)}');
     try {
       final res = await httpGetAdmin(Config.chatHistoryPath(historyId), {});
-      print('RAW RESPONSE: $res');
-      // ignore: avoid_print
-      print('🧐 [DIAGNOSTIC HISTORIQUE] --- DÉBUT ---');
-      // ignore: avoid_print
-      print('🔗 URL appelée : ${Config.chatHistoryPath(historyId)}');
-      // ignore: avoid_print
-      print('📦 Statut Code : ${res is Map ? (res['statusCode'] ?? res['status'] ?? 'N/A') : 'N/A'}');
-      // ignore: avoid_print
-      print('📄 JSON BRUT COMPLET : $res');
-      try {
-        final Map<String, dynamic> decoded = res is Map
-            ? Map<String, dynamic>.from(res)
-            : (json.decode(res.toString()) as Map<String, dynamic>);
-        if (decoded.containsKey('data')) {
-          final data = decoded['data'];
-          if (data is Map && data.containsKey('messages')) {
-            // ignore: avoid_print
-            print('🔢 Nombre de messages dans JSON [data][messages] : ${data['messages'].length}');
-          } else if (data is List) {
-            // ignore: avoid_print
-            print('🔢 Nombre de messages dans JSON [data] (liste directe) : ${data.length}');
-          }
-        }
-      } catch (e) {
-        // ignore: avoid_print
-        print('⚠️ [DIAGNOSTIC HISTORIQUE] Décodage JSON impossible: $e');
-      }
-      // ignore: avoid_print
-      print('🧐 [DIAGNOSTIC HISTORIQUE] --- FIN ---');
-      // ignore: avoid_print
-      print('📄 JSON RECU : $res');
+      debugPrint('🧐 [CHAT_REST] Réponse brute (statut) : '
+          '${res is Map ? (res['statusCode'] ?? res['status'] ?? 'OK map') : res.runtimeType}');
       final rawList = _extractMessagesList(res);
       final parsed = <ChatMessagePayload>[];
       for (final e in rawList) {
@@ -421,32 +482,34 @@ class _ConversationScreenState extends State<ConversationScreen> {
       if (mounted) {
         setState(() {
           _messages = parsed;
-          _loadingHistory = false;
         });
       }
     } catch (e, st) {
       log('chat history: $e', stackTrace: st);
-      if (mounted) setState(() => _loadingHistory = false);
     }
   }
 
   Future<void> _loadMessages() async {
+    if (!mounted) return;
+    setState(() => _loadingHistory = true);
+    final String socketLabel = _socketRoomId;
     try {
-      final String? effectiveId = _getEffectiveHistoryId();
-      // ignore: avoid_print
-      print('🔎 DEBUG : ID effectif pour historique = $effectiveId');
-      if (effectiveId == null || effectiveId.isEmpty) {
-        // ignore: avoid_print
-        print('❌ ERREUR : Aucun ID de conversation trouvé !');
+      debugPrint('🛋️ [CHAT_SOCKET] Room Socket / composite = "$socketLabel"');
+
+      final String? mongo = await _resolveConversationMongoForHistory();
+      debugPrint(
+          '📜 [CHAT_REST]   ID Mongo **conversation** pour GET .../chat/history = "${mongo ?? "(aucun)"}"');
+
+      if (mongo == null || !_looksLikeMongoId(mongo)) {
+        debugPrint(
+            '❌ [CHAT_REST] Pas d’appel /chat/history sans document conversation Mongo valide');
         return;
       }
-      final String url = Config.chatHistoryPath(effectiveId);
-      // ignore: avoid_print
-      print('🔗 APPEL API HISTORIQUE : $url');
-      await _fetchChatHistory();
-    } catch (e) {
-      // ignore: avoid_print
-      print('🚨 CRASH _loadMessages : $e');
+
+      _activeRestHistoryId = mongo;
+      await _fetchChatHistory(mongo);
+    } catch (e, st) {
+      log('_loadMessages: $e', stackTrace: st);
     } finally {
       if (mounted) setState(() => _loadingHistory = false);
     }
@@ -736,7 +799,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   @override
   Widget build(BuildContext context) {
     debugPrint(
-        '🆔 Ma Room actuelle : $_socketRoomId | MongoID : ${widget.mongoId}');
+        '🛋️ [CHAT_SOCKET] build → room = "$_socketRoomId" | 📜 [CHAT_REST] actif = "${_activeRestHistoryId ?? ''}" | widget.mongoId = "${widget.mongoId ?? ''}"');
     // ignore: avoid_print
     print('🎨 UI : Nombre de messages à afficher : ${_messages.length}');
     return Align(

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:carvy/api/config.dart';
 import 'package:carvy/service/onesignal_service.dart';
 import 'package:carvy/work_space.dart';
 
@@ -19,7 +20,7 @@ class AuthService {
     }
 
     await _loginToOneSignal(userId);
-    await OneSignalService.forceUpdatePlayerId();
+    await syncOneSignalId();
   }
 
   static Future<void> handleAuthenticatedUser({
@@ -34,7 +35,37 @@ class AuthService {
     }
 
     await _loginToOneSignal(normalizedUserId);
-    await OneSignalService.forceUpdatePlayerId();
+    await syncOneSignalId();
+  }
+
+  /// Synchronise l'identifiant OneSignal courant avec le backend.
+  static Future<void> syncOneSignalId() async {
+    if (kIsWeb) return;
+    debugPrint('📡 [DEBUG_SYNC] Début de syncOneSignalId...');
+    try {
+      String? id = OneSignal.User.pushSubscription.id;
+      debugPrint("🆔 [DEBUG_SYNC] ID récupéré depuis le SDK: '$id'");
+
+      if (id == null || id.isEmpty) {
+        debugPrint("⚠️ [DEBUG_SYNC] ID vide — demande de permission...");
+        await OneSignal.Notifications.requestPermission(true);
+        await Future.delayed(const Duration(seconds: 2));
+        id = OneSignal.User.pushSubscription.id;
+        debugPrint("🆔 [DEBUG_SYNC] ID après permission: '$id'");
+      }
+
+      if (id == null || id.isEmpty) {
+        debugPrint(
+            '❌ [DEBUG_SYNC] ABANDON : L\'ID OneSignal est vide ou null (observer en attente).');
+        return;
+      }
+
+      debugPrint(
+          '🚀 [DEBUG_SYNC] Envoi vers le Backend : ${Config.baseurl}${Config.updateOneSignalId}');
+      await OneSignalService.updateServerPlayerId(id);
+    } catch (e) {
+      debugPrint('🔥 [DEBUG_SYNC] ERREUR CRITIQUE : $e');
+    }
   }
 
   static Future<void> _loginToOneSignal(String userId) async {

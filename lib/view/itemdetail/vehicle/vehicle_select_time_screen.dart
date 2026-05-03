@@ -48,6 +48,9 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
   AddAddressController addAddressController = Get.find();
   KycController kycController = Get.find();
 
+  /// Tant que l'utilisateur n'a pas choisi explicitement l'heure de fin, elle reste synchronisée sur l'heure de début.
+  bool _endTimeManuallyTouched = false;
+
   TimeOfDay _parseToTimeOfDay(String value) {
     if (value.isEmpty) return const TimeOfDay(hour: 9, minute: 0);
     try {
@@ -74,6 +77,14 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
     }
   }
 
+  /// Écart calendaire pur (sans majoration dépassement horaire).
+  int _joursInitiauxCalendar(DateTime? dateDebut, DateTime? dateFin) {
+    if (dateDebut == null || dateFin == null) return 0;
+    final d0 = DateTime(dateDebut.year, dateDebut.month, dateDebut.day);
+    final d1 = DateTime(dateFin.year, dateFin.month, dateFin.day);
+    return d1.difference(d0).inDays;
+  }
+
   /// Identifiant attendu par `DateFormat.yMMMEd` (évite LocaleDataException si symboles non chargés).
   String _symbolLocaleIdForDateFormat() {
     final l = Get.locale;
@@ -92,6 +103,80 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
       default:
         return 'fr_FR';
     }
+  }
+
+  /// Date de retour lisible au-dessus de l'heure de fin (ex. sam. 30 mai 2026).
+  String _formatReturnDateHeading(DateTime d) {
+    final sym = _symbolLocaleIdForDateFormat();
+    try {
+      return DateFormat('EEE d MMMM y', sym).format(d);
+    } catch (_) {
+      try {
+        final code = Get.locale?.languageCode ?? 'fr';
+        return DateFormat('EEE d MMMM y', code).format(d);
+      } catch (_) {
+        return _formatBookingDateDisplay(d);
+      }
+    }
+  }
+
+  /// Date de fin + badge « +1j facturé » si dépassement horaire (date calendaire inchangée).
+  Widget _endDateLineWithBadge({
+    required BuildContext context,
+    required String dateText,
+    required TextAlign textAlign,
+    required bool isExtraDay,
+    required bool isOvertime,
+    FontWeight idleFontWeight = FontWeight.normal,
+    double? fontSize,
+  }) {
+    final carvyBlue = getColorBasedOnActiveModuleid();
+    return Row(
+      mainAxisSize: MainAxisSize.max,
+      mainAxisAlignment: textAlign == TextAlign.end
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Flexible(
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            style: regular2(context).copyWith(
+              color: isOvertime ? carvyBlue : Colors.grey,
+              fontSize: fontSize,
+              fontWeight:
+                  isOvertime ? FontWeight.bold : idleFontWeight,
+            ),
+            child: Text(
+              dateText,
+              textAlign: textAlign,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        if (isExtraDay) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: carvyBlue,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              '+1j facturé',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                height: 1.1,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   /// Format d’affichage des dates de réservation ; ne jamais appeler `format` sur une date null.
@@ -135,7 +220,12 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
     if (isStart) {
       bookingController.selectedStartTime.value = formatted;
       bookingController.hindTimeStart.value = formatted;
+      if (!_endTimeManuallyTouched) {
+        bookingController.selectedEndTime.value = formatted;
+        bookingController.hindTimeSEnd.value = formatted;
+      }
     } else {
+      _endTimeManuallyTouched = true;
       bookingController.selectedEndTime.value = formatted;
       bookingController.hindTimeSEnd.value = formatted;
     }
@@ -156,6 +246,17 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
     }
     final startT = bookingController.selectedStartTime.value;
     final endT = bookingController.selectedEndTime.value;
+    final hasTimes = startT.isNotEmpty && endT.isNotEmpty;
+    final canShowTotals = startD != null && endD != null && hasTimes;
+    final joursInitiaux = _joursInitiauxCalendar(startD, endD);
+    final heureDebut = _parseToTimeOfDay(startT);
+    final heureFin = _parseToTimeOfDay(endT);
+    final timeStart = heureDebut.hour + (heureDebut.minute / 60.0);
+    final timeEnd = heureFin.hour + (heureFin.minute / 60.0);
+    final isExtraDay = hasTimes && (timeEnd > timeStart);
+    final isOvertime = isExtraDay;
+    final totalLocationBrut = isOvertime ? joursInitiaux + 1 : joursInitiaux;
+    final totalLocationAffiche = totalLocationBrut < 1 ? 1 : totalLocationBrut;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -185,11 +286,14 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
               style: regular2(context),
             ),
             Expanded(
-              child: Text(
-                _formatBookingDateDisplay(endD),
-                textAlign: TextAlign.end,
-                style: regular2(context).copyWith(
-                  color: notifires.getGrey3Whitecolor,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _endDateLineWithBadge(
+                  context: context,
+                  dateText: _formatBookingDateDisplay(endD),
+                  textAlign: TextAlign.end,
+                  isExtraDay: isExtraDay,
+                  isOvertime: isOvertime,
                 ),
               ),
             ),
@@ -207,6 +311,18 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
           notifires: notifires,
         ),
         const SizedBox(height: 20),
+        if (endD != null) ...[
+          _endDateLineWithBadge(
+            context: context,
+            dateText: _formatReturnDateHeading(endD),
+            textAlign: TextAlign.start,
+            isExtraDay: isExtraDay,
+            isOvertime: isOvertime,
+            idleFontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+          const SizedBox(height: 6),
+        ],
         Text(
           ' End time'.tr,
           style: heading3(context),
@@ -217,6 +333,65 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
           onTap: () => _pickTime(context, false),
           notifires: notifires,
         ),
+        const SizedBox(height: 10),
+        if (canShowTotals)
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 280),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) =>
+                FadeTransition(opacity: animation, child: child),
+            child: Container(
+              key: ValueKey('rental-total-$totalLocationAffiche-$isOvertime'),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue, width: 0.8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total : $totalLocationAffiche jours de location',
+                          style: regular2(context).copyWith(
+                            color: Colors.blue.shade900,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (isOvertime) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            '(Incluant 1 jour pour dépassement horaire)',
+                            style: regular2(context).copyWith(
+                              color: Colors.blue.shade900,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -272,6 +447,10 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
     bookingController = Get.find<BookingController>();
     bookingController.isenqablestarttime.value = true;
     bookingController.isenableendTime.value = true;
+    final s = bookingController.selectedStartTime.value;
+    final e = bookingController.selectedEndTime.value;
+    _endTimeManuallyTouched =
+        e.isNotEmpty && s.isNotEmpty && e != s;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       addAddressController.getDoorStepAddressp(false);
     });

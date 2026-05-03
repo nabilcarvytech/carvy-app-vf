@@ -8,6 +8,7 @@ import 'package:carvy/view/booking/cancelled_trip_screen.dart';
 import 'package:carvy/view/booking/liveBooking.dart';
 import 'package:carvy/view/booking/up_comming_trip.dart';
 import 'package:carvy/view/booking/previous_trip_screen.dart';
+import 'package:carvy/view/bottombar/home_main.dart';
 import '../../controller/booking_controller.dart';
 import '../../controller/booking_record_controller.dart';
 import '../../utils/common_widget.dart';
@@ -92,29 +93,32 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  /// Retour depuis l’écran poussé (ex. compte) : réinitialise l’onglet accueil puis ferme la route.
-  void _onExitPushedBooking(BuildContext context) {
-    generalController.tabController.animateTo(0);
-    generalController.currentIndex.value = 0;
-    if (Navigator.of(context).canPop()) {
-      Get.back();
-    }
-  }
-
-  /// Retour depuis l’onglet « Mes réservations » dans la barre du bas : aller à l’accueil (Explorer).
-  void _goToHomeTab() {
-    if (generalController.tabController.index != 0) {
-      generalController.tabController.animateTo(0);
-    }
-    generalController.currentIndex.value = 0;
-  }
-
+  /// Retour AppBar / système : compatible Navigator.push, onglet principal et Get.offAll(MyBooking).
   void _onBackPressed(BuildContext context) {
-    if (Navigator.of(context).canPop()) {
-      _onExitPushedBooking(context);
-    } else {
-      _goToHomeTab();
+    final nav = Navigator.of(context);
+
+    if (nav.canPop()) {
+      try {
+        generalController.tabController.animateTo(0);
+      } catch (_) {}
+      generalController.currentIndex.value = 0;
+      nav.pop();
+      return;
     }
+
+    final inHomeShell =
+        context.findAncestorWidgetOfExactType<HomeMain>() != null;
+    if (inHomeShell) {
+      try {
+        if (generalController.tabController.index != 0) {
+          generalController.tabController.animateTo(0);
+        }
+      } catch (_) {}
+      generalController.currentIndex.value = 0;
+      return;
+    }
+
+    Get.offAll(() => HomeMain(initialIndex: 0));
   }
 
   @override

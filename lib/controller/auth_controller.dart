@@ -627,21 +627,14 @@ class AuthController extends GetxController implements GetxService {
           update();
           shouldLogout = false;
           getFCMToken();
-          // Lier l'utilisateur à OneSignal avec External User ID
+          // Lier l'utilisateur OneSignal + synchroniser l'ID au backend.
           try {
-            print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
-            await OneSignal.login(userId.toString());
-            await Future.delayed(const Duration(seconds: 1));
-            String? pushToken = OneSignal.User.pushSubscription.id;
-            print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
-            print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
-            if (pushToken != null && pushToken.isNotEmpty) {
-              await OneSignalService.updateServerPlayerId(pushToken);
-            } else {
-              print('ℹ️ [ONESIGNAL_DEBUG] ID non prêt après login, observer prendra le relais');
-            }
+            await AuthService.handleAuthenticatedUser(
+              authToken: token,
+              userId: userId,
+            );
           } catch (e) {
-            print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
+            print('❌ [OneSignal] Erreur lors de la synchronisation OneSignal : $e');
           }
           database.child(userId.toString()).set({
             "userId": userId.toString(),

@@ -2,8 +2,7 @@ class Config {
   static const googleKey = "AIzaSyCnn79a9P4jSVI2OoUBMTyfQDXWerEdGqs";
   //static const googleKey = "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";
   static const String oneSiginalAppid = '849877b4-f438-495e-8ccd-62f016aaa09c';
-  static const String oneSiginalApiKey =
-      'os_v2_app_qsmhpnhuhbev5dgnmlybnkvatqcckvlx27yei5nl2dsodym3ogtcporczydtoahqxfhab6qixogr2o4qtl5p7vttac56wlbr2j43kqa';
+  //static const String oneSiginalApiKey ='os_v2_app_qsmhpnhuhbev5dgnmlybnkvatqcckvlx27yei5nl2dsodym3ogtcporczydtoahqxfhab6qixogr2o4qtl5p7vttac56wlbr2j43kqa';
   // ========== OLD LARAVEL BACKEND (COMMENTED) ==========
 //static const String baseurl = 'https://admin.carvy.tech/api/v1/';
   //static const String baseurlForBearer = 'https://admin.carvy.tech/api/';
@@ -164,6 +163,11 @@ class Config {
 
   static String chatHistoryPath(String historyId) =>
       'chat/history/${Uri.encodeComponent(historyId)}';
+
+  /// Résolution conversation (Mongo) à partir d’un `bookingId` — Node `GET .../api/chat/...`.
+  /// Si l’endpoint n’existe pas encore, l’appel échoue silencieusement et on garde le fallback booking.
+  static String chatConversationForBookingPath(String bookingId) =>
+      'chat/conversation-for-booking/${Uri.encodeComponent(bookingId)}';
 
   /// POST multipart champ `file` — URL : [baseUrlWithoutV1] + [uploadApi].
   static const String uploadApi = 'upload';
