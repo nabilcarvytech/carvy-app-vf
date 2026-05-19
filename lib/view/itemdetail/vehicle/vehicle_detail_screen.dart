@@ -125,7 +125,10 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
         print('❌ [VEHICLE_DETAIL] StackTrace: $stackTrace');
         // Continuer même si le KYC échoue
       }
-      if (handleDirectBooking == false) {
+      final hasPreselectedSearchDates = generalScopeController
+              .startDateCustomDate.value.isNotEmpty &&
+          generalScopeController.endDateCustomDate.value.isNotEmpty;
+      if (!hasPreselectedSearchDates) {
         filterController.clearVehicleDetailSearchDates();
       }
       // Load vehicle details data
@@ -1439,25 +1442,6 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
       bookingController.selectedEndTime.value = '';
       bookingController.startDate.value = '';
       bookingController.endDate.value = '';
-    }
-
-    if (handleDirectBooking == true) {
-      final itemDetailToSend =
-          vehicleDetailController.itemInfo ?? widget.itemInfo;
-
-      bookingController.commonNavigateToBookingSummary(
-        context,
-        widget.id,
-        itemDetailToSend,
-        widget.address,
-        widget.frontImage,
-        widget.title,
-        widget.rating,
-        widget.itemType,
-        widget.price,
-        "",
-      );
-      return;
     }
 
     bookingController.vehicleBookingTunnelComplete.value = false;

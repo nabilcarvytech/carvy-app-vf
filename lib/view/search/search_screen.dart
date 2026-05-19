@@ -86,8 +86,7 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {});
     showLoading();
     try {
-      String price =
-          "${_searchController.startRange.value}-${_searchController.endRage.value}";
+      final price = _searchController.resolveSearchPriceParam();
       var result = await _searchController.searchItems(
         '',
         _searchController.selectedtypesvalues.toString(),

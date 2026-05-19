@@ -32,6 +32,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
   SearchControllerHome filterController = Get.find();
   RangeValues currentRangeValues = const RangeValues(40, 1000);
   static const double _uiMaxPriceLimit = 20000.0;
+  bool _deferredInitActive = true;
 
   late final TextEditingController _minPriceController;
   late final TextEditingController _maxPriceController;
@@ -76,38 +77,44 @@ class _VehicleFilterState extends State<VehicleFilter> {
     currentRangeValues = RangeValues(startValue, endValue);
   }
 
+  void _syncPriceUiFromController() {
+    final double minPrice = double.tryParse("$minPricerange") ?? 0.0;
+    if (filterController.startRange.value == 0 &&
+        filterController.endRage.value == 0) {
+      filterController.startRange.value = minPrice;
+      filterController.endRage.value = _uiMaxPriceLimit;
+    }
+    validateRangeValues();
+    filterController.startRange.value = currentRangeValues.start;
+    filterController.endRage.value = currentRangeValues.end;
+    final startStr = currentRangeValues.start.toStringAsFixed(0);
+    final endStr = currentRangeValues.end.toStringAsFixed(0);
+    _syncingPriceFieldsFromSlider = true;
+    _minPriceController.text = startStr;
+    _maxPriceController.text = endStr;
+    _syncingPriceFieldsFromSlider = false;
+  }
+
   @override
   void initState() {
     super.initState();
+    filterController.prepareFilterSheetOpen();
     _minPriceController = TextEditingController();
     _maxPriceController = TextEditingController();
+    _syncPriceUiFromController();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_deferredInitActive) return;
       generateYearsList();
-      final double minPrice = double.tryParse("$minPricerange") ?? 0.0;
-      final double effectiveMaxPrice = _uiMaxPriceLimit;
-
-      currentRangeValues = RangeValues(
-        minPrice,
-        effectiveMaxPrice,
-      );
-      String startRangeString = currentRangeValues.start.toStringAsFixed(0);
-      String endRangeString = currentRangeValues.end.toStringAsFixed(0);
-      filterController.startRange.value = double.parse(startRangeString);
-      filterController.endRage.value = double.parse(endRangeString);
-
-      _syncingPriceFieldsFromSlider = true;
-      _minPriceController.text = startRangeString;
-      _maxPriceController.text = endRangeString;
-      _syncingPriceFieldsFromSlider = false;
-
       filterController.filterApiBasedOnModule();
       filterController.dataChangedBasedOnModuleid();
-      setState(() {});
+      if (mounted) setState(() {});
     });
   }
 
   @override
   void dispose() {
+    _deferredInitActive = false;
     _minPriceController.dispose();
     _maxPriceController.dispose();
     super.dispose();
@@ -311,12 +318,19 @@ class _VehicleFilterState extends State<VehicleFilter> {
                       child: CustomsButtons(
                         onPressed: () {
                           _commitPriceRangeForApply();
+                          final lockedPrice =
+                              '${filterController.startRange.value.round()}-${filterController.endRage.value.round()}';
+                          debugPrint(
+                            '🔎 [FILTER] Bouton Appliquer — envoi prix: $lockedPrice '
+                            '(minField=${_minPriceController.text} maxField=${_maxPriceController.text})',
+                          );
                           if (widget.mode == true) {
                             filterController.submitMethod(context);
                             return;
                           }
                           filterController.applyFiltersFromSheet(
                             context,
+                            lockedPriceRange: lockedPrice,
                             navigateToSearchResults: widget.forHome == true,
                             onMapRefresh: widget.forsearch == true
                                 ? widget.onMapRefresh

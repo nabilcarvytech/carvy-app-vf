@@ -80,6 +80,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
 
   /// Même feuille de filtres que sur le flux recherche (prix, assurance, marques, etc.).
   void _openVehicleFilterSheet(BuildContext context) {
+    filterController.prepareFilterSheetOpen();
     showPopUpScreen(
       context,
       VehicleFilter(

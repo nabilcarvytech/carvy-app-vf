@@ -270,8 +270,7 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
     itemModel = null;
     showLoading();
     try {
-      String price =
-          "${searchControllerHome.startRange.value}-${searchControllerHome.endRage.value}";
+      final price = searchControllerHome.resolveSearchPriceParam();
       var result = await searchControllerHome.searchItems(
         '',
         searchControllerHome.selectedtypesvalues.toString(),
@@ -543,6 +542,7 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
                 children: [
                   InkWell(
                     onTap: () {
+                      searchControllerHome.prepareFilterSheetOpen();
                       showPopUpScreen(
                           context,
                           VehicleFilter(

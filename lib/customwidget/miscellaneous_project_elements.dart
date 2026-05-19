@@ -1902,7 +1902,13 @@ class ShortByState extends State<ShortBy> {
                   onChanged: (String? value) {
                     setState(() {});
                     widget.onOptionSelected(value!);
-                    Get.back();
+                    final nav =
+                        Navigator.of(context, rootNavigator: true);
+                    if (nav.canPop()) {
+                      nav.pop();
+                    } else {
+                      Get.back();
+                    }
                   },
                 ),
               ),

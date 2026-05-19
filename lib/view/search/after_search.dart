@@ -42,7 +42,8 @@ class AfterSearch extends StatefulWidget {
 }
 
 class _AfterSearchState extends State<AfterSearch> {
-  dynamic temdidforsearch = 0;
+  /// Type de véhicule global avant d'entrer sur cet écran (restauré au retour).
+  String _savedGlobalItemType = '0';
   HomeController homeController = Get.find();
   int currentIndex = -1;
   SearchControllerHome filterController = Get.find();
@@ -104,14 +105,11 @@ class _AfterSearchState extends State<AfterSearch> {
     filterController.searchFilterList.clear();
     setState(() {});
     try {
-      String price =
-          "${filterController.startRange.value}-${filterController.endRage.value}";
+      final price = filterController.resolveSearchPriceParam();
       var result = await filterController.searchItems(
         '',
         filterController.selectedtypesvalues.toString(),
-        filterController.sendvalueInApiforrecentValue.value == true
-            ? filterController.setpriceforrecentvalue
-            : price,
+        price,
         "0",
         "0",
         filterController.featuresvalues.toString(),
@@ -156,14 +154,11 @@ class _AfterSearchState extends State<AfterSearch> {
     execption = false;
     setState(() {});
     try {
-      String price =
-          "${filterController.startRange.value}-${filterController.endRage.value}";
+      final price = filterController.resolveSearchPriceParam();
       var result = await filterController.searchItems(
         '',
         filterController.selectedtypesvalues.toString(),
-        filterController.sendvalueInApiforrecentValue.value == true
-            ? filterController.setpriceforrecentvalue
-            : price,
+        price,
         "0",
         "0",
         filterController.featuresvalues.toString(),
@@ -248,7 +243,11 @@ class _AfterSearchState extends State<AfterSearch> {
     if (generalScopeController.homeSearchLocation.value != "All Locations") {
       currentTabIndexforLocation = 1;
     }
-    handleDirectBooking = true;
+    // Même flux que la Home : détail → calendrier → confirmer et payer
+    handleDirectBooking = false;
+    filterController.aftersearch = true;
+    _savedGlobalItemType = filterController.globalItemType.value;
+
     if (widget.itemList != null) {
       showloading = true;
 
@@ -263,23 +262,42 @@ class _AfterSearchState extends State<AfterSearch> {
 
   @override
   void dispose() {
+    filterController.aftersearch = false;
     filterController.disposeFunction();
     super.dispose();
   }
 
   stateSetter(fn) => setState(() {});
 
+  /// Ferme filtre / tri si une route modale est encore au-dessus de cet écran.
+  bool _tryDismissOverlayRoute(BuildContext context) {
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) {
+      final rootNav = Navigator.of(context, rootNavigator: true);
+      if (rootNav.canPop()) {
+        rootNav.pop();
+        return true;
+      }
+    }
+    return false;
+  }
+
   void _popAfterSearch(BuildContext context) {
-    filterController.globalItemType.value = temdidforsearch;
+    filterController.globalItemType.value = _savedGlobalItemType.toString();
+    filterController.aftersearch = false;
+
+    // Priorité au Navigator Flutter (écran poussé via MaterialPageRoute).
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop<String>(_savedGlobalItemType);
+      return;
+    }
+
     if (Get.key.currentState?.canPop() ?? false) {
       Get.back();
       return;
     }
-    final nav = Navigator.of(context);
-    if (nav.canPop()) {
-      nav.pop();
-      return;
-    }
+
     generalController.currentIndex.value = 0;
     if (webPlateForm) {
       Get.offNamed(WebRoutes.homeMain);
@@ -290,7 +308,14 @@ class _AfterSearchState extends State<AfterSearch> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_tryDismissOverlayRoute(context)) return;
+        _popAfterSearch(context);
+      },
+      child: Scaffold(
       backgroundColor: notifires.getbgcolor,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(130),
@@ -788,6 +813,7 @@ class _AfterSearchState extends State<AfterSearch> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -1029,12 +1055,14 @@ class _AfterSearchState extends State<AfterSearch> {
                               ),
                             ),
                             trailing:
-                                filterController.globalItemType.value == option
+                                filterController.globalItemType.value ==
+                                        option.toString()
                                     ? Icon(Icons.check,
                                         color: getColorBasedOnActiveModuleid())
                                     : null,
                             onTap: () {
-                              filterController.globalItemType.value = option;
+                              filterController.globalItemType.value =
+                                  option.toString();
                               filterController.globalItemTypNamee.value =
                                   filteredVehicleTypes[index].name;
                               GetStorage().write("selectedVehicleType", option);

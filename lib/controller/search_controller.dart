@@ -814,6 +814,12 @@ class SearchControllerHome extends GetxController implements GetxService {
         }
       }
     }
+
+    // Déjà sur les résultats : ne pas empiler un second AfterSearch.
+    if (apply == true && aftersearch) {
+      return;
+    }
+
     if (webPlateForm) {
       Get.toNamed(
         WebRoutes.afterSearch,
@@ -1028,6 +1034,11 @@ class SearchControllerHome extends GetxController implements GetxService {
 
     // DEBUG: Afficher les valeurs des filtres et l'URL attendue par le backend
     print("🔍 DEBUG FILTRES:");
+    print("   - price (param): '$price'");
+    print("   - startRange (obs): ${startRange.value}");
+    print("   - endRage (obs): ${endRage.value}");
+    print("   - sendvalueInApiforrecentValue: ${sendvalueInApiforrecentValue.value}");
+    print("   - setpriceforrecentvalue: '$setpriceforrecentvalue'");
     print("   - slatsearch: '$slatsearch'");
     print("   - sLongSearch: '$sLongSearch'");
     print("   - setCity: '$setCity'");
@@ -1063,6 +1074,66 @@ class SearchControllerHome extends GetxController implements GetxService {
 
   String setpriceforrecentvalue = "";
   var sendvalueInApiforrecentValue = true.obs;
+
+  /// Prix figé au clic « Appliquer » (évite une course avec initState du filtre).
+  String? _pendingAppliedPriceRange;
+
+  void prepareFilterSheetOpen() {
+    sendvalueInApiforrecentValue.value = false;
+    debugPrint(
+      '🔎 [FILTER] Ouverture feuille — startRange=${startRange.value} '
+      'endRage=${endRage.value} sendRecent=${sendvalueInApiforrecentValue.value}',
+    );
+  }
+
+  void lockPriceRangeForNextSearch(String priceRange) {
+    sendvalueInApiforrecentValue.value = false;
+    _pendingAppliedPriceRange = priceRange;
+    final parts = priceRange.split('-');
+    if (parts.length == 2) {
+      final min = double.tryParse(parts[0].trim());
+      final max = double.tryParse(parts[1].trim());
+      if (min != null) startRange.value = min;
+      if (max != null) endRage.value = max;
+    }
+    debugPrint(
+      '🔎 [FILTER] Prix verrouillé pour la prochaine API: $priceRange '
+      '(startRange=${startRange.value} endRage=${endRage.value})',
+    );
+  }
+
+  /// Prix envoyé à [searchItems] — priorité au verrou post-« Appliquer ».
+  String resolveSearchPriceParam() {
+    if (_pendingAppliedPriceRange != null) {
+      final locked = _pendingAppliedPriceRange!;
+      _pendingAppliedPriceRange = null;
+      if (locked == '0-0' || locked == '0.0-0.0') {
+        debugPrint('🔎 [FILTER] API price (verrouillé): vide');
+        return '';
+      }
+      debugPrint('🔎 [FILTER] API price (verrouillé au clic): $locked');
+      return locked;
+    }
+
+    if (sendvalueInApiforrecentValue.value == true &&
+        setpriceforrecentvalue.trim().isNotEmpty) {
+      debugPrint('🔎 [FILTER] API price (recherche récente): $setpriceforrecentvalue');
+      return setpriceforrecentvalue;
+    }
+
+    sendvalueInApiforrecentValue.value = false;
+    final built =
+        '${startRange.value.round()}-${endRage.value.round()}';
+    if (built == '0-0') {
+      debugPrint('🔎 [FILTER] API price (controller): vide');
+      return '';
+    }
+    debugPrint(
+      '🔎 [FILTER] API price (controller): $built '
+      '(startRange=${startRange.value} endRage=${endRage.value})',
+    );
+    return built;
+  }
   Map<String, dynamic> globalSearchParams = {};
   void loadAndSendSearch(int index, BuildContext context) async {
     List<Map<String, dynamic>> recentSearches = loadRecentSearches();
@@ -1140,12 +1211,18 @@ class SearchControllerHome extends GetxController implements GetxService {
     bool navigateToSearchResults = false,
     VoidCallback? refreshResults,
     VoidCallback? onMapRefresh,
+    String? lockedPriceRange,
   }) {
-    if (sheetContext.mounted) {
-      Navigator.pop(sheetContext);
+    if (lockedPriceRange != null && lockedPriceRange.trim().isNotEmpty) {
+      lockPriceRangeForNextSearch(lockedPriceRange.trim());
     } else {
-      Get.back();
+      sendvalueInApiforrecentValue.value = false;
+      final built =
+          '${startRange.value.round()}-${endRage.value.round()}';
+      lockPriceRangeForNextSearch(built == '0-0' ? '' : built);
     }
+
+    dismissFilterBottomSheet(sheetContext);
 
     void runAfterSheetClosed() {
       final ctx = Get.context;
@@ -1165,7 +1242,27 @@ class SearchControllerHome extends GetxController implements GetxService {
     WidgetsBinding.instance.addPostFrameCallback((_) => runAfterSheetClosed());
   }
 
+  /// Ferme la feuille de filtres (useRootNavigator: true dans [showPopUpScreen]).
+  void dismissFilterBottomSheet(BuildContext sheetContext) {
+    if (sheetContext.mounted) {
+      final rootNav = Navigator.of(sheetContext, rootNavigator: true);
+      if (rootNav.canPop()) {
+        rootNav.pop();
+        return;
+      }
+      final nav = Navigator.of(sheetContext);
+      if (nav.canPop()) {
+        nav.pop();
+        return;
+      }
+    }
+    if (Get.isBottomSheetOpen == true) {
+      Get.back();
+    }
+  }
+
   routeBasedOnmoduleId(BuildContext context, VoidCallback onRefresh) async {
+    prepareFilterSheetOpen();
     showPopUpScreen(
         context,
         VehicleFilter(

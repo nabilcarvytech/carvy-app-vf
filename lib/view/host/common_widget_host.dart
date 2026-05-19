@@ -4868,7 +4868,12 @@ Future showPopUpScreen(BuildContext context, var className) {
               top: 10,
               child: IconButton(
                 onPressed: () {
-                  Get.back();
+                  final nav = Navigator.of(context, rootNavigator: true);
+                  if (nav.canPop()) {
+                    nav.pop();
+                  } else {
+                    Get.back();
+                  }
                 },
                 icon: const Icon(
                   Icons.cancel_outlined,
@@ -4907,7 +4912,12 @@ Future showPopUpScreenForShort(BuildContext context, var className) {
               top: 10,
               child: IconButton(
                 onPressed: () {
-                  Get.back();
+                  final nav = Navigator.of(context, rootNavigator: true);
+                  if (nav.canPop()) {
+                    nav.pop();
+                  } else {
+                    Get.back();
+                  }
                 },
                 icon: const Icon(
                   Icons.cancel_outlined,
