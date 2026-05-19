@@ -203,14 +203,12 @@ class _YourReviewState extends State<YourReview> {
                                                   RatingBar.builder(
                                                     unratedColor:
                                                         notifires.getgreycolor,
-                                                    initialRating: double.parse(
-                                                        "${list[index].rating}"),
+                                                    initialRating:
+                                                        list[index].vehicleRating,
                                                     itemSize: 20,
+                                                    ignoreGestures: true,
                                                     direction: Axis.horizontal,
-                                                    itemCount: int.parse(
-                                                        list[index]
-                                                            .rating
-                                                            .toString()),
+                                                    itemCount: 5,
                                                     itemPadding:
                                                         const EdgeInsets
                                                             .symmetric(
@@ -227,7 +225,7 @@ class _YourReviewState extends State<YourReview> {
                                                     width: 3,
                                                   ),
                                                   Text(
-                                                    "(${list[index].rating}.0)",
+                                                    "(${list[index].vehicleRating.toStringAsFixed(1)})",
                                                     style: headingh6.copyWith(
                                                         color: notifires
                                                             .getwhiteblackcolor),

@@ -12,6 +12,7 @@ import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/odometer_model.dart';
 import 'package:carvy/model/items_model.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/rental_billing_days.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/search/vehicle/vehicle_filter.dart';
@@ -219,14 +220,20 @@ class SearchControllerHome extends GetxController implements GetxService {
 
       if (selectedStartDate == selectedEndDate) {
         startTimeSearch.value = nextSlot;
-        endTimeSearch.value = "22:00";
+        endTimeSearch.value =
+            activeModuleId.value == 2 ? nextSlot : "22:00";
         curreentStatus.value = "CurrebtDate";
-        filterTimeSlotsfunctionSameDate(startTimeSearch.value, "22:00");
+        filterTimeSlotsfunctionSameDate(
+            startTimeSearch.value,
+            activeModuleId.value == 2 ? endTimeSearch.value : "22:00");
       } else {
         curreentStatus.value = "StartCurrentEndOther";
         startTimeSearch.value = nextSlot;
-        endTimeSearch.value = "22:00";
-        filterTimeSlotsfunctionSameDate(startTimeSearch.value, "22:00");
+        endTimeSearch.value =
+            activeModuleId.value == 2 ? nextSlot : "22:00";
+        filterTimeSlotsfunctionSameDate(
+            startTimeSearch.value,
+            activeModuleId.value == 2 ? endTimeSearch.value : "22:00");
         handleNextDaySlots(selectedEndDate);
       }
     } else {
@@ -242,7 +249,7 @@ class SearchControllerHome extends GetxController implements GetxService {
     if (selectedStartDate == selectedEndDate) {
       curreentStatus.value = "OtherSameDate";
       startTimeSearch.value = "09:00";
-      endTimeSearch.value = "10:00";
+      endTimeSearch.value = activeModuleId.value == 2 ? "09:00" : "10:00";
       filterTimeSlotsfunctionSameDate(
         startTimeSearch.value,
         endTimeSearch.value,
@@ -250,7 +257,7 @@ class SearchControllerHome extends GetxController implements GetxService {
     } else {
       curreentStatus.value = "CrossOtherDates";
       startTimeSearch.value = "09:00";
-      endTimeSearch.value = "10:00";
+      endTimeSearch.value = activeModuleId.value == 2 ? "09:00" : "10:00";
       filterTimeSlotsfunctionSameDate(
         startTimeSearch.value,
         endTimeSearch.value,
@@ -303,12 +310,13 @@ class SearchControllerHome extends GetxController implements GetxService {
         9,
         0,
       );
+      final bool vehicleSearch = activeModuleId.value == 2;
       final DateTime serviceEnd = DateTime(
         currentTime.year,
         currentTime.month,
         currentTime.day,
-        22,
-        0,
+        vehicleSearch ? 20 : 22,
+        vehicleSearch ? 30 : 0,
       );
       if (currentTime.isBefore(serviceStart)) {
         currentTime = serviceStart;
@@ -324,7 +332,7 @@ class SearchControllerHome extends GetxController implements GetxService {
       }
       return currenttimeSlots;
     } else {
-      return getManualTimeSlots24();
+      return searchPickerBaselineSlots();
     }
   }
 
@@ -332,7 +340,19 @@ class SearchControllerHome extends GetxController implements GetxService {
       String startTimeString, String endTimeString) {
     filteredTimeSlotsEndTime.clear();
     update();
-    List<String> manualTimeSlots = getManualTimeSlots24();
+    final List<String> manualTimeSlots = searchPickerBaselineSlots();
+
+    if (activeModuleId.value == 2) {
+      final DateTime startTime = convertToDateTime(startTimeString);
+      final int from = manualTimeSlots.indexWhere(
+        (slot) =>
+            !convertToDateTime(slot).isBefore(startTime),
+      );
+      final int i = from >= 0 ? from : 0;
+      filteredTimeSlotsEndTime.value = manualTimeSlots.sublist(i);
+      update();
+      return filteredTimeSlotsEndTime;
+    }
 
     DateTime startTime = convertToDateTime(startTimeString);
     DateTime endTime = convertToDateTime(endTimeString);
@@ -738,6 +758,20 @@ class SearchControllerHome extends GetxController implements GetxService {
     }
   }
 
+  /// Véhicule : retour strictement avant départ (même jour) = invalide. L'égalité est autorisée.
+  bool isEndTimeStrictlyBeforeStartTime(String startTime, String endTime) {
+    return RentalBillingDays.isEndTimeStrictlyBeforeStartTime(
+        startTime, endTime);
+  }
+
+  /// Grille affichée dans les pickers de recherche (véhicule : 09:00–20:30, sinon 09:00–22:00).
+  List<String> searchPickerBaselineSlots() {
+    if (activeModuleId.value == 2) {
+      return RentalBillingDays.vehicleSearchTimeSlotsHHmm();
+    }
+    return getServiceHours();
+  }
+
   Future submitMethod(BuildContext context, [bool? apply]) async {
     print("📍 submitMethod appelé - apply: $apply");
     print(
@@ -767,11 +801,16 @@ class SearchControllerHome extends GetxController implements GetxService {
           endDates.value.isNotEmpty &&
           startDate.value == endDates.value) {
         if (startTimeSearch.value.isNotEmpty &&
-            endTimeSearch.value.isNotEmpty &&
-            isEndTimeBeforeStartTime(
-                startTimeSearch.value, endTimeSearch.value)) {
-          showErrorToastMessage("End time must be after Start time".tr);
-          return;
+            endTimeSearch.value.isNotEmpty) {
+          final invalid = activeModuleId.value == 2
+              ? isEndTimeStrictlyBeforeStartTime(
+                  startTimeSearch.value, endTimeSearch.value)
+              : isEndTimeBeforeStartTime(
+                  startTimeSearch.value, endTimeSearch.value);
+          if (invalid) {
+            showErrorToastMessage("End time must be after Start time".tr);
+            return;
+          }
         }
       }
     }
@@ -1092,6 +1131,38 @@ class SearchControllerHome extends GetxController implements GetxService {
   String dataNotFound = "";
   void datanotFoundUi() {
     dataNotFound = "Vehicle Not Available".tr;
+  }
+
+  /// Ferme la feuille de filtres puis lance la recherche ou rafraîchit les résultats.
+  /// Les filtres (prix, marques, etc.) sont déjà dans les observables du contrôleur.
+  void applyFiltersFromSheet(
+    BuildContext sheetContext, {
+    bool navigateToSearchResults = false,
+    VoidCallback? refreshResults,
+    VoidCallback? onMapRefresh,
+  }) {
+    if (sheetContext.mounted) {
+      Navigator.pop(sheetContext);
+    } else {
+      Get.back();
+    }
+
+    void runAfterSheetClosed() {
+      final ctx = Get.context;
+      if (ctx == null) return;
+
+      if (navigateToSearchResults) {
+        submitMethod(ctx, true);
+        return;
+      }
+      if (onMapRefresh != null) {
+        onMapRefresh();
+        return;
+      }
+      refreshResults?.call();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => runAfterSheetClosed());
   }
 
   routeBasedOnmoduleId(BuildContext context, VoidCallback onRefresh) async {

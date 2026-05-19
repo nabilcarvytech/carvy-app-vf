@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:carvy/api/config.dart';
+import 'package:carvy/constants/app_constants.dart';
 import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
@@ -60,11 +61,31 @@ class KycController extends GetxController implements GetxService {
   // Variable pour suivre si l'utilisateur a passé le KYC dans la session actuelle
   var hasSkippedInSession = false.obs;
 
+  /// Feature flag global (voir [AppConstants.isKycEnabled]).
+  bool get isKycFeatureEnabled => AppConstants.isKycEnabled;
+
+  /// `true` si le compte est considéré comme vérifié côté KYC.
+  bool get isUserKycVerified {
+    final status = activeStatus.value.toLowerCase();
+    return status == 'approved' ||
+        status == 'yes' ||
+        status == 'verified';
+  }
+
+  /// `true` → rediriger vers [UserKyc] avant de poursuivre une réservation.
+  bool get shouldRequireKycBeforeBooking {
+    if (!AppConstants.isKycEnabled) return false;
+    if (hasSkippedInSession.value) return false;
+    final status = activeStatus.value.toLowerCase();
+    return status.isEmpty || status == 'none' || status == 'no';
+  }
+
   @override
   void onInit() {
     super.onInit();
     // Réinitialiser hasSkippedKyc au démarrage
     hasSkippedKyc.value = false;
+    if (!AppConstants.isKycEnabled) return;
     // Ne pas réinitialiser hasSkippedInSession ici car elle doit persister pendant la session de réservation
     // Synchronisation au démarrage : récupérer l'état actuel depuis le backend
     getKycDetails();
@@ -144,6 +165,7 @@ class KycController extends GetxController implements GetxService {
   }
 
   Future<void> getUserKycData() async {
+    if (!AppConstants.isKycEnabled) return;
     // Marqueur d'entrée : Tout au début de la fonction
     print('🚀 [FLOW] Entrée dans getUserKycData...');
     
@@ -908,6 +930,7 @@ class KycController extends GetxController implements GetxService {
   }
 
   Future<bool> kycStatus(var status, BuildContext context) async {
+    if (!AppConstants.isKycEnabled) return true;
     if (kycenable == "Active") {
       if (status == null) {
         return false;

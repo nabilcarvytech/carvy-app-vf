@@ -251,6 +251,23 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
             const SizedBox(height: 16),
             TextFieldRefs(
               inputAlignment: TextAlign.start,
+              txt: 'Date of birth'.tr,
+              icons: Icon(Icons.calendar_today, color: acentColor),
+              textEditingControllerCommon:
+                  auth.textEditingSingUpControllerDOB,
+              inputType: TextInputType.none,
+              readOnly: true,
+              onTap: () => auth.pickSignUpBirthDate(context),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return 'Please enter Date of Birth'.tr;
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFieldRefs(
+              inputAlignment: TextAlign.start,
               txt: 'Email Address'.tr,
               icons: Icon(Icons.mail, color: acentColor),
               textEditingControllerCommon:

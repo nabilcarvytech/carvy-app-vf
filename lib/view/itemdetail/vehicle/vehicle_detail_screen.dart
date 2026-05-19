@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/controller/general_controller.dart';
 import 'package:carvy/controller/home_controller.dart';
+import 'package:carvy/constants/app_constants.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/controller/publix_profile_controller.dart';
 import 'package:carvy/controller/push_notifications.dart';
@@ -17,12 +18,14 @@ import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/data_not_found.dart';
 import 'package:carvy/customwidget/full_screen_image_view.dart';
 import 'package:carvy/customwidget/project_color.dart';
+import 'package:carvy/helper/city_name_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:get/get.dart';
 import 'package:carvy/utils/theme_style.dart';
-import 'package:carvy/view/itemdetail/vehicle/reviews/item_review_screen.dart';
+import 'package:carvy/model/review_model.dart';
+import 'package:carvy/view/review/review_display_widgets.dart';
 import 'package:carvy/view/itemdetail/vehicle/vehicle_check_availability_screen.dart';
 import 'package:carvy/view/wishlist/wish_list_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -76,8 +79,6 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
   // Éviter le crash au démarrage : S'assurer que le KycController est bien injecté AVANT que l'UI ne tente de lire activeStatus.value
   late KycController kycController;
   ItemDetailsController vehicleDetailController = Get.find();
-  final ValueNotifier<int> vehicleCurrentPageNotifier = ValueNotifier<int>(0);
-  final PageController vehiclePagereviewController = PageController();
   PageController vehiclepageControllerslider = PageController();
   SearchControllerHome filterController = Get.find();
   BookingController bookingController = Get.find();
@@ -115,8 +116,10 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
       }
       
       try {
-        kycController.getUserKycData();
-        kycController.getKycDetails(); // Récupérer le statut KYC à jour
+        if (AppConstants.isKycEnabled) {
+          kycController.getUserKycData();
+          kycController.getKycDetails(); // Récupérer le statut KYC à jour
+        }
       } catch (e, stackTrace) {
         print('❌ [VEHICLE_DETAIL] Erreur lors de l\'appel KYC: $e');
         print('❌ [VEHICLE_DETAIL] StackTrace: $stackTrace');
@@ -296,8 +299,11 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                       // Récupérer les données pour l'affichage
                       final displayTitle = itemDetails?.title ?? widget.title;
                       final displayRating = itemDetails?.itemRating ?? widget.rating ?? "0";
-                      final displayAddress = itemDetails?.address ?? widget.address;
                       final displayCity = itemDetails?.city ?? widget.city;
+                      final displayCityLabel = (displayCity != null &&
+                              displayCity.trim().isNotEmpty)
+                          ? CityNameHelper.displayName(displayCity)
+                          : "Unknown Location".tr;
                       final displayFrontImage = itemDetails?.frontImageUrl ?? widget.frontImage;
                       final displayGalleryImages = itemDetails?.galleryImageUrls ?? currentItemInfo?.galleryImageUrls ?? [];
                       
@@ -398,22 +404,14 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                       Expanded(
                                         flex: 9,
                                         child: Text(
-                                          ([displayAddress, displayCity]
-                                                      .where((s) =>
-                                                          s != null && s.isNotEmpty)
-                                                      .join(" • "))
-                                                  .isNotEmpty
-                                              ? [displayAddress, displayCity]
-                                                  .where((s) =>
-                                                      s != null && s.isNotEmpty)
-                                                  .join(" • ")
-                                              : "Unknown Location".tr,
+                                          displayCityLabel == '-'
+                                              ? "Unknown Location".tr
+                                              : displayCityLabel,
                                           style: regular3(context).copyWith(
                                             fontSize: 12,
-                                            overflow: TextOverflow.visible,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          softWrap: true,
-                                          maxLines: null,
+                                          maxLines: 1,
                                         ),
                                       ),
                                     ],
@@ -449,10 +447,16 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                             ),
 
                             // Utiliser currentItemInfo qui est défini dans le GetBuilder parent
-                            Wrap(
-                              spacing: 16,
-                              runSpacing: 16,
-                              children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: Dimensions.paddingSizeDefault,
+                              ),
+                              child: Wrap(
+                                spacing: 16,
+                                runSpacing: 16,
+                                alignment: WrapAlignment.center,
+                                runAlignment: WrapAlignment.center,
+                                children: [
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
@@ -627,6 +631,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                       '${currentItemInfo?.insuranceCoverage ?? "0"}',
                                 ),
                               ],
+                              ),
                             ),
 
                             // Description (sans titre « À propos du véhicule »)
@@ -870,192 +875,49 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                 ? const SizedBox()
                                 : Row(
                                     children: [
-                                      Row(
-                                        children: [
-                                          const SizedBox(
-                                            width: 20,
-                                          ),
-                                          Icon(
-                                            Icons.star,
-                                            color: orangeColor,
-                                            size: 24,
-                                          ),
-                                          const SizedBox(
-                                            width: 5,
-                                          ),
-                                          Text(
-                                            ' ${"Review".tr} (${itemDetails?.totalReviews ?? currentItemInfo?.totalReviews ?? "No review Here"})',
-                                            style: heading2(context),
-                                          ),
-                                        ],
+                                      const SizedBox(width: 20),
+                                      Icon(Icons.star, color: orangeColor, size: 24),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        ' ${"Review".tr} (${itemDetails?.totalReviews ?? currentItemInfo?.totalReviews ?? "No review Here"})',
+                                        style: heading2(context),
                                       ),
-                                      const Spacer(),
-                                      (currentItemInfo?.reviewData?.isEmpty ?? true)
-                                          ? const SizedBox()
-                                          : InkWell(
-                                              onTap: () {
-                                                Get.to(() => YourReview(
-                                                    id: widget.id.toString()));
-                                              },
-                                              child: Text(
-                                                "See All".tr,
-                                                style: regular3(context).copyWith(
-                                                  color:
-                                                      getColorBasedOnActiveModuleid(),
-                                                ),
-                                              ),
-                                            ),
-                                      const SizedBox(
-                                        width: 20,
-                                      ),
+                                      const SizedBox(width: 20),
                                     ],
                                   ),
-
                             (currentItemInfo?.reviewData?.isEmpty ?? true)
                                 ? const SizedBox()
-                                : SizedBox(
-                                    height: 120,
-                                    child: Padding(
-                                      padding:
-                                          const EdgeInsets.only(left: 20, top: 10),
-                                      child: PageView.builder(
-                                        controller: vehiclePagereviewController,
-                                        onPageChanged: (index) {
-                                          vehicleCurrentPageNotifier.value = index;
-                                        },
-                                        itemCount:
-                                            currentItemInfo?.reviewData?.length ?? 0,
-                                        physics: const BouncingScrollPhysics(),
-                                        itemBuilder: (context, index) {
-                                          final reviewData = currentItemInfo?.reviewData ?? [];
-                                          final currentReview = (index < reviewData.length) ? reviewData[index] : null;
-                                      final guestProfileImage = currentReview?["guest_profile_image"];
-                                      print(guestProfileImage);
-                                      return Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          // Guest profile image
-                                          ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(50),
-                                            child: SizedBox(
-                                              height: 55,
-                                              width: 55,
-                                              child: guestProfileImage != null &&
-                                                      guestProfileImage.toString().isNotEmpty
-                                                  ? myNetworkImage(
-                                                      guestProfileImage.toString(),
-                                                      true,
-                                                    )
-                                                  : Container(
-                                                      color: Colors.grey[200],
-                                                      child: Icon(
-                                                        Icons.person,
-                                                        size: 30,
-                                                        color: Colors.grey[600],
-                                                      ),
-                                                    ),
+                                : Builder(
+                                    builder: (context) {
+                                      final allReviews =
+                                          currentItemInfo?.reviewData ?? [];
+                                      final preview = allReviews.length > 2
+                                          ? allReviews.take(2).toList()
+                                          : allReviews;
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                            left: 20, right: 20, top: 10),
+                                        child: Column(
+                                          children: [
+                                            ...preview.map((raw) {
+                                              final reviewMap =
+                                                  ReviewRatings.asMap(raw);
+                                              return buildVehicleReviewListTile(
+                                                context,
+                                                reviewMap,
+                                                compactMessage: true,
+                                              );
+                                            }),
+                                            buildViewAllReviewsButton(
+                                              totalCount: allReviews.length,
+                                              onTap: () =>
+                                                  showAllVehicleReviewsBottomSheet(
+                                                context,
+                                                reviews: allReviews,
+                                                vehicleTitle: widget.title,
+                                              ),
                                             ),
-                                          ),
-
-                                          const SizedBox(
-                                            width: 16,
-                                          ),
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                currentReview?["guest_name"]?.toString() ??
-                                                    "Guest Name Missing".tr,
-                                                style: heading3Grey1(context),
-                                              ),
-                                              const SizedBox(
-                                                height: 4,
-                                              ),
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  RatingBar.builder(
-                                                    initialRating: double.tryParse(
-                                                      currentReview?["rating"]?.toString() ?? 
-                                                      reviewData[vehicleCurrentPageNotifier.value]?["rating"]?.toString() ??
-                                                      "0",
-                                                    ) ?? 0.0,
-                                                    itemSize: 20,
-                                                    ignoreGestures: true,
-                                                    direction: Axis.horizontal,
-                                                    itemCount: 5,
-                                                    itemPadding:
-                                                        const EdgeInsets
-                                                            .symmetric(
-                                                            horizontal: 0),
-                                                    itemBuilder: (context, _) =>
-                                                        Icon(
-                                                      Icons.star,
-                                                      color:
-                                                          getColorBasedOnActiveModuleid(),
-                                                    ),
-                                                    onRatingUpdate:
-                                                        (double value) {},
-                                                  ),
-                                                  Text(
-                                                    currentReview?["updated_at"]?.toString() ?? "Timestamp Missing",
-                                                    style: regular(context),
-                                                  ),
-                                                ],
-                                              ),
-                                              currentReview?["message"] == null
-                                                  ? const SizedBox()
-                                                  : Container(
-                                                      margin:
-                                                          const EdgeInsets.only(
-                                                              top: 4),
-                                                      child: Text(
-                                                        "${(currentReview["message"]?.toString().length ?? 0) > 32 ? (currentReview["message"]?.toString().substring(0, 32) ?? "") + "..." : currentReview["message"]?.toString() ?? ""}",
-                                                        style: regular2(context)
-                                                            .copyWith(),
-                                                      ),
-                                                    ),
-                                              const SizedBox(
-                                                height: 4,
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-
-                        (widget.itemInfo?.reviewData?.isEmpty ?? true)
-                            ? const SizedBox()
-                            : ValueListenableBuilder<int>(
-                                valueListenable: vehicleCurrentPageNotifier,
-                                builder: (context, value, child) {
-                                  return Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: List.generate(
-                                      widget.itemInfo?.reviewData?.length ?? 0,
-                                      // Same as itemCount in PageView
-                                      (index) {
-                                            return Container(
-                                              margin: const EdgeInsets.symmetric(
-                                                  horizontal: 2.0),
-                                              width: 8.0,
-                                              height: 8.0,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: value == index
-                                                    ? getColorBasedOnActiveModuleid()
-                                                    : Colors.grey,
-                                              ),
-                                            );
-                                          },
+                                          ],
                                         ),
                                       );
                                     },
@@ -1551,19 +1413,11 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
       return;
     }
 
-    // ========== VÉRIFICATION DU STATUT KYC ==========
-    final kycStatus = kycController.activeStatus.value.toLowerCase();
-
-    // Si le statut est 'none' ou 'no' ET que l'utilisateur n'a pas passé cette étape dans cette session,
-    // rediriger vers UserKyc()
-    if ((kycStatus == "none" || kycStatus == "no" || kycStatus.isEmpty) &&
-        !kycController.hasSkippedInSession.value) {
+    // ========== VÉRIFICATION DU STATUT KYC (si feature flag actif) ==========
+    if (kycController.shouldRequireKycBeforeBooking) {
       Get.to(() => const UserKyc());
       return;
     }
-
-    // Si le statut est 'pending', 'waiting', 'review' ou 'verified' (ou si l'utilisateur a passé l'étape),
-    // ignorer l'étape KYC et continuer avec la navigation normale
 
     final SearchControllerHome searchController = Get.find();
 
@@ -1680,24 +1534,21 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
   }
 
   Widget _buildDeliveryLocationRow(BuildContext context, dynamic item) {
-    final location = item is Map ? item['location'] : null;
-    final cityName = location is Map
-        ? location['cityName']?.toString()
-        : null;
     final price = item is Map ? item['price'] : null;
     final priceText = price?.toString() ?? '';
-    final translatedCity = getTranslatedCity(
-      (cityName != null && cityName.trim().isNotEmpty) ? cityName : '-',
-    );
+    final displayCity = CityNameHelper.deliveryLocationLabel(item);
+    final isArabicLocale =
+        (Get.locale?.languageCode ?? 'fr').toLowerCase() == 'ar';
 
     return Directionality(
-      textDirection: ui.TextDirection.rtl,
+      textDirection:
+          isArabicLocale ? ui.TextDirection.rtl : ui.TextDirection.ltr,
       child: Row(
         children: [
           Expanded(
             child: Text(
-              translatedCity,
-              textAlign: TextAlign.right,
+              displayCity,
+              textAlign: isArabicLocale ? TextAlign.right : TextAlign.left,
               style: regular3(context).copyWith(
                 fontSize: 14,
                 color: notifires.getwhiteblackcolor,
@@ -1718,16 +1569,6 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
         ],
       ),
     );
-  }
-
-  String getTranslatedCity(String cityName) {
-    final translations = {
-      'Salé': 'سلا',
-      'Rabat': 'الرباط',
-      'Casablanca': 'الدار البيضاء',
-      'Marrakech': 'مراكش',
-    };
-    return translations[cityName] ?? cityName;
   }
 
   Widget buildDescriptionWidget(ItemInfo? itemInfo) {

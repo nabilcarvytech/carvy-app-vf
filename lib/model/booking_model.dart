@@ -159,6 +159,8 @@ class Bookings {
     String? reviewStatus,
     String? reviewRating,
     String? review,
+    String? isReviewed,
+    String? vehicleId,
     String? hostName,
     String? hostNumber,
     String? hostEmail,
@@ -227,6 +229,8 @@ class Bookings {
     _reviewStatus = reviewStatus;
     _reviewRating = reviewRating;
     _review = review;
+    _isReviewed = isReviewed;
+    _vehicleId = vehicleId ?? itemid;
 
     _hostName = hostName;
     _hostNumber = hostNumber;
@@ -284,19 +288,239 @@ class Bookings {
     return value.toString();
   }
 
+  /// Extrait un identifiant MongoDB / API en [String] (évite `[object Object]`).
+  static String? normalizeEntityId(dynamic value) {
+    if (value == null) return null;
+    if (value is String) {
+      final t = value.trim();
+      if (t.isEmpty ||
+          t.toLowerCase() == 'null' ||
+          t == '[object Object]') {
+        return null;
+      }
+      return t;
+    }
+    if (value is Map) {
+      for (final key in [
+        r'$oid',
+        'oid',
+        '_id',
+        'id',
+        'sId',
+        'item_id',
+        'itemid',
+        'vehicle_id',
+        'vehicleId',
+      ]) {
+        if (value.containsKey(key)) {
+          final nested = normalizeEntityId(value[key]);
+          if (nested != null) return nested;
+        }
+      }
+      return null;
+    }
+    if (value is List && value.isNotEmpty) {
+      return normalizeEntityId(value.first);
+    }
+    if (value is num || value is bool) return value.toString();
+    final s = value.toString().trim();
+    if (s.isEmpty ||
+        s.toLowerCase() == 'null' ||
+        s.contains('[object Object]')) {
+      return null;
+    }
+    return s;
+  }
+
+  static final RegExp _mongoObjectIdPattern = RegExp(r'^[a-fA-F0-9]{24}$');
+
+  static bool isLikelyMongoObjectId(String? value) {
+    if (value == null) return false;
+    return _mongoObjectIdPattern.hasMatch(value.trim());
+  }
+
+  /// Extrait l'ID véhicule depuis [item_data] (priorité au `_id` MongoDB).
+  static String? extractVehicleIdFromItemData(dynamic rawItemData) {
+    if (rawItemData == null) return null;
+    try {
+      dynamic decoded = rawItemData;
+      if (rawItemData is String && rawItemData.trim().isNotEmpty) {
+        final t = rawItemData.trim();
+        if (t.startsWith('[') || t.startsWith('{')) {
+          decoded = jsonDecode(t);
+        }
+      }
+      if (decoded is List && decoded.isNotEmpty) {
+        decoded = decoded.first;
+      }
+      if (decoded is! Map) return null;
+      final map = Map<String, dynamic>.from(decoded);
+      return normalizeEntityId(map['_id']) ??
+          normalizeEntityId(map['vehicle_id']) ??
+          normalizeEntityId(map['vehicleId']) ??
+          normalizeEntityId(map['item_id']) ??
+          normalizeEntityId(map['id']);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static bool _isWeakVehicleTitle(String? title) {
+    if (title == null) return true;
+    final t = title.trim().toLowerCase();
+    if (t.isEmpty || t == 'null' || t == 'n/a') return true;
+    if (t.contains('véhicule sans titre') || t == 'véhicule') return true;
+    return false;
+  }
+
+  static Map<String, dynamic>? _decodeFirstItemDataMap(dynamic rawItemData) {
+    if (rawItemData == null) return null;
+    try {
+      dynamic decoded = rawItemData;
+      if (rawItemData is String && rawItemData.trim().isNotEmpty) {
+        final t = rawItemData.trim();
+        if (t.startsWith('[') || t.startsWith('{')) {
+          decoded = jsonDecode(t);
+        } else {
+          return null;
+        }
+      }
+      if (decoded is List && decoded.isNotEmpty) {
+        final first = decoded.first;
+        if (first is Map) return Map<String, dynamic>.from(first);
+      }
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+    return null;
+  }
+
+  static String? _titleFromItemInfoMap(Map<String, dynamic> itemInfo) {
+    final make = safeToString(itemInfo['make_type'] ?? itemInfo['make']);
+    final model = safeToString(itemInfo['model']);
+    final year = safeToString(itemInfo['year']);
+    final parts = [make, model, year].whereType<String>().toList();
+    if (parts.isEmpty) return null;
+    return parts.join(' ');
+  }
+
+  /// Aligne itemid, titre et item_data sur le format [vendor-booking-record].
+  void enrichVehicleFieldsLikeVendor() {
+    final first = _decodeFirstItemDataMap(_itemData);
+
+    if (first != null) {
+      final mongoId = normalizeEntityId(first['_id']);
+      final itemIdFromData = normalizeEntityId(first['item_id']) ??
+          normalizeEntityId(first['itemid']) ??
+          mongoId;
+
+      if (_itemid == null || _itemid!.isEmpty) {
+        _itemid = itemIdFromData ?? mongoId;
+      }
+      if (_vehicleId == null || _vehicleId!.isEmpty) {
+        _vehicleId = mongoId ?? itemIdFromData ?? _itemid;
+      }
+
+      final titleFromData = safeToString(first['title']) ??
+          safeToString(first['name']) ??
+          safeToString(first['item_title']);
+      if (_isWeakVehicleTitle(_propTitle) && titleFromData != null) {
+        _propTitle = titleFromData;
+      }
+
+      if (_isWeakVehicleTitle(_propTitle) && first.containsKey('item_info')) {
+        try {
+          dynamic rawInfo = first['item_info'];
+          Map<String, dynamic>? infoMap;
+          if (rawInfo is String) {
+            infoMap = Map<String, dynamic>.from(jsonDecode(rawInfo));
+          } else if (rawInfo is Map) {
+            infoMap = Map<String, dynamic>.from(rawInfo);
+          }
+          final built = infoMap != null ? _titleFromItemInfoMap(infoMap) : null;
+          if (built != null) _propTitle = built;
+        } catch (_) {}
+      }
+
+      final img = safeToString(first['front_image_url']) ??
+          safeToString(first['image']);
+      if ((_propImg == null || _propImg!.isEmpty) && img != null) {
+        _propImg = img;
+      }
+
+      final enrichedFirst = Map<String, dynamic>.from(first);
+      if (mongoId != null) enrichedFirst['_id'] = mongoId;
+      if (itemIdFromData != null) {
+        enrichedFirst['item_id'] = itemIdFromData;
+        enrichedFirst['itemid'] = itemIdFromData;
+      }
+      if (_propTitle != null && _propTitle!.isNotEmpty) {
+        enrichedFirst['title'] ??= _propTitle;
+        enrichedFirst['item_title'] ??= _propTitle;
+      }
+      if (_propImg != null && _propImg!.isNotEmpty) {
+        enrichedFirst['image'] ??= _propImg;
+        enrichedFirst['front_image_url'] ??= _propImg;
+      }
+
+      _itemData = jsonEncode([enrichedFirst]);
+    } else if (_itemid != null ||
+        _vehicleId != null ||
+        (_propTitle != null && _propTitle!.isNotEmpty)) {
+      final synthetic = <String, dynamic>{
+        if (_vehicleId != null) '_id': _vehicleId,
+        if (_itemid != null) ...{
+          'item_id': _itemid,
+          'itemid': _itemid,
+        },
+        if (_propTitle != null && _propTitle!.isNotEmpty) 'title': _propTitle,
+        if (_propImg != null && _propImg!.isNotEmpty) 'image': _propImg,
+      };
+      if (synthetic.isNotEmpty) {
+        _itemData = jsonEncode([synthetic]);
+      }
+    }
+
+    if ((_itemid == null || _itemid!.isEmpty) && _vehicleId != null) {
+      _itemid = _vehicleId;
+    }
+  }
+
+  /// Décode [item_data] en liste pour l'UI (cartes réservation client).
+  static List<dynamic>? decodeItemDataList(dynamic rawItemData) {
+    if (rawItemData == null) return null;
+    try {
+      if (rawItemData is List) return rawItemData;
+      if (rawItemData is String && rawItemData.trim().isNotEmpty) {
+        final decoded = jsonDecode(rawItemData.trim());
+        if (decoded is List) return decoded;
+        if (decoded is Map) return [decoded];
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Bookings.fromJson(dynamic json) {
     try {
       // ========== 1. INSPECTION DU DÉCODAGE - ID ==========
-      // MongoDB envoie des IDs sous forme de String (ex: '694e...')
-      // Le backend envoie _id (avec underscore), pas id
-      _id = json['_id']?.toString() ?? json['id']?.toString();
-      
+      _id = normalizeEntityId(json['_id'] ?? json['id']);
+
       // ========== CHAMPS IDENTIFIANTS (String) ==========
-      // Tous les IDs MongoDB sont des String
-      // Mapping avec fallback pour compatibilité avec différentes versions de l'API
-      _itemid = json['itemid']?.toString() ?? json['item_id']?.toString();
-      _userid = json['userid']?.toString();
-      _hostId = json['host_id']?.toString() ?? json['owner']?['_id']?.toString();
+      _itemid = normalizeEntityId(
+        json['itemid'] ?? json['item_id'] ?? json['vehicle_id'] ?? json['vehicleId'],
+      );
+      final vehicleObj = json['vehicle'];
+      _vehicleId = normalizeEntityId(json['vehicle_id'] ?? json['vehicleId']) ??
+          (vehicleObj is Map
+              ? normalizeEntityId(vehicleObj['_id'] ?? vehicleObj['id'])
+              : normalizeEntityId(vehicleObj)) ??
+          _itemid;
+      _userid = normalizeEntityId(json['userid'] ?? json['user_id']);
+      _hostId = normalizeEntityId(
+        json['host_id'] ??
+            json['vendor_id'] ??
+            json['vendorId'] ??
+            (json['owner'] is Map ? (json['owner'] as Map)['_id'] : json['owner']),
+      );
       
       // ========== CHAMPS DATES ET STATUS (String) ==========
       _checkIn = safeToString(json['check_in']);
@@ -332,7 +556,11 @@ class Bookings {
       _bookFor = json['book_for'];
       _cancellationReasion = json['cancellation_reasion'];
       _cancelledCharge = json['cancelled_charge'];
-      _transaction = json['transaction'];
+      _transaction = safeToString(json['transaction']) ??
+          safeToString(json['transaction_id']) ??
+          safeToString(json['transactionId']) ??
+          safeToString(json['payment_intent']) ??
+          safeToString(json['paymentIntent']);
       _paymentMethod = safeToString(json['payment_method']);
       _paymentStatus = safeToString(json['payment_status']);
       _propImg = safeToString(json['image']);
@@ -343,7 +571,10 @@ class Bookings {
       } else {
         print('🖼️ [DEBUG IMAGE] Raw URL: null ou vide');
       }
-      _propTitle = safeToString(json['item_title']);
+      _propTitle = safeToString(json['item_title'] ?? json['title']);
+      if (_isWeakVehicleTitle(_propTitle)) {
+        _propTitle = safeToString(json['title']);
+      }
       _note = json['note'];
       _rating = safeToString(json['rating']);
       _cancelledBy = json['cancelled_by'];
@@ -352,7 +583,15 @@ class Bookings {
       _reviewStatus = safeToString(json['review_status']);
       _reviewRating = safeToString(json['review_rating']);
       _review = safeToString(json['review']);
-      
+      final rawIsReviewed = json['is_reviewed'] ?? json['isReviewed'];
+      if (rawIsReviewed is bool) {
+        _isReviewed = rawIsReviewed ? '1' : '0';
+      } else if (rawIsReviewed is num) {
+        _isReviewed = rawIsReviewed == 1 ? '1' : '0';
+      } else {
+        _isReviewed = safeToString(rawIsReviewed);
+      }
+
       // ========== INFORMATIONS HOST (String) ==========
       _hostName = safeToString(json['host_name']);
       _hostNumber = safeToString(json['host_number']);
@@ -367,7 +606,10 @@ class Bookings {
 
       // ========== MÉTADONNÉES (String) ==========
       _module = safeToString(json['module']);
-      _token = safeToString(json['token']);
+      _token = safeToString(json['token']) ??
+          safeToString(json['booking_token']) ??
+          safeToString(json['reservation_code']) ??
+          safeToString(json['booking_code']);
       
       // ========== HOST ADDRESS & GEO (nouveaux champs) ==========
       _hostAddress = safeToString(json['host_address']);
@@ -416,7 +658,16 @@ class Bookings {
       
       // ========== 2. PARSING DE item_data (Sièges et Type) ==========
       _itemData = json['item_data'];
-      
+      final vehicleFromItemData = extractVehicleIdFromItemData(_itemData);
+      if (vehicleFromItemData != null) {
+        if (!isLikelyMongoObjectId(_vehicleId)) {
+          _vehicleId = vehicleFromItemData;
+        }
+        if (!isLikelyMongoObjectId(_itemid)) {
+          _itemid = vehicleFromItemData;
+        }
+      }
+
       // Décodage spécifique de item_data avec try-catch
       if (_itemData != null && _itemData.toString().isNotEmpty) {
         try {
@@ -461,6 +712,8 @@ class Bookings {
           // Continuer même si le décodage échoue
         }
       }
+
+      enrichVehicleFieldsLikeVendor();
       
     } catch (e, stackTrace) {
       debugPrint('❌ [Bookings.fromJson] ERREUR CRITIQUE lors du parsing: $e');
@@ -474,6 +727,7 @@ class Bookings {
   }
   String? _id;
   String? _itemid;
+  String? _vehicleId;
   String? _userid;
   String? _hostId;
   String? _hostAddress;
@@ -514,6 +768,7 @@ class Bookings {
   String? _reviewStatus;
   String? _reviewRating;
   String? _review;
+  String? _isReviewed;
 
   String? _hostName;
   String? _hostNumber;
@@ -543,6 +798,7 @@ class Bookings {
 
   String? get id => _id;
   String? get itemid => _itemid;
+  String? get vehicleId => _vehicleId ?? _itemid;
   String? get userid => _userid;
   String? get hostId => _hostId;
   String? get hostAddress => _hostAddress;
@@ -583,6 +839,7 @@ class Bookings {
   String? get reviewStatus => _reviewStatus;
   String? get reviewRating => _reviewRating;
   String? get review => _review;
+  String? get isReviewed => _isReviewed;
   num? get isItemDelivered => _isItemDelivered;
   num? get isItemReceived => _isItemReceived;
   num? get isItemReturned => _isItemReturned;
@@ -629,6 +886,30 @@ class Bookings {
     _review = value;
   }
 
+  set isReviewedSetter(String value) {
+    _isReviewed = value;
+  }
+
+  set itemidSetter(String value) {
+    _itemid = value;
+  }
+
+  set vehicleIdSetter(String value) {
+    _vehicleId = value;
+  }
+
+  set propTitleSetter(String value) {
+    _propTitle = value;
+  }
+
+  set propImgSetter(String value) {
+    _propImg = value;
+  }
+
+  set itemDataSetter(dynamic value) {
+    _itemData = value;
+  }
+
   set isItemDeliveredSetter(String value) {
     _isItemDeliveredButton = value;
   }
@@ -645,6 +926,7 @@ class Bookings {
     final map = <String, dynamic>{};
     map['id'] = _id;
     map['itemid'] = _itemid;
+    map['vehicle_id'] = _vehicleId ?? _itemid;
     map['userid'] = _userid;
     map['host_id'] = _hostId;
     map['check_in'] = _checkIn;
@@ -681,6 +963,7 @@ class Bookings {
     map['review_status'] = _reviewStatus;
     map['review_rating'] = _reviewRating;
     map['review'] = _review;
+    map['is_reviewed'] = _isReviewed;
     map['doorstep_price'] = _doorStepPrice;
     map['host_name'] = _hostName;
     map['host_number'] = _hostNumber;

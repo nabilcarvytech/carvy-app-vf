@@ -73,42 +73,6 @@
           ]
         }
       }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:415377246287:android:447668edad637290db023a",
-        "android_client_info": {
-          "package_name": "com.carvy.app.v2"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "415377246287-h4pscp4lgar3qtc41djpau0rbbr1u08h.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyBd_F9D0TxbiHXilpgCszghj4hKlJYbGHU"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "415377246287-h4pscp4lgar3qtc41djpau0rbbr1u08h.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "415377246287-knvcq59kbb9j4nn27aogt5j3qg94imi3.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.carvy.app"
-              }
-            }
-          ]
-        }
-      }
     }
   ],
   "configuration_version": "1"

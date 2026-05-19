@@ -15,6 +15,7 @@ import 'package:carvy/view/booking/vehicle_photoes_booking.dart';
 import 'package:carvy/view/host/wallet/finance_screen.dart';
 import 'package:carvy/view/host/orders/orders_screen.dart';
 import 'package:carvy/view/host/wallet/payment_method_screen.dart';
+import 'package:carvy/constants/app_constants.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/view/kyc/user_kyc.dart';
 import 'package:carvy/view/myaccount/addaddress/pick_address_with_map.dart';
@@ -291,7 +292,8 @@ class _AccounScreenState extends State<AccountScreen> {
                                 ),
                                 Obx(() => isHostMode.value == true
                                     ? SizedBox()
-                                    : kycenable != "Active"
+                                    : !AppConstants.isKycEnabled ||
+                                            kycenable != "Active"
                                         ? SizedBox()
                                         : ForwardActionTile(
                                             onTap: () {
@@ -310,7 +312,8 @@ class _AccounScreenState extends State<AccountScreen> {
                                           )),
                                 Obx(() => isHostMode.value == true
                                     ? SizedBox()
-                                    : kycenable != "Active"
+                                    : !AppConstants.isKycEnabled ||
+                                            kycenable != "Active"
                                         ? SizedBox()
                                         : const SizedBox(
                                             height: 10,
@@ -393,9 +396,10 @@ class _AccounScreenState extends State<AccountScreen> {
                                 const SizedBox(
                                   height: 10,
                                 ),
-                                if ((loginModel?.data?.role ?? '')
-                                        .toLowerCase() !=
-                                    'vendor') ...[
+                                if (AppConstants.isKycEnabled &&
+                                    (loginModel?.data?.role ?? '')
+                                            .toLowerCase() !=
+                                        'vendor') ...[
                                   HeaderTextWidget(
                                     headingText:
                                         "Vérification d'identité".tr,

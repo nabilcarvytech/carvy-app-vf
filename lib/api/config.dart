@@ -139,6 +139,8 @@ class Config {
       'update-item-delivered-status';
   static const String updateItemReceivedStatus = 'update-item-received-status';
   static const String updateItemReturnedStatus = 'update-item-returned-status';
+  static const String markBookingReturnedDirect =
+      'mark-booking-returned-direct';
   static const String submitReview = 'submit-review';
   static const String vendorReviews = 'vendor-reviews';
   static const String fuelType = 'get-vehicle-fuel-types';
@@ -176,6 +178,8 @@ class Config {
   static const String uploadAvatar = 'user/avatar';
 
   static const String submitVehicle = 'vehicles';
+  /// Brouillon wizard ajout véhicule — GET/POST/DELETE `${baseUrlWithoutV1}` + cette clé.
+  static const String vehicleDraft = 'vehicles/draft';
   static const String myVehicles = 'vehicles/owner';
   static const String getVehicleDetails = 'vehicles'; // GET /api/v1/vehicles/:id
   

@@ -22,6 +22,7 @@ import 'package:carvy/view/auth/login_screen.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:carvy/work_space.dart';
 import 'package:carvy/services/google_places_service.dart';
+import 'package:collection/collection.dart';
 
 class AddVehicleScreen extends StatefulWidget {
   const AddVehicleScreen({super.key});
@@ -51,7 +52,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   
   // Nouveaux champs pour l'étape Identité
   Getodometer? _selectedOdometer;
-  final TextEditingController _yearController = TextEditingController();
+  String? _selectedYear;
   final TextEditingController _seatsController = TextEditingController();
   final TextEditingController _mileageController = TextEditingController(text: '0');
   double _mileageKm = 0;
@@ -102,6 +103,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
   int _currentStep = 0;
   final int _totalSteps = 8; // 8 étapes logiques
+  bool _draftDialogShown = false;
   
   // Noms des étapes
   final List<String> _stepNames = [
@@ -114,6 +116,12 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     'Photos',
     'Documents',
   ];
+
+  /// Les 6 dernières années (année en cours incluse).
+  List<String> get _yearOptions => List.generate(
+        6,
+        (index) => (DateTime.now().year - index).toString(),
+      );
 
   @override
   void initState() {
@@ -148,6 +156,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       
       // Charger les données initiales
       await _loadInitialData();
+
+      if (mounted && !_draftDialogShown) {
+        await _offerDraftResumeIfNeeded();
+      }
       
       // Vérifier que les listes ne sont pas vides (indicateur de token invalide)
       if (vehicleController.categoriesList.isEmpty && 
@@ -450,9 +462,11 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
     return _deliveryLocations
         .map((loc) => <String, dynamic>{
-              // Backend attendu : { "location": "<ID>", "price": 100 }
+              // Backend attendu : { "location": "<ID>", "price": 100 } — 0 si gratuit
               'location': loc['locationId']?.toString() ?? '',
-              'price': (loc['price'] as num?)?.toDouble() ?? 0.0,
+              'price': loc['isFreeDelivery'] == true
+                  ? 0.0
+                  : (loc['price'] as num?)?.toDouble() ?? 0.0,
             })
         .where((e) =>
             (e['location'] is String) && (e['location'] as String).isNotEmpty)
@@ -495,9 +509,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         'locationId': id,
         'locationName': name,
         'price': 0.0,
+        'isFreeDelivery': false,
       });
       _deliveryLocationPriceControllers.add(
-        TextEditingController(text: '0'),
+        TextEditingController(),
       );
       _selectedDeliveryLocation = null;
     });
@@ -512,6 +527,49 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     });
   }
 
+  bool _isDeliveryLocationFree(int index) =>
+      _deliveryLocations[index]['isFreeDelivery'] == true;
+
+  void _setDeliveryLocationFree(int index, bool isFree) {
+    setState(() {
+      _deliveryLocations[index]['isFreeDelivery'] = isFree;
+      if (isFree) {
+        _deliveryLocations[index]['price'] = 0.0;
+        _deliveryLocationPriceControllers[index].text = '0';
+      } else {
+        _deliveryLocationPriceControllers[index].clear();
+        _deliveryLocations[index]['price'] = 0.0;
+      }
+    });
+  }
+
+  Widget _buildFreeDeliveryBadge() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle_outline, color: Colors.green.shade700, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Gratuit'.tr,
+            style: TextStyle(
+              color: Colors.green.shade800,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _loadInitialData() async {
     await vehicleController.fetchCategories();
     await vehicleController.fetchVehicleMakes();
@@ -523,6 +581,434 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     await vehicleController.fetchRules();
   }
 
+  /// Données sérialisables pour POST `/api/vehicles/draft` (état courant du formulaire).
+  Map<String, dynamic> _collectDraftDataForAutosave() {
+    return <String, dynamic>{
+      'categories': _selectedCategoryIds.toList(growable: false),
+      'makeId': _selectedMake?.id,
+      'modelId': _selectedModel?.id,
+      'makeName': _selectedMake?.makeName,
+      'modelName': _isOtherModelSelected
+          ? (_otherModelController.text.trim().isEmpty
+              ? null
+              : _otherModelController.text.trim())
+          : _selectedModel?.name,
+      'otherModelName':
+          _isOtherModelSelected ? _otherModelController.text.trim() : null,
+      'fuelId': _selectedFuelType?.id,
+      'transmission': _selectedTransmission,
+      'odometerId': _selectedOdometer?.id,
+      'year': _selectedYear ?? '',
+      'seats': _seatsController.text,
+      'mileage': _mileageController.text,
+      'plateNumber1': _plateNumber1Controller.text,
+      'plateNumber2': _plateNumber2Controller.text,
+      'plateNumber3': _plateNumber3Controller.text,
+      'minRentalDays': _minRentalDaysController.text,
+      'insurance': _selectedInsurance,
+      'hasAgeRestriction': _hasAgeRestriction,
+      'minAge': _minAgeController.text,
+      'allowsInternationalTravel': _allowsInternationalTravel,
+      'pricePerDay': _pricePerDayController.text,
+      'deposit': _depositController.text,
+      'hasWeeklyDiscount': _hasWeeklyDiscount,
+      'weeklyDiscountValue': _weeklyDiscountValueController.text,
+      'weeklyDiscountType': _weeklyDiscountType,
+      'hasMonthlyDiscount': _hasMonthlyDiscount,
+      'monthlyDiscountValue': _monthlyDiscountValueController.text,
+      'monthlyDiscountType': _monthlyDiscountType,
+      'hasHomeDelivery': _hasHomeDelivery,
+      'deliveryLocations': _deliveryLocations
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(growable: false),
+      'deliveryLocationPrices':
+          _deliveryLocationPriceControllers.map((c) => c.text).toList(),
+      'regionId': vehicleController.selectedRegionId.value,
+      'fullAddress': vehicleController.fullAddress.value,
+      'address': _addressController.text,
+      'latitude': vehicleController.selectedLatitude.value,
+      'longitude': vehicleController.selectedLongitude.value,
+      'locationId': _selectedLocation != null
+          ? _extractLocationId(_selectedLocation)
+          : null,
+      'selectedFeatures': vehicleController.selectedFeatures.toList(),
+      'selectedPolicyId': vehicleController.selectedPolicyId.value,
+      'selectedRules': vehicleController.selectedRules.toList(),
+      'tierRetentionFees':
+          Map<String, dynamic>.from(vehicleController.tierRetentionFees),
+      'tierSwitches':
+          Map<String, dynamic>.from(vehicleController.tierSwitches),
+      'mainImageIndex': vehicleController.mainImageIndex.value,
+      'stepIndex': _currentStep,
+    };
+  }
+
+  /// Chaîne non vide pour l’affichage brouillon, ou null.
+  String? _draftDisplayString(dynamic value) {
+    if (value == null) return null;
+    final String s = value.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  /// Résumé pour la boîte de dialogue : « Marque Modèle (Année) » ou libellé générique.
+  String _buildDraftVehicleSummary(Map<String, dynamic> draftData) {
+    final Map<String, dynamic> specs = draftData['specs'] is Map
+        ? Map<String, dynamic>.from(draftData['specs'] as Map)
+        : <String, dynamic>{};
+
+    String? make = _draftDisplayString(
+      draftData['makeName'] ??
+          draftData['make'] ??
+          draftData['brandName'] ??
+          draftData['brand'] ??
+          specs['makeName'] ??
+          specs['brandName'],
+    );
+    String? model = _draftDisplayString(
+      draftData['modelName'] ??
+          draftData['model'] ??
+          specs['modelName'] ??
+          specs['model'],
+    );
+    final String? otherModel =
+        _draftDisplayString(draftData['otherModelName']);
+    if ((model == null || model.isEmpty) &&
+        otherModel != null &&
+        otherModel.isNotEmpty) {
+      model = otherModel;
+    }
+
+    String? year = _draftDisplayString(
+      draftData['year'] ?? draftData['modelYear'] ?? specs['year'],
+    );
+
+    final String? makeId =
+        _draftDisplayString(draftData['makeId'] ?? draftData['brandId']);
+    if ((make == null || make.isEmpty) && makeId != null) {
+      final Makes? m = vehicleController.makesList
+          .firstWhereOrNull((Makes x) => x.id == makeId);
+      make = _draftDisplayString(m?.makeName);
+    }
+
+    final String? modelId = _draftDisplayString(draftData['modelId']);
+    if ((model == null || model.isEmpty) && modelId != null) {
+      final Models? mo = vehicleController.modelsList
+          .firstWhereOrNull((Models x) => x.id == modelId);
+      model = _draftDisplayString(mo?.name);
+    }
+
+    final bool hasMake = make != null && make.isNotEmpty;
+    if (!hasMake) {
+      return 'Véhicule en cours de saisie'.tr;
+    }
+
+    final StringBuffer buf = StringBuffer(make);
+    if (model != null && model.isNotEmpty) {
+      buf.write(' ');
+      buf.write(model);
+    }
+    if (year != null && year.isNotEmpty) {
+      buf.write(' (');
+      buf.write(year);
+      buf.write(')');
+    }
+    return buf.toString();
+  }
+
+  Future<void> _offerDraftResumeIfNeeded() async {
+    if (_draftDialogShown || !mounted) return;
+    final Map<String, dynamic>? envelope =
+        await vehicleController.fetchVehicleDraft();
+    if (!mounted || envelope == null) return;
+
+    final dynamic nested = envelope['data'];
+    dynamic lastStepRaw = envelope['lastStep'] ?? envelope['last_step'];
+    final Map<String, dynamic> form = nested is Map
+        ? Map<String, dynamic>.from(nested as Map)
+        : Map<String, dynamic>.from(envelope)
+      ..remove('lastStep')
+      ..remove('last_step')
+      ..remove('data');
+
+    lastStepRaw ??= form['lastStep'] ?? form['last_step'];
+    form.remove('lastStep');
+    form.remove('last_step');
+
+    int lastStep = (lastStepRaw is num) ? lastStepRaw.toInt() : 0;
+    lastStep = lastStep.clamp(0, _totalSteps - 1);
+
+    if (form.isEmpty && lastStepRaw == null) return;
+
+    _draftDialogShown = true;
+    final String draftSummary = _buildDraftVehicleSummary(form);
+    final String? choice = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: Text('Brouillon'.tr),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'Un brouillon d\'ajout de véhicule existe. Reprendre le brouillon ou l\'effacer ?'
+                    .tr,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                draftSummary,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[900],
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'clear'),
+              child: Text('Effacer'.tr),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, 'resume'),
+              child: Text('Reprendre le brouillon'.tr),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+    if (choice == 'clear') {
+      await vehicleController.deleteVehicleDraftSilently();
+      return;
+    }
+    if (choice == 'resume') {
+      await _applyDraftFromServer(form, lastStep);
+    }
+  }
+
+  Future<void> _applyDraftFromServer(
+    Map<String, dynamic> data,
+    int lastStep,
+  ) async {
+    if (!mounted) return;
+    try {
+      final dynamic catsRaw = data['categories'];
+      if (catsRaw is List) {
+        _selectedCategoryIds.clear();
+        for (final dynamic e in catsRaw) {
+          final String id = e.toString();
+          if (id.isNotEmpty) _selectedCategoryIds.add(id);
+        }
+        dynamic anchor;
+        final String? primary = _primarySelectedCategoryId();
+        if (primary != null) {
+          anchor = vehicleController.categoriesList.firstWhereOrNull(
+            (dynamic c) => _extractCategoryId(c) == primary,
+          );
+        }
+        _selectedVehicleType = anchor;
+      }
+
+      final String? typeId = _primarySelectedCategoryId();
+      await vehicleController.fetchVehicleMakes(typeId: typeId);
+
+      final String? makeId = data['makeId']?.toString();
+      if (makeId != null && makeId.isNotEmpty) {
+        _selectedMake = vehicleController.makesList
+            .firstWhereOrNull((Makes m) => m.id == makeId);
+        if (_selectedMake != null) {
+          await vehicleController.fetchVehicleModels(
+            typeId: typeId,
+            makeId: _selectedMake!.id,
+          );
+        }
+      }
+
+      final String? modelId = data['modelId']?.toString();
+      if (modelId != null && modelId.isNotEmpty) {
+        _selectedModel = vehicleController.modelsList
+            .firstWhereOrNull((Models m) => m.id == modelId);
+      }
+      final String? otherName = data['otherModelName']?.toString();
+      if (otherName != null && otherName.isNotEmpty) {
+        _isOtherModelSelected = true;
+        _otherModelController.text = otherName;
+      }
+
+      final String? fuelId = data['fuelId']?.toString();
+      if (fuelId != null && fuelId.isNotEmpty) {
+        _selectedFuelType = vehicleController.fuelTypesList
+            .firstWhereOrNull((FuelType f) => f.id == fuelId);
+      }
+
+      final String? tr = data['transmission']?.toString();
+      if (tr != null && tr.isNotEmpty) {
+        _selectedTransmission = tr.toUpperCase();
+      }
+
+      final String? odoId = data['odometerId']?.toString();
+      if (odoId != null && odoId.isNotEmpty) {
+        _selectedOdometer = vehicleController.odometerList
+            .firstWhereOrNull((Getodometer o) => o.id == odoId);
+      }
+
+      final yearStr = data['year']?.toString() ?? '';
+      _selectedYear =
+          yearStr.isNotEmpty && _yearOptions.contains(yearStr) ? yearStr : null;
+      _seatsController.text = data['seats']?.toString() ?? '';
+      _mileageController.text = data['mileage']?.toString() ?? '0';
+      _mileageKm = double.tryParse(_mileageController.text) ?? 0;
+
+      _plateNumber1Controller.text = data['plateNumber1']?.toString() ?? '';
+      _plateNumber2Controller.text = data['plateNumber2']?.toString() ?? '';
+      _plateNumber3Controller.text = data['plateNumber3']?.toString() ?? '';
+      _minRentalDaysController.text =
+          data['minRentalDays']?.toString().isNotEmpty == true
+              ? data['minRentalDays'].toString()
+              : '1';
+      final String? ins = data['insurance']?.toString();
+      _selectedInsurance = ins != null && ins.isNotEmpty ? ins : null;
+      _hasAgeRestriction = data['hasAgeRestriction'] == true;
+      _minAgeController.text = data['minAge']?.toString() ?? '18';
+      _allowsInternationalTravel =
+          data['allowsInternationalTravel'] == true;
+
+      _pricePerDayController.text = data['pricePerDay']?.toString() ?? '';
+      _depositController.text = data['deposit']?.toString() ?? '';
+      _hasWeeklyDiscount = data['hasWeeklyDiscount'] == true;
+      _weeklyDiscountValueController.text =
+          data['weeklyDiscountValue']?.toString() ?? '';
+      _weeklyDiscountType =
+          data['weeklyDiscountType']?.toString() ?? 'percent';
+      _hasMonthlyDiscount = data['hasMonthlyDiscount'] == true;
+      _monthlyDiscountValueController.text =
+          data['monthlyDiscountValue']?.toString() ?? '';
+      _monthlyDiscountType =
+          data['monthlyDiscountType']?.toString() ?? 'percent';
+      _hasHomeDelivery = data['hasHomeDelivery'] == true;
+
+      _clearDeliveryLocations();
+      final dynamic dl = data['deliveryLocations'];
+      final dynamic dlp = data['deliveryLocationPrices'];
+      if (dl is List) {
+        for (int i = 0; i < dl.length; i++) {
+          final dynamic item = dl[i];
+          if (item is! Map) continue;
+          final Map<String, dynamic> m = Map<String, dynamic>.from(item);
+          final String id = m['locationId']?.toString() ??
+              m['location']?.toString() ??
+              '';
+          if (id.isEmpty) continue;
+          final String name = m['locationName']?.toString() ?? '';
+          final double price = m['price'] is num
+              ? (m['price'] as num).toDouble()
+              : double.tryParse('${m['price']}') ?? 0.0;
+          final bool isFree =
+              m['isFreeDelivery'] == true || price == 0;
+          _deliveryLocations.add(<String, dynamic>{
+            'locationId': id,
+            'locationName': name.isNotEmpty ? name : id,
+            'price': isFree ? 0.0 : price,
+            'isFreeDelivery': isFree,
+          });
+          final String ptxt = isFree
+              ? '0'
+              : ((dlp is List && i < dlp.length)
+                  ? dlp[i].toString()
+                  : price.toString());
+          _deliveryLocationPriceControllers
+              .add(TextEditingController(text: ptxt));
+        }
+      }
+
+      vehicleController.selectedRegionId.value =
+          data['regionId']?.toString() ?? '';
+      vehicleController.fullAddress.value =
+          data['fullAddress']?.toString() ?? '';
+      _addressController.text =
+          data['address']?.toString() ?? vehicleController.fullAddress.value;
+      final double lat =
+          (data['latitude'] is num) ? (data['latitude'] as num).toDouble() : 0;
+      final double lng = (data['longitude'] is num)
+          ? (data['longitude'] as num).toDouble()
+          : 0;
+      if (lat != 0 && lng != 0) {
+        vehicleController.selectedLatitude.value = lat;
+        vehicleController.selectedLongitude.value = lng;
+        _selectedLatLng = LatLng(lat, lng);
+        _updateMarker(_selectedLatLng);
+      }
+
+      final String? locId = data['locationId']?.toString();
+      if (locId != null && locId.isNotEmpty) {
+        _selectedLocation = vehicleController.locationsList.firstWhereOrNull(
+          (dynamic l) => _extractLocationId(l) == locId,
+        );
+      }
+
+      vehicleController.selectedFeatures.clear();
+      final dynamic feat = data['selectedFeatures'];
+      if (feat is List) {
+        for (final dynamic e in feat) {
+          vehicleController.selectedFeatures.add(e.toString());
+        }
+      }
+
+      vehicleController.selectedPolicyId.value =
+          data['selectedPolicyId']?.toString() ?? '';
+
+      vehicleController.tierRetentionFees.clear();
+      final dynamic trf = data['tierRetentionFees'];
+      if (trf is Map) {
+        trf.forEach((dynamic k, dynamic v) {
+          vehicleController.tierRetentionFees[k.toString()] =
+              v?.toString() ?? '';
+        });
+      }
+
+      vehicleController.tierSwitches.clear();
+      final dynamic tsw = data['tierSwitches'];
+      if (tsw is Map) {
+        tsw.forEach((dynamic k, dynamic v) {
+          if (v is bool) {
+            vehicleController.tierSwitches[k.toString()] = v;
+          }
+        });
+      }
+
+      vehicleController.selectedRules.clear();
+      final dynamic rules = data['selectedRules'];
+      if (rules is List) {
+        for (final dynamic e in rules) {
+          vehicleController.selectedRules.add(e.toString());
+        }
+      }
+
+      final dynamic mix = data['mainImageIndex'];
+      if (mix is num) {
+        vehicleController.mainImageIndex.value = mix.toInt();
+      }
+
+      if (!mounted) return;
+      setState(() {});
+
+      final int go = lastStep.clamp(0, _totalSteps - 1);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _goToStep(go);
+      });
+    } catch (e, st) {
+      debugPrint('⚠️ [ADD_VEHICLE] _applyDraftFromServer: $e\n$st');
+      if (mounted) {
+        showErrorToastMessage(
+            'Impossible de restaurer le brouillon entièrement.'.tr);
+      }
+    }
+  }
 
   Future<void> _onVehicleTypeSelected(dynamic vehicleType) async {
     setState(() {
@@ -585,9 +1071,17 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           await vehicleController.fetchLocations();
         }
       }
-      
+
+      final int nextIndex = _currentStep + 1;
+      final Map<String, dynamic> snapshot = _collectDraftDataForAutosave();
+      await vehicleController.saveVehicleDraft(
+        lastStep: nextIndex,
+        data: snapshot,
+      );
+
+      if (!mounted) return;
       setState(() {
-        _currentStep++;
+        _currentStep = nextIndex;
       });
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -636,8 +1130,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       _goToStep(0);
       return;
     }
-    if (_yearController.text.isEmpty) {
-      showErrorToastMessage('Veuillez saisir l\'année');
+    if (_selectedYear == null || _selectedYear!.isEmpty) {
+      showErrorToastMessage('Veuillez sélectionner l\'année');
       _goToStep(0);
       return;
     }
@@ -658,6 +1152,30 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       _goToStep(2);
       return;
     }
+    if (_hasHomeDelivery) {
+      if (_deliveryLocations.isEmpty) {
+        showErrorToastMessage(
+            'Veuillez ajouter au moins une ville de livraison.');
+        _goToStep(2);
+        return;
+      }
+      for (int i = 0; i < _deliveryLocations.length; i++) {
+        if (_isDeliveryLocationFree(i)) continue;
+        final price =
+            (_deliveryLocations[i]['price'] as num?)?.toDouble() ?? 0.0;
+        if (price <= 0) {
+          final cityName =
+              _deliveryLocations[i]['locationName']?.toString() ?? '';
+          showErrorToastMessage(
+            cityName.isNotEmpty
+                ? 'Saisissez un prix pour $cityName ou activez la livraison gratuite.'
+                : 'Saisissez un prix ou activez la livraison gratuite.',
+          );
+          _goToStep(2);
+          return;
+        }
+      }
+    }
 
     try {
       // Récupérer les IDs
@@ -670,7 +1188,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       }
 
       final double deposit = double.tryParse(_depositController.text) ?? 0.0;
-      final int year = int.tryParse(_yearController.text) ?? 0;
+      final int year = int.tryParse(_selectedYear ?? '') ?? 0;
       final int seats = int.tryParse(_seatsController.text) ?? 0;
 
       // Récupérer l'ID de la région
@@ -839,7 +1357,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       _weeklyDiscountValueController.clear();
       _monthlyDiscountValueController.clear();
       _clearDeliveryLocations();
-      _yearController.clear();
+      _selectedYear = null;
       _seatsController.clear();
       _plateNumber1Controller.clear();
       _plateNumber2Controller.clear();
@@ -859,7 +1377,6 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     _weeklyDiscountValueController.dispose();
     _monthlyDiscountValueController.dispose();
     _clearDeliveryLocations();
-    _yearController.dispose();
     _seatsController.dispose();
     _plateNumber1Controller.dispose();
     _plateNumber2Controller.dispose();
@@ -1249,11 +1766,26 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                _buildModernTextField(
-                  controller: _yearController,
-                  hint: 'Ex: 2023'.tr,
+                _buildModernDropdown<String>(
+                  value: _yearOptions.contains(_selectedYear)
+                      ? _selectedYear
+                      : null,
+                  items: _yearOptions
+                      .map(
+                        (year) => DropdownMenuItem<String>(
+                          value: year,
+                          child: Text(year),
+                        ),
+                      )
+                      .toList(),
+                  enabled: true,
+                  onChanged: (String? year) {
+                    setState(() {
+                      _selectedYear = year;
+                    });
+                  },
+                  hint: 'Choisir l\'année'.tr,
                   icon: Icons.event,
-                  keyboardType: TextInputType.number,
                 ),
               ],
             ),
@@ -2200,6 +2732,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                   final locationName =
                                       loc['locationName']?.toString() ??
                                           'Ville inconnue';
+                                  final isFree =
+                                      _isDeliveryLocationFree(index);
 
                                   return Padding(
                                     padding:
@@ -2232,22 +2766,52 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                             ],
                                           ),
                                           const SizedBox(height: 8),
-                                          _buildModernTextField(
-                                            controller: priceController,
-                                            hint: 'Prix (MAD)'.tr,
-                                            icon: Icons.local_shipping,
-                                            keyboardType:
-                                                TextInputType.numberWithOptions(
-                                                    decimal: true),
-                                            onChanged: (value) {
-                                              final parsed =
-                                                  double.tryParse(value) ?? 0.0;
-                                              setState(() {
-                                                _deliveryLocations[index]
-                                                    ['price'] = parsed;
-                                              });
-                                            },
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  'Livraison Gratuite'.tr,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Colors.grey[800],
+                                                  ),
+                                                ),
+                                              ),
+                                              Switch(
+                                                value: isFree,
+                                                activeColor: vehicalThemColor,
+                                                onChanged: (value) =>
+                                                    _setDeliveryLocationFree(
+                                                  index,
+                                                  value,
+                                                ),
+                                              ),
+                                            ],
                                           ),
+                                          const SizedBox(height: 8),
+                                          if (isFree)
+                                            _buildFreeDeliveryBadge()
+                                          else
+                                            _buildModernTextField(
+                                              controller: priceController,
+                                              hint: 'Prix (MAD)'.tr,
+                                              icon: Icons.local_shipping,
+                                              keyboardType:
+                                                  const TextInputType
+                                                      .numberWithOptions(
+                                                decimal: true,
+                                              ),
+                                              onChanged: (value) {
+                                                final parsed = double.tryParse(
+                                                        value) ??
+                                                    0.0;
+                                                setState(() {
+                                                  _deliveryLocations[index]
+                                                      ['price'] = parsed;
+                                                });
+                                              },
+                                            ),
                                         ],
                                       ),
                                     ),

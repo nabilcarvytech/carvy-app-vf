@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:carvy/controller/booking_controller.dart';
+import 'package:carvy/constants/app_constants.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/work_space.dart';
 import '../api/config.dart';
@@ -28,9 +29,10 @@ class ItemDetailsController extends GetxController implements GetxService {
   @override
   void onReady() {
     super.onReady();
-    // Force le rafraîchissement du statut KYC quand l'utilisateur consulte un véhicule
-    final kycController = Get.find<KycController>();
-    kycController.getKycDetails();
+    if (AppConstants.isKycEnabled) {
+      final kycController = Get.find<KycController>();
+      kycController.getKycDetails();
+    }
   }
   Future getdataVehicle(id) async {
     // ========== INITIALIZATION ==========

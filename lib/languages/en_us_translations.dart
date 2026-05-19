@@ -22,6 +22,7 @@ const Map<String, String> enUs = {
   "Popular locations": "Popular pickup locations",
   "Popular Regions": "Popular Regions",
   "See All": "See All",
+  "View All": "View All",
   "Our Recommendation": "Our Recommendations",
   "Most viewed": "Most Viewed",
   "Recommended Spaces": "Recommended Vehicles",
@@ -354,6 +355,15 @@ const Map<String, String> enUs = {
   "Previous": "Previous",
   "No Completed Available": "No Completed Bookings Available",
   "Add Review": "Add Review",
+  "Review submitted": "⭐️ Review submitted",
+  "opening_review_form_dev": "Opening the review form — coming soon...",
+  "Rate your experience": "Rate your experience",
+  "Vehicle rating label": "Vehicle rating",
+  "Agency rating label": "Agency / service rating",
+  "Submit review button": "Submit review",
+  "Thank you for your review!": "Thank you for your review!",
+  "Agency not found": "Agency not found",
+  "Vehicle not found": "Vehicle not found",
   "No upcoming Booking Availability": "No Upcoming Bookings Available",
   "Cancel": "Cancel",
   "UpComing": "Upcoming",
@@ -1143,4 +1153,9 @@ const Map<String, String> enUs = {
   "Pickup OTP: @code": "Pickup OTP: @code",
   "Drop OTP: @code": "Drop-off OTP: @code",
   "Pickup OTP?": "Pickup OTP?",
+  "Security Deposit (Caution)": "Security Deposit (Caution)",
+  "receipt_security_deposit_on_site_info":
+      "This amount is not charged through the app. It must be handled directly on site with the agency when picking up the vehicle (card imprint, cheque or cash depending on the agency's terms).",
+  "booking_deposit_on_site_short":
+      "To be handled on site with the vendor",
 };

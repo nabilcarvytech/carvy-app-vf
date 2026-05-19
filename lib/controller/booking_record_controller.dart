@@ -433,7 +433,14 @@ class BookingRecordController extends GetxController implements GetxService {
               debugPrint('⚠️ [BookingRecord] Booking avec ID null ignoré');
               return false;
             }
-            
+
+            // Enrichissement client : même structure véhicule que vendor-booking-record
+            newBooking.enrichVehicleFieldsLikeVendor();
+            debugPrint(
+              '🚗 [BookingRecord] Après enrich — itemid: ${newBooking.itemid}, '
+              'vehicleId: ${newBooking.vehicleId}, titre: ${newBooking.propTitle}',
+            );
+
             if (existingIds.contains(newBooking.id)) {
               debugPrint('⚠️ [BookingRecord] Booking dupliqué ignoré - ID: ${newBooking.id}');
               return false;

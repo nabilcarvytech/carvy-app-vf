@@ -29,6 +29,7 @@ import 'package:carvy/view/booking/vehicle/vehicle_booking_summary_screen.dart';
 import 'package:carvy/view/booking/vehicle_photoes_booking.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/view/digitalsignatuecommon/digital_singnature.dart';
+import 'package:carvy/view/review/review_popup_widget.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/myaccount/addaddress/pick_address_with_map.dart';
@@ -1310,6 +1311,102 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
   );
 }
 
+bool _bookingIsCompleted(Bookings booking) =>
+    booking.status?.toStandardStatus() == 'COMPLETED';
+
+bool _bookingHasSecurityDeposit(Bookings booking) {
+  final v = booking.securityMoney?.trim();
+  if (v == null || v.isEmpty) return false;
+  return v != '0' && v != '0.00' && v != '0.0';
+}
+
+bool _bookingShowsDepositOnSiteInfo(Bookings booking, String listType) {
+  if (listType == 'UpComing') return true;
+  final s = booking.status?.toStandardStatus() ?? '';
+  return s == 'UPCOMING' || s == 'CONFIRMED' || s == 'ACCEPTED';
+}
+
+bool _bookingIsReviewedFlag(Bookings booking) {
+  final v = booking.isReviewed?.trim();
+  if (v == null || v.isEmpty) return false;
+  return v == '1' || v.toLowerCase() == 'true';
+}
+
+bool _bookingShowLeaveReviewButton(Bookings booking) =>
+    _bookingIsCompleted(booking) && !_bookingIsReviewedFlag(booking);
+
+bool _bookingShowReviewSentBadge(Bookings booking) =>
+    _bookingIsCompleted(booking) && _bookingIsReviewedFlag(booking);
+
+Widget _buildClientBookingReviewSection(
+  BuildContext context,
+  Bookings booking,
+  VoidCallback onListRefresh,
+) {
+  if (_bookingShowReviewSentBadge(booking)) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, left: 8, right: 8, bottom: 4),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.amber.shade200),
+          ),
+          child: Text(
+            'Review submitted'.tr,
+            style: regular2(context).copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.amber.shade900,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  if (!_bookingShowLeaveReviewButton(booking)) {
+    return const SizedBox.shrink();
+  }
+
+  return Padding(
+    padding: const EdgeInsets.only(top: 12, left: 8, right: 8, bottom: 4),
+    child: SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton.icon(
+        onPressed: () {
+          final bookingController = Get.find<BookingController>();
+          bookingController.resetClientReviewForm();
+          showClientBookingReviewBottomSheet(
+            context,
+            booking,
+            onReviewSubmitted: onListRefresh,
+          );
+        },
+        icon: const Icon(Icons.star_outline, size: 20),
+        label: Text(
+          'Leave a Review'.tr,
+          style: boldstyle(context).copyWith(
+            color: Colors.white,
+            fontSize: 14,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: getColorBasedOnActiveModuleid(),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(13),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 myBookingListWidget(
   List<Bookings> list,
   btnText,
@@ -1578,13 +1675,21 @@ myBookingListWidget(
       itemBuilder: (context, index) {
         print(list[index].status);
 
-        var itemData = jsonDecode(list[index].itemData);
-        String vehicleMongoId = (itemData.isNotEmpty && itemData[0]['_id'] != null) 
-            ? itemData[0]['_id'].toString() 
-            : list.elementAt(index).itemid.toString();
-        String address = itemData[0]['address'] ?? 'N/A'.tr;
-        dynamic latitude = itemData[0]['latitude'] ?? 'N/A'.tr;
-        dynamic longitude = itemData[0]['longitude'] ?? 'N/A'.tr;
+        final itemData = Bookings.decodeItemDataList(list[index].itemData);
+        if (itemData == null || itemData.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final firstItem = itemData[0] is Map
+            ? Map<String, dynamic>.from(itemData[0] as Map)
+            : <String, dynamic>{};
+        String vehicleMongoId = Bookings.normalizeEntityId(firstItem['_id']) ??
+            Bookings.normalizeEntityId(firstItem['item_id']) ??
+            Bookings.normalizeEntityId(list[index].vehicleId) ??
+            Bookings.normalizeEntityId(list[index].itemid) ??
+            '';
+        String address = firstItem['address']?.toString() ?? 'N/A'.tr;
+        dynamic latitude = firstItem['latitude'] ?? 'N/A'.tr;
+        dynamic longitude = firstItem['longitude'] ?? 'N/A'.tr;
         
         // Priorité 1: Utiliser propImg qui contient l'URL complète depuis le backend
         // Priorité 2: Utiliser itemData[0]['image'] avec fallback intelligent
@@ -1594,7 +1699,7 @@ myBookingListWidget(
           // ========== LOG CRITIQUE POUR DÉBOGUER L'URL DANS LE WIDGET ==========
           print('🖼️ [DEBUG IMAGE] [WIDGET] Image depuis propImg: $image');
         } else {
-          dynamic itemDataImage = itemData[0]['image'];
+          dynamic itemDataImage = firstItem['image'] ?? firstItem['front_image_url'];
           if (itemDataImage != null && itemDataImage.toString().isNotEmpty && itemDataImage.toString() != 'N/A') {
             image = itemDataImage.toString();
             // ========== LOG CRITIQUE POUR DÉBOGUER L'URL DANS LE WIDGET ==========
@@ -1605,11 +1710,24 @@ myBookingListWidget(
         }
         String? totalNights =
             "${list[index].currencyCode} ${list[index].total} for ${list[index].totalNight} day";
-        Map<String, dynamic> itemInfoMap = jsonDecode(itemData[0]['item_info']);
         ItemInfo? itemInfoData;
-        itemInfoData = ItemInfo.fromJson(itemInfoMap);
+        try {
+          final rawInfo = firstItem['item_info'];
+          if (rawInfo != null) {
+            final itemInfoMap = rawInfo is String
+                ? jsonDecode(rawInfo) as Map<String, dynamic>
+                : Map<String, dynamic>.from(rawInfo as Map);
+            itemInfoData = ItemInfo.fromJson(itemInfoMap);
+          }
+        } catch (e) {
+          debugPrint('❌ [BookingRecord UI] item_info invalide: $e');
+          return const SizedBox.shrink();
+        }
+        if (itemInfoData == null) {
+          return const SizedBox.shrink();
+        }
 
-        dynamic proType = itemData[0]['item_type'] ?? 'N/A'.tr;
+        dynamic proType = firstItem['item_type'] ?? 'N/A'.tr;
         String? doorStepPrice = itemInfoData.doorStepPrice;
         final bool isLiveBookingCard = listType.toLowerCase() == "ongoing";
         final String dropOtpValue = (list[index].dropOtp ?? '').trim();
@@ -1840,45 +1958,24 @@ myBookingListWidget(
             onTap: () {
               // Extraction de l'ID du véhicule depuis itemData (JSON String)
               // afin d'éviter l'erreur 404 causée par l'envoi de l'ID de réservation
-              String vehicleId = "";
-              String rawItemData = list[index].itemData.toString();
-              
-              try {
-                var decodedData = jsonDecode(rawItemData);
-                if (decodedData is List && decodedData.isNotEmpty) {
-                  // Le premier élément contient les détails du véhicule
-                  vehicleId = decodedData[0]['item_id']?.toString() ?? "";
-                  
-                  // Fallback de sécurité : si item_id est absent, on vérifie item_type 
-                  // (certaines versions de l'API utilisent ce champ pour l'ID)
-                  if (vehicleId.isEmpty || vehicleId == "null") {
-                    vehicleId = decodedData[0]['item_type']?.toString() ?? "";
-                  }
-                }
-              } catch (e) {
-                print('❌ [DEBUG] Erreur décodage itemData: $e');
-              }
-
-              // Si on n'a toujours pas d'ID, fallback sur list[index].itemid
-              if (vehicleId.isEmpty || vehicleId == "null") {
-                vehicleId = list[index].itemid.toString();
-              }
+              final vehicleId = Bookings.normalizeEntityId(firstItem['_id']) ??
+                  Bookings.normalizeEntityId(firstItem['item_id']) ??
+                  Bookings.normalizeEntityId(list[index].vehicleId) ??
+                  Bookings.normalizeEntityId(list[index].itemid) ??
+                  '';
 
               print('🚀 [NAVIGATION] ID véhicule extrait pour VehicleDetailSScreen : $vehicleId');
               
               // Inspiration Homepage: Définir un titre de fallback robuste
               String finalTitle = list[index].propTitle ?? "";
-              if (finalTitle.isEmpty || finalTitle == "null" || finalTitle == "N/A" || finalTitle.toLowerCase() == "véhicule sans titre") {
-                 try {
-                   var decodedData = jsonDecode(rawItemData);
-                   if (decodedData is List && decodedData.isNotEmpty) {
-                      finalTitle = decodedData[0]['name'] ?? decodedData[0]['item_title'] ?? decodedData[0]['title'] ?? "Véhicule";
-                   } else {
-                      finalTitle = "Véhicule";
-                   }
-                 } catch(e) {
-                   finalTitle = "Véhicule";
-                 }
+              if (finalTitle.isEmpty ||
+                  finalTitle == "null" ||
+                  finalTitle == "N/A" ||
+                  finalTitle.toLowerCase().contains('véhicule sans titre')) {
+                finalTitle = firstItem['title']?.toString() ??
+                    firstItem['item_title']?.toString() ??
+                    firstItem['name']?.toString() ??
+                    "Véhicule".tr;
               }
 
               // Navigation vers les détails du véhicule avec l'ID sécurisé et les données fallback
@@ -2543,14 +2640,6 @@ myBookingListWidget(
                                     value:
                                         "${list[index].currencyCode} ${list[index].serviceCharge}")
                                 : const SizedBox(),
-                            list[index].securityMoney != null &&
-                                    list[index].securityMoney != "0.00"
-                                ? eReceiptWidget(
-                                    name: "Security Money".tr,
-                                    value:
-                                        "${list[index].currencyCode} ${list[index].securityMoney}",
-                                  )
-                                : const SizedBox(),
                             list[index].cancelledCharge == null
                                 ? const SizedBox()
                                 : list[index].cancelledCharge == "0.00"
@@ -2566,6 +2655,61 @@ myBookingListWidget(
                                 name: "Total".tr,
                                 value:
                                     "${list[index].currencyCode} ${list[index].total}"),
+                            if (_bookingHasSecurityDeposit(list[index])) ...[
+                              const SizedBox(height: 8),
+                              Divider(
+                                color: Colors.grey.shade300,
+                                thickness: 1,
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      "Security Deposit (Caution)".tr,
+                                      style: regular2(context).copyWith(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "${list[index].currencyCode} ${list[index].securityMoney}",
+                                    style: boldstyle(context).copyWith(
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (_bookingShowsDepositOnSiteInfo(
+                                  list[index], listType)) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: 16,
+                                      color: getColorBasedOnActiveModuleid(),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        "booking_deposit_on_site_short".tr,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+                            ],
                           ],
                         ),
                       ],
@@ -3868,6 +4012,11 @@ myBookingListWidget(
                               ),
                             );
                           },
+                        ),
+                        _buildClientBookingReviewSection(
+                          context,
+                          list[index],
+                          () => setState(() {}),
                         ),
                       ],
                     ),

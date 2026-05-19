@@ -3659,56 +3659,104 @@ class VendorOrderListView extends StatelessWidget {
                                 // Logs pour comprendre ce que Flutter lit réellement :
                                 debugPrint("🛠️ [EVAL BOUTON] ID: ${list[index].id} | listType: $listType | status: ${list[index].status}");
                                 
-                                if (listType?.toLowerCase() == "ongoing" || 
-                                    listType?.toLowerCase() == "live" || 
-                                    list[index].status?.toString().toUpperCase() == "LIVE" || 
-                                    list[index].status?.toString().toUpperCase() == "ONGOING") {
-                                    
-                                    debugPrint("   👉 Condition Ongoing/Live VALIDÉE -> AFFICHAGE DU BOUTON DROP");
-                                    actionButton = Expanded(
-                                        child: InkWell(
-                                          onTap: () {
-                                            // Afficher le dialogue de saisie OTP
-                                            showDropOtpDialog(
-                                              context,
-                                              list[index].id.toString(),
-                                              list[index].dropOtp?.toString() ?? "",
-                                              () {
-                                                // Callback de succès : recharger la liste ou retirer l'item
-                                                if (self.refreshData != null) {
-                                                  self.refreshData!();
-                                                } else {
-                                                  // Fallback : retirer l'item de la liste locale
-                                                  self.onItemCancelled(index);
-                                                }
+                                final bookingStatusUpper =
+                                    list[index].status?.toString().toUpperCase() ??
+                                        '';
+                                if (bookingStatusUpper == 'LIVE') {
+                                  debugPrint(
+                                      '   👉 Statut LIVE -> bouton Mark as Returned (sans OTP)');
+                                  final bookingId =
+                                      list[index].id.toString();
+                                  actionButton = Obx(() {
+                                    final bookingController =
+                                        Get.find<BookingController>();
+                                    final isLoading = bookingController
+                                            .isMarkingReturnedDirectLoading
+                                            .value &&
+                                        bookingController
+                                                .markingReturnedDirectBookingId
+                                                .value ==
+                                            bookingId;
+                                    return Expanded(
+                                      child: InkWell(
+                                        onTap: isLoading
+                                            ? null
+                                            : () {
+                                                _showMarkReturnedDirectConfirmDialog(
+                                                  context,
+                                                  bookingId: bookingId,
+                                                  onConfirmed: () async {
+                                                    final success =
+                                                        await bookingController
+                                                            .markOrderAsReturnedDirect(
+                                                      bookingId,
+                                                      onSuccess: () {
+                                                        self.setState(() {
+                                                          list[index]
+                                                                  .statusSetter =
+                                                              'COMPLETED';
+                                                          list[index]
+                                                                  .isItemReturnedSetter =
+                                                              'no';
+                                                        });
+                                                        if (self.refreshData !=
+                                                            null) {
+                                                          self.refreshData!();
+                                                        } else {
+                                                          self.onItemCancelled(
+                                                              index);
+                                                        }
+                                                      },
+                                                    );
+                                                    if (!success && context.mounted) {
+                                                      // Erreurs déjà affichées par le contrôleur
+                                                    }
+                                                  },
+                                                );
                                               },
-                                            );
-                                          },
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(right: 10),
-                                            child: Container(
-                                              alignment: Alignment.center,
-                                              padding: const EdgeInsets.only(top: 10, bottom: 10),
-                                              decoration: BoxDecoration(
-                                                color: getColorBasedOnActiveModuleid(),
-                                                borderRadius: BorderRadius.circular(10),
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  "Mark as Returned".tr,
-                                                  style: boldstyle(context).copyWith(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                              ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                              right: 10),
+                                          child: Container(
+                                            alignment: Alignment.center,
+                                            padding: const EdgeInsets.only(
+                                                top: 10, bottom: 10),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  getColorBasedOnActiveModuleid(),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: Center(
+                                              child: isLoading
+                                                  ? const SizedBox(
+                                                      height: 22,
+                                                      width: 22,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        strokeWidth: 2.5,
+                                                        color: Colors.white,
+                                                      ),
+                                                    )
+                                                  : Text(
+                                                      'Mark as Returned'.tr,
+                                                      style: boldstyle(context)
+                                                          .copyWith(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
                                             ),
                                           ),
                                         ),
-                                      );
+                                      ),
+                                    );
+                                  });
                                 } else {
-                                    debugPrint("   ❌ Ce n'est pas un onglet Ongoing/Live.");
+                                  debugPrint(
+                                      '   ❌ Statut != LIVE ($bookingStatusUpper) — pas de bouton retour direct.');
                                 }
                                 // ========== FIN LOGIQUE DU BOUTON D'ACTION ==========
                                 
@@ -4313,6 +4361,47 @@ class VendorOrderListView extends StatelessWidget {
         );
       },
     ).whenComplete(otpController.dispose);
+  }
+
+  void _showMarkReturnedDirectConfirmDialog(
+    BuildContext context, {
+    required String bookingId,
+    required Future<void> Function() onConfirmed,
+  }) {
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Text(
+          'Confirmer le retour'.tr,
+          style: heading3(context),
+        ),
+        content: Text(
+          'Confirmez-vous que le véhicule a été restitué en bon état et que la location est terminée ?'
+              .tr,
+          style: regular2(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('Cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () async {
+              Get.back();
+              await onConfirmed();
+            },
+            child: Text(
+              'Confirm'.tr,
+              style: TextStyle(
+                color: getColorBasedOnActiveModuleid(),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
   }
 
   Future<String> updateItemReturnedStatus({

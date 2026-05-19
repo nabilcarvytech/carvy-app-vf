@@ -2224,10 +2224,10 @@ class VehicleController extends GetxController implements GetxService {
 
         for (final loc in normalizedDeliveryLocations) {
           final price = (loc['price'] as double?) ?? 0.0;
-          if (price <= 0) {
+          if (price < 0) {
             closeLoading();
             showErrorToastMessage(
-              'Veuillez saisir des prix de livraison valides pour toutes les zones.'.tr,
+              'Prix de livraison invalide.'.tr,
             );
             return false;
           }
@@ -2419,6 +2419,7 @@ class VehicleController extends GetxController implements GetxService {
             
             // 3. Vider le formulaire immédiatement
               clearFormFields();
+            await deleteVehicleDraftSilently();
               
             // 4. Rafraîchir les données en silence
             await fetchMyVehicles();
@@ -2469,6 +2470,7 @@ class VehicleController extends GetxController implements GetxService {
           
           // 3. Vider le formulaire immédiatement
             clearFormFields();
+          await deleteVehicleDraftSilently();
             
           // 4. Rafraîchir les données en silence
           await fetchMyVehicles();
@@ -2489,6 +2491,7 @@ class VehicleController extends GetxController implements GetxService {
         isLoading.value = false;
         isSubmittingVehicle.value = false;
         update();
+        await deleteVehicleDraftSilently();
         showToastMessage('Véhicule ajouté avec succès');
         return true;
       } else {
@@ -2595,6 +2598,94 @@ class VehicleController extends GetxController implements GetxService {
       }
     } catch (e) {
       debugPrint('⚠️ [VEHICLE] Erreur lors du nettoyage général des fichiers temporaires: $e');
+    }
+  }
+
+  /// GET `/api/vehicles/draft` — même auth JWT utilisateur que `POST /api/vehicles`.
+  Future<Map<String, dynamic>?> fetchVehicleDraft() async {
+    try {
+      final String? authToken = await _getSecureToken();
+      if (authToken == null || authToken.isEmpty) return null;
+      final String url = '${Config.baseUrlWithoutV1}${Config.vehicleDraft}';
+      final dio.Response response = await dio.Dio().get(
+        url,
+        options: dio.Options(
+          headers: <String, dynamic>{
+            'Authorization': 'Bearer $authToken',
+          },
+        ),
+      );
+      if (response.statusCode == 404) return null;
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        return null;
+      }
+      final body = response.data;
+      if (body is! Map) return null;
+      final map = Map<String, dynamic>.from(body);
+      if (map['success'] == false && map['data'] == null) return null;
+      final d = map['data'];
+      if (d == null) return null;
+      if (d is! Map) return null;
+      final draft = Map<String, dynamic>.from(d);
+      if (draft.isEmpty) return null;
+      return draft;
+    } catch (e) {
+      debugPrint('⚠️ [VEHICLE] fetchVehicleDraft: $e');
+      return null;
+    }
+  }
+
+  /// POST `/api/vehicles/draft` — `{ lastStep, data }` (autosave wizard).
+  Future<bool> saveVehicleDraft({
+    required int lastStep,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      final String? authToken = await _getSecureToken();
+      if (authToken == null || authToken.isEmpty) return false;
+      final String url = '${Config.baseUrlWithoutV1}${Config.vehicleDraft}';
+      final dio.Response response = await dio.Dio().post(
+        url,
+        data: <String, dynamic>{
+          'lastStep': lastStep,
+          'data': data,
+        },
+        options: dio.Options(
+          headers: <String, dynamic>{
+            'Authorization': 'Bearer $authToken',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      final ok =
+          response.statusCode == 200 || response.statusCode == 201;
+      if (!ok) {
+        debugPrint(
+            '⚠️ [VEHICLE] saveVehicleDraft HTTP ${response.statusCode}');
+      }
+      return ok;
+    } catch (e) {
+      debugPrint('⚠️ [VEHICLE] saveVehicleDraft: $e');
+      return false;
+    }
+  }
+
+  /// DELETE `/api/vehicles/draft` — ne lève pas (nettoyage après création ou « Effacer »).
+  Future<void> deleteVehicleDraftSilently() async {
+    try {
+      final String? authToken = await _getSecureToken();
+      if (authToken == null || authToken.isEmpty) return;
+      final String url = '${Config.baseUrlWithoutV1}${Config.vehicleDraft}';
+      await dio.Dio().delete(
+        url,
+        options: dio.Options(
+          headers: <String, dynamic>{
+            'Authorization': 'Bearer $authToken',
+          },
+        ),
+      );
+    } catch (e) {
+      debugPrint('⚠️ [VEHICLE] deleteVehicleDraftSilently: $e');
     }
   }
 

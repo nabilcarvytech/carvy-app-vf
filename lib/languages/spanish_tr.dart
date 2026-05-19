@@ -19,6 +19,7 @@ const Map<String, String> esES = {
   "Popular locations": "Lugares de recogida populares",
   "Popular Regions": "Regiones populares",
   "See All": "Ver todo",
+  "View All": "Ver todo",
   "Our Recommendation": "Nuestras recomendaciones",
   "Most viewed": "Más vistos",
   "Recommended Spaces": "Vehículos recomendados",
@@ -1307,5 +1308,10 @@ const Map<String, String> esES = {
   "Register step terms": "Condiciones generales",
   "Register step terms subtitle":
       "Lee los siguientes puntos antes de continuar.",
-  "register_wizard_resend_in_seconds": "Reenviar código en @n s"
+  "register_wizard_resend_in_seconds": "Reenviar código en @n s",
+  "Security Deposit (Caution)": "Depósito de garantía (fianza)",
+  "receipt_security_deposit_on_site_info":
+      "Este importe no se cobra a través de la aplicación. Debe gestionarse directamente en el lugar con la agencia al recoger el vehículo (preautorización bancaria, cheque o efectivo según las condiciones de la agencia).",
+  "booking_deposit_on_site_short":
+      "A gestionar en el lugar con el vendedor",
 };

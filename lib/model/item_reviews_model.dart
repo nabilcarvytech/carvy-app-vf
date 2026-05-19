@@ -1,4 +1,4 @@
-
+import 'review_model.dart';
 
 class ItemReviewsModel {
   ItemReviewsModel({
@@ -106,17 +106,20 @@ class Data {
 
 class Reviews {
   Reviews({
-      num? id, 
-      String? bookingId, 
-      String? itemId, 
-      String? itemName, 
-      String? guestId, 
-      String? guestName, 
-      String? guestImage, 
-      String? rating, 
-      String? message, 
-      String? createdAt, 
-      String? updatedAt,}){
+    num? id,
+    String? bookingId,
+    String? itemId,
+    String? itemName,
+    String? guestId,
+    String? guestName,
+    String? guestImage,
+    String? rating,
+    double? vehicleRating,
+    double? agencyRating,
+    String? message,
+    String? createdAt,
+    String? updatedAt,
+  }) {
     _id = id;
     _bookingId = bookingId;
     _itemId = itemId;
@@ -125,12 +128,15 @@ class Reviews {
     _guestName = guestName;
     _guestImage = guestImage;
     _rating = rating;
+    _vehicleRating = vehicleRating ?? 0.0;
+    _agencyRating = agencyRating ?? 0.0;
     _message = message;
     _createdAt = createdAt;
     _updatedAt = updatedAt;
-}
+  }
 
   Reviews.fromJson(dynamic json) {
+    final map = ReviewRatings.asMap(json);
     _id = json['id'];
     _bookingId = json['booking_id'];
     _itemId = json['item_id'];
@@ -138,11 +144,15 @@ class Reviews {
     _guestId = json['guest_id'];
     _guestName = json['guest_name'];
     _guestImage = json['guest_image'];
-    _rating = json['rating'];
+    _vehicleRating = ReviewRatings.vehicleRatingFromJson(map);
+    _agencyRating = ReviewRatings.agencyRatingFromJson(map);
+    _rating = json['rating']?.toString() ??
+        (_vehicleRating > 0 ? _vehicleRating.toString() : '0');
     _message = json['message'];
     _createdAt = json['created_at'];
     _updatedAt = json['updated_at'];
   }
+
   num? _id;
   String? _bookingId;
   String? _itemId;
@@ -151,32 +161,43 @@ class Reviews {
   String? _guestName;
   String? _guestImage;
   String? _rating;
+  double _vehicleRating = 0.0;
+  double _agencyRating = 0.0;
   String? _message;
   String? _createdAt;
   String? _updatedAt;
-Reviews copyWith({  num? id,
-  String? bookingId,
-  String? itemId,
-  String? itemName,
-  String? guestId,
-  String? guestName,
-  String? guestImage,
-  String? rating,
-  String? message,
-  String? createdAt,
-  String? updatedAt,
-}) => Reviews(  id: id ?? _id,
-  bookingId: bookingId ?? _bookingId,
-  itemId: itemId ?? _itemId,
-  itemName: itemName ?? _itemName,
-  guestId: guestId ?? _guestId,
-  guestName: guestName ?? _guestName,
-  guestImage: guestImage ?? _guestImage,
-  rating: rating ?? _rating,
-  message: message ?? _message,
-  createdAt: createdAt ?? _createdAt,
-  updatedAt: updatedAt ?? _updatedAt,
-);
+
+  Reviews copyWith({
+    num? id,
+    String? bookingId,
+    String? itemId,
+    String? itemName,
+    String? guestId,
+    String? guestName,
+    String? guestImage,
+    String? rating,
+    double? vehicleRating,
+    double? agencyRating,
+    String? message,
+    String? createdAt,
+    String? updatedAt,
+  }) =>
+      Reviews(
+        id: id ?? _id,
+        bookingId: bookingId ?? _bookingId,
+        itemId: itemId ?? _itemId,
+        itemName: itemName ?? _itemName,
+        guestId: guestId ?? _guestId,
+        guestName: guestName ?? _guestName,
+        guestImage: guestImage ?? _guestImage,
+        rating: rating ?? _rating,
+        vehicleRating: vehicleRating ?? _vehicleRating,
+        agencyRating: agencyRating ?? _agencyRating,
+        message: message ?? _message,
+        createdAt: createdAt ?? _createdAt,
+        updatedAt: updatedAt ?? _updatedAt,
+      );
+
   num? get id => _id;
   String? get bookingId => _bookingId;
   String? get itemId => _itemId;
@@ -185,6 +206,8 @@ Reviews copyWith({  num? id,
   String? get guestName => _guestName;
   String? get guestImage => _guestImage;
   String? get rating => _rating;
+  double get vehicleRating => _vehicleRating;
+  double get agencyRating => _agencyRating;
   String? get message => _message;
   String? get createdAt => _createdAt;
   String? get updatedAt => _updatedAt;
@@ -199,10 +222,11 @@ Reviews copyWith({  num? id,
     map['guest_name'] = _guestName;
     map['guest_image'] = _guestImage;
     map['rating'] = _rating;
+    map['vehicle_rating'] = _vehicleRating;
+    map['agency_rating'] = _agencyRating;
     map['message'] = _message;
     map['created_at'] = _createdAt;
     map['updated_at'] = _updatedAt;
     return map;
   }
-
 }

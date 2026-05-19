@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:get/get.dart';
 import 'package:carvy/api/config.dart';
-import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
+import 'package:carvy/controller/booking_controller.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/http_service.dart';
+import 'package:carvy/model/booking_model.dart' show Bookings;
 import 'package:carvy/utils/theme_style.dart';
-import 'package:carvy/utils/common_widget.dart';
 
-/// Affiche un BottomSheet pour récolter un avis détaillé après une location
-void showReviewBottomSheet(BuildContext context, Map<String, dynamic> data) {
-  // Variables pour stocker les notes de chaque critère
+/// Bottom sheet d'avis depuis une notification [REVIEW_REQUEST] (legacy).
+void showReviewRequestNotificationBottomSheet(
+  BuildContext context,
+  Map<String, dynamic> data,
+) {
   double communicationRating = 0.0;
   double vehicleConditionRating = 0.0;
   final TextEditingController commentController = TextEditingController();
@@ -41,7 +43,6 @@ void showReviewBottomSheet(BuildContext context, Map<String, dynamic> data) {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Titre principal
                   Text(
                     "Comment s'est passée votre location ?".tr,
                     style: heading2(context).copyWith(
@@ -50,8 +51,6 @@ void showReviewBottomSheet(BuildContext context, Map<String, dynamic> data) {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
-                  // Sous-titre
                   Text(
                     "Évaluez votre expérience avec le vendeur.".tr,
                     style: regular2(context).copyWith(
@@ -59,34 +58,24 @@ void showReviewBottomSheet(BuildContext context, Map<String, dynamic> data) {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
-                  // Critère 1 : Communication
                   _buildRatingCriterion(
                     context: context,
                     title: "Communication".tr,
                     rating: communicationRating,
                     onRatingUpdate: (rating) {
-                      setState(() {
-                        communicationRating = rating;
-                      });
+                      setState(() => communicationRating = rating);
                     },
                   ),
                   const SizedBox(height: 20),
-                  
-                  // Critère 2 : État du véhicule
                   _buildRatingCriterion(
                     context: context,
                     title: "État du véhicule".tr,
                     rating: vehicleConditionRating,
                     onRatingUpdate: (rating) {
-                      setState(() {
-                        vehicleConditionRating = rating;
-                      });
+                      setState(() => vehicleConditionRating = rating);
                     },
                   ),
                   const SizedBox(height: 24),
-                  
-                  // Champ de commentaire optionnel
                   Text(
                     "Commentaire (optionnel)".tr,
                     style: regular2(context).copyWith(
@@ -120,137 +109,67 @@ void showReviewBottomSheet(BuildContext context, Map<String, dynamic> data) {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
-                  // Boutons en bas
                   Row(
                     children: [
-                      // Bouton "Passer"
                       Expanded(
                         child: TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(
-                                color: notifires.getBoxColor,
-                              ),
-                            ),
-                          ),
-                          child: Text(
-                            "Passer".tr,
-                            style: boldstyle(context).copyWith(
-                              color: notifires.getwhiteblackcolor,
-                            ),
-                          ),
+                          onPressed: () => Navigator.pop(context),
+                          child: Text("Passer".tr),
                         ),
                       ),
                       const SizedBox(width: 12),
-                      
-                      // Bouton "Envoyer"
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {
-                            // Validation : Vérifier que les notes sont renseignées
-                            if (communicationRating == 0.0 || vehicleConditionRating == 0.0) {
-                              showErrorToastMessage("Veuillez évaluer tous les critères".tr);
+                            if (communicationRating == 0.0 ||
+                                vehicleConditionRating == 0.0) {
+                              showErrorToastMessage(
+                                  "Veuillez évaluer tous les critères".tr);
                               return;
                             }
-                            
-                            // Afficher un loader
                             showLoading();
-                            
                             try {
-                              // Préparer le payload pour l'API
-                              Map<String, dynamic> body = {
-                                "booking_id": data['booking_id']?.toString() ?? "",
-                                "vendor_id": data['vendor_id']?.toString() ?? "",
-                                "communication_rating": communicationRating.toInt(),
-                                "vehicle_condition_rating": vehicleConditionRating.toInt(),
-                                "comment": commentController.text.trim(),
-                              };
-                              
-                              // ========== LOGS AVANT L'APPEL API ==========
-                              print('📤 [REVIEW_API] ========================================');
-                              print('📤 [REVIEW_API] Envoi de l\'avis vers l\'API');
-                              print('📤 [REVIEW_API] URL: ${Config.baseurl}${Config.submitReview}');
-                              print('📤 [REVIEW_API] Body JSON:');
-                              print('   - booking_id: ${body["booking_id"]}');
-                              print('   - vendor_id: ${body["vendor_id"]}');
-                              print('   - communication_rating: ${body["communication_rating"]}');
-                              print('   - vehicle_condition_rating: ${body["vehicle_condition_rating"]}');
-                              print('   - comment: ${body["comment"]}');
-                              print('📤 [REVIEW_API] ========================================');
-                              
-                              // Appel API
-                              final response = await httpPost(Config.submitReview, body);
-                              
-                              // ========== LOGS APRÈS LA RÉPONSE ==========
-                              print('📥 [REVIEW_API] ========================================');
-                              print('📥 [REVIEW_API] Réponse reçue du serveur');
-                              print('📥 [REVIEW_API] Type de réponse: ${response.runtimeType}');
-                              
-                              if (response != null) {
-                                print('📥 [REVIEW_API] Status: ${response['status'] ?? 'N/A'}');
-                                print('📥 [REVIEW_API] Message: ${response['message'] ?? 'N/A'}');
-                                if (response['error'] != null) {
-                                  print('📥 [REVIEW_API] Error: ${response['error']}');
-                                }
-                                if (response['data'] != null) {
-                                  print('📥 [REVIEW_API] Data: ${response['data']}');
-                                }
-                                print('📥 [REVIEW_API] Réponse complète: $response');
-                              } else {
-                                print('⚠️ [REVIEW_API] Réponse NULL reçue !');
-                              }
-                              print('📥 [REVIEW_API] ========================================');
-                              
-                              // Fermer le loader
+                              final response = await httpPost(
+                                Config.submitReview,
+                                {
+                                  "booking_id": Bookings.normalizeEntityId(
+                                          data['booking_id']) ??
+                                      "",
+                                  "vendor_id": Bookings.normalizeEntityId(
+                                          data['vendor_id']) ??
+                                      "",
+                                  "vehicle_id": Bookings.normalizeEntityId(
+                                          data['vehicle_id']) ??
+                                      "",
+                                  "vehicle_rating":
+                                      vehicleConditionRating.round(),
+                                  "agency_rating":
+                                      communicationRating.round(),
+                                  "comment": commentController.text.trim(),
+                                },
+                              );
                               closeLoading();
-                              
-                              if (response != null && response['status'] == 200) {
-                                // Fermer le BottomSheet
+                              if (response != null &&
+                                  response['status'] == 200) {
                                 Navigator.pop(context);
-                                // Afficher un message de succès
-                                showToastMessage(response['message'] ?? "Merci pour votre avis !".tr);
-                                print('✅ [REVIEW_API] Avis envoyé avec succès');
-                                print('✅ [REVIEW_API] Message de succès: ${response['message']}');
+                                showToastMessage(response['message'] ??
+                                    "Merci pour votre avis !".tr);
                               } else {
-                                // Afficher un message d'erreur
-                                showErrorToastMessage(response?['message'] ?? response?['error'] ?? "Une erreur est survenue".tr);
-                                print('❌ [REVIEW_API] Erreur lors de l\'envoi');
-                                print('❌ [REVIEW_API] Status reçu: ${response?['status']}');
-                                print('❌ [REVIEW_API] Message d\'erreur: ${response?['message'] ?? response?['error']}');
+                                showErrorToastMessage(
+                                  response?['message'] ??
+                                      response?['error'] ??
+                                      "Une erreur est survenue".tr,
+                                );
                               }
-                            } catch (e, stackTrace) {
-                              // Fermer le loader en cas d'erreur
+                            } catch (_) {
                               closeLoading();
-                              // Afficher un message d'erreur
                               showErrorToastMessage("Erreur de connexion".tr);
-                              print('❌ [REVIEW_API] ========================================');
-                              print('❌ [REVIEW_API] Exception lors de l\'envoi');
-                              print('❌ [REVIEW_API] Type d\'erreur: ${e.runtimeType}');
-                              print('❌ [REVIEW_API] Message: $e');
-                              print('❌ [REVIEW_API] StackTrace: $stackTrace');
-                              print('❌ [REVIEW_API] ========================================');
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: getColorBasedOnActiveModuleid(),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            backgroundColor: vehicalThemColor,
                           ),
-                          child: Text(
-                            "Envoyer".tr,
-                            style: boldstyle(context).copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: Text("Envoyer".tr),
                         ),
                       ),
                     ],
@@ -265,7 +184,194 @@ void showReviewBottomSheet(BuildContext context, Map<String, dynamic> data) {
   );
 }
 
-/// Widget réutilisable pour un critère d'évaluation avec étoiles
+/// Formulaire d'avis client (véhicule + agence) depuis l'historique des réservations.
+void showClientBookingReviewBottomSheet(
+  BuildContext context,
+  Bookings booking, {
+  VoidCallback? onReviewSubmitted,
+}) {
+  final bookingController = Get.find<BookingController>();
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (BuildContext sheetContext) {
+      return Obx(() {
+        final isLoading = bookingController.isSubmittingReview.value;
+        return Container(
+          decoration: BoxDecoration(
+            color: notifires.getbgcolor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: notifires.getGrey2Whitecolor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Rate your experience'.tr,
+                  style: heading2(sheetContext).copyWith(
+                    color: notifires.getwhiteblackcolor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Vehicle rating label'.tr,
+                  style: regular2(sheetContext).copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: notifires.getwhiteblackcolor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                RatingBar.builder(
+                  initialRating: bookingController.vehicleRating.value,
+                  minRating: 1,
+                  direction: Axis.horizontal,
+                  allowHalfRating: false,
+                  itemCount: 5,
+                  itemSize: 36,
+                  itemPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  itemBuilder: (context, _) => Icon(
+                    Icons.star,
+                    color: vehicalThemColor,
+                  ),
+                  onRatingUpdate: (v) =>
+                      bookingController.vehicleRating.value = v,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Agency rating label'.tr,
+                  style: regular2(sheetContext).copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: notifires.getwhiteblackcolor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                RatingBar.builder(
+                  initialRating: bookingController.agencyRating.value,
+                  minRating: 1,
+                  direction: Axis.horizontal,
+                  allowHalfRating: false,
+                  itemCount: 5,
+                  itemSize: 36,
+                  itemPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  itemBuilder: (context, _) => Icon(
+                    Icons.star,
+                    color: vehicalThemColor,
+                  ),
+                  onRatingUpdate: (v) =>
+                      bookingController.agencyRating.value = v,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  "Commentaire (optionnel)".tr,
+                  style: regular2(sheetContext).copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: notifires.getwhiteblackcolor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: bookingController.reviewCommentController,
+                  maxLines: 3,
+                  style: regular2(sheetContext).copyWith(
+                    color: notifires.getwhiteblackcolor,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: "Partagez votre expérience...".tr,
+                    filled: true,
+                    fillColor: notifires.getboxcolor,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.all(14),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: isLoading
+                        ? null
+                        : () async {
+                            final ok = await bookingController
+                                .submitClientReview(
+                              booking,
+                              onReviewSubmitted: onReviewSubmitted,
+                            );
+                            if (ok && sheetContext.mounted) {
+                              Navigator.pop(sheetContext);
+                              Get.snackbar(
+                                'Success'.tr,
+                                'Thank you for your review!'.tr,
+                                snackPosition: SnackPosition.BOTTOM,
+                                backgroundColor: Colors.green.shade600,
+                                colorText: Colors.white,
+                                margin: const EdgeInsets.all(16),
+                                duration: const Duration(seconds: 3),
+                                icon: const Icon(
+                                  Icons.check_circle_outline,
+                                  color: Colors.white,
+                                ),
+                              );
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: vehicalThemColor,
+                      disabledBackgroundColor:
+                          vehicalThemColor.withOpacity(0.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            'Submit review button'.tr,
+                            style: boldstyle(sheetContext).copyWith(
+                              color: Colors.white,
+                              fontSize: 15,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      });
+    },
+  );
+}
+
 Widget _buildRatingCriterion({
   required BuildContext context,
   required String title,
@@ -293,7 +399,7 @@ Widget _buildRatingCriterion({
         itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
         itemBuilder: (context, _) => Icon(
           Icons.star,
-          color: getColorBasedOnActiveModuleid(),
+          color: vehicalThemColor,
         ),
         onRatingUpdate: onRatingUpdate,
       ),

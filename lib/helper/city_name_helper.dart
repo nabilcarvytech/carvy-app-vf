@@ -1,0 +1,123 @@
+import 'package:get/get.dart';
+
+/// Affiche un nom de ville selon la langue active (GetX).
+/// Le backend renvoie souvent uniquement l'arabe ou le français latin ;
+/// ce helper normalise l'affichage dans les deux sens.
+class CityNameHelper {
+  CityNameHelper._();
+
+  static const Map<String, String> _frToAr = {
+    'Salé': 'سلا',
+    'Sale': 'سلا',
+    'Rabat': 'الرباط',
+    'Casablanca': 'الدار البيضاء',
+    'Marrakech': 'مراكش',
+    'Fès': 'فاس',
+    'Fes': 'فاس',
+    'Tanger': 'طنجة',
+    'Agadir': 'أكادير',
+    'Meknès': 'مكناس',
+    'Meknes': 'مكناس',
+  };
+
+  static final Map<String, String> _arToFr = {
+    for (final entry in _frToAr.entries) entry.value: entry.key,
+  };
+
+  static final Map<String, String> _frLowerToCanonical = {
+    for (final entry in _frToAr.entries)
+      entry.key.toLowerCase(): entry.key,
+  };
+
+  /// Langue courante (`fr`, `ar`, `en`, …).
+  static String get currentLanguageCode =>
+      Get.locale?.languageCode ?? 'fr';
+
+  static bool _preferArabic([String? languageCode]) {
+    final code = (languageCode ?? currentLanguageCode).toLowerCase();
+    return code == 'ar';
+  }
+
+  static bool _containsArabicScript(String value) {
+    return RegExp(r'[\u0600-\u06FF]').hasMatch(value);
+  }
+
+  /// Nom affichable pour l'UI (livraison, recherche, etc.).
+  static String displayName(
+    String? rawName, {
+    String? languageCode,
+  }) {
+    final trimmed = (rawName ?? '').trim();
+    if (trimmed.isEmpty) return '-';
+
+    if (_preferArabic(languageCode)) {
+      if (_containsArabicScript(trimmed)) return trimmed;
+      final fromFr = _frToAr[trimmed] ??
+          _frToAr[_frLowerToCanonical[trimmed.toLowerCase()] ?? ''];
+      return fromFr ?? trimmed;
+    }
+
+    // Français / anglais / autres : privilégier le libellé latin.
+    if (!_containsArabicScript(trimmed)) {
+      return _frLowerToCanonical[trimmed.toLowerCase()] ?? trimmed;
+    }
+
+    return _arToFr[trimmed] ?? trimmed;
+  }
+
+  /// Extrait le meilleur libellé ville depuis un item `deliveryLocations`.
+  static String deliveryLocationLabel(
+    dynamic item, {
+    String? languageCode,
+  }) {
+    if (item is! Map) return '-';
+
+    final location = item['location'];
+    if (location is Map) {
+      final lang = languageCode ?? currentLanguageCode;
+      final localized = _pickLocalizedField(location, lang);
+      if (localized != null && localized.trim().isNotEmpty) {
+        return displayName(localized, languageCode: lang);
+      }
+    }
+
+    final locationName = item['locationName']?.toString();
+    if (locationName != null && locationName.trim().isNotEmpty) {
+      return displayName(locationName, languageCode: languageCode);
+    }
+
+    final name = item['name']?.toString();
+    if (name != null && name.trim().isNotEmpty) {
+      return displayName(name, languageCode: languageCode);
+    }
+
+    if (location is Map) {
+      final cityName = location['cityName']?.toString() ??
+          location['city_name']?.toString();
+      if (cityName != null && cityName.trim().isNotEmpty) {
+        return displayName(cityName, languageCode: languageCode);
+      }
+    }
+
+    return '-';
+  }
+
+  static String? _pickLocalizedField(Map location, String languageCode) {
+    if (_preferArabic(languageCode)) {
+      return location['cityNameAr']?.toString() ??
+          location['city_name_ar']?.toString() ??
+          location['nameAr']?.toString() ??
+          location['name_ar']?.toString() ??
+          location['cityName']?.toString() ??
+          location['city_name']?.toString() ??
+          location['name']?.toString();
+    }
+    return location['cityNameFr']?.toString() ??
+        location['city_name_fr']?.toString() ??
+        location['nameFr']?.toString() ??
+        location['name_fr']?.toString() ??
+        location['cityName']?.toString() ??
+        location['city_name']?.toString() ??
+        location['name']?.toString();
+  }
+}

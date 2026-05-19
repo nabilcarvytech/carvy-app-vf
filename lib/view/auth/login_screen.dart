@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
     authController.textEditingSignUpControllerEmail.clear();
     authController.textEditingSingUpControllerPhoneNumber.clear();
     authController.textEditingSignUpControllerPassword.clear();
-    authController.textEditingSingUpControllerDOB.clear();
+    authController.clearSignUpBirthDate();
   }
 
   @override

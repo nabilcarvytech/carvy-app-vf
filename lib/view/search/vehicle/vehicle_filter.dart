@@ -315,17 +315,17 @@ class _VehicleFilterState extends State<VehicleFilter> {
                             filterController.submitMethod(context);
                             return;
                           }
-                          if (widget.forHome == true) {
-                            Navigator.pop(context);
-                            return;
-                          }
-                          if (widget.forsearch == true) {
-                            widget.onMapRefresh!();
-                            Navigator.pop(context);
-                            return;
-                          }
-                          widget.onRefresh!();
-                          Navigator.pop(context);
+                          filterController.applyFiltersFromSheet(
+                            context,
+                            navigateToSearchResults: widget.forHome == true,
+                            onMapRefresh: widget.forsearch == true
+                                ? widget.onMapRefresh
+                                : null,
+                            refreshResults: widget.forHome != true &&
+                                    widget.forsearch != true
+                                ? widget.onRefresh
+                                : null,
+                          );
                         },
                         text: widget.mode == true ? 'Filters'.tr : "Apply".tr,
                         backgroundColor: getColorBasedOnActiveModuleid(),

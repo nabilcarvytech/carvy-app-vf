@@ -132,6 +132,64 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
     }
   }
 
+  /// Valeur non vide et différente de la chaîne littérale "null".
+  String? _nonEmptyId(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed.toLowerCase() == 'null') return null;
+    return trimmed;
+  }
+
+  String _prefixedIdOrPending(String? value) {
+    final id = _nonEmptyId(value);
+    return id != null ? '#$id' : 'Pending'.tr;
+  }
+
+  String get _reservationCodeDisplay {
+    return _prefixedIdOrPending(
+      _nonEmptyId(widget.bookings?.token) ?? _nonEmptyId(widget.bookings?.id),
+    );
+  }
+
+  String get _transactionIdDisplay {
+    final tx = widget.bookings?.transaction;
+    final asString = tx == null ? null : tx.toString();
+    return _prefixedIdOrPending(asString);
+  }
+
+  DateTime? _parseBookingDateOnly(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final d = DateTime.parse(raw.trim());
+      return DateTime(d.year, d.month, d.day);
+    } catch (_) {
+      try {
+        final d = DateFormat('yyyy-MM-dd').parse(raw.trim());
+        return DateTime(d.year, d.month, d.day);
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
+  /// Durée en jours calculée depuis check-in / check-out (min. 1 jour).
+  int get _calculatedTripDays {
+    final start = _parseBookingDateOnly(widget.bookings?.checkIn);
+    final end = _parseBookingDateOnly(widget.bookings?.checkOut);
+    if (start != null && end != null) {
+      final calculatedDays = end.difference(start).inDays;
+      return calculatedDays > 0 ? calculatedDays : 1;
+    }
+    final fromApi = int.tryParse(widget.bookings?.totalNight?.trim() ?? '');
+    if (fromApi != null && fromApi > 0) return fromApi;
+    return 1;
+  }
+
+  String get _tripDurationLabel {
+    final days = _calculatedTripDays;
+    return days == 1 ? '$days ${"day".tr}' : '$days ${"days".tr}';
+  }
+
   Widget erecieptBasedOnModuleId() {
     if (activeModuleId.value == 1 || activeModuleId.value == 2) {
       // Construction robuste de la liste d’URLs d’images à partir de booking_vehicle_images
@@ -217,18 +275,11 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                 const SizedBox(height: 7),
                 Text("Reservation code".tr, style: heading3Grey1(context)),
                 const SizedBox(height: 7),
-                Text("#${widget.bookings!.token}", style: regular2(context)),
+                Text(_reservationCodeDisplay, style: regular2(context)),
                 const SizedBox(height: 10),
-                widget.bookings!.transaction == ""
-                    ? const SizedBox()
-                    : Text("Transaction Id".tr, style: heading3Grey1(context)),
-                widget.bookings!.transaction == ""
-                    ? const SizedBox()
-                    : const SizedBox(height: 7),
-                widget.bookings!.transaction == ""
-                    ? const SizedBox()
-                    : Text("#${widget.bookings!.transaction}",
-                        style: regular2(context)),
+                Text("Transaction Id".tr, style: heading3Grey1(context)),
+                const SizedBox(height: 7),
+                Text(_transactionIdDisplay, style: regular2(context)),
                 const SizedBox(height: 10),
               ],
             ),
@@ -523,9 +574,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                 Text("Duration".tr, style: heading3Grey1(context)),
                 const SizedBox(height: 3),
                 Text(
-                  widget.bookings!.totalNight == "1"
-                      ? "${widget.bookings!.totalNight} ${"day".tr}"
-                      : "${widget.bookings!.totalNight} ${"days".tr}",
+                  _tripDurationLabel,
                   style: regular2(context),
                 ),
                 const SizedBox(height: 8),
@@ -667,9 +716,9 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                 widget.bookings?.perNight != null &&
                         widget.bookings!.perNight != "0.00"
                     ? eReceiptWidget(
-                        name: widget.bookings!.totalNight == "1"
-                            ? "${"Amount".tr} (${widget.bookings!.totalNight} ${"day".tr}${")".tr}"
-                            : "${"Amount".tr} (${widget.bookings!.totalNight} ${"days".tr}${")".tr}",
+                        name: _calculatedTripDays == 1
+                            ? "${"Amount".tr} ($_calculatedTripDays ${"day".tr}${")".tr}"
+                            : "${"Amount".tr} ($_calculatedTripDays ${"days".tr}${")".tr}",
                         value:
                             "${widget.bookings!.currencyCode} ${widget.bookings?.basePrice ?? ""}",
                       )
@@ -702,15 +751,6 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                       )
                     : const SizedBox(),
                 const SizedBox(height: 5),
-                widget.bookings?.securityMoney != null &&
-                        widget.bookings!.securityMoney != "0.00"
-                    ? eReceiptWidget(
-                        name: "Security Money".tr,
-                        value:
-                            "${widget.bookings!.currencyCode} ${widget.bookings!.securityMoney}",
-                      )
-                    : const SizedBox(),
-                const SizedBox(height: 5),
                 widget.bookings!.cancelledCharge == null ||
                         widget.bookings!.cancelledCharge == "0.00"
                     ? const SizedBox()
@@ -728,6 +768,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
               ],
             ),
           ),
+          _buildSecurityDepositSection(context),
           const SizedBox(height: 10),
           Text("Status".tr, style: heading2Grey1(context)),
           const SizedBox(height: 10),
@@ -819,5 +860,86 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
       );
     }
     return const SizedBox();
+  }
+
+  bool get _hasSecurityDeposit {
+    final amount = widget.bookings?.securityMoney;
+    return amount != null && amount.isNotEmpty && amount != "0.00";
+  }
+
+  BoxDecoration _receiptCardDecoration() {
+    return BoxDecoration(
+      color: notifires.getboxcolor,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: notifires.getGrey3Whitecolor.withOpacity(0.2),
+          spreadRadius: 5,
+          blurRadius: 15,
+          offset: const Offset(5, 5),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSecurityDepositSection(BuildContext context) {
+    if (!_hasSecurityDeposit) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        Text("Security Deposit (Caution)".tr, style: heading2Grey1(context)),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(18),
+          width: double.maxFinite,
+          decoration: _receiptCardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "${widget.bookings!.currencyCode} ${widget.bookings!.securityMoney}",
+                style: heading1(context).copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 28,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue.shade700,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "receipt_security_deposit_on_site_info".tr,
+                        style: regular2(context).copyWith(
+                          fontSize: 13,
+                          color: Colors.blue.shade900,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

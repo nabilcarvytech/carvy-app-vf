@@ -84,6 +84,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
       context,
       VehicleFilter(
         mode: false,
+        forHome: true,
         onRefresh: () {
           fetchData();
         },
@@ -372,125 +373,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   Widget _buildHomeToolbarRow(BuildContext context) {
     return Row(
       children: [
-        GestureDetector(
-          onTap: () {
-            _openBottomSheet(context);
-          },
-          child: Icon(
-            Icons.location_on_outlined,
-            size: 20,
-            color: whiteColor,
-          ),
-        ),
-        const SizedBox(width: 3),
-        Obx(
-          () => GestureDetector(
-            onTap: () {
-              _openBottomSheet(context);
-            },
-            child: Text(
-              generalScopeController.homeSearchLocation.value.length > 20
-                  ? "${generalScopeController.homeSearchLocation.value.substring(0, 17)}..."
-                  : generalScopeController.homeSearchLocation.value.isEmpty
-                      ? "All location".tr
-                      : generalScopeController.homeSearchLocation.value,
-              style: regular3(context).copyWith(
-                color: whiteColor,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                overflow:
-                    generalScopeController.homeSearchLocation.value.length > 20
-                        ? TextOverflow.ellipsis
-                        : TextOverflow.visible,
-              ),
-              maxLines:
-                  generalScopeController.homeSearchLocation.value.length > 20
-                      ? 2
-                      : 1,
-              textAlign: TextAlign.start,
-            ),
-          ),
-        ),
-        Icon(
-          Icons.arrow_drop_down,
-          size: 20,
-          color: whiteColor,
-        ),
         const Spacer(),
-        GestureDetector(
-          onTap: () {
-            _openBottomSheetforvehicleType(context);
-          },
-          child: Icon(
-            Icons.merge_type_sharp,
-            size: 20,
-            color: whiteColor,
-          ),
-        ),
-        const SizedBox(width: 3),
-        Obx(
-          () => GestureDetector(
-            onTap: () {
-              _openBottomSheetforvehicleType(context);
-            },
-            child: Text(
-              filterController.globalItemTypNamee.value.isEmpty
-                  ? "All".tr
-                  : filterController.globalItemTypNamee.value,
-              style: heading3(context).copyWith(color: whiteColor),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.start,
-            ),
-          ),
-        ),
-        GestureDetector(
-          onTap: () {
-            _openBottomSheetforvehicleType(context);
-          },
-          child: Icon(
-            Icons.arrow_drop_down,
-            size: 20,
-            color: whiteColor,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 6, right: 6),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _openVehicleFilterSheet(context),
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.28),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.filter_alt,
-                      size: 18,
-                      color: whiteColor,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      'Filter'.tr,
-                      style: regular3(context).copyWith(
-                        color: whiteColor,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
         profilePhotoOnHomeScreen(context),
       ],
     );

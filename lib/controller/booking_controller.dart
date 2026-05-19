@@ -33,6 +33,7 @@ import '../model/booking_payment_method_model.dart';
 import '../model/calendar_model.dart';
 import '../model/get_item_prices.dart';
 import '../model/wallet_model.dart';
+import '../utils/rental_billing_days.dart';
 import '../view/booking/payment_screen.dart';
 import '../view/booking/my_booking_screen.dart';
 import '../view/booking/vehicle/vehicle_booking_summary_screen.dart';
@@ -136,6 +137,7 @@ class BookingController extends GetxController implements GetxService {
 
   @override
   void onClose() {
+    reviewCommentController.dispose();
     super.onClose();
     // Réinitialiser hasSkippedInSession pour que le rappel s'affiche à nouveau pour la prochaine réservation
     try {
@@ -144,6 +146,226 @@ class BookingController extends GetxController implements GetxService {
       kycController.setSkipKyc(false);
     } catch (e) {
       // Si le controller n'est pas disponible, ignorer l'erreur
+    }
+  }
+
+  // ========== Formulaire d'avis client (véhicule + agence) ==========
+  RxDouble vehicleRating = 5.0.obs;
+  RxDouble agencyRating = 5.0.obs;
+  final TextEditingController reviewCommentController = TextEditingController();
+  RxBool isSubmittingReview = false.obs;
+
+  void resetClientReviewForm() {
+    vehicleRating.value = 5.0;
+    agencyRating.value = 5.0;
+    reviewCommentController.clear();
+    isSubmittingReview.value = false;
+  }
+
+  String? _pickBestVehicleIdForReview(List<String?> candidates) {
+    final cleaned = candidates
+        .map((c) => c?.trim())
+        .whereType<String>()
+        .where((s) => s.isNotEmpty && s.toLowerCase() != 'null')
+        .toList();
+    for (final id in cleaned) {
+      if (Bookings.isLikelyMongoObjectId(id)) return id;
+    }
+    return cleaned.isNotEmpty ? cleaned.first : null;
+  }
+
+  void _logReviewIdDebug(Bookings booking, String? resolvedVehicleId) {
+    debugPrint('🚨 [DEBUG REVIEW] ========== IDs réservation ==========');
+    debugPrint('🚨 [DEBUG REVIEW] Booking ID (brut): ${booking.id}');
+    debugPrint('🚨 [DEBUG REVIEW] Booking ID (normalisé): ${Bookings.normalizeEntityId(booking.id)}');
+    debugPrint('🚨 [DEBUG REVIEW] itemid (brut): ${booking.itemid}');
+    debugPrint('🚨 [DEBUG REVIEW] vehicleId getter: ${booking.vehicleId}');
+    debugPrint('🚨 [DEBUG REVIEW] hostId / vendor: ${booking.hostId}');
+    debugPrint('🚨 [DEBUG REVIEW] depuis item_data: ${Bookings.extractVehicleIdFromItemData(booking.itemData)}');
+    final itemDataStr = booking.itemData?.toString() ?? '';
+    debugPrint(
+      '🚨 [DEBUG REVIEW] item_data (aperçu): ${itemDataStr.length > 200 ? itemDataStr.substring(0, 200) : itemDataStr}',
+    );
+    debugPrint('🚨 [DEBUG REVIEW] Vehicle ID retenu pour API: $resolvedVehicleId');
+    debugPrint(
+      '🚨 [DEBUG REVIEW] Format MongoDB 24 hex: ${Bookings.isLikelyMongoObjectId(resolvedVehicleId)}',
+    );
+    debugPrint('🚨 [DEBUG REVIEW] =====================================');
+  }
+
+  /// ID direct utilisable (non null, non vide, non "null").
+  String? _directReviewId(String? raw) {
+    final normalized = Bookings.normalizeEntityId(raw);
+    if (normalized == null || normalized.isEmpty) return null;
+    if (normalized.toLowerCase() == 'null') return null;
+    return normalized;
+  }
+
+  /// Fouille [item_data] : List, Map ou String JSON.
+  String? _extractVehicleIdFromItemDataDeep(dynamic itemData) {
+    if (itemData == null) return null;
+
+    final isEmpty = itemData is List
+        ? itemData.isEmpty
+        : itemData is String
+            ? itemData.trim().isEmpty
+            : itemData is Map
+                ? itemData.isEmpty
+                : itemData.toString().trim().isEmpty;
+    if (isEmpty) return null;
+
+    try {
+      dynamic working = itemData;
+
+      if (itemData is String && itemData.trim().isNotEmpty) {
+        final t = itemData.trim();
+        if (t.startsWith('[') || t.startsWith('{')) {
+          working = jsonDecode(t);
+        }
+      }
+
+      dynamic firstItem;
+      if (working is List && working.isNotEmpty) {
+        firstItem = working[0];
+      } else if (working is Map) {
+        firstItem = working;
+      } else {
+        return null;
+      }
+
+      if (firstItem is! Map) return null;
+      final map = Map<String, dynamic>.from(firstItem);
+
+      final fromMap = Bookings.normalizeEntityId(map['_id']) ??
+          Bookings.normalizeEntityId(map['id']) ??
+          Bookings.normalizeEntityId(map['item_id']) ??
+          Bookings.normalizeEntityId(map['itemid']) ??
+          Bookings.normalizeEntityId(map['vehicle_id']) ??
+          Bookings.normalizeEntityId(map['vehicleId']);
+
+      if (fromMap != null) {
+        debugPrint('🚨 [DEBUG REVIEW] item_data[0] clés: ${map.keys.toList()}');
+        debugPrint('🚨 [DEBUG REVIEW] item_data → id extrait: $fromMap');
+      }
+      return fromMap;
+    } catch (e, st) {
+      debugPrint('🚨 Erreur lors de l\'extraction dans item_data: $e');
+      debugPrint('$st');
+    }
+    return null;
+  }
+
+  String? _resolveVehicleIdForReview(Bookings booking) {
+    // 1. Essais directs
+    final directVehicle = _directReviewId(booking.vehicleId);
+    if (directVehicle != null) {
+      debugPrint(
+          '🚨 [DEBUG REVIEW] _resolveVehicleIdForReview ← vehicleId: $directVehicle');
+      return directVehicle;
+    }
+
+    final directItem = _directReviewId(booking.itemid);
+    if (directItem != null) {
+      debugPrint(
+          '🚨 [DEBUG REVIEW] _resolveVehicleIdForReview ← itemid: $directItem');
+      return directItem;
+    }
+
+    // 2. Fallback : recherche en profondeur dans item_data
+    final fromItemData = _extractVehicleIdFromItemDataDeep(booking.itemData);
+    if (fromItemData != null) {
+      final best = _pickBestVehicleIdForReview([fromItemData]) ?? fromItemData;
+      debugPrint(
+          '🚨 [DEBUG REVIEW] _resolveVehicleIdForReview ← item_data: $best');
+      return best;
+    }
+
+    // 3. Dernier recours via helper du modèle
+    final fallback = Bookings.extractVehicleIdFromItemData(booking.itemData);
+    if (fallback != null) {
+      debugPrint(
+          '🚨 [DEBUG REVIEW] _resolveVehicleIdForReview ← extractVehicleIdFromItemData: $fallback');
+      return fallback;
+    }
+
+    debugPrint('🚨 [DEBUG REVIEW] _resolveVehicleIdForReview → null');
+    return null;
+  }
+
+  void _markBookingReviewedLocally(Bookings booking) {
+    booking.isReviewedSetter = '1';
+    booking.reviewStatusSetter = '1';
+    try {
+      final brc = Get.find<BookingRecordController>();
+      final i = brc.bookingsList.indexWhere((b) => b.id == booking.id);
+      if (i >= 0) {
+        brc.bookingsList[i].isReviewedSetter = '1';
+        brc.bookingsList[i].reviewStatusSetter = '1';
+        brc.bookingsList.refresh();
+      }
+    } catch (_) {}
+  }
+
+  /// Envoie l'avis client vers [Config.submitReview]. Retourne `true` si succès.
+  Future<bool> submitClientReview(
+    Bookings booking, {
+    VoidCallback? onReviewSubmitted,
+  }) async {
+    final bookingId = Bookings.normalizeEntityId(booking.id);
+    final vendorId = Bookings.normalizeEntityId(booking.hostId);
+    final vehicleId = _resolveVehicleIdForReview(booking);
+
+    _logReviewIdDebug(booking, vehicleId);
+
+    if (bookingId == null || bookingId.isEmpty) {
+      showErrorToastMessage('Booking not found'.tr);
+      return false;
+    }
+    if (vendorId == null || vendorId.isEmpty) {
+      showErrorToastMessage('Agency not found'.tr);
+      return false;
+    }
+    if (vehicleId == null || vehicleId.isEmpty) {
+      debugPrint('🚨 [DEBUG REVIEW] ABORT — vehicle_id vide après résolution');
+      showErrorToastMessage('Vehicle not found'.tr);
+      return false;
+    }
+    if (!Bookings.isLikelyMongoObjectId(vehicleId)) {
+      debugPrint(
+        '🚨 [DEBUG REVIEW] ATTENTION — vehicle_id "$vehicleId" n\'a pas le format MongoDB 24 hex (risque 404 véhicule introuvable)',
+      );
+    }
+
+    isSubmittingReview.value = true;
+    try {
+      final body = <String, dynamic>{
+        'booking_id': bookingId,
+        'vendor_id': vendorId,
+        'vehicle_id': vehicleId,
+        'vehicle_rating': vehicleRating.value.round(),
+        'agency_rating': agencyRating.value.round(),
+        'comment': reviewCommentController.text.trim(),
+      };
+      debugPrint('🚨 [DEBUG REVIEW] Payload submit-review: $body');
+      final response = await httpPost(Config.submitReview, body);
+      debugPrint('🚨 [DEBUG REVIEW] Réponse serveur: $response');
+
+      if (response != null && response['status'] == 200) {
+        _markBookingReviewedLocally(booking);
+        onReviewSubmitted?.call();
+        return true;
+      }
+      showErrorToastMessage(
+        response?['message']?.toString() ??
+            response?['error']?.toString() ??
+            'Une erreur est survenue'.tr,
+      );
+      return false;
+    } catch (e) {
+      showErrorToastMessage('Erreur de connexion'.tr);
+      return false;
+    } finally {
+      isSubmittingReview.value = false;
     }
   }
 
@@ -190,13 +412,12 @@ class BookingController extends GetxController implements GetxService {
   /// une journée supplémentaire est ajoutée.
   int calculateRentalDays(
       DateTime start, DateTime end, TimeOfDay startTime, TimeOfDay endTime) {
-    final startDate = DateTime(start.year, start.month, start.day);
-    final endDate = DateTime(end.year, end.month, end.day);
-    final diffDays = endDate.difference(startDate).inDays;
-    final timeStart = startTime.hour + (startTime.minute / 60.0);
-    final timeEnd = endTime.hour + (endTime.minute / 60.0);
-    final billableDays = timeEnd > timeStart ? diffDays + 1 : diffDays;
-    return billableDays < 1 ? 1 : billableDays;
+    return RentalBillingDays.compute(
+      startDate: start,
+      endDate: end,
+      startTime: startTime,
+      endTime: endTime,
+    ).totalDays;
   }
 
   /// Backward-compatible helper used by existing summary screens.
@@ -2126,7 +2347,7 @@ class BookingController extends GetxController implements GetxService {
       return;
     }
     if (startDate.value == endDate.value) {
-      if (isEndTimeBeforeStartTime(
+      if (RentalBillingDays.isEndTimeStrictlyBeforeStartTime(
           selectedStartTime.value, selectedEndTime.value)) {
         showErrorToastMessage("End time must be after Start time".tr);
         return;
@@ -2998,6 +3219,90 @@ class BookingController extends GetxController implements GetxService {
   final TextEditingController dropOtpController = TextEditingController();
   var showhideisReturn = false.obs;
   var dropoffshowHise = false.obs;
+
+  final RxBool isMarkingReturnedDirectLoading = false.obs;
+  final RxString markingReturnedDirectBookingId = ''.obs;
+
+  /// Clôture une location LIVE côté vendeur sans code OTP drop.
+  Future<bool> markOrderAsReturnedDirect(
+    String bookingId, {
+    VoidCallback? onSuccess,
+  }) async {
+    if (bookingId.isEmpty) {
+      showErrorToastMessage('Invalid booking'.tr);
+      return false;
+    }
+    if (isMarkingReturnedDirectLoading.value) return false;
+
+    isMarkingReturnedDirectLoading.value = true;
+    markingReturnedDirectBookingId.value = bookingId;
+
+    try {
+      final response = await httpPost(
+        Config.markBookingReturnedDirect,
+        {'booking_id': bookingId},
+      );
+
+      final statusCode = response is Map
+          ? int.tryParse('${response['status']}') ?? 0
+          : 0;
+
+      if (response != null && statusCode == 200) {
+        final message = response is Map
+            ? (response['message']?.toString() ??
+                'Véhicule retourné avec succès !')
+            : 'Véhicule retourné avec succès !';
+        Get.snackbar(
+          'Succès'.tr,
+          message,
+          snackStyle: SnackStyle.FLOATING,
+          backgroundColor: Colors.green.shade600,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          borderRadius: 10,
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 3),
+        );
+        onSuccess?.call();
+        update();
+        return true;
+      }
+
+      final errorMsg = response is Map
+          ? (response['error']?.toString() ??
+              response['message']?.toString() ??
+              'Failed to mark vehicle as returned'.tr)
+          : 'Failed to mark vehicle as returned'.tr;
+      Get.snackbar(
+        'Erreur'.tr,
+        errorMsg,
+        snackStyle: SnackStyle.FLOATING,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 10,
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 3),
+      );
+      return false;
+    } catch (e) {
+      Get.snackbar(
+        'Erreur'.tr,
+        e.toString(),
+        snackStyle: SnackStyle.FLOATING,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 10,
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 3),
+      );
+      return false;
+    } finally {
+      isMarkingReturnedDirectLoading.value = false;
+      markingReturnedDirectBookingId.value = '';
+    }
+  }
   Future<String> updateItemReceivedStatus({required String bookingId, String? otp}) async {
     showhideisReturn.value = false;
     showLoading();

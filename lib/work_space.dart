@@ -295,7 +295,7 @@ Future clearAllController() async {
   authController.textEditingSignUpControllerPassword.clear();
   authController.textEditingSingUpControllerPhoneNumber.clear();
   authController.textEditingSingUpControllerlastName.clear();
-  authController.textEditingSingUpControllerDOB.clear();
+  authController.clearSignUpBirthDate();
   authController.textEditingForgetPasswordControllerEmail.clear();
   authController.textEditingOtpController.clear();
   authController.textEditingControllerNewPassword.clear();

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Carvy</string>
-    <string name="default_web_client_id">165062133214-vjalpnirifhehf3vm91ashd5f0mm19g1.apps.googleusercontent.com</string>
+    <!-- Web Client ID (client_type=3) du projet Firebase "carvy-test" (project_number 415377246287). -->
+    <!-- DOIT rester aligné avec android/app/google-services.json ET avec _kGoogleServerClientId dans lib/controller/auth_controller.dart. -->
+    <!-- Si l'un des trois diverge -> Google Sign-In renvoie "[16] Canceled" instantanément. -->
+    <string name="default_web_client_id">415377246287-h4pscp4lgar3qtc41djpau0rbbr1u08h.apps.googleusercontent.com</string>
 </resources>
 

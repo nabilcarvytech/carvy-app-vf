@@ -3,9 +3,9 @@ import 'package:get/get.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:carvy/controller/search_controller.dart';
 import 'package:carvy/controller/home_controller.dart';
-import 'package:carvy/controller/booking_controller.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
+import 'package:carvy/utils/rental_billing_days.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/work_space.dart';
@@ -79,7 +79,6 @@ class SearchWizardBottomSheet extends StatefulWidget {
 class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
   final SearchControllerHome filterController = Get.find();
   final HomeController homeController = Get.find();
-  final BookingController bookingController = Get.find();
 
   late int _currentStep; // 0: Location, 1: Date, 2: Time
   final TextEditingController _searchController = TextEditingController();
@@ -90,13 +89,17 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
   DateTime? _startDate;
   DateTime? _endDate;
 
-  // Time selection (heures d'ouverture 09:00–22:00)
+  // Time selection : grille via SearchController (véhicule 09:00–20:30).
   String _startTime = "09:00";
-  String _endTime = "10:00";
+  String _endTime = "09:00";
+  bool _returnTimeUserTouched = false;
 
   @override
   void initState() {
     super.initState();
+    if (activeModuleId.value != 2) {
+      _endTime = "10:00";
+    }
     _currentStep = widget.initialLocation != null ? 1 : 0;
     _loadLocations();
     _searchController.addListener(_filterLocations);
@@ -203,6 +206,18 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
     } else {
       filterController.submitMethod(context);
     }
+  }
+
+  RentalBillingSummary? _vehicleWizardRentalSummary() {
+    if (activeModuleId.value != 2 || _startDate == null || _endDate == null) {
+      return null;
+    }
+    return RentalBillingDays.compute(
+      startDate: _startDate!,
+      endDate: _endDate!,
+      startTime: RentalBillingDays.parseTimeOfDayFromSlot(_startTime),
+      endTime: RentalBillingDays.parseTimeOfDayFromSlot(_endTime),
+    );
   }
 
   bool _canProceed() {
@@ -740,6 +755,14 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
                   setState(() {
                     _startDate = args.value.startDate;
                     _endDate = args.value.endDate ?? args.value.startDate;
+                    _returnTimeUserTouched = false;
+                    if (activeModuleId.value == 2) {
+                      _startTime = "09:00";
+                      _endTime = "09:00";
+                    } else {
+                      _startTime = "09:00";
+                      _endTime = "10:00";
+                    }
                   });
                 }
               },
@@ -754,64 +777,25 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
   // ÉTAPE 3: Sélection de l'heure
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Helper: Obtenir l'index minimum pour drop-off (pickup + 1h)
-  int _getMinDropOffIndex(List<String> timeSlots, String pickupTime) {
-    int pickupIndex = timeSlots.indexOf(pickupTime);
-    if (pickupIndex < 0) pickupIndex = 0;
-
-    // +2 car les slots sont par 30min, donc +1h = +2 slots
-    int minDropOffIndex = pickupIndex + 2;
-
-    // Si dépasse la liste, revenir au début (jour suivant)
-    if (minDropOffIndex >= timeSlots.length) {
-      minDropOffIndex = 0;
-    }
-
-    return minDropOffIndex;
-  }
-
-  // Helper: Mettre à jour le drop-off quand pickup change
-  void _onPickupTimeChanged(String newPickupTime, List<String> timeSlots) {
-    int minDropOffIndex = _getMinDropOffIndex(timeSlots, newPickupTime);
-    int currentDropOffIndex = timeSlots.indexOf(_endTime);
-    int pickupIndex = timeSlots.indexOf(newPickupTime);
-
-    // Si le drop-off actuel est avant pickup + 1h, le mettre à jour
-    if (currentDropOffIndex < 0 || currentDropOffIndex < minDropOffIndex) {
-      setState(() {
-        _startTime = newPickupTime;
-        _endTime = timeSlots[minDropOffIndex];
-      });
-    } else {
-      setState(() {
-        _startTime = newPickupTime;
-      });
-    }
+  void _onPickupTimeChanged(String newPickupTime) {
+    setState(() {
+      _startTime = newPickupTime;
+      if (!_returnTimeUserTouched) {
+        _endTime = newPickupTime;
+      } else if (filterController.isEndTimeStrictlyBeforeStartTime(
+          newPickupTime, _endTime)) {
+        _endTime = newPickupTime;
+      }
+    });
   }
 
   Widget _buildTimeStep() {
-    final timeSlots = bookingController.getManualTimeSlots24();
+    final timeSlots = filterController.searchPickerBaselineSlots();
 
-    // Trouver l'index initial pour chaque picker
     int startIndex = timeSlots.indexOf(_startTime);
     if (startIndex < 0) startIndex = 0;
 
-    // Calculer les slots disponibles pour drop-off (>= pickup + 1h)
-    int minDropOffIndex = _getMinDropOffIndex(timeSlots, _startTime);
-    List<String> dropOffSlots = [];
-
-    // Ajouter les slots à partir de minDropOffIndex
-    for (int i = minDropOffIndex; i < timeSlots.length; i++) {
-      dropOffSlots.add(timeSlots[i]);
-    }
-    // Si le pickup est tard, ajouter les slots du début (jour suivant)
-    if (minDropOffIndex > 0) {
-      for (int i = 0; i < minDropOffIndex; i++) {
-        dropOffSlots.add(timeSlots[i]);
-      }
-    }
-
-    int endIndex = dropOffSlots.indexOf(_endTime);
+    int endIndex = timeSlots.indexOf(_endTime);
     if (endIndex < 0) endIndex = 0;
 
     return Padding(
@@ -853,13 +837,36 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
                 ),
                 const SizedBox(height: 6),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(Icons.date_range_rounded,
                         color: getColorBasedOnActiveModuleid(), size: 18),
                     const SizedBox(width: 8),
-                    Text(
-                      '${DateFormat('MMM d').format(_startDate!)} - ${DateFormat('MMM d').format(_endDate!)}',
-                      style: regular2(context).copyWith(fontSize: 13),
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          final summary = _vehicleWizardRentalSummary();
+                          final hasExtra = summary?.hasExtraDay ?? false;
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                '${DateFormat('MMM d').format(_startDate!)} - ',
+                                style: regular2(context).copyWith(fontSize: 13),
+                              ),
+                              Flexible(
+                                child: VehicleReturnDateWithBillingBadgeRow(
+                                  dateText:
+                                      DateFormat('MMM d').format(_endDate!),
+                                  textAlign: TextAlign.start,
+                                  isExtraDay: hasExtra,
+                                  emphasizeOvertime: hasExtra,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -904,7 +911,7 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
                     _buildTimeWheelPicker(
                       timeSlots: timeSlots,
                       initialIndex: startIndex,
-                      onSelect: (time) => _onPickupTimeChanged(time, timeSlots),
+                      onSelect: (time) => _onPickupTimeChanged(time),
                     ),
                   ],
                 ),
@@ -926,9 +933,12 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
                     ),
                     const SizedBox(height: 10),
                     _buildTimeWheelPicker(
-                      timeSlots: dropOffSlots, // Slots filtrés!
+                      timeSlots: timeSlots,
                       initialIndex: endIndex,
-                      onSelect: (time) => setState(() => _endTime = time),
+                      onSelect: (time) => setState(() {
+                        _returnTimeUserTouched = true;
+                        _endTime = time;
+                      }),
                     ),
                   ],
                 ),
@@ -1009,6 +1019,10 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
   }
 
   Widget _buildNavigationButtons() {
+    final rentalSummary = _vehicleWizardRentalSummary();
+    final showRentalBanner =
+        _currentStep == 2 && activeModuleId.value == 2 && rentalSummary != null;
+
     return Container(
       padding: EdgeInsets.fromLTRB(
           20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
@@ -1022,8 +1036,19 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (showRentalBanner) ...[
+            VehicleRentalBillableDaysInfoBanner(
+              totalBillableDays: rentalSummary!.totalDays,
+              hasOvertimeDay: rentalSummary.hasExtraDay,
+            ),
+            const SizedBox(height: 12),
+          ],
+          Row(
+            children: [
           // Bouton Retour
           if (_currentStep > 0)
             Expanded(
@@ -1085,6 +1110,8 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
                 ],
               ),
             ),
+          ),
+            ],
           ),
         ],
       ),

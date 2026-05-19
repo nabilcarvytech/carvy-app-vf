@@ -19,6 +19,7 @@ const Map<String, String> arAR = {
   "Popular locations": "أماكن الاستلام الشائعة",
   "Popular Regions": "المناطق الشائعة",
   "See All": "عرض الكل",
+  "View All": "عرض الكل",
   "Our Recommendation": "توصياتنا",
   "Most viewed": "الأكثر مشاهدة",
   "Recommended Spaces": "المركبات المقترحة",
@@ -1292,5 +1293,10 @@ const Map<String, String> arAR = {
       "يجب إعادة المركبة بنفس مستوى الوقود وبحالة نظافة مناسبة. قد تُطبَّق رسوم إضافية عند عدم الالتزام.",
   "terms_general_insurance_title": "التأمين والحوادث",
   "terms_general_insurance_body":
-      "في حالة وقوع حادث، يلتزم المستخدم بالتواصل الفوري مع دعم كارفي وتعبئة محضر ودي."
+      "في حالة وقوع حادث، يلتزم المستخدم بالتواصل الفوري مع دعم كارفي وتعبئة محضر ودي.",
+  "Security Deposit (Caution)": "الوديعة (الضمان)",
+  "receipt_security_deposit_on_site_info":
+      "لا يتم خصم هذا المبلغ عبر التطبيق. يجب تسويته مباشرة مع الوكالة عند استلام المركبة (بصمة بطاقة أو شيك أو نقداً حسب شروط الوكالة).",
+  "booking_deposit_on_site_short":
+      "يُدار في الموقع لدى البائع",
 };

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +11,7 @@ import '../../../customwidget/miscellaneous_project_elements.dart';
 import '../../../customwidget/project_color.dart';
 import '../../../model/vehicle_home_model.dart';
 import '../../../utils/common_widget.dart';
+import '../../../utils/rental_billing_days.dart';
 import '../../../utils/theme_style.dart';
 import '../../../view/host/common_widget_host.dart';
 import '../../../view/kyc/user_kyc.dart';
@@ -48,7 +50,17 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
   AddAddressController addAddressController = Get.find();
   KycController kycController = Get.find();
 
-  /// Tant que l'utilisateur n'a pas choisi explicitement l'heure de fin, elle reste synchronisée sur l'heure de début.
+  /// Grille 09:00–20:30 (référence stable pour les scroll controllers).
+  late final List<String> _cachedVehicleSlots =
+      RentalBillingDays.vehicleSearchTimeSlotsHHmm();
+
+  late final FixedExtentScrollController _startScrollController;
+  late final FixedExtentScrollController _endScrollController;
+
+  /// Après le premier frame : évite un `onSelectedItemChanged` fantôme au montage.
+  bool _startPickerReady = false;
+
+  /// Tant que l'utilisateur n'a pas touché au picker retour, le scroll retour suit la prise en charge.
   bool _endTimeManuallyTouched = false;
 
   TimeOfDay _parseToTimeOfDay(String value) {
@@ -66,23 +78,6 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
     } catch (_) {
       return const TimeOfDay(hour: 9, minute: 0);
     }
-  }
-
-  String _format24(TimeOfDay t) {
-    final dt = DateTime(0, 1, 1, t.hour, t.minute);
-    try {
-      return DateFormat('HH:mm').format(dt);
-    } catch (_) {
-      return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-    }
-  }
-
-  /// Écart calendaire pur (sans majoration dépassement horaire).
-  int _joursInitiauxCalendar(DateTime? dateDebut, DateTime? dateFin) {
-    if (dateDebut == null || dateFin == null) return 0;
-    final d0 = DateTime(dateDebut.year, dateDebut.month, dateDebut.day);
-    final d1 = DateTime(dateFin.year, dateFin.month, dateFin.day);
-    return d1.difference(d0).inDays;
   }
 
   /// Identifiant attendu par `DateFormat.yMMMEd` (évite LocaleDataException si symboles non chargés).
@@ -120,65 +115,6 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
     }
   }
 
-  /// Date de fin + badge « +1j facturé » si dépassement horaire (date calendaire inchangée).
-  Widget _endDateLineWithBadge({
-    required BuildContext context,
-    required String dateText,
-    required TextAlign textAlign,
-    required bool isExtraDay,
-    required bool isOvertime,
-    FontWeight idleFontWeight = FontWeight.normal,
-    double? fontSize,
-  }) {
-    final carvyBlue = getColorBasedOnActiveModuleid();
-    return Row(
-      mainAxisSize: MainAxisSize.max,
-      mainAxisAlignment: textAlign == TextAlign.end
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Flexible(
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeInOut,
-            style: regular2(context).copyWith(
-              color: isOvertime ? carvyBlue : Colors.grey,
-              fontSize: fontSize,
-              fontWeight:
-                  isOvertime ? FontWeight.bold : idleFontWeight,
-            ),
-            child: Text(
-              dateText,
-              textAlign: textAlign,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-        if (isExtraDay) ...[
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: carvyBlue,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Text(
-              '+1j facturé',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                height: 1.1,
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
   /// Format d’affichage des dates de réservation ; ne jamais appeler `format` sur une date null.
   String _formatBookingDateDisplay(DateTime? d) {
     if (d == null) return '---';
@@ -195,204 +131,258 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
     }
   }
 
-  Future<void> _pickTime(BuildContext context, bool isStart) async {
-    final initial =
-        _parseToTimeOfDay(isStart ? bookingController.selectedStartTime.value : bookingController.selectedEndTime.value);
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial,
-      builder: (ctx, child) {
-        return MediaQuery(
-          data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
-          child: Theme(
-            data: Theme.of(ctx).copyWith(
-              colorScheme: ColorScheme.light(
-                primary: getColorBasedOnActiveModuleid(),
-              ),
-            ),
-            child: child ?? const SizedBox(),
-          ),
-        );
-      },
-    );
-    if (picked == null) return;
-    final formatted = _format24(picked);
-    if (isStart) {
-      bookingController.selectedStartTime.value = formatted;
-      bookingController.hindTimeStart.value = formatted;
-      if (!_endTimeManuallyTouched) {
-        bookingController.selectedEndTime.value = formatted;
-        bookingController.hindTimeSEnd.value = formatted;
-      }
-    } else {
-      _endTimeManuallyTouched = true;
-      bookingController.selectedEndTime.value = formatted;
-      bookingController.hindTimeSEnd.value = formatted;
+  List<String> _vehicleBookingTimeSlots() => _cachedVehicleSlots;
+
+  bool _sameCalendarBookingDay() {
+    final a = bookingController.startDate.value;
+    final b = bookingController.endDate.value;
+    return a.isNotEmpty && b.isNotEmpty && a == b;
+  }
+
+  void _syncInitialVehicleBookingTimes() {
+    final slots = _vehicleBookingTimeSlots();
+    if (slots.isEmpty) return;
+    var s = bookingController.selectedStartTime.value;
+    var e = bookingController.selectedEndTime.value;
+    if (s.isEmpty || !slots.contains(s)) {
+      s = slots.first;
+      bookingController.selectedStartTime.value = s;
+      bookingController.hindTimeStart.value = s;
     }
-    if (mounted) setState(() {});
+    if (!_endTimeManuallyTouched || e.isEmpty || !slots.contains(e)) {
+      e = s;
+      bookingController.selectedEndTime.value = e;
+      bookingController.hindTimeSEnd.value = e;
+      _endTimeManuallyTouched = false;
+    }
+  }
+
+  bool _canContinueBookingTimes() {
+    final slots = _vehicleBookingTimeSlots();
+    final s = bookingController.selectedStartTime.value;
+    final e = bookingController.selectedEndTime.value;
+    if (s.isEmpty || e.isEmpty) return false;
+    if (!slots.contains(s) || !slots.contains(e)) return false;
+    if (_sameCalendarBookingDay() &&
+        RentalBillingDays.isEndTimeStrictlyBeforeStartTime(s, e)) {
+      return false;
+    }
+    return true;
+  }
+
+  void _onBookingStartIndexChanged(int index, List<String> slots) {
+    if (index < 0 || index >= slots.length) return;
+    final v = slots[index];
+    bookingController.selectedStartTime.value = v;
+    bookingController.hindTimeStart.value = v;
+    if (!_startPickerReady) return;
+    if (!_endTimeManuallyTouched && _endScrollController.hasClients) {
+      if (_endScrollController.selectedItem != index) {
+        _endScrollController.animateToItem(
+          index,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+        );
+      }
+      bookingController.selectedEndTime.value = v;
+      bookingController.hindTimeSEnd.value = v;
+    }
+  }
+
+  void _onBookingEndIndexChanged(int index, List<String> slots) {
+    if (index < 0 || index >= slots.length) return;
+    _endTimeManuallyTouched = true;
+    final v = slots[index];
+    bookingController.selectedEndTime.value = v;
+    bookingController.hindTimeSEnd.value = v;
   }
 
   Widget _buildTimeSelectionContent(
     BuildContext context,
     ColorNotifires notifires,
   ) {
-    DateTime? startD;
-    DateTime? endD;
-    if (bookingController.startDate.value.isNotEmpty) {
-      startD = DateTime.tryParse(bookingController.startDate.value);
-    }
-    if (bookingController.endDate.value.isNotEmpty) {
-      endD = DateTime.tryParse(bookingController.endDate.value);
-    }
-    final startT = bookingController.selectedStartTime.value;
-    final endT = bookingController.selectedEndTime.value;
-    final hasTimes = startT.isNotEmpty && endT.isNotEmpty;
-    final canShowTotals = startD != null && endD != null && hasTimes;
-    final joursInitiaux = _joursInitiauxCalendar(startD, endD);
-    final heureDebut = _parseToTimeOfDay(startT);
-    final heureFin = _parseToTimeOfDay(endT);
-    final timeStart = heureDebut.hour + (heureDebut.minute / 60.0);
-    final timeEnd = heureFin.hour + (heureFin.minute / 60.0);
-    final isExtraDay = hasTimes && (timeEnd > timeStart);
-    final isOvertime = isExtraDay;
-    final totalLocationBrut = isOvertime ? joursInitiaux + 1 : joursInitiaux;
-    final totalLocationAffiche = totalLocationBrut < 1 ? 1 : totalLocationBrut;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _StepperHeader(
-          locationDone: true,
-          dateDone: startD != null && endD != null,
-          timeDone: startT.isNotEmpty && endT.isNotEmpty,
-        ),
-        const SizedBox(height: 28),
-        Text(
-          'Select Date'.tr,
-          style: heading2(context),
-        ),
-        const SizedBox(height: 8),
-        Row(
+    final slots = _vehicleBookingTimeSlots();
+    return Obx(
+      () {
+        DateTime? startD;
+        DateTime? endD;
+        if (bookingController.startDate.value.isNotEmpty) {
+          startD = DateTime.tryParse(bookingController.startDate.value);
+        }
+        if (bookingController.endDate.value.isNotEmpty) {
+          endD = DateTime.tryParse(bookingController.endDate.value);
+        }
+        final startRx = bookingController.selectedStartTime.value;
+        final endRx = bookingController.selectedEndTime.value;
+        final hasTimes = startRx.isNotEmpty && endRx.isNotEmpty;
+        final canShowTotals = startD != null && endD != null && hasTimes;
+        final heureDebut = _parseToTimeOfDay(startRx);
+        final heureFin = _parseToTimeOfDay(endRx);
+        final billing = canShowTotals
+            ? RentalBillingDays.compute(
+                startDate: startD!,
+                endDate: endD!,
+                startTime: heureDebut,
+                endTime: heureFin,
+              )
+            : null;
+        final isExtraDay = billing?.hasExtraDay ?? false;
+        final isOvertime = isExtraDay;
+        final totalLocationAffiche = billing?.totalDays ?? 1;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                _formatBookingDateDisplay(startD),
-                style: regular2(context).copyWith(
-                  color: notifires.getGrey3Whitecolor,
-                ),
-              ),
+            _StepperHeader(
+              locationDone: true,
+              dateDone: startD != null && endD != null,
+              timeDone: startRx.isNotEmpty && endRx.isNotEmpty,
             ),
+            const SizedBox(height: 28),
             Text(
-              '→',
-              style: regular2(context),
+              'Select Date'.tr,
+              style: heading2(context),
             ),
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: _endDateLineWithBadge(
-                  context: context,
-                  dateText: _formatBookingDateDisplay(endD),
-                  textAlign: TextAlign.end,
-                  isExtraDay: isExtraDay,
-                  isOvertime: isOvertime,
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _formatBookingDateDisplay(startD),
+                    style: regular2(context).copyWith(
+                      color: notifires.getGrey3Whitecolor,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 28),
-        Text(
-          'Start time'.tr,
-          style: heading3(context),
-        ),
-        const SizedBox(height: 8),
-        _TimeRow(
-          label: startT.isEmpty ? '---' : startT,
-          onTap: () => _pickTime(context, true),
-          notifires: notifires,
-        ),
-        const SizedBox(height: 20),
-        if (endD != null) ...[
-          _endDateLineWithBadge(
-            context: context,
-            dateText: _formatReturnDateHeading(endD),
-            textAlign: TextAlign.start,
-            isExtraDay: isExtraDay,
-            isOvertime: isOvertime,
-            idleFontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-          const SizedBox(height: 6),
-        ],
-        Text(
-          ' End time'.tr,
-          style: heading3(context),
-        ),
-        const SizedBox(height: 8),
-        _TimeRow(
-          label: endT.isEmpty ? '---' : endT,
-          onTap: () => _pickTime(context, false),
-          notifires: notifires,
-        ),
-        const SizedBox(height: 10),
-        if (canShowTotals)
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 280),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) =>
-                FadeTransition(opacity: animation, child: child),
-            child: Container(
-              key: ValueKey('rental-total-$totalLocationAffiche-$isOvertime'),
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue, width: 0.8),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 1),
-                    child: Icon(
-                      Icons.info_outline,
-                      size: 18,
-                      color: Colors.blue.shade700,
+                Text(
+                  '→',
+                  style: regular2(context),
+                ),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: VehicleReturnDateWithBillingBadgeRow(
+                      dateText: _formatBookingDateDisplay(endD),
+                      textAlign: TextAlign.end,
+                      isExtraDay: isExtraDay,
+                      emphasizeOvertime: isOvertime,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Total : $totalLocationAffiche jours de location',
-                          style: regular2(context).copyWith(
-                            color: Colors.blue.shade900,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 28),
+            if (endD != null) ...[
+              VehicleReturnDateWithBillingBadgeRow(
+                dateText: _formatReturnDateHeading(endD),
+                textAlign: TextAlign.start,
+                isExtraDay: isExtraDay,
+                emphasizeOvertime: isOvertime,
+                idleFontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              const SizedBox(height: 12),
+            ],
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Pick-up time'.tr,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: notifires.getwhiteblackcolor,
                         ),
-                        if (isOvertime) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            '(Incluant 1 jour pour dépassement horaire)',
-                            style: regular2(context).copyWith(
-                              color: Colors.blue.shade900,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: notifires.getGrey3Whitecolor.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: CupertinoPicker(
+                          scrollController: _startScrollController,
+                          itemExtent: 40,
+                          onSelectedItemChanged: (i) =>
+                              _onBookingStartIndexChanged(i, slots),
+                          children: slots
+                              .map(
+                                (time) => Center(
+                                  child: Text(
+                                    time,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: notifires.getwhiteblackcolor,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Drop-off time'.tr,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: notifires.getwhiteblackcolor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: notifires.getGrey3Whitecolor.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: CupertinoPicker(
+                          scrollController: _endScrollController,
+                          itemExtent: 40,
+                          onSelectedItemChanged: (i) =>
+                              _onBookingEndIndexChanged(i, slots),
+                          children: slots
+                              .map(
+                                (time) => Center(
+                                  child: Text(
+                                    time,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: notifires.getwhiteblackcolor,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-      ],
+            const SizedBox(height: 10),
+            if (canShowTotals)
+              VehicleRentalBillableDaysInfoBanner(
+                totalBillableDays: totalLocationAffiche,
+                hasOvertimeDay: isOvertime,
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -402,8 +392,9 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
       showErrorToastMessage("Select Start  time to continue".tr);
       return;
     }
-    if (bookingController.startDate.value == bookingController.endDate.value) {
-      if (bookingController.isEndTimeBeforeStartTime(
+    if (bookingController.startDate.value ==
+        bookingController.endDate.value) {
+      if (RentalBillingDays.isEndTimeStrictlyBeforeStartTime(
           bookingController.selectedStartTime.value,
           bookingController.selectedEndTime.value)) {
         showErrorToastMessage("End time must be after Start time".tr);
@@ -418,9 +409,7 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
       }
     }
 
-    final kycStatus = kycController.activeStatus.value.toLowerCase();
-    if ((kycStatus == "none" || kycStatus == "no" || kycStatus.isEmpty) &&
-        !kycController.hasSkippedInSession.value) {
+    if (kycController.shouldRequireKycBeforeBooking) {
       Get.to(() => const UserKyc());
       return;
     }
@@ -451,9 +440,44 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
     final e = bookingController.selectedEndTime.value;
     _endTimeManuallyTouched =
         e.isNotEmpty && s.isNotEmpty && e != s;
+    _syncInitialVehicleBookingTimes();
+
+    final slots = _vehicleBookingTimeSlots();
+    final idx09 = slots.indexOf('09:00');
+    final initIdx = idx09 >= 0 ? idx09 : 0;
+    bookingController.selectedStartTime.value = slots[initIdx];
+    bookingController.hindTimeStart.value = slots[initIdx];
+    if (!_endTimeManuallyTouched) {
+      bookingController.selectedEndTime.value = slots[initIdx];
+      bookingController.hindTimeSEnd.value = slots[initIdx];
+    }
+    final s2 = bookingController.selectedStartTime.value;
+    final e2 = bookingController.selectedEndTime.value;
+    _endTimeManuallyTouched =
+        e2.isNotEmpty && s2.isNotEmpty && e2 != s2;
+
+    final startIdx = slots.indexOf(s2) >= 0 ? slots.indexOf(s2) : initIdx;
+    final endIdx = !_endTimeManuallyTouched
+        ? startIdx
+        : (slots.indexOf(e2) >= 0 ? slots.indexOf(e2) : startIdx);
+
+    _startScrollController =
+        FixedExtentScrollController(initialItem: startIdx);
+    _endScrollController = FixedExtentScrollController(initialItem: endIdx);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _startPickerReady = true;
+      }
       addAddressController.getDoorStepAddressp(false);
     });
+  }
+
+  @override
+  void dispose() {
+    _startScrollController.dispose();
+    _endScrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -483,23 +507,33 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
               height: 70,
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () => _confirm(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: getColorBasedOnActiveModuleid(),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Continue'.tr,
-                        style: heading2(context).copyWith(color: bgColor),
+                child: Obx(
+                  () => ElevatedButton(
+                    onPressed: _canContinueBookingTimes()
+                        ? () => _confirm(context)
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: getColorBasedOnActiveModuleid(),
+                      disabledBackgroundColor:
+                          notifires.getgreycolor.withOpacity(0.35),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(13),
                       ),
-                    ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Continue'.tr,
+                          style: heading2(context).copyWith(
+                            color: _canContinueBookingTimes()
+                                ? bgColor
+                                : notifires.getGrey3Whitecolor,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -614,46 +648,3 @@ class _StepperHeader extends StatelessWidget {
   }
 }
 
-class _TimeRow extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final dynamic notifires;
-
-  const _TimeRow({
-    required this.label,
-    required this.onTap,
-    required this.notifires,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: notifires.getBoxColor,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: regular2(context).copyWith(
-                    color: notifires.getwhiteblackcolor,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              Icon(Icons.access_time, color: getColorBasedOnActiveModuleid()),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

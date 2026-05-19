@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:location/location.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:carvy/api/config.dart';
@@ -228,6 +230,11 @@ class AuthController extends GetxController implements GetxService {
   RxBool isResendLoading = false.obs;
   RxString newpassword = ''.obs;
 
+  // 🛡️ [GOOGLE_AUTH] Verrou de concurrence anti-double-clic / double-exécution.
+  // Tant que `true`, tout nouvel appel à `googleLogin` ou `prefillSignUpFormFromGoogle`
+  // est ignoré (évite la double pop-up et l'erreur fantôme [16] Canceled).
+  final RxBool isGoogleAuthLoading = false.obs;
+
   // --- Inscription wizard (multi-étapes) ---
   final RxBool registerWizardTermsAccepted = false.obs;
   final RxBool registerWizardPhoneCodeSent = false.obs;
@@ -243,6 +250,47 @@ class AuthController extends GetxController implements GetxService {
   final RxBool registerWizardEmbarked = false.obs;
   Timer? _registerWizardResendTimer;
 
+  /// Date de naissance choisie à l'inscription (client).
+  DateTime? signUpSelectedBirthDate;
+
+  /// Valeur `birthdate` envoyée à l'API (yyyy-MM-dd).
+  String get signUpBirthdateForApi {
+    if (signUpSelectedBirthDate != null) {
+      return DateFormat('yyyy-MM-dd').format(signUpSelectedBirthDate!);
+    }
+    return textEditingSingUpControllerDOB.text.trim();
+  }
+
+  Future<void> pickSignUpBirthDate(BuildContext context) async {
+    final now = DateTime.now();
+    final DateTime maxDate = DateTime(now.year - 18, now.month, now.day);
+    DateTime initialDate =
+        signUpSelectedBirthDate ?? DateTime(2000, now.month, now.day);
+    if (initialDate.isAfter(maxDate)) {
+      initialDate = maxDate;
+    }
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: maxDate,
+      initialDatePickerMode: DatePickerMode.year,
+      locale: Get.locale,
+    );
+
+    if (picked != null) {
+      signUpSelectedBirthDate = picked;
+      textEditingSingUpControllerDOB.text =
+          DateFormat('dd/MM/yyyy').format(picked);
+    }
+  }
+
+  void clearSignUpBirthDate() {
+    signUpSelectedBirthDate = null;
+    textEditingSingUpControllerDOB.clear();
+  }
+
   void toggleRegisterWizardTerms() {
     registerWizardTermsAccepted.toggle();
   }
@@ -255,6 +303,7 @@ class AuthController extends GetxController implements GetxService {
     registerWizardEmailError.value = '';
     registerWizardIsAgency.value = false;
     registerWizardSubmitting.value = false;
+    clearSignUpBirthDate();
     textEditingOtpController.clear();
     _registerWizardResendTimer?.cancel();
     _registerWizardResendTimer = null;
@@ -290,6 +339,46 @@ class AuthController extends GetxController implements GetxService {
       if (msg != null && msg.trim().isNotEmpty) return msg;
     }
     return response?.toString() ?? '';
+  }
+
+  /// Réponse 409 inscription : JSON avec `field` (`email` | `phone`) et `message` (ou `error`).
+  /// Retourne `true` si un 409 a été traité (messages champ ou toast de secours).
+  bool _handleRegisterUserHttp409(
+    dynamic responseData, {
+    VoidCallback? onDuplicateEmail,
+  }) {
+    if (responseData is! Map) return false;
+    final map = Map<String, dynamic>.from(responseData as Map);
+    final statusRaw = map['status'];
+    final statusCode = statusRaw is num
+        ? statusRaw.toInt()
+        : int.tryParse(statusRaw?.toString() ?? '');
+    if (statusCode != 409) return false;
+
+    registerWizardPhoneCodeSent.value = false;
+
+    final field = map['field']?.toString();
+    final message = (map['message'] ?? map['error'] ?? '').toString().trim();
+    final msg =
+        message.isNotEmpty ? message : 'Something went wrong'.tr;
+
+    if (field == 'email') {
+      registerWizardEmailError.value = msg;
+      onDuplicateEmail?.call();
+    } else if (field == 'phone') {
+      phoneError.value = msg;
+    } else {
+      final err = _extractApiError(map);
+      if (_isDuplicateEmailMessage(err)) {
+        registerWizardEmailError.value = 'Cet email est déjà utilisé';
+        onDuplicateEmail?.call();
+      } else if (err.isNotEmpty) {
+        showErrorToastMessage(err);
+      } else {
+        showErrorToastMessage(msg);
+      }
+    }
+    return true;
   }
 
   Future<bool> registerWizardCheckEmailAvailability(BuildContext context) async {
@@ -356,12 +445,15 @@ class AuthController extends GetxController implements GetxService {
         'phone_country': dial,
         'default_country': isoCode,
         'last_name': textEditingSingUpControllerlastName.text,
-        'birthdate': textEditingSingUpControllerDOB.text,
+        'birthdate': signUpBirthdateForApi,
         'role': registerWizardIsAgency.value ? 'vendor' : 'user',
       });
       Get.back();
       if (data == null) {
         showErrorToastMessage('Something went wrong'.tr);
+        return;
+      }
+      if (_handleRegisterUserHttp409(data, onDuplicateEmail: onDuplicateEmail)) {
         return;
       }
       final loginModel = LoginModel.fromJson(data);
@@ -699,6 +791,8 @@ class AuthController extends GetxController implements GetxService {
 
     try {
       if (formKey.currentState!.validate() && (isChecked == true)) {
+        registerWizardEmailError.value = '';
+        phoneError.value = '';
         buildShowDialog(context);
         var data = await httpPost(Config.registerUser, {
           "phone": textEditingSingUpControllerPhoneNumber.text,
@@ -708,7 +802,7 @@ class AuthController extends GetxController implements GetxService {
           "phone_country": countryDialCode,
           "default_country": countryIsoCode,
           "last_name": textEditingSingUpControllerlastName.text,
-          "birthdate": textEditingSingUpControllerDOB.text,
+          "birthdate": signUpBirthdateForApi,
         });
 
         // DEBUG: Log raw response from backend
@@ -716,6 +810,9 @@ class AuthController extends GetxController implements GetxService {
 
         Get.back();
         if (data != null) {
+          if (_handleRegisterUserHttp409(data)) {
+            return;
+          }
           LoginModel loginModel = LoginModel.fromJson(data);
 
           // DEBUG: Log parsed model status
@@ -1211,23 +1308,72 @@ class AuthController extends GetxController implements GetxService {
   /// Remplit uniquement le formulaire d'inscription (prénom, nom, email) depuis le compte Google.
   /// N'appelle pas l'API sociale ni [signUp] — l'utilisateur valide avec « Continuer ».
   Future<void> prefillSignUpFormFromGoogle(BuildContext context) async {
+    // 🛡️ [GOOGLE_AUTH] Anti-spam : on partage le MÊME verrou que `googleLogin`
+    // car les deux flows ouvrent la pop-up native Google Sign-In.
+    if (isGoogleAuthLoading.value) {
+      debugPrint(
+          '⛔ [GOOGLE_AUTH/PREFILL] Tentative ignorée : une auth Google est déjà en cours.');
+      return;
+    }
+    isGoogleAuthLoading.value = true;
+    debugPrint('🔍 [GOOGLE_AUTH/PREFILL] 1. Bouton cliqué (prefill signup)');
+
     final googleSignIn = GoogleSignIn.instance;
     showLoading();
     try {
       await googleSignIn.initialize(
-        serverClientId:
-            "165062133214-vjalpnirifhehf3vm91ashd5f0mm19g1.apps.googleusercontent.com",
+        serverClientId: _kGoogleServerClientId,
       );
-      await googleSignIn.signOut();
+      debugPrint('🔧 [GOOGLE_AUTH/PREFILL] initialize() OK');
 
-      final GoogleSignInAccount? googleUser = await googleSignIn.authenticate(
-        scopeHint: <String>['email', 'profile'],
-      );
+      // 🔍 2. Déconnexion préalable silencieuse
+      debugPrint('🔍 [GOOGLE_AUTH/PREFILL] 2. Déconnexion préalable (silencieuse)');
+      try {
+        await googleSignIn.signOut();
+      } catch (silentSignOutError) {
+        debugPrint(
+            '⚠️ [GOOGLE_AUTH/PREFILL] signOut() préalable a échoué silencieusement : $silentSignOutError');
+      }
+
+      // 🔍 3. authenticate() avec capture d'erreur avancée
+      debugPrint('🔍 [GOOGLE_AUTH/PREFILL] 3. Lancement de signIn()');
+      GoogleSignInAccount? googleUser;
+      try {
+        googleUser = await googleSignIn.authenticate(
+          scopeHint: <String>['email', 'profile'],
+        );
+      } on PlatformException catch (e, st) {
+        debugPrint('🚨 [GOOGLE_AUTH/PREFILL] PlatformException pendant authenticate()');
+        debugPrint('🚨 [GOOGLE_AUTH/PREFILL] -> e.code    = ${e.code}');
+        debugPrint('🚨 [GOOGLE_AUTH/PREFILL] -> e.message = ${e.message}');
+        debugPrint('🚨 [GOOGLE_AUTH/PREFILL] -> e.details = ${e.details}');
+        debugPrint('🚨 [GOOGLE_AUTH/PREFILL] -> stack     = $st');
+        closeLoading();
+        showErrorToastMessage(
+            "Google Sign-In échoué (PlatformException ${e.code}). ${e.message ?? ''}");
+        return;
+      } on GoogleSignInException catch (e, st) {
+        debugPrint(
+            '🚨 [GOOGLE_AUTH/PREFILL] GoogleSignInException pendant authenticate()');
+        debugPrint('🚨 [GOOGLE_AUTH/PREFILL] -> e.code        = ${e.code}');
+        debugPrint('🚨 [GOOGLE_AUTH/PREFILL] -> e.description = ${e.description}');
+        debugPrint('🚨 [GOOGLE_AUTH/PREFILL] -> e.details     = ${e.details}');
+        debugPrint('🚨 [GOOGLE_AUTH/PREFILL] -> stack         = $st');
+        closeLoading();
+        showErrorToastMessage(
+            "Connexion Google annulée ou échouée (${e.code}). ${e.description ?? ''}");
+        return;
+      }
 
       if (googleUser == null) {
+        debugPrint('ℹ️ [GOOGLE_AUTH/PREFILL] Utilisateur a annulé la pop-up.');
         closeLoading();
         return;
       }
+
+      // ✅ 4. Succès
+      debugPrint(
+          '✅ [GOOGLE_AUTH/PREFILL] 4. Succès: Compte récupéré -> ${googleUser.email}');
 
       final String email = googleUser.email;
       final String? displayName = googleUser.displayName;
@@ -1261,57 +1407,179 @@ class AuthController extends GetxController implements GetxService {
       textEditingSingUpControllerlastName.text = familyName;
       textEditingSignUpControllerEmail.text = email;
 
-      await googleSignIn.signOut();
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {}
       closeLoading();
       update();
-    } on GoogleSignInException catch (e) {
+    } on GoogleSignInException catch (e, st) {
+      debugPrint(
+          '🚨 [GOOGLE_AUTH/PREFILL] GoogleSignInException (outer): code=${e.code}, description=${e.description}, details=${e.details}');
+      debugPrint('🚨 [GOOGLE_AUTH/PREFILL] stack=$st');
       closeLoading();
-      showErrorToastMessage("Erreur lors de la connexion Google: $e");
-    } catch (e) {
+      showErrorToastMessage(
+          "Erreur lors de la connexion Google (${e.code}): ${e.description ?? ''}");
+    } on PlatformException catch (e, st) {
+      debugPrint(
+          '🚨 [GOOGLE_AUTH/PREFILL] PlatformException (outer): code=${e.code}, message=${e.message}, details=${e.details}');
+      debugPrint('🚨 [GOOGLE_AUTH/PREFILL] stack=$st');
+      closeLoading();
+      showErrorToastMessage(
+          "Erreur Google Sign-In (${e.code}): ${e.message ?? ''}");
+    } catch (e, st) {
+      debugPrint('🚨 [GOOGLE_AUTH/PREFILL] Erreur inattendue: $e');
+      debugPrint('🚨 [GOOGLE_AUTH/PREFILL] stack=$st');
       closeLoading();
       showErrorToastMessage("Une erreur inattendue s'est produite: $e");
+    } finally {
+      isGoogleAuthLoading.value = false;
+      debugPrint('🏁 [GOOGLE_AUTH/PREFILL] Verrou de concurrence relâché.');
     }
   }
 
+  // ============================================================================
+  // 🔐 [GOOGLE_AUTH] Connexion Google (google_sign_in: ^7.1.1)
+  // ----------------------------------------------------------------------------
+  // ⚠️ Vérification de l'instance / clientId (à relire à chaque régression) :
+  //   • On utilise le singleton `GoogleSignIn.instance` (API v7.x).
+  //   • `serverClientId` DOIT être le *Web Client ID* du projet
+  //     Firebase / Google Cloud Console — PAS le client Android.
+  //     -> Si quelqu'un a remplacé cette valeur par un Android Client ID
+  //        ou un ID d'un autre projet, `authenticate()` renvoie instantanément
+  //        l'erreur [16] Canceled.
+  //   • Sur Android, la SHA-1 (debug ET release) du keystore courant doit
+  //     être enregistrée dans Firebase Console → Project settings →
+  //     Your apps → SHA fingerprints, ET le `google-services.json`
+  //     régénéré + réimporté dans `android/app/`.
+  //   • Si le `applicationId` (package name) a changé récemment, ou si
+  //     le keystore signing a été modifié, idem : erreur [16] instantanée.
+  //
+  // ⚠️ RÉGRESSION DU 10/05/2026 — la cause :
+  //   L'ancienne valeur "165062133214-vjalpnirifhehf3vm91ashd5f0mm19g1..."
+  //   appartient à un AUTRE projet Google Cloud (project_number 165062133214),
+  //   alors que le google-services.json embarqué dans android/app/ correspond
+  //   au projet "carvy-test" (project_number 415377246287). Le mismatch produit
+  //   un [16] Canceled instantané sur authenticate().
+  //   La valeur ci-dessous est le SEUL client_type=3 (Web Client ID) listé
+  //   dans google-services.json, donc le bon Web Client ID du projet courant.
+  // ============================================================================
+  static const String _kGoogleServerClientId =
+      "415377246287-h4pscp4lgar3qtc41djpau0rbbr1u08h.apps.googleusercontent.com";
+
   Future<void> googleLogin(BuildContext context) async {
-    // Use GoogleSignIn for native authentication (no FirebaseAuth needed)
-    // GoogleSignIn 7.1.1 uses a singleton pattern with instance
+    // ============================================================
+    // 🛡️ [GOOGLE_AUTH] 0. Verrou Anti-Spam / Concurrency
+    // Empêche le double-clic ou la double-exécution du flow Google.
+    // Sans ça, deux appels concurrents peuvent provoquer un
+    // "Canceled [16]" instantané sur le second appel.
+    // ============================================================
+    if (isGoogleAuthLoading.value) {
+      debugPrint(
+          '⛔ [GOOGLE_AUTH] Tentative ignorée : une auth Google est déjà en cours.');
+      return;
+    }
+    isGoogleAuthLoading.value = true;
+
+    // 🔍 [GOOGLE_AUTH] 1. Bouton cliqué
+    debugPrint('🔍 [GOOGLE_AUTH] 1. Bouton cliqué');
+
     final googleSignIn = GoogleSignIn.instance;
     showLoading();
-    try {
-      // Initialize GoogleSignIn (must be called once before other methods)
-      // On Android, clientId is auto-resolved via SHA-1
-      // serverClientId is used to get the tokens (Web Client ID)
-      await googleSignIn.initialize(
-        serverClientId: "165062133214-vjalpnirifhehf3vm91ashd5f0mm19g1.apps.googleusercontent.com",
-      );
-      
-      // Sign out any existing user first
-      await googleSignIn.signOut();
 
-      // Authenticate user natively on the device with scopes
-      final GoogleSignInAccount? googleUser = await googleSignIn.authenticate(
-        scopeHint: <String>['email', 'profile'],
+    try {
+      // Initialisation idempotente du singleton (v7+).
+      await googleSignIn.initialize(
+        serverClientId: _kGoogleServerClientId,
       );
+      debugPrint(
+          '🔧 [GOOGLE_AUTH] initialize() OK avec serverClientId=$_kGoogleServerClientId');
+
+      // ============================================================
+      // 🔍 [GOOGLE_AUTH] 2. Déconnexion préalable (silencieuse)
+      // Au cas où une session fantôme bloquerait l'authentification.
+      // On NE veut PAS qu'un échec de signOut tue le flow.
+      // ============================================================
+      debugPrint('🔍 [GOOGLE_AUTH] 2. Déconnexion préalable (silencieuse)');
+      try {
+        await googleSignIn.signOut();
+        debugPrint('🧹 [GOOGLE_AUTH] signOut() préalable OK');
+      } catch (silentSignOutError, silentSignOutSt) {
+        debugPrint(
+            '⚠️ [GOOGLE_AUTH] signOut() préalable a échoué silencieusement : $silentSignOutError');
+        debugPrint('⚠️ [GOOGLE_AUTH] stack: $silentSignOutSt');
+      }
+
+      // ============================================================
+      // 🔍 [GOOGLE_AUTH] 3. Lancement de signIn() / authenticate()
+      // Capture d'erreur AVANCÉE :
+      //   - PlatformException : remontée par le canal natif Android/iOS
+      //     (contient code/message/details bruts du SDK Google).
+      //   - GoogleSignInException : exception métier du package.
+      // ============================================================
+      debugPrint('🔍 [GOOGLE_AUTH] 3. Lancement de signIn()');
+
+      GoogleSignInAccount? googleUser;
+      try {
+        googleUser = await googleSignIn.authenticate(
+          scopeHint: <String>['email', 'profile'],
+        );
+      } on PlatformException catch (e, st) {
+        debugPrint(
+            '🚨 [GOOGLE_AUTH] PlatformException pendant authenticate()');
+        debugPrint('🚨 [GOOGLE_AUTH] -> e.code    = ${e.code}');
+        debugPrint('🚨 [GOOGLE_AUTH] -> e.message = ${e.message}');
+        debugPrint('🚨 [GOOGLE_AUTH] -> e.details = ${e.details}');
+        debugPrint('🚨 [GOOGLE_AUTH] -> stack     = $st');
+        // L'erreur Android "[16] Canceled" arrive typiquement ici quand :
+        //   - SHA-1 manquante ou mauvaise dans Firebase Console
+        //   - `serverClientId` n'est pas le Web Client ID du bon projet
+        //   - `google-services.json` pas régénéré après changement de SHA / package
+        //   - Aucun compte Google sur l'appareil / cache Play Services corrompu
+        closeLoading();
+        showErrorToastMessage(
+          "Google Sign-In échoué (PlatformException ${e.code}). "
+          "${e.message ?? ''}",
+        );
+        return;
+      } on GoogleSignInException catch (e, st) {
+        debugPrint(
+            '🚨 [GOOGLE_AUTH] GoogleSignInException pendant authenticate()');
+        debugPrint('🚨 [GOOGLE_AUTH] -> e.code        = ${e.code}');
+        debugPrint('🚨 [GOOGLE_AUTH] -> e.description = ${e.description}');
+        debugPrint('🚨 [GOOGLE_AUTH] -> e.details     = ${e.details}');
+        debugPrint('🚨 [GOOGLE_AUTH] -> stack         = $st');
+        closeLoading();
+        showErrorToastMessage(
+          "Connexion Google annulée ou échouée (${e.code}). "
+          "${e.description ?? ''}",
+        );
+        return;
+      }
 
       if (googleUser == null) {
-        // User cancelled the sign-in
+        // L'utilisateur a fermé la pop-up volontairement.
+        debugPrint(
+            'ℹ️ [GOOGLE_AUTH] authenticate() a retourné null (utilisateur a annulé).');
         closeLoading();
         return;
       }
 
-      // Extract user details directly from googleUser (no FirebaseAuth needed)
+      // ============================================================
+      // ✅ [GOOGLE_AUTH] 4. Succès : Compte récupéré
+      // ============================================================
+      debugPrint(
+          '✅ [GOOGLE_AUTH] 4. Succès: Compte récupéré -> ${googleUser.email}');
+
       final String email = googleUser.email;
-      final String id = googleUser.id; // This is the crucial Social ID
+      final String id = googleUser.id;
       final String displayName = googleUser.displayName ?? '';
       final String profileImage = googleUser.photoUrl ?? '';
 
-      // Get authentication tokens (optional, for backend verification if needed)
-      // Note: authentication is a getter, not a Future, so no await needed
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final String? idToken = googleAuth.idToken;
+      debugPrint(
+          '🔑 [GOOGLE_AUTH] idToken obtenu : ${idToken == null ? "NULL" : "(${idToken.length} chars)"}');
 
-      // Call the backend API with the exact JSON keys expected
       final LoginModel socialLoginModel =
           await globalScopeController.socialLogin(
         displayName,
@@ -1332,24 +1600,22 @@ class AuthController extends GetxController implements GetxService {
       await getFCMToken();
       token = socialLoginModel.data!.token!;
       // --- FIX: FLUSH GUEST TOKEN ---
-      // Clear the old Guest Bearer Token so http_service is forced to generate a new User Bearer Token.
       GetStorage().remove("bearerToken");
-      bearerToken = ""; // Reset the global variable immediately
+      bearerToken = "";
       print(
           "🧹 [Auth] Old Bearer Token flushed. Ready for User Token generation.");
       // ------------------------------
       userId = socialLoginModel.data!.id!;
-          // Lier l'utilisateur à OneSignal avec External User ID
-          try {
-            print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
-            await OneSignal.login(userId.toString());
-            String? pushToken = OneSignal.User.pushSubscription.id;
-            print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
-            print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
-            await OneSignalService.forceUpdatePlayerId();
-          } catch (e) {
-            print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
-          }
+      try {
+        print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
+        await OneSignal.login(userId.toString());
+        String? pushToken = OneSignal.User.pushSubscription.id;
+        print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
+        print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
+        await OneSignalService.forceUpdatePlayerId();
+      } catch (e) {
+        print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
+      }
       database.child(userId.toString()).set({
         "userId": userId.toString(),
         "playerId": oneSiginalplayerid ?? "null",
@@ -1390,14 +1656,33 @@ class AuthController extends GetxController implements GetxService {
 
       generalController.currentIndex.value = 0;
       update();
-    } on GoogleSignInException catch (e) {
+    } on GoogleSignInException catch (e, st) {
+      // Filet de sécurité (post-authenticate)
+      debugPrint(
+          '🚨 [GOOGLE_AUTH] GoogleSignInException (outer): code=${e.code}, description=${e.description}, details=${e.details}');
+      debugPrint('🚨 [GOOGLE_AUTH] stack=$st');
       closeLoading();
-      showErrorToastMessage("Erreur lors de la connexion Google: $e");
-    } catch (e) {
+      showErrorToastMessage(
+          "Erreur lors de la connexion Google (${e.code}): ${e.description ?? ''}");
+    } on PlatformException catch (e, st) {
+      // Filet de sécurité (post-authenticate)
+      debugPrint(
+          '🚨 [GOOGLE_AUTH] PlatformException (outer): code=${e.code}, message=${e.message}, details=${e.details}');
+      debugPrint('🚨 [GOOGLE_AUTH] stack=$st');
+      closeLoading();
+      showErrorToastMessage(
+          "Erreur Google Sign-In (${e.code}): ${e.message ?? ''}");
+    } catch (e, st) {
+      debugPrint('🚨 [GOOGLE_AUTH] Erreur inattendue: $e');
+      debugPrint('🚨 [GOOGLE_AUTH] stack=$st');
       closeLoading();
       showErrorToastMessage("Une erreur inattendue s'est produite: $e");
+    } finally {
+      isGoogleAuthLoading.value = false;
+      debugPrint('🏁 [GOOGLE_AUTH] Verrou de concurrence relâché.');
     }
   }
+  
 
   Future<void> appleLogin(BuildContext context) async {
     try {
@@ -1407,6 +1692,8 @@ class AuthController extends GetxController implements GetxService {
           AppleIDAuthorizationScopes.email,
           AppleIDAuthorizationScopes.fullName,
         ],
+       
+
       );
 
       var name = credential.givenName ?? '';

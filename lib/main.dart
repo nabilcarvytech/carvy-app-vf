@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:get/get_navigation/get_navigation.dart';
 import 'package:get_storage/get_storage.dart';
@@ -24,6 +25,19 @@ import 'helper/get_di.dart' as di;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 /// Identifiant `intl` pour [initializeDateFormatting] (ex. fr_FR, en_US).
+const List<Locale> kAppSupportedLocales = [
+  Locale('fr', 'FR'),
+  Locale('en', 'US'),
+  Locale('es', 'ES'),
+  Locale('ar', 'AR'),
+];
+
+const List<LocalizationsDelegate<dynamic>> kAppLocalizationsDelegates = [
+  GlobalMaterialLocalizations.delegate,
+  GlobalWidgetsLocalizations.delegate,
+  GlobalCupertinoLocalizations.delegate,
+];
+
 String _dateSymbolLocaleFor(Locale l) {
   final c = l.countryCode;
   if (c != null && c.isNotEmpty) return '${l.languageCode}_$c';
@@ -324,6 +338,8 @@ Widget buildWebApp(Locale localeToUse) {
       key: ValueKey(
           'app_web_${localeToUse.languageCode}_${localeToUse.countryCode}'),
       theme: ThemeData(fontFamily: 'Gilroy Regular'),
+      localizationsDelegates: kAppLocalizationsDelegates,
+      supportedLocales: kAppSupportedLocales,
       builder: (context, child) {
         return BotToastInit()(context, child);
       },
@@ -356,6 +372,8 @@ Widget buildMobileApp(Locale localeToUse) {
       key: ValueKey(
           'app_mobile_${localeToUse.languageCode}_${localeToUse.countryCode}'),
       theme: ThemeData(fontFamily: 'Gilroy Regular'),
+      localizationsDelegates: kAppLocalizationsDelegates,
+      supportedLocales: kAppSupportedLocales,
       builder: (context, child) {
         return BotToastInit()(context, child);
       },

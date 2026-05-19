@@ -5,7 +5,6 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
-import 'package:carvy/controller/booking_controller.dart';
 import 'package:carvy/controller/home_controller.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
@@ -1359,7 +1358,6 @@ Widget customDatePickerForFilter(BuildContext context) {
 
 void customDatePicker(BuildContext context, [bool? clesrdata]) {
   final SearchControllerHome searchController = Get.find();
-  BookingController bookingController = Get.find();
 
   List<String> getSlotsStartTime() {
     switch (searchController.curreentStatus.value) {
@@ -1376,7 +1374,7 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
       case "otherDates":
         return searchController.filteredTimeSlotsEndTime;
       default:
-        return bookingController.getManualTimeSlots24();
+        return searchController.searchPickerBaselineSlots();
     }
   }
 
@@ -1391,7 +1389,7 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
             return searchController.filteredTimeSlotsEndTime;
           }
         } else {
-          return bookingController.getManualTimeSlots24();
+          return searchController.searchPickerBaselineSlots();
         }
       case "SameDate":
         return searchController.filteredTimeSlotsEndTime;
@@ -1400,10 +1398,10 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
             searchController.endDates.value) {
           return searchController.filteredTimeSlotsEndTime;
         } else {
-          return bookingController.getManualTimeSlots24();
+          return searchController.searchPickerBaselineSlots();
         }
       default:
-        return bookingController.getManualTimeSlots24();
+        return searchController.searchPickerBaselineSlots();
     }
   }
 

@@ -4,7 +4,9 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/theme_style.dart';
+import 'package:carvy/model/review_model.dart';
 import 'package:carvy/view/myaccount/publicProfile/public_profile_review_screen.dart';
+import 'package:carvy/view/review/review_display_widgets.dart';
 import 'package:carvy/work_space.dart';
 import '../../../controller/publix_profile_controller.dart';
 import '../../../../customwidget/see_image_full_screen.dart';
@@ -577,114 +579,34 @@ class _PublicProfileState extends State<PublicProfile> {
                                 );
                               }
                               
-                              return ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: publicProfileController.reviewsList.length,
-                                itemBuilder: (context, index) {
-                                  final review = publicProfileController.reviewsList[index];
-                                  final client = review['client'] as Map<String, dynamic>?;
-                                  final clientName = client?['name'] ?? 'Client'.tr;
-                                  final clientImage = client?['profile_picture'];
-                                  final createdAt = review['created_at'] ?? '';
-                                  final averageRating = review['average_rating'] ?? 0.0;
-                                  final comment = review['comment'] ?? '';
-                                  
-                                  // Formater la date
-                                  String formattedDate = createdAt;
-                                  try {
-                                    if (createdAt.isNotEmpty) {
-                                      final date = DateTime.parse(createdAt).toLocal();
-                                      formattedDate = '${date.day}/${date.month}/${date.year}';
-                                    }
-                                  } catch (e) {
-                                    // Garder la date brute si le parsing échoue
-                                  }
-                                  
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 20),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: notifires.getBoxColor,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              // Avatar du client
-                                              CircleAvatar(
-                                                radius: 24,
-                                                backgroundColor: notifires.getGrey3Whitecolor,
-                                                backgroundImage: clientImage != null && clientImage.toString().isNotEmpty
-                                                    ? NetworkImage(clientImage.toString())
-                                                    : null,
-                                                child: clientImage == null || clientImage.toString().isEmpty
-                                                    ? Icon(
-                                                        Icons.person,
-                                                        color: notifires.getwhiteblackcolor,
-                                                        size: 24,
-                                                      )
-                                                    : null,
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      clientName,
-                                                      style: boldstyle(context).copyWith(
-                                                        color: notifires.getwhiteblackcolor,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      formattedDate,
-                                                      style: regular2(context).copyWith(
-                                                        color: notifires.getGrey3Whitecolor,
-                                                        fontSize: 12,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              // Note avec étoile
-                                              Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                    (averageRating is num ? averageRating.toDouble() : 0.0).toStringAsFixed(1),
-                                                    style: boldstyle(context).copyWith(
-                                                      color: getColorBasedOnActiveModuleid(),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Icon(
-                                                    Icons.star,
-                                                    size: 18,
-                                                    color: getColorBasedOnActiveModuleid(),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                          if (comment.isNotEmpty) ...[
-                                            const SizedBox(height: 12),
-                                            Text(
-                                              comment,
-                                              style: regular2(context).copyWith(
-                                                color: notifires.getwhiteblackcolor,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
+                              final allReviews =
+                                  publicProfileController.reviewsList;
+                              final previewReviews = allReviews.length > 2
+                                  ? allReviews.take(2).toList()
+                                  : allReviews;
+                              final agencyName = publicProfileController
+                                  .getUserProfile?.data?.name;
+
+                              return Column(
+                                children: [
+                                  ...previewReviews.map((raw) {
+                                    final review =
+                                        ReviewRatings.asMap(raw);
+                                    return buildAgencyReviewListTile(
+                                      context,
+                                      review,
+                                    );
+                                  }),
+                                  buildViewAllReviewsButton(
+                                    totalCount: allReviews.length,
+                                    onTap: () => showAllAgencyReviewsBottomSheet(
+                                      context,
+                                      reviews: List<Map<String, dynamic>>.from(
+                                          allReviews),
+                                      agencyName: agencyName,
                                     ),
-                                  );
-                                },
+                                  ),
+                                ],
                               );
                             }),
                           ],

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:google_places_flutter/google_places_flutter.dart';
 import 'package:google_places_flutter/model/prediction.dart';
 import 'package:provider/provider.dart';
-import 'package:carvy/controller/booking_controller.dart';
 import 'package:carvy/controller/home_controller.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/data_not_found.dart';
@@ -13,6 +12,7 @@ import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/model/items_model.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/rental_billing_days.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:get/get.dart';
 import 'package:carvy/view/itemdetail/vehicle/view_on_map_screen.dart';
@@ -39,7 +39,6 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  BookingController bookingController = Get.find();
   late HomeController homeController;
   late SearchControllerHome _searchController;
   late FocusNode _focusNode;
@@ -61,6 +60,24 @@ class _SearchScreenState extends State<SearchScreen> {
       _focusNode.requestFocus();
       _searchController.sendvalueInApiforrecentValue.value = false;
     });
+  }
+
+  RentalBillingSummary? _vehicleSearchScreenRentalSummary() {
+    if (activeModuleId.value != 2) return null;
+    final s = generalScopeController.startDateCustomDate.value.trim();
+    final e = generalScopeController.endDateCustomDate.value.trim();
+    if (s.isEmpty || e.isEmpty) return null;
+    final startD = DateTime.tryParse(s);
+    final endD = DateTime.tryParse(e);
+    if (startD == null || endD == null) return null;
+    return RentalBillingDays.compute(
+      startDate: startD,
+      endDate: endD,
+      startTime: RentalBillingDays.parseTimeOfDayFromSlot(
+          _searchController.startTimeSearch.value),
+      endTime: RentalBillingDays.parseTimeOfDayFromSlot(
+          _searchController.endTimeSearch.value),
+    );
   }
 
   Future<void> searchMethod() async {
@@ -757,42 +774,93 @@ class _SearchScreenState extends State<SearchScreen> {
                                   width: 15,
                                 ),
                                 Expanded(
-                                  child: Obx(() => Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            _searchController.startDate.value !=
-                                                        "" &&
-                                                    _searchController
-                                                            .endDates.value !=
-                                                        ""
-                                                ? "Selected Date Range".tr
-                                                : "Select your dates".tr,
-                                            style: regular2(context).copyWith(
-                                              fontSize: 12,
-                                              color:
-                                                  notifires.getGrey1Whitecolor,
-                                            ),
+                                  child: Obx(() {
+                                    final hasRange = _searchController
+                                                .startDate.value.isNotEmpty &&
+                                            _searchController
+                                                .endDates.value.isNotEmpty;
+                                    final gsStart = generalScopeController
+                                        .startDateCustomDate.value;
+                                    final gsEnd = generalScopeController
+                                        .endDateCustomDate.value;
+                                    final vehicleSummary =
+                                        activeModuleId.value == 2 &&
+                                                hasRange &&
+                                                gsStart.isNotEmpty &&
+                                                gsEnd.isNotEmpty
+                                            ? _vehicleSearchScreenRentalSummary()
+                                            : null;
+                                    final hasExtra =
+                                        vehicleSummary?.hasExtraDay ?? false;
+
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          hasRange
+                                              ? "Selected Date Range".tr
+                                              : "Select your dates".tr,
+                                          style: regular2(context).copyWith(
+                                            fontSize: 12,
+                                            color: notifires
+                                                .getGrey1Whitecolor,
                                           ),
-                                          const SizedBox(height: 4),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        if (!hasRange)
                                           Text(
-                                            _searchController.startDate.value !=
-                                                        "" &&
-                                                    _searchController
-                                                            .endDates.value !=
-                                                        ""
-                                                ? "${_searchController.startDate.value} ${_searchController.startTimeSearch.value} - ${_searchController.endDates.value} ${_searchController.endTimeSearch.value}"
-                                                : "Tap to select dates".tr,
+                                            "Tap to select dates".tr,
                                             style: regular3(context).copyWith(
                                               fontSize: 14,
-                                              color:
-                                                  notifires.getwhiteblackcolor,
+                                              color: notifires
+                                                  .getwhiteblackcolor,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          )
+                                        else if (activeModuleId.value == 2)
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  '${_searchController.startDate.value} ${_searchController.startTimeSearch.value} - ',
+                                                  style: regular3(context)
+                                                      .copyWith(
+                                                    fontSize: 14,
+                                                    color: notifires
+                                                        .getwhiteblackcolor,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                              Flexible(
+                                                child:
+                                                    VehicleReturnDateWithBillingBadgeRow(
+                                                  dateText:
+                                                      '${_searchController.endDates.value} ${_searchController.endTimeSearch.value}',
+                                                  textAlign: TextAlign.start,
+                                                  isExtraDay: hasExtra,
+                                                  emphasizeOvertime: hasExtra,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        else
+                                          Text(
+                                            "${_searchController.startDate.value} ${_searchController.startTimeSearch.value} - ${_searchController.endDates.value} ${_searchController.endTimeSearch.value}",
+                                            style:
+                                                regular3(context).copyWith(
+                                              fontSize: 14,
+                                              color: notifires
+                                                  .getwhiteblackcolor,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                        ],
-                                      )),
+                                      ],
+                                    );
+                                  }),
                                 ),
                               ],
                             ),
@@ -1088,8 +1156,11 @@ class _SearchScreenState extends State<SearchScreen> {
                                           Obx(() {
                                             final startSlots =
                                                 getSlotsStartTime();
+                                            final si = startSlots.indexOf(
+                                                _searchController
+                                                    .startTimeSearch.value);
                                             final startIndex =
-                                                startSlots.isNotEmpty ? 0 : 0;
+                                                si >= 0 ? si : 0;
 
                                             return SizedBox(
                                               height: 120,
@@ -1101,9 +1172,29 @@ class _SearchScreenState extends State<SearchScreen> {
                                                 itemExtent: 40,
                                                 onSelectedItemChanged: (index) {
                                                   _searchController
-                                                          .startTimeSearch
-                                                          .value =
-                                                      startSlots[index];
+                                                      .startTimeSearch
+                                                      .value = startSlots[index];
+                                                  if (activeModuleId.value ==
+                                                          2 &&
+                                                      _searchController
+                                                              .startDate.value ==
+                                                          _searchController
+                                                              .endDates.value) {
+                                                    if (_searchController
+                                                        .isEndTimeStrictlyBeforeStartTime(
+                                                      _searchController
+                                                          .startTimeSearch.value,
+                                                      _searchController
+                                                          .endTimeSearch.value,
+                                                    )) {
+                                                      _searchController
+                                                              .endTimeSearch
+                                                              .value =
+                                                          _searchController
+                                                              .startTimeSearch
+                                                              .value;
+                                                    }
+                                                  }
                                                 },
                                                 children: startSlots
                                                     .map((time) => Center(
@@ -1142,9 +1233,11 @@ class _SearchScreenState extends State<SearchScreen> {
                                           const SizedBox(height: 8),
                                           Obx(() {
                                             final endSlots = getSlotsEndTime();
-                                            final endIndex = endSlots.isNotEmpty
-                                                ? endSlots.length - 1
-                                                : 0;
+                                            final ei = endSlots.indexOf(
+                                                _searchController
+                                                    .endTimeSearch.value);
+                                            final endIndex =
+                                                ei >= 0 ? ei : 0;
                                             return SizedBox(
                                               height: 120,
                                               child: CupertinoPicker(
@@ -1192,20 +1285,38 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           bottomNavigationBar: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: CustomsButtons(
-                backgroundColor: getColorBasedOnActiveModuleid(),
-                text: "Search".tr,
-                onPressed: () {
-                  if (handleSearchFordetail == true) {
-                    Get.back();
-                    return;
-                  }
-                  search();
-                },
-              ),
-            ),
+            child: Obx(() {
+              final summary = _vehicleSearchScreenRentalSummary();
+              final showBanner =
+                  activeModuleId.value == 2 && summary != null;
+              return Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (showBanner) ...[
+                      VehicleRentalBillableDaysInfoBanner(
+                        totalBillableDays: summary!.totalDays,
+                        hasOvertimeDay: summary.hasExtraDay,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    CustomsButtons(
+                      backgroundColor: getColorBasedOnActiveModuleid(),
+                      text: "Search".tr,
+                      onPressed: () {
+                        if (handleSearchFordetail == true) {
+                          Get.back();
+                          return;
+                        }
+                        search();
+                      },
+                    ),
+                  ],
+                ),
+              );
+            }),
           ),
         ),
       ),
@@ -1227,7 +1338,7 @@ class _SearchScreenState extends State<SearchScreen> {
       case "otherDates":
         return _searchController.filteredTimeSlotsEndTime;
       default:
-        return bookingController.getManualTimeSlots24();
+        return _searchController.searchPickerBaselineSlots();
     }
   }
 
@@ -1242,7 +1353,7 @@ class _SearchScreenState extends State<SearchScreen> {
             return _searchController.filteredTimeSlotsEndTime;
           }
         } else {
-          return bookingController.getManualTimeSlots24();
+          return _searchController.searchPickerBaselineSlots();
         }
       case "SameDate":
         return _searchController.filteredTimeSlotsEndTime;
@@ -1251,10 +1362,10 @@ class _SearchScreenState extends State<SearchScreen> {
             _searchController.endDates.value) {
           return _searchController.filteredTimeSlotsEndTime;
         } else {
-          return bookingController.getManualTimeSlots24();
+          return _searchController.searchPickerBaselineSlots();
         }
       default:
-        return bookingController.getManualTimeSlots24();
+        return _searchController.searchPickerBaselineSlots();
     }
   }
 }

@@ -20,6 +20,7 @@ const Map<String, String> thTH = {
   "Popular Regions": "ภูมิภาคยอดนิยม",
   "See More": "ดูเพิ่มเติม",
   "See All": "ดูทั้งหมด",
+  "View All": "ดูทั้งหมด",
   "Our Recommendation": "คำแนะนำของเรา",
   "Most viewed": "ที่มียอดวิวมากที่สุด",
   "Recommended Spaces": "พื้นที่แนะนำ",
@@ -1228,5 +1229,10 @@ const Map<String, String> thTH = {
   "Smoking Allowed": "อนุญาตให้สูบบุหรี่",
   "min_rental_duration_vehicle_days":
       "ระยะเวลาการเช่าขั้นต่ำสำหรับยานพาหนะนี้คือ @days วัน",
-  "International Travel Allowed": "อนุญาตให้เดินทางระหว่างประเทศ"
+  "International Travel Allowed": "อนุญาตให้เดินทางระหว่างประเทศ",
+  "Security Deposit (Caution)": "เงินประกัน (มัดจำ)",
+  "receipt_security_deposit_on_site_info":
+      "จำนวนเงินนี้ไม่ถูกหักผ่านแอป ต้องจัดการโดยตรงกับเอเจนซี่เมื่อรับรถ (การกันวงเงินบัตร เช็ค หรือเงินสดตามเงื่อนไขของเอเจนซี่)",
+  "booking_deposit_on_site_short":
+      "จัดการที่สถานที่กับผู้ขาย",
 };

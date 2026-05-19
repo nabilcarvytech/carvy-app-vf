@@ -491,7 +491,7 @@ Future<void> showNotification() async {
         
         if (context != null) {
           // Afficher le BottomSheet d'avis
-          showReviewBottomSheet(context, additionalData);
+          showReviewRequestNotificationBottomSheet(context, additionalData);
           print('✅ [REVIEW] BottomSheet d\'avis affiché');
         } else {
           print('⚠️ [REVIEW] Contexte non disponible, impossible d\'afficher le BottomSheet');

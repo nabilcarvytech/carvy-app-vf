@@ -114,6 +114,29 @@ class _SignUpState extends State<SignUp> {
                             ),
                             TextFieldRefs(
                               inputAlignment: TextAlign.start,
+                              txt: 'Date of birth'.tr,
+                              icons: Icon(
+                                Icons.calendar_today,
+                                color: acentColor,
+                              ),
+                              textEditingControllerCommon: authController
+                                  .textEditingSingUpControllerDOB,
+                              inputType: TextInputType.none,
+                              readOnly: true,
+                              onTap: () =>
+                                  authController.pickSignUpBirthDate(context),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Please enter Date of Birth'.tr;
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(
+                              height: 20,
+                            ),
+                            TextFieldRefs(
+                              inputAlignment: TextAlign.start,
                               txt: "Email Address".tr,
                               icons: Icon(
                                 Icons.mail,
@@ -125,61 +148,101 @@ class _SignUpState extends State<SignUp> {
                               validator: (value) {
                                 return validateEmail(value!);
                               },
+                              onChange: (v) {
+                                authController.registerWizardEmailError.value =
+                                    '';
+                                return null;
+                              },
                             ),
+                            Obx(() => authController
+                                    .registerWizardEmailError.value.isEmpty
+                                ? const SizedBox.shrink()
+                                : Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Text(
+                                      authController
+                                          .registerWizardEmailError.value,
+                                      style: regular3(context)
+                                          .copyWith(color: redColor),
+                                    ),
+                                  )),
                             const SizedBox(height: 20),
-                            IntelPhoneFieldRefs(
-                              defultcountry:
-                                  profileController.defaultCountry.value,
-                              textEditingControllerCommons: authController
-                                  .textEditingSingUpControllerPhoneNumber,
-                              oncountryChanged: (number) {
-                                authController
-                                    .textEditingSingUpControllerPhoneNumber
-                                    .clear();
-                                profileController.selectedCountry.value =
-                                    number.dialCode;
-                                profileController.defaultCountry.value =
-                                    number.code;
-                              },
-                              onChanged: (value) {
-                                int expectedLength = phoneLengths[
-                                        profileController
-                                            .defaultCountry.value] ??
-                                    10;
-
-                                if (value!.number.length > expectedLength) {
-                                  authController
-                                          .textEditingSingUpControllerPhoneNumber
-                                          .text =
-                                      value.number.substring(0, expectedLength);
-                                  authController
-                                      .textEditingSingUpControllerPhoneNumber
-                                      .selection = TextSelection.fromPosition(
-                                    TextPosition(
-                                        offset: authController
+                            Obx(() => Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    IntelPhoneFieldRefs(
+                                      defultcountry: profileController
+                                          .defaultCountry.value,
+                                      textEditingControllerCommons:
+                                          authController
+                                              .textEditingSingUpControllerPhoneNumber,
+                                      oncountryChanged: (number) {
+                                        authController.phoneError.value = '';
+                                        authController
                                             .textEditingSingUpControllerPhoneNumber
-                                            .text
-                                            .length),
-                                  );
-                                }
-                                return null;
-                              },
-                              validator: (phoneNumber) {
-                                if (phoneNumber == null ||
-                                    phoneNumber.number.isEmpty) {
-                                  return 'Please enter your phone number';
-                                }
+                                            .clear();
+                                        profileController
+                                                .selectedCountry.value =
+                                            number.dialCode;
+                                        profileController
+                                                .defaultCountry.value =
+                                            number.code;
+                                      },
+                                      onChanged: (value) {
+                                        authController.phoneError.value = '';
+                                        int expectedLength = phoneLengths[
+                                                profileController
+                                                    .defaultCountry.value] ??
+                                            10;
 
-                                int expectedLength =
-                                    phoneLengths[phoneNumber.countryISOCode] ??
-                                        10;
-                                if (phoneNumber.number.length !=
-                                    expectedLength) {
-                                  return 'Phone number must be $expectedLength digits';
-                                }
-                                return null;
-                              },
-                            ),
+                                        if (value!.number.length >
+                                            expectedLength) {
+                                          authController
+                                                  .textEditingSingUpControllerPhoneNumber
+                                                  .text =
+                                              value.number.substring(
+                                                  0, expectedLength);
+                                          authController
+                                                  .textEditingSingUpControllerPhoneNumber
+                                                  .selection =
+                                              TextSelection.fromPosition(
+                                            TextPosition(
+                                                offset: authController
+                                                    .textEditingSingUpControllerPhoneNumber
+                                                    .text
+                                                    .length),
+                                          );
+                                        }
+                                        return null;
+                                      },
+                                      validator: (phoneNumber) {
+                                        if (phoneNumber == null ||
+                                            phoneNumber.number.isEmpty) {
+                                          return 'Please enter your phone number';
+                                        }
+
+                                        int expectedLength = phoneLengths[
+                                                phoneNumber.countryISOCode] ??
+                                            10;
+                                        if (phoneNumber.number.length !=
+                                            expectedLength) {
+                                          return 'Phone number must be $expectedLength digits';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    if (authController
+                                        .phoneError.value.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        authController.phoneError.value,
+                                        style: regular3(context)
+                                            .copyWith(color: redColor),
+                                      ),
+                                    ],
+                                  ],
+                                )),
                             const SizedBox(height: 20),
                             CustomTextFields(
                                 txt: 'Password'.tr,

@@ -19,6 +19,7 @@ const Map<String, String> frFR = {
   "Popular locations": "Lieux de prise en charge populaires",
   "Popular Regions": "Régions populaires",
   "See All": "Voir tout",
+  "View All": "Afficher tout",
   "Our Recommendation": "Nos recommandations",
   "Most viewed": "Les plus consultés",
   "Recommended Spaces": "Véhicules recommandés",
@@ -32,6 +33,16 @@ const Map<String, String> frFR = {
   "History": "Historique",
   "Review": "Avis",
   "Leave a Review": "Laisser un avis",
+  "Review submitted": "⭐️ Avis envoyé",
+  "opening_review_form_dev":
+      "Ouverture du formulaire d'avis en cours de développement...",
+  "Rate your experience": "Noter votre expérience",
+  "Vehicle rating label": "Note du véhicule",
+  "Agency rating label": "Note de l'agence / service",
+  "Submit review button": "Envoyer l'avis",
+  "Thank you for your review!": "Merci pour votre avis !",
+  "Agency not found": "Agence introuvable",
+  "Vehicle not found": "Véhicule introuvable",
   "Add Review here": "Ajoutez votre avis ici",
   "Maybe Later": "Plus tard",
   "Submit": "Envoyer",
@@ -53,6 +64,12 @@ const Map<String, String> frFR = {
   "New Password": "Nouveau mot de passe",
   "Confirm Password": "Confirmer le mot de passe",
   "Confirm": "Confirmer",
+  "Confirmer le retour": "Confirmer le retour",
+  "Confirmez-vous que le véhicule a été restitué en bon état et que la location est terminée ?":
+      "Confirmez-vous que le véhicule a été restitué en bon état et que la location est terminée ?",
+  "Véhicule retourné avec succès !": "Véhicule retourné avec succès !",
+  "Succès": "Succès",
+  "Erreur": "Erreur",
   "Password did not match": "Les mots de passe ne correspondent pas",
   "Enter your confirm password": "Confirmez votre mot de passe",
   "Reset Password": "Réinitialiser le mot de passe",
@@ -1361,5 +1378,10 @@ const Map<String, String> frFR = {
       "Le véhicule doit être rendu avec le même niveau de carburant qu’au départ et dans un état de propreté correct. Des frais peuvent s’appliquer en cas de non-respect.",
   "terms_general_insurance_title": "Assurance et sinistres",
   "terms_general_insurance_body":
-      "En cas d’accident, l’utilisateur s’engage à contacter l’assistance Carvy immédiatement et à remplir un constat amiable."
+      "En cas d’accident, l’utilisateur s’engage à contacter l’assistance Carvy immédiatement et à remplir un constat amiable.",
+  "Security Deposit (Caution)": "Dépôt de garantie (Caution)",
+  "receipt_security_deposit_on_site_info":
+      "Ce montant n'est pas prélevé sur l'application. Il doit être géré directement sur place avec l'agence lors de la récupération du véhicule (empreinte bancaire, chèque ou espèces selon les conditions de l'agence).",
+  "booking_deposit_on_site_short":
+      "À gérer sur place chez le vendeur",
 };

@@ -20,6 +20,7 @@ const Map<String, String> ruRU = {
   "Popular Regions": "Популярные регионы",
   "See More": "Показать больше",
   "See All": "Посмотреть все",
+  "View All": "Показать все",
   "Our Recommendation": "Наши рекомендации",
   "Most viewed": "Самые просматриваемые",
   "Recommended Spaces": "Рекомендуемые пространства",
@@ -1264,5 +1265,10 @@ const Map<String, String> ruRU = {
   "Smoking Allowed": "Курение разрешено",
   "min_rental_duration_vehicle_days":
       "Минимальная длительность аренды для этого автомобиля: @days дней.",
-  "International Travel Allowed": "Международные поездки разрешены"
+  "International Travel Allowed": "Международные поездки разрешены",
+  "Security Deposit (Caution)": "Гарантийный депозит (залог)",
+  "receipt_security_deposit_on_site_info":
+      "Эта сумма не списывается через приложение. Её необходимо оформить на месте с агентством при получении автомобиля (блокировка на карте, чек или наличные в зависимости от условий агентства).",
+  "booking_deposit_on_site_short":
+      "Оформляется на месте у продавца",
 };

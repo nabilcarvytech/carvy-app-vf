@@ -4,6 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
+import 'package:carvy/constants/app_constants.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/view/kyc/user_kyc.dart';
 import 'package:carvy/controller/search_controller.dart';
@@ -246,14 +247,8 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             print(
                                                 'DEBUG: Skip flag is ${kycController.hasSkippedInSession.value}');
 
-                                            // Si le statut est NONE (vide, "no", "none") ET que l'utilisateur n'a pas encore cliqué sur Skip dans cette session,
-                                            // rediriger vers UserKyc. Sinon, continuer avec la réservation.
-                                            if ((kycStatus.isEmpty ||
-                                                    kycStatus == "no" ||
-                                                    kycStatus == "none") &&
-                                                !kycController
-                                                    .hasSkippedInSession
-                                                    .value) {
+                                            if (kycController
+                                                .shouldRequireKycBeforeBooking) {
                                               Navigator.push(
                                                   context,
                                                   MaterialPageRoute(
@@ -262,15 +257,15 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                               return;
                                             }
 
-                                            // Si le statut est PENDING ou VERIFIED/approved, autoriser le paiement
-                                            // (ignorer l'étape KYC et continuer directement vers le paiement)
-                                            // Convertir en minuscules pour une comparaison insensible à la casse
+                                            // KYC désactivé, ou statut autorisant le paiement
                                             final kycStatusLower =
                                                 kycStatus.toLowerCase();
-                                            if (kycStatusLower == "pending" ||
+                                            if (!AppConstants.isKycEnabled ||
+                                                kycStatusLower == "pending" ||
                                                 kycStatusLower == "review" ||
                                                 kycStatusLower == "approved" ||
-                                                kycStatusLower == "verified") {
+                                                kycStatusLower == "verified" ||
+                                                kycStatusLower == "yes") {
                                               // Continuer avec le processus de paiement
                                               if (loginModel!.data!.firstName !=
                                                   null) {
@@ -516,7 +511,8 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                             // Bandeau d'information si KYC a été passé
                             Obx(() {
                               final kycController = Get.find<KycController>();
-                              if (kycController.hasSkippedInSession.value) {
+                              if (AppConstants.isKycEnabled &&
+                                  kycController.hasSkippedInSession.value) {
                                 return Container(
                                   width: double.infinity,
                                   margin: EdgeInsets.all(20),
