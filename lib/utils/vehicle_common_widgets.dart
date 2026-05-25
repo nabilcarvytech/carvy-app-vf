@@ -22,6 +22,8 @@ import '../customwidget/project_color.dart';
 
 import '../view/itemdetail/vehicle/vehicle_detail_screen.dart';
 import '../view/wishlist/wish_list_screen.dart';
+import '../helper/cancellation_policy_helper.dart';
+import '../helper/vehicle_card_helper.dart';
 import '../work_space.dart';
 import 'common_widget.dart';
 import 'package:google_places_flutter/google_places_flutter.dart';
@@ -264,7 +266,7 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
             ? locationParts.join(" • ")
             : "Unknown Location".tr;
         final double parsedRating =
-            double.tryParse(list[index].itemRating?.toString() ?? '0') ?? 0.0;
+            VehicleCardHelper.resolveItemRating(list[index]);
         return Padding(
           padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
           child: GestureDetector(
@@ -275,7 +277,9 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                       builder: (context) => VehicleDetailSScreen(
                             id: list.elementAt(index).id,
                             itemInfo: itemInfoData,
-                            rating: list[index].itemRating,
+                            rating: parsedRating > 0
+                                ? parsedRating.toStringAsFixed(1)
+                                : list[index].itemRating,
                             title: list[index].name,
                             address: list[index].address,
                             city: list[index].city,
@@ -389,91 +393,23 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                                     )
                                   ],
                                 ),
-                                Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 10,
-                                    ),
-                                    if (itemInfoData!.transmission != null &&
-                                        itemInfoData.transmission!.isNotEmpty)
-                                      Text(
-                                        itemInfoData.transmission!,
-                                        style: regular3(context).copyWith(
-                                          fontSize: 12,
-                                          color: whiteColor,
-                                        ),
-                                      ),
-                                    if (itemInfoData.transmission != null &&
-                                        itemInfoData.transmission!.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4),
-                                        child: Text(
-                                          "•",
-                                          style: TextStyle(
-                                              color: whiteColor, fontSize: 12),
-                                        ),
-                                      ),
-                                    if (itemInfoData.makeType != null &&
-                                        itemInfoData.makeType!.isNotEmpty)
-                                      Text(
-                                        itemInfoData.makeType!,
-                                        style: regular3(context).copyWith(
-                                          fontSize: 12,
-                                          color: whiteColor,
-                                        ),
-                                      ),
-                                    if (itemInfoData.makeType != null &&
-                                        itemInfoData.makeType!.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4),
-                                        child: Text(
-                                          "•",
-                                          style: TextStyle(
-                                              color: whiteColor, fontSize: 12),
-                                        ),
-                                      ),
-                                    if (itemInfoData.seatCapicity != null)
-                                      Text(
-                                        "${itemInfoData.seatCapicity} Seats",
-                                        style: regular3(context).copyWith(
-                                          fontSize: 12,
-                                          color: whiteColor,
-                                        ),
-                                      ),
-                                    Spacer(),
-                                    Row(
-                                      children: [
-                                        const SizedBox(
-                                          width: 5,
-                                        ),
-                                        Text(
-                                          "$currency ${list.elementAt(index).price!.length > 8 ? list.elementAt(index).price!.substring(0, 7) : list.elementAt(index).price ?? ""}",
-                                          style: boldstyle(context).copyWith(
-                                              color:
-                                                  getColorBasedOnActiveModuleid(),
-                                              fontSize: 14,
-                                              overflow: TextOverflow.ellipsis),
-                                        ),
-                                        serviceType == "booking"
-                                            ? Text(
-                                                ' /day'.tr,
-                                                maxLines: 1,
-                                                style: regular(context)
-                                                    .copyWith(
-                                                        color: notifires
-                                                            .getGrey4Whitecolor,
-                                                        overflow: TextOverflow
-                                                            .ellipsis),
-                                              )
-                                            : const SizedBox(),
-                                      ],
-                                    ),
-                                    SizedBox(
-                                      width: 5,
-                                    )
-                                  ],
+                                VehicleCardHelper.buildSpecsAndPriceRow(
+                                  itemInfo: itemInfoData,
+                                  price: list.elementAt(index).price,
+                                  showPerDay: serviceType == "booking",
+                                  chipStyle: regular3(context).copyWith(
+                                    fontSize: 12,
+                                    color: whiteColor,
+                                  ),
+                                  priceStyle: boldstyle(context).copyWith(
+                                    color: getColorBasedOnActiveModuleid(),
+                                    fontSize: 14,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  perDayStyle: regular(context).copyWith(
+                                    color: notifires.getGrey4Whitecolor,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
@@ -573,7 +509,7 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                         ),
                       ),
                       Spacer(),
-                      if (itemInfoData.hostFirstName != null)
+                      if (itemInfoData?.hostFirstName != null)
                         Row(
                           children: [
                             Icon(
@@ -585,7 +521,7 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                               width: 5,
                             ),
                             Text(
-                              "${"By".tr} - ${itemInfoData.hostFirstName ?? ""}",
+                              "${"By".tr} - ${itemInfoData?.hostFirstName ?? ""}",
                               overflow: TextOverflow.ellipsis,
                               style: regular3(context).copyWith(
                                 fontSize: 12,
@@ -935,6 +871,7 @@ Container carbox({
   final IconData? icons,
   required String title,
   required String desc,
+  TextDirection? descTextDirection,
 }) {
   return Container(
     width: 170,
@@ -973,14 +910,15 @@ Container carbox({
                 height: 18,
               ),
               Text(
-                title.tr,
+                title,
                 style: regular02.copyWith(color: notifires.getGrey2Whitecolor),
               ),
               Expanded(
                 child: Text(
-                  desc.tr,
+                  desc,
                   style:
                       regular02.copyWith(color: notifires.getGrey3Whitecolor),
+                  textDirection: descTextDirection,
                 ),
               ),
             ],
@@ -1180,25 +1118,10 @@ void cancellationPolicyBottomSheet(BuildContext context, title, description) {
     // useSafeArea: false,
     context: context,
     builder: (BuildContext context) {
-      // Normaliser description : peut être une liste ou une string
-      List<String> rulesList = [];
-      if (description != null) {
-        if (description is List) {
-          rulesList = description.map<String>((item) {
-            if (item is String) {
-              return item;
-            }
-            return item.toString();
-          }).toList();
-        } else if (description is String && description.isNotEmpty) {
-          rulesList = [description];
-        }
-      }
-      
-      // Si la liste est vide et qu'on a un titre, utiliser le titre comme premier point
-      if (rulesList.isEmpty && title != null && title.toString().isNotEmpty) {
-        rulesList = [title.toString()];
-      }
+      final rulesList = CancellationPolicyHelper.resolveDisplayRules(
+        description,
+        isCancellationPolicy: true,
+      );
       
       return SizedBox(
         height: double.infinity,
@@ -1230,14 +1153,14 @@ void cancellationPolicyBottomSheet(BuildContext context, title, description) {
                 ],
               ),
               const SizedBox(height: 25),
-              // Titre "Politique d'annulation" en gras
               Text(
-                "Politique d'annulation".tr,
+                'cancellation_policy_title'.tr,
                 style: boldstyle(context).copyWith(
                   color: notifires.getGrey2Whitecolor,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.start,
               ),
               const SizedBox(height: 20),
               // Liste des règles avec icônes
@@ -1267,28 +1190,10 @@ void cancellationPolicyBottomSheet(BuildContext context, title, description) {
                               ],
                             ),
                           ]
-                        : rulesList.map((rule) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.done_all,
-                                    color: Colors.blue,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      rule.toString(),
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
+                        : rulesList
+                            .map((rule) =>
+                                CancellationPolicyHelper.buildRuleListTile(rule))
+                            .toList(),
                   ),
                 ),
               ),
@@ -2089,7 +1994,7 @@ Widget vehicalHorizontalViewNearYou(
             city = cityy;
           }
           final double parsedRating =
-              double.tryParse(list[index].itemRating?.toString() ?? '0') ?? 0.0;
+              VehicleCardHelper.resolveItemRating(list[index]);
 
           return Padding(
             padding:
@@ -2102,7 +2007,9 @@ Widget vehicalHorizontalViewNearYou(
                         builder: (context) => VehicleDetailSScreen(
                               id: list.elementAt(index).id,
                               itemInfo: itemInfoData,
-                              rating: list[index].itemRating,
+                              rating: parsedRating > 0
+                                  ? parsedRating.toStringAsFixed(1)
+                                  : list[index].itemRating,
                               title: list[index].name,
                               address: list[index].address,
                               city: list[index].city,
@@ -2221,94 +2128,23 @@ Widget vehicalHorizontalViewNearYou(
                                       )
                                     ],
                                   ),
-                                  Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 10,
-                                      ),
-                                      if (itemInfoData!.transmission != null &&
-                                          itemInfoData.transmission!.isNotEmpty)
-                                        Text(
-                                          itemInfoData.transmission!,
-                                          style: regular3(context).copyWith(
-                                            fontSize: 12,
-                                            color: whiteColor,
-                                          ),
-                                        ),
-                                      if (itemInfoData.transmission != null &&
-                                          itemInfoData.transmission!.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 4),
-                                          child: Text(
-                                            "•",
-                                            style: TextStyle(
-                                                color: whiteColor,
-                                                fontSize: 12),
-                                          ),
-                                        ),
-                                      if (itemInfoData.makeType != null &&
-                                          itemInfoData.makeType!.isNotEmpty)
-                                        Text(
-                                          itemInfoData.makeType!,
-                                          style: regular3(context).copyWith(
-                                            fontSize: 12,
-                                            color: whiteColor,
-                                          ),
-                                        ),
-                                      if (itemInfoData.makeType != null &&
-                                          itemInfoData.makeType!.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 4),
-                                          child: Text(
-                                            "•",
-                                            style: TextStyle(
-                                                color: whiteColor,
-                                                fontSize: 12),
-                                          ),
-                                        ),
-                                      if (itemInfoData.seatCapicity != null)
-                                        Text(
-                                          "${itemInfoData.seatCapicity} Seats",
-                                          style: regular3(context).copyWith(
-                                            fontSize: 12,
-                                            color: whiteColor,
-                                          ),
-                                        ),
-                                      Spacer(),
-                                      Row(
-                                        children: [
-                                          const SizedBox(
-                                            width: 5,
-                                          ),
-                                          Text(
-                                            "$currency ${list.elementAt(index).price!.length > 8 ? list.elementAt(index).price!.substring(0, 7) : list.elementAt(index).price ?? ""}",
-                                            style: boldstyle(context).copyWith(
-                                                color:
-                                                    getColorBasedOnActiveModuleid(),
-                                                fontSize: 14,
-                                                overflow:
-                                                    TextOverflow.ellipsis),
-                                          ),
-                                          serviceType == "booking"
-                                              ? Text(
-                                                  ' /day'.tr,
-                                                  maxLines: 1,
-                                                  style: regular(context)
-                                                      .copyWith(
-                                                          color: notifires
-                                                              .getGrey4Whitecolor,
-                                                          overflow: TextOverflow
-                                                              .ellipsis),
-                                                )
-                                              : const SizedBox(),
-                                        ],
-                                      ),
-                                      SizedBox(
-                                        width: 5,
-                                      )
-                                    ],
+                                  VehicleCardHelper.buildSpecsAndPriceRow(
+                                    itemInfo: itemInfoData,
+                                    price: list.elementAt(index).price,
+                                    showPerDay: serviceType == "booking",
+                                    chipStyle: regular3(context).copyWith(
+                                      fontSize: 12,
+                                      color: whiteColor,
+                                    ),
+                                    priceStyle: boldstyle(context).copyWith(
+                                      color: getColorBasedOnActiveModuleid(),
+                                      fontSize: 14,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    perDayStyle: regular(context).copyWith(
+                                      color: notifires.getGrey4Whitecolor,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -2415,7 +2251,7 @@ Widget vehicalHorizontalViewNearYou(
                           ),
                         ),
                         Spacer(),
-                        if (itemInfoData.hostFirstName != null)
+                        if (itemInfoData?.hostFirstName != null)
                           Row(
                             children: [
                               Icon(
@@ -2427,7 +2263,7 @@ Widget vehicalHorizontalViewNearYou(
                                 width: 5,
                               ),
                               Text(
-                                "${"By".tr} - ${itemInfoData.hostFirstName ?? ""}",
+                                "${"By".tr} - ${itemInfoData?.hostFirstName ?? ""}",
                                 overflow: TextOverflow.ellipsis,
                                 style: regular3(context).copyWith(
                                   fontSize: 12,

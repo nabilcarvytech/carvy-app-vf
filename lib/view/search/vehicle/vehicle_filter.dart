@@ -9,6 +9,7 @@ import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/utils/vehicle_common_widgets.dart';
+import 'package:carvy/helper/filter_label_helper.dart';
 import 'package:carvy/work_space.dart';
 
 class VehicleFilter extends StatefulWidget {
@@ -272,7 +273,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
             backgroundColor: notifires.getBoxColor,
             scrolledUnderElevation: 0,
             title: Text(
-              "Filter".tr,
+              'filter_title'.tr,
               style: heading2Grey1(context),
             ),
             automaticallyImplyLeading: false,
@@ -341,7 +342,9 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                 : null,
                           );
                         },
-                        text: widget.mode == true ? 'Filters'.tr : "Apply".tr,
+                        text: widget.mode == true
+                            ? 'filter_title'.tr
+                            : 'apply_filter_button'.tr,
                         backgroundColor: getColorBasedOnActiveModuleid(),
                       ),
                     ),
@@ -374,7 +377,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      "Price range".tr,
+                                      'price_range'.tr,
                                       style: heading2Grey1(context),
                                     ),
                                     const SizedBox(height: 12),
@@ -412,10 +415,12 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                                         ],
                                                         style: regular2(
                                                             context),
+                                                        textDirection:
+                                                            TextDirection.ltr,
                                                         decoration:
                                                             _priceFieldDecoration(
                                                           context,
-                                                          'Min'.tr,
+                                                          'min_label'.tr,
                                                         ),
                                                         onEditingComplete:
                                                             _commitPriceRangeFromKeyboard,
@@ -443,10 +448,12 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                                         ],
                                                         style: regular2(
                                                             context),
+                                                        textDirection:
+                                                            TextDirection.ltr,
                                                         decoration:
                                                             _priceFieldDecoration(
                                                           context,
-                                                          'Max'.tr,
+                                                          'max_label'.tr,
                                                         ),
                                                         onEditingComplete:
                                                             _commitPriceRangeFromKeyboard,
@@ -512,7 +519,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                 ),
                                 // Politique d'annulation
                                 Text(
-                                  "Politique d'annulation".tr,
+                                  'cancellation_policy'.tr,
                                   style: heading2Grey1(context),
                                 ),
                                 const SizedBox(height: 8),
@@ -522,7 +529,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                     spacing: 8,
                                     children: [
                                       ChoiceChip(
-                                        label: Text('Toutes'.tr),
+                                        label: Text('all_option'.tr),
                                         selected: !refundable,
                                         onSelected: (v) {
                                           if (v) {
@@ -537,7 +544,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                           children: [
                                             const Icon(Icons.payments_outlined, size: 16),
                                             const SizedBox(width: 6),
-                                            Text('Remboursable'.tr),
+                                            Text('refundable'.tr),
                                           ],
                                         ),
                                         selected: refundable,
@@ -560,7 +567,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                 ),
                                 // Type d'assurance
                                 Text(
-                                  "Type d'assurance".tr,
+                                  'insurance_type'.tr,
                                   style: heading2Grey1(context),
                                 ),
                                 const SizedBox(height: 10),
@@ -599,7 +606,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                                 Icon(Icons.security, size: 18, color: sel == 'BASIC' ? Colors.white : Colors.black87),
                                                 const SizedBox(width: 8),
                                                 Text(
-                                                  'BASIC'.tr,
+                                                  'basic_insurance'.tr,
                                                   style: TextStyle(
                                                     color: sel == 'BASIC' ? Colors.white : Colors.black87,
                                                     fontWeight: FontWeight.w600,
@@ -640,7 +647,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                                 Icon(Icons.security, size: 18, color: sel == 'FULL' ? Colors.white : Colors.black87),
                                                 const SizedBox(width: 8),
                                                 Text(
-                                                  'FULL'.tr,
+                                                  'full_insurance'.tr,
                                                   style: TextStyle(
                                                     color: sel == 'FULL' ? Colors.white : Colors.black87,
                                                     fontWeight: FontWeight.w600,
@@ -720,7 +727,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                   height: 15,
                                 ),
                                 Text(
-                                  "Odometers".tr,
+                                  'mileage_label'.tr,
                                   style: heading2Grey1(context),
                                 ),
                                 Padding(
@@ -758,7 +765,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                   height: 15,
                                 ),
                                 Text(
-                                  "Model year".tr,
+                                  'model_year'.tr,
                                   style: heading2Grey1(context),
                                 ),
                                 Padding(
@@ -783,7 +790,7 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                 ),
                                 // NOUVEAU: Filtre type de carburant
                                 Text(
-                                  "Fuel Type".tr,
+                                  'fuel_type'.tr,
                                   style: heading2Grey1(context),
                                 ),
                                 Padding(

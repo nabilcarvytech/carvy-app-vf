@@ -36,6 +36,12 @@ class ViewOnMapScreen extends StatefulWidget {
 }
 
 class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
+  /// Zoom max pour masquer l'emplacement exact des véhicules (quartier, pas la rue).
+  static const double _kVehicleMapMaxZoom = 13.5;
+  static const double _kVehicleMapInitialZoom = 13.0;
+  static const MinMaxZoomPreference _kVehicleMapZoomPreference =
+      MinMaxZoomPreference(null, _kVehicleMapMaxZoom);
+
   GoogleMapController? googleMapController;
   MapViewController mapViewController = Get.put(MapViewController());
   late final PageController pageController;
@@ -89,11 +95,28 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
     });
   }
 
+  double _clampedMapZoom(double zoom) =>
+      zoom > _kVehicleMapMaxZoom ? _kVehicleMapMaxZoom : zoom;
+
+  Future<void> _animateMapCamera(CameraUpdate update) async {
+    final controller = googleMapController;
+    if (controller == null) return;
+    await controller.animateCamera(update);
+    try {
+      final zoom = await controller.getZoomLevel();
+      if (zoom > _kVehicleMapMaxZoom) {
+        await controller.animateCamera(
+          CameraUpdate.zoomTo(_kVehicleMapMaxZoom),
+        );
+      }
+    } catch (_) {}
+  }
+
   void mapReload(int index) {
     mylatlng = LatLng(double.parse(items[index].latitude.toString()),
         double.parse(items[index].longitude.toString()));
     setState(() {
-      googleMapController!.animateCamera(CameraUpdate.newLatLng(mylatlng));
+      _animateMapCamera(CameraUpdate.newLatLng(mylatlng));
     });
   }
 
@@ -154,8 +177,9 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
           searchControllerHome.offset = itemModel!.data!.offset!;
         } else {
           if (_lastLocationWithResults != null) {
-            googleMapController?.animateCamera(
-                CameraUpdate.newLatLng(_lastLocationWithResults!));
+            _animateMapCamera(
+              CameraUpdate.newLatLng(_lastLocationWithResults!),
+            );
           }
         }
         isLoadingMap = false;
@@ -165,8 +189,9 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
         isLoadingMap = false;
       });
       if (_lastLocationWithResults != null) {
-        googleMapController
-            ?.animateCamera(CameraUpdate.newLatLng(_lastLocationWithResults!));
+        _animateMapCamera(
+          CameraUpdate.newLatLng(_lastLocationWithResults!),
+        );
       }
     }
   }
@@ -261,9 +286,12 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
       );
     });
 
-    googleMapController?.animateCamera(CameraUpdate.newLatLng(
-      LatLng(position.latitude, position.longitude),
-    ));
+    _animateMapCamera(
+      CameraUpdate.newLatLngZoom(
+        LatLng(position.latitude, position.longitude),
+        _clampedMapZoom(_kVehicleMapInitialZoom),
+      ),
+    );
   }
 
   Future<void> searchMethod() async {
@@ -304,16 +332,24 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
         );
       } else {
         if (_lastLocationWithResults != null) {
-          googleMapController?.animateCamera(
-              CameraUpdate.newLatLngZoom(_lastLocationWithResults!, 13));
+          _animateMapCamera(
+            CameraUpdate.newLatLngZoom(
+              _lastLocationWithResults!,
+              _clampedMapZoom(_kVehicleMapInitialZoom),
+            ),
+          );
         }
         showErrorToastMessage("Data not found!");
       }
     } catch (error) {
       closeLoading();
       if (_lastLocationWithResults != null) {
-        googleMapController?.animateCamera(
-            CameraUpdate.newLatLngZoom(_lastLocationWithResults!, 13));
+        _animateMapCamera(
+          CameraUpdate.newLatLngZoom(
+            _lastLocationWithResults!,
+            _clampedMapZoom(_kVehicleMapInitialZoom),
+          ),
+        );
       }
     }
   }
@@ -329,15 +365,11 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
   }
 
   void _zoomIn() {
-    googleMapController?.animateCamera(
-      CameraUpdate.zoomIn(),
-    );
+    _animateMapCamera(CameraUpdate.zoomIn());
   }
 
   void _zoomOut() {
-    googleMapController?.animateCamera(
-      CameraUpdate.zoomOut(),
-    );
+    _animateMapCamera(CameraUpdate.zoomOut());
   }
 
   void _scrollToIndex(int index) {
@@ -404,10 +436,11 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
             myLocationEnabled: false,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
+            minMaxZoomPreference: _kVehicleMapZoomPreference,
             onMapCreated: _onMapCreated,
             initialCameraPosition: CameraPosition(
               target: mylatlng,
-              zoom: 13,
+              zoom: _kVehicleMapInitialZoom,
             ),
             markers: markers,
             onCameraMove: (CameraPosition position) {

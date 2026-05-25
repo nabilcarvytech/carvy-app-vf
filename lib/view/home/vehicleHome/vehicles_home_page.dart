@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
+import 'package:carvy/helper/city_name_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:carvy/view/home/location_screen.dart';
@@ -489,14 +490,23 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                   toolbarHeight: kToolbarHeight,
                   titleSpacing: 0,
                   centerTitle: true,
-                  title: AnimatedOpacity(
-                    opacity: _headerOpacity,
-                    duration: const Duration(milliseconds: 120),
-                    curve: Curves.easeOut,
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.9,
-                      alignment: Alignment.center,
-                      child: _buildCompactStickySearchBar(context),
+                  title: IgnorePointer(
+                    ignoring: _headerOpacity < 0.05,
+                    child: AnimatedOpacity(
+                      opacity: _headerOpacity,
+                      duration: const Duration(milliseconds: 120),
+                      curve: Curves.easeOut,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _buildCompactStickySearchBar(context),
+                            ),
+                            profilePhotoOnHomeScreen(context),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                   flexibleSpace: FlexibleSpaceBar(
@@ -1349,16 +1359,20 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                     itemBuilder: (context, index) {
                       final location = filteredLocations[index];
                       final cityName = location.cityName ?? '';
+                      final displayCity =
+                          CityNameHelper.displayName(cityName);
                       return SizedBox(
                         height: 40,
                         child: ListTile(
                           title: Text(
-                            cityName,
+                            displayCity,
                             style: regular3(context).copyWith(
                               color: notifires.getGrey1Whitecolor,
                               fontSize: 13,
-                              overflow: TextOverflow.ellipsis,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: true,
                           ),
                           trailing:
                               generalScopeController.homeSearchLocation.value ==

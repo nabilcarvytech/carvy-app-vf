@@ -270,7 +270,7 @@ Widget buildViewAllReviewsButton({
     child: TextButton(
       onPressed: onTap,
       child: Text(
-        'View All'.tr,
+        'view_all'.tr,
         style: TextStyle(
           color: getColorBasedOnActiveModuleid(),
           fontWeight: FontWeight.w500,

@@ -11,6 +11,7 @@ import 'package:carvy/customwidget/form_elements.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/model/items_model.dart';
+import 'package:carvy/helper/city_name_helper.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/rental_billing_days.dart';
 import 'package:carvy/utils/theme_style.dart';
@@ -629,14 +630,11 @@ class _SearchScreenState extends State<SearchScreen> {
                                                               width: 4),
                                                           Expanded(
                                                             child: Text(
-                                                              (location.cityName
-                                                                              ?.length ??
-                                                                          0) >
-                                                                      6
-                                                                  ? "${location.cityName!.substring(0, 6)}..."
-                                                                  : location
-                                                                          .cityName ??
-                                                                      "",
+                                                              CityNameHelper
+                                                                  .displayName(
+                                                                location
+                                                                    .cityName,
+                                                              ),
                                                               style: boldstyle(
                                                                       context)
                                                                   .copyWith(
@@ -647,10 +645,11 @@ class _SearchScreenState extends State<SearchScreen> {
                                                                     FontWeight
                                                                         .w600,
                                                               ),
-                                                              maxLines: 1,
+                                                              maxLines: 2,
                                                               overflow:
                                                                   TextOverflow
                                                                       .ellipsis,
+                                                              softWrap: true,
                                                             ),
                                                           ),
                                                           if (isSelected)

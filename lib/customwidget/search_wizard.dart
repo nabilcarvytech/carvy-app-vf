@@ -7,6 +7,7 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/utils/rental_billing_days.dart';
 import 'package:carvy/utils/theme_style.dart';
+import 'package:carvy/helper/city_name_helper.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/work_space.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
@@ -581,14 +582,18 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
                                           const SizedBox(width: 4),
                                           Expanded(
                                             child: Text(
-                                              location.cityName ?? '',
+                                              CityNameHelper.displayName(
+                                                location.cityName,
+                                              ),
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                               ),
-                                              maxLines: 1,
+                                              maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
+                                              textAlign: TextAlign.start,
+                                              softWrap: true,
                                             ),
                                           ),
                                         ],

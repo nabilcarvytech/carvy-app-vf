@@ -912,6 +912,9 @@ Future<dynamic> httpPost(path, data) async {
       });
     }
     log("Response: $responseData");
+    if (responseData is Map) {
+      responseData['statusCode'] = result.statusCode;
+    }
     return responseData;
   } catch (err) {
     print("❌ [httpPost] Error: $err");

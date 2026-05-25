@@ -53,7 +53,7 @@ class _PublicProfileState extends State<PublicProfile> {
     Get.to(
       () => RecommendationScreen(
         comefromprofilepage: true,
-        title: "$name ${"Listing".tr}",
+        agencyName: name,
         locationId: "-1",
         userId: widget.userid,
         itemList: publicProfileController.getUserItems?.data?.items,
@@ -200,8 +200,9 @@ class _PublicProfileState extends State<PublicProfile> {
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: [
                                 Text(
-                                  widget.userName.toString().tr,
+                                  userName,
                                   style: heading2Grey1(context),
+                                  textAlign: TextAlign.center,
                                 ),
                                 publicProfileController
                                             .getUserProfile?.data?.liveCity
@@ -249,7 +250,7 @@ class _PublicProfileState extends State<PublicProfile> {
                                       fontSize: 17),
                                 ),
                                 Text(
-                                  "Avis".tr,
+                                  'reviews_count'.tr,
                                   style: regular2(context).copyWith(
                                       color: notifires.getGrey3Whitecolor),
                                 ),
@@ -279,7 +280,7 @@ class _PublicProfileState extends State<PublicProfile> {
                                         ),
                                     ),
                                     Text(
-                                      "Vehicles".tr,
+                                      'vehicles_count'.tr,
                                       style: regular2(context).copyWith(
                                           color:
                                               notifires.getGrey3Whitecolor),
@@ -309,7 +310,7 @@ class _PublicProfileState extends State<PublicProfile> {
                                   ],
                                 ),
                                 Text(
-                                  "Évaluation".tr,
+                                  'rating_label'.tr,
                                   style: regular2(context).copyWith(
                                       color: notifires.getGrey3Whitecolor),
                                 ),
@@ -339,7 +340,7 @@ class _PublicProfileState extends State<PublicProfile> {
                               ""
                           ? const SizedBox()
                           : Text(
-                              "${"Joined in".tr} ${publicProfileController.getUserProfile?.data?.joinIn ?? ""}",
+                              "${'joined_since'.tr} ${publicProfileController.getUserProfile?.data?.joinIn ?? ""}",
                               style: regular2(context).copyWith(
                                   color: getColorBasedOnActiveModuleid()),
                             ),
@@ -367,7 +368,7 @@ class _PublicProfileState extends State<PublicProfile> {
                                 width: 7,
                               ),
                               Text(
-                                "Email".tr,
+                                'email_label'.tr,
                                 style: appRegularText.copyWith(
                                     color: notifires.getwhiteblackcolor),
                               ),
@@ -377,9 +378,15 @@ class _PublicProfileState extends State<PublicProfile> {
                                             ?.verifiedEmail ==
                                         "0"
                                     ? "Email not verified".tr
-                                    : "Verified Email".tr,
+                                    : 'email_verified'.tr,
                                 style: appRegularText.copyWith(
-                                  color: Colors.green,
+                                  color: publicProfileController
+                                              .getUserProfile
+                                              ?.data
+                                              ?.verifiedEmail ==
+                                          "0"
+                                      ? notifires.getGrey3Whitecolor
+                                      : Colors.green,
                                 ),
                               )
                             ],
@@ -410,7 +417,7 @@ class _PublicProfileState extends State<PublicProfile> {
                                 width: 7,
                               ),
                               Text(
-                                "Phone".tr,
+                                'phone_label'.tr,
                                 style: appRegularText.copyWith(
                                     color: notifires.getwhiteblackcolor),
                               ),
@@ -420,9 +427,15 @@ class _PublicProfileState extends State<PublicProfile> {
                                             ?.verifiedPhone ==
                                         "0"
                                     ? "Phone not verified".tr
-                                    : "Verified Phone".tr,
+                                    : 'phone_verified'.tr,
                                 style: appRegularText.copyWith(
-                                  color: Colors.green,
+                                  color: publicProfileController
+                                              .getUserProfile
+                                              ?.data
+                                              ?.verifiedPhone ==
+                                          "0"
+                                      ? notifires.getGrey3Whitecolor
+                                      : Colors.green,
                                 ),
                               )
                             ],
@@ -439,7 +452,7 @@ class _PublicProfileState extends State<PublicProfile> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Détails des évaluations".tr,
+                              'reviews_details'.tr,
                               style: heading2Grey1(context).copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -556,7 +569,7 @@ class _PublicProfileState extends State<PublicProfile> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Commentaires".tr,
+                              'comments_label'.tr,
                               style: heading2Grey1(context).copyWith(
                                 fontWeight: FontWeight.bold,
                               ),

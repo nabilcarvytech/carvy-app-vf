@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:carvy/controller/auth_controller.dart';
+import 'package:carvy/controller/profile_controller.dart';
 import 'package:carvy/controller/general_controller.dart';
 import 'package:carvy/controller/home_controller.dart';
 import 'package:carvy/constants/app_constants.dart';
@@ -19,6 +20,8 @@ import 'package:carvy/customwidget/data_not_found.dart';
 import 'package:carvy/customwidget/full_screen_image_view.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/city_name_helper.dart';
+import 'package:carvy/helper/filter_label_helper.dart';
+import 'package:carvy/helper/vehicle_card_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:carvy/utils/common_widget.dart';
@@ -235,7 +238,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                             filterController
                                                 .endDates.value.isNotEmpty
                                         ? "Dates".tr
-                                        : "Select Dates".tr,
+                                        : 'select_dates_hint'.tr,
                                     style: regular2(context).copyWith(
                                       fontSize: 10,
                                       color: notifires.getGrey1Whitecolor,
@@ -545,7 +548,8 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                   carItemBox(
                                     icon: Icons.settings,
                                     title: 'Make'.tr,
-                                    desc: '${currentItemInfo?.makeType}',
+                                    desc: VehicleCardHelper.translateBrandName(
+                                        currentItemInfo?.makeType),
                                   ),
                                 if (currentItemInfo?.displayModelName != null &&
                                     (currentItemInfo!.displayModelName).isNotEmpty)
@@ -554,7 +558,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                     children: [
                                       carItemBox(
                                         icon: Icons.star_border_outlined,
-                                        title: 'Model'.tr,
+                                        title: 'model_label'.tr,
                                         desc: currentItemInfo!.displayModelName,
                                       ),
                                       if ((currentItemInfo?.modelName ?? '')
@@ -581,61 +585,102 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                 if (currentItemInfo?.year != null)
                                   carItemBox(
                                     icon: Icons.calendar_month_outlined,
-                                    title: 'Year'.tr,
+                                    title: 'year_label'.tr,
                                     desc: '${currentItemInfo?.year}',
                                   ),
                                 if (currentItemInfo?.transmission != null)
                                   carItemBox(
                                     icon: Icons.track_changes,
-                                    title: 'Transmission'.tr,
-                                    desc: '${currentItemInfo?.transmission}',
+                                    title: 'transmission_label'.tr,
+                                    desc: VehicleCardHelper.translateTransmission(
+                                        currentItemInfo?.transmission),
                                   ),
                                 if (currentItemInfo?.odometer != null)
                                   carItemBox(
                                     icon: Icons.traffic_outlined,
-                                    title: 'Odometer'.tr,
-                                    desc: '${currentItemInfo?.odometer}',
+                                    title: 'mileage_label'.tr,
+                                    desc: FilterLabelHelper.translateOdometerLabel(
+                                        '${currentItemInfo?.odometer}'),
+                                    ltrDesc: true,
                                   ),
                                 if (currentItemInfo?.fuelType != null)
                                   carItemBox(
                                     icon: Icons.local_gas_station,
-                                    title: 'Fuel Type'.tr,
-                                    desc:
-                                        '${currentItemInfo?.fuelType == "" ? "Petrol" : "${currentItemInfo?.fuelType}"}',
+                                    title: 'fuel_label'.tr,
+                                    desc: FilterLabelHelper.translateFuelType(
+                                      (currentItemInfo?.fuelType ?? '').isEmpty
+                                          ? 'gasoline'
+                                          : currentItemInfo?.fuelType,
+                                    ),
                                   ),
                                 if (currentItemInfo?.seatCapicity != null)
                                   carItemBox(
                                     icon: Icons.event_seat,
-                                    title: 'Seats'.tr,
+                                    title: 'seats_grid_label'.tr,
                                     desc: '${currentItemInfo?.seatCapicity}',
                                   ),
                                 carItemBox(
                                   icon: Icons.credit_card,
-                                  title: 'Plate Number'.tr,
+                                  title: 'license_plate_label'.tr,
                                   desc: formatPlate(
                                       currentItemInfo?.platNumber),
                                 ),
                                 carItemBox(
                                   icon: Icons.event,
-                                  title: 'Minimum Rental Days'.tr,
+                                  title: 'min_rental_days_label'.tr,
                                   desc:
                                       '${currentItemInfo?.minRentalDays ?? "0"}',
                                 ),
                                 carItemBox(
                                   icon: Icons.person_2,
-                                  title: 'Minimum Age'.tr,
+                                  title: 'min_age_label'.tr,
                                   desc:
                                       '${currentItemInfo?.ageRistriction ?? "0"}',
                                 ),
                                 carItemBox(
                                   icon: Icons.verified_user,
-                                  title: 'Insurance Coverage'.tr,
-                                  desc:
-                                      '${currentItemInfo?.insuranceCoverage ?? "0"}',
+                                  title: 'insurance_coverage_label'.tr,
+                                  desc: FilterLabelHelper
+                                      .translateInsuranceCoverage(
+                                    currentItemInfo?.insuranceCoverage,
+                                  ),
                                 ),
                               ],
                               ),
                             ),
+                            if (_shouldShowAgeRequirementWarning(currentItemInfo))
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  Dimensions.paddingSizeDefault,
+                                  4,
+                                  Dimensions.paddingSizeDefault,
+                                  0,
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.red.withOpacity(0.35),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '🔞 Âge minimum requis : ${_getVehicleMinAge(currentItemInfo)} ans',
+                                      style: regular2(context).copyWith(
+                                        color: Colors.red.shade700,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
 
                             // Description (sans titre « À propos du véhicule »)
                             Padding(
@@ -1021,13 +1066,9 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                 onTap: () {
                                   rulesbuttomSheet(
                                     context,
-                                    title: "Politique d'annulation".tr,
-                                    list: cancellationRules.isNotEmpty
-                                        ? cancellationRules
-                                        : [
-                                            "Aucune politique spécifique définie."
-                                                .tr
-                                          ],
+                                    title: 'cancellation_policy_title'.tr,
+                                    list: cancellationRules,
+                                    isCancellationPolicy: true,
                                   );
                                 },
                                 child: Card(
@@ -1060,13 +1101,9 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                             rulesbuttomSheet(
                                               context,
                                               title:
-                                                  "Politique d'annulation".tr,
-                                              list: cancellationRules.isNotEmpty
-                                                  ? cancellationRules
-                                                  : [
-                                                      "Aucune politique spécifique définie."
-                                                          .tr
-                                                    ],
+                                                  'cancellation_policy_title'.tr,
+                                              list: cancellationRules,
+                                              isCancellationPolicy: true,
                                             );
                                           },
                                           child: Icon(
@@ -1267,10 +1304,14 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                       GetBuilder<ItemDetailsController>(
                         builder: (controller) {
                           final displayPrice = controller.vehicleDetailModel?.data?.itemDetails?.price ?? widget.price ?? "0";
-                          return Text(
-                            "$currency $displayPrice",
-                            style: heading2(context)
-                                .copyWith(color: getColorBasedOnActiveModuleid()),
+                          return Directionality(
+                            textDirection: ui.TextDirection.ltr,
+                            child: Text(
+                              "$currency $displayPrice",
+                              style: heading2(context).copyWith(
+                                  color: getColorBasedOnActiveModuleid()),
+                              textDirection: ui.TextDirection.ltr,
+                            ),
                           );
                         },
                       ),
@@ -1414,6 +1455,27 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
         widget.itemInfo?.hostId.toString() == userId.toString()) {
       showErrorToastMessage("You can't book your own vehicle");
       return;
+    }
+
+    final currentItemInfo =
+        vehicleDetailController.itemInfo ?? widget.itemInfo;
+    final vehicleMinAge = _getVehicleMinAge(currentItemInfo);
+    if (vehicleMinAge > 0) {
+      final userAge = _getUserAge();
+      if (userAge == null) {
+        showErrorToastMessage(
+          'Veuillez renseigner votre date de naissance dans votre profil pour continuer.'
+              .tr,
+        );
+        return;
+      }
+      if (userAge < vehicleMinAge) {
+        showErrorToastMessage(
+          'Âge requis non atteint. Vous devez avoir au moins $vehicleMinAge ans pour louer ce véhicule.'
+              .tr,
+        );
+        return;
+      }
     }
 
     // ========== VÉRIFICATION DU STATUT KYC (si feature flag actif) ==========
@@ -1626,6 +1688,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
     required IconData icon,
     required String title,
     required String desc,
+    bool ltrDesc = false,
   }) {
     return SizedBox(
       width: (Get.width / 2) - 24, // Two boxes per row with spacing
@@ -1634,6 +1697,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
           icons: icon,
           title: title,
           desc: desc,
+          descTextDirection: ltrDesc ? ui.TextDirection.ltr : null,
         ),
       ),
     );
@@ -1764,5 +1828,52 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
     final cleaned = rawValue.replaceAll('%', '').replaceAll('-', '').trim();
     if (cleaned.isEmpty) return '0';
     return cleaned;
+  }
+
+  int _getVehicleMinAge(ItemInfo? itemInfo) {
+    final raw = itemInfo?.ageRistriction;
+    if (raw == null) return 0;
+    final parsed = int.tryParse(raw.toString().trim());
+    return parsed ?? 0;
+  }
+
+  int? _computeAgeFromBirthdate(String birthdate) {
+    try {
+      final birth = DateTime.parse(birthdate.trim());
+      final today = DateTime.now();
+      var age = today.year - birth.year;
+      if (today.month < birth.month ||
+          (today.month == birth.month && today.day < birth.day)) {
+        age--;
+      }
+      return age;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int? _getUserAge() {
+    final sessionBirthdate = loginModel?.data?.birthdate;
+    if (sessionBirthdate != null &&
+        sessionBirthdate.toString().trim().isNotEmpty) {
+      return _computeAgeFromBirthdate(sessionBirthdate.toString());
+    }
+    try {
+      final profileController = Get.find<ProfileController>();
+      final dob = profileController.textEditingProfileControllerDOB.text;
+      if (dob.trim().isNotEmpty) {
+        return _computeAgeFromBirthdate(dob);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  bool _shouldShowAgeRequirementWarning(ItemInfo? itemInfo) {
+    if (token.isEmpty) return false;
+    final vehicleMinAge = _getVehicleMinAge(itemInfo);
+    if (vehicleMinAge <= 0) return false;
+    final userAge = _getUserAge();
+    if (userAge == null) return false;
+    return userAge < vehicleMinAge;
   }
 }

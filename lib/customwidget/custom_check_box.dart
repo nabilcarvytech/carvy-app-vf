@@ -4,6 +4,7 @@ import 'package:carvy/controller/search_controller.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/model/make_type_model.dart';
+import '../helper/filter_label_helper.dart';
 import '../utils/common_widget.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -997,8 +998,11 @@ class _MyCustomCheckBoxState extends State<MyCustomCheckBox> {
                     // Nom de l'option - Texte complet avec "km" visible
                     Expanded(
                       child: Center(
-                        child: Text(
-                          widget.options[index],
+                        child: FilterLabelHelper.ltrText(
+                          widget.isOdometer == true
+                              ? FilterLabelHelper.translateOdometerLabel(
+                                  widget.options[index]?.toString())
+                              : widget.options[index]?.toString() ?? '',
                           style: regular2(context).copyWith(
                             color: isSelected
                                 ? getColorBasedOnActiveModuleid()
@@ -1006,12 +1010,10 @@ class _MyCustomCheckBoxState extends State<MyCustomCheckBox> {
                             fontWeight: isSelected
                                 ? FontWeight.w600
                                 : FontWeight.normal,
-                            fontSize: 11, // Taille réduite pour mieux s'adapter
+                            fontSize: 11,
                           ),
-                          maxLines:
-                              3, // Permet jusqu'à 3 lignes pour "50,000 - 150,000 km"
-                          overflow: TextOverflow
-                              .visible, // Affiche tout le texte y compris "km"
+                          maxLines: 3,
+                          overflow: TextOverflow.visible,
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -1478,8 +1480,8 @@ class _MyCustomCheckBoxModelYearState extends State<MyCustomCheckBoxModelYear> {
                     ),
                     const SizedBox(width: 6),
                     // Année
-                    Text(
-                      "${widget.options[index]}",
+                    FilterLabelHelper.ltrText(
+                      '${widget.options[index]}',
                       style: regular2(context).copyWith(
                         color: isSelected
                             ? getColorBasedOnActiveModuleid()
@@ -1488,6 +1490,7 @@ class _MyCustomCheckBoxModelYearState extends State<MyCustomCheckBoxModelYear> {
                             isSelected ? FontWeight.w600 : FontWeight.normal,
                         fontSize: 14,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
@@ -1596,7 +1599,7 @@ class _MyCustomCheckBoxFuelTypeState extends State<MyCustomCheckBoxFuelType> {
                     // Nom du type de carburant
                     Expanded(
                       child: Text(
-                        fuelType.name,
+                        FilterLabelHelper.translateFuelType(fuelType.name),
                         style: regular2(context).copyWith(
                           color: isSelected
                               ? getColorBasedOnActiveModuleid()
@@ -1658,6 +1661,8 @@ class _MyCustomCheckBoxTransmissionState
           itemBuilder: (context, index) {
             final transmission = widget.transmissions[index];
             final transmissionName = transmission.option ?? '';
+            final displayName =
+                FilterLabelHelper.translateTransmission(transmissionName);
             final isSelected = filterController.selectedTransmissions
                 .contains(transmissionName);
 
@@ -1722,7 +1727,7 @@ class _MyCustomCheckBoxTransmissionState
                     // Nom de la transmission
                     Expanded(
                       child: Text(
-                        transmissionName,
+                        displayName,
                         style: regular2(context).copyWith(
                           color: isSelected
                               ? getColorBasedOnActiveModuleid()

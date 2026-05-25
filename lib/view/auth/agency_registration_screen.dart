@@ -14,15 +14,10 @@ class AgencyRegistrationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Rediriger vers l'écran d'inscription multi-étapes pour les agences
     if (webPlateForm) {
-      Get.offNamed(WebRoutes.agencySignUpScreen);
+      Get.toNamed(WebRoutes.agencySignUpScreen);
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const AgencySignUpScreen(),
-          ),
-        );
+        Get.to(() => const AgencySignUpScreen());
       });
     }
 

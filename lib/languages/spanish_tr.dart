@@ -1314,4 +1314,13 @@ const Map<String, String> esES = {
       "Este importe no se cobra a través de la aplicación. Debe gestionarse directamente en el lugar con la agencia al recoger el vehículo (preautorización bancaria, cheque o efectivo según las condiciones de la agencia).",
   "booking_deposit_on_site_short":
       "A gestionar en el lugar con el vendedor",
+  "who_are_you": "¿Quién eres?",
+  "choose_profile_subtitle": "Elige tu perfil para registrarte",
+  "agency_role": "Agencia",
+  "agency_description": "Quiero alquilar mis vehículos",
+  "client_role": "Cliente",
+  "client_description": "Busco un vehículo para alquilar",
+  "already_have_account": "Ya tengo una cuenta:",
+  "login_button": "Iniciar sesión",
+  "next_button": "Siguiente",
 };

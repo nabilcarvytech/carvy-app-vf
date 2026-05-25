@@ -9,7 +9,7 @@ import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/work_space.dart';
 import '../onBoarding/vehicle/vehicle_on_boarding_screen.dart';
-import '../auth/agency_registration_screen.dart';
+import '../auth/agency_sign_up_screen.dart';
 import '../auth/login_screen.dart';
 import '../auth/register/register_wizard_screen.dart';
 
@@ -71,34 +71,18 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
 
     // Naviguer vers l'écran approprié
     if (selectedRole == UserRole.agency) {
-      // Pour Agence : naviguer vers AgencyRegistrationScreen (qui redirige vers AgencySignUpScreen)
-      debugPrint('🚀 [ROLE_SELECTION] Navigating to AgencyRegistrationScreen');
-      debugPrint('🚀 [ROLE_SELECTION] webPlateForm: $webPlateForm');
+      debugPrint('🚀 [ROLE_SELECTION] Navigating to AgencySignUpScreen');
       if (webPlateForm) {
-        debugPrint('🚀 [ROLE_SELECTION] Using Get.offNamed: ${WebRoutes.agencyRegistrationScreen}');
-        Get.offNamed(WebRoutes.agencyRegistrationScreen);
+        Get.toNamed(WebRoutes.agencySignUpScreen);
       } else {
-        debugPrint('🚀 [ROLE_SELECTION] Using Navigator.pushReplacement');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const AgencyRegistrationScreen(),
-          ),
-        );
+        Get.to(() => const AgencySignUpScreen());
       }
     } else if (selectedRole == UserRole.client) {
-      // Nouveau client : inscription (wizard). Ne pas passer par ClientHomeScreen :
-      // sans UserData ça envoyait onboarding → Login.
       debugPrint('Navigating to RegisterWizardScreen (client signup)');
       if (webPlateForm) {
-        Get.offNamed(WebRoutes.registerWizardScreen);
+        Get.toNamed(WebRoutes.registerWizardScreen);
       } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const RegisterWizardScreen(),
-          ),
-        );
+        Get.to(() => const RegisterWizardScreen());
       }
     }
   }
@@ -205,7 +189,7 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
                     const Spacer(flex: 2),
                     // Titre
                     Text(
-                      "Qui êtes-vous ?".tr,
+                      'who_are_you'.tr,
                       style: heading1(context).copyWith(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -215,7 +199,7 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      "Choisissez votre profil pour s'inscrire".tr,
+                      'choose_profile_subtitle'.tr,
                       style: heading2Grey1(context),
                       textAlign: TextAlign.center,
                     ),
@@ -223,8 +207,8 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
                     // Cartes de sélection de rôle
                     _buildRoleCard(
                       icon: Icons.business_center,
-                      title: "Agence".tr,
-                      subtitle: "Je veux louer mes véhicules".tr,
+                      title: 'agency_role'.tr,
+                      subtitle: 'agency_description'.tr,
                       role: UserRole.agency,
                       isSelected: selectedRole == UserRole.agency,
                       onTap: () {
@@ -238,8 +222,8 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
                     const SizedBox(height: 16),
                     _buildRoleCard(
                       icon: Icons.directions_car,
-                      title: "Client".tr,
-                      subtitle: "Je cherche un véhicule à louer".tr,
+                      title: 'client_role'.tr,
+                      subtitle: 'client_description'.tr,
                       role: UserRole.client,
                       isSelected: selectedRole == UserRole.client,
                       onTap: () {
@@ -260,7 +244,7 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    "J'ai déjà un compte :".tr,
+                    'already_have_account'.tr,
                     textAlign: TextAlign.center,
                     style: heading2Grey1(context).copyWith(fontSize: 14),
                   ),
@@ -274,9 +258,9 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      "Se connecter",
-                      style: TextStyle(
+                    child: Text(
+                      'login_button'.tr,
+                      style: const TextStyle(
                         color: Color(0xFF2B489A),
                         fontWeight: FontWeight.bold,
                       ),
@@ -303,7 +287,7 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
               child: SafeArea(
                 top: false,
                 child: CustomsButtons(
-                  text: "Suivant".tr,
+                  text: 'next_button'.tr,
                   backgroundColor: selectedRole != null
                       ? vehicalThemColor
                       : Colors.grey.withOpacity(0.5),

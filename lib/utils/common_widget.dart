@@ -40,7 +40,10 @@ import '../api/config.dart';
 import '../customwidget/custom_bottom_sheet.dart';
 import '../customwidget/miscellaneous_project_elements.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import '../helper/cancellation_policy_helper.dart';
+import '../helper/city_name_helper.dart';
 import '../helper/http_service.dart';
+import '../helper/vehicle_card_helper.dart';
 import '../model/booking_model.dart';
 import '../model/cancellation_reason_model.dart';
 import '../model/vehicle_home_model.dart';
@@ -495,17 +498,21 @@ homeLocations(List<Location> list, notifire) {
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text(
-                                        list.elementAt(index).cityName!.length >
-                                                10
-                                            ? list
-                                                .elementAt(index)
-                                                .cityName!
-                                                .substring(0, 9)
-                                            : list.elementAt(index).cityName ??
-                                                "".tr,
-                                        style: boldstyle(context)
-                                            .copyWith(color: whiteColor)),
+                                    Flexible(
+                                      child: Text(
+                                        CityNameHelper.displayName(
+                                          list.elementAt(index).cityName,
+                                        ),
+                                        style: boldstyle(context).copyWith(
+                                          color: whiteColor,
+                                          fontSize: 13,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        softWrap: true,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -581,8 +588,7 @@ Widget itemVerticalView(
         final String locationText = locationParts.isNotEmpty
             ? locationParts.join(" • ")
             : "Unknown Location".tr;
-        final double parsedRating =
-            double.tryParse(item.itemRating?.toString() ?? '0') ?? 0.0;
+        final double parsedRating = VehicleCardHelper.resolveItemRating(item);
 
         return Padding(
           padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
@@ -594,7 +600,9 @@ Widget itemVerticalView(
                       builder: (context) => VehicleDetailSScreen(
                             id: item.id,
                             itemInfo: itemInfoData,
-                            rating: item.itemRating,
+                            rating: parsedRating > 0
+                                ? parsedRating.toStringAsFixed(1)
+                                : item.itemRating,
                             title: item.name,
                             address: item.address,
                             city: item.city,
@@ -705,96 +713,23 @@ Widget itemVerticalView(
                                     )
                                   ],
                                 ),
-                                Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 10,
-                                    ),
-                                    if (itemInfoData != null &&
-                                        itemInfoData!.transmission != null &&
-                                        itemInfoData!.transmission!.isNotEmpty)
-                                      Text(
-                                        itemInfoData!.transmission!,
-                                        style: regular3(context).copyWith(
-                                          fontSize: 12,
-                                          color: whiteColor,
-                                        ),
-                                      ),
-                                    if (itemInfoData != null &&
-                                        itemInfoData!.transmission != null &&
-                                        itemInfoData!.transmission!.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4),
-                                        child: Text(
-                                          "•",
-                                          style: TextStyle(
-                                              color: whiteColor, fontSize: 12),
-                                        ),
-                                      ),
-                                    if (itemInfoData != null &&
-                                        itemInfoData!.makeType != null &&
-                                        itemInfoData!.makeType!.isNotEmpty)
-                                      Text(
-                                        itemInfoData!.makeType!,
-                                        style: regular3(context).copyWith(
-                                          fontSize: 12,
-                                          color: whiteColor,
-                                        ),
-                                      ),
-                                    if (itemInfoData != null &&
-                                        itemInfoData!.makeType != null &&
-                                        itemInfoData!.makeType!.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4),
-                                        child: Text(
-                                          "•",
-                                          style: TextStyle(
-                                              color: whiteColor, fontSize: 12),
-                                        ),
-                                      ),
-                                    if (itemInfoData != null &&
-                                        itemInfoData!.seatCapicity != null)
-                                      Text(
-                                        "${itemInfoData!.seatCapicity} ${"Seats".tr}",
-                                        style: regular3(context).copyWith(
-                                          fontSize: 12,
-                                          color: whiteColor,
-                                        ),
-                                      ),
-                                    Spacer(),
-                                    Row(
-                                      children: [
-                                        const SizedBox(
-                                          width: 5,
-                                        ),
-                                        Text(
-                                          "$currency ${(item.price ?? '').length > 8 ? (item.price ?? '').substring(0, 7) : (item.price ?? "")}",
-                                          style: boldstyle(context).copyWith(
-                                              color:
-                                                  getColorBasedOnActiveModuleid(),
-                                              fontSize: 14,
-                                              overflow: TextOverflow.ellipsis),
-                                        ),
-                                        serviceType == "booking"
-                                            ? Text(
-                                                ' /day'.tr,
-                                                maxLines: 1,
-                                                style: regular(context)
-                                                    .copyWith(
-                                                        color: notifires
-                                                            .getGrey4Whitecolor,
-                                                        overflow: TextOverflow
-                                                            .ellipsis),
-                                              )
-                                            : const SizedBox(),
-                                      ],
-                                    ),
-                                    SizedBox(
-                                      width: 5,
-                                    )
-                                  ],
+                                VehicleCardHelper.buildSpecsAndPriceRow(
+                                  itemInfo: itemInfoData,
+                                  price: item.price,
+                                  showPerDay: serviceType == "booking",
+                                  chipStyle: regular3(context).copyWith(
+                                    fontSize: 12,
+                                    color: whiteColor,
+                                  ),
+                                  priceStyle: boldstyle(context).copyWith(
+                                    color: getColorBasedOnActiveModuleid(),
+                                    fontSize: 14,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  perDayStyle: regular(context).copyWith(
+                                    color: notifires.getGrey4Whitecolor,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
@@ -902,7 +837,7 @@ Widget itemVerticalView(
                               width: 5,
                             ),
                             Text(
-                              "${"By".tr} - ${itemInfoData.hostFirstName ?? ""}",
+                              "${"By".tr} - ${itemInfoData?.hostFirstName ?? ""}",
                               overflow: TextOverflow.ellipsis,
                               style: regular3(context).copyWith(
                                 fontSize: 12,
@@ -965,7 +900,7 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
             ? locationPartsPublic.join(" • ")
             : "Unknown Location".tr;
         final double parsedRating =
-            double.tryParse(list[index].itemRating?.toString() ?? '0') ?? 0.0;
+            VehicleCardHelper.resolveItemRating(list[index]);
         return Padding(
           padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
           child: GestureDetector(
@@ -976,7 +911,9 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
                   builder: (context) => VehicleDetailSScreen(
                     id: list[index].id,
                     itemInfo: itemInfoData,
-                    rating: list[index].itemRating,
+                    rating: parsedRating > 0
+                        ? parsedRating.toStringAsFixed(1)
+                        : list[index].itemRating,
                     title: list[index].name,
                     address: list[index].address,
                     city: list[index].city,
@@ -1091,92 +1028,23 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
                                     ),
                                   ],
                                 ),
-                                Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 10,
-                                    ),
-                                    if (itemInfoData!.transmission != null &&
-                                        itemInfoData.transmission!.isNotEmpty)
-                                      Text(
-                                        itemInfoData.transmission!,
-                                        style: regular3(context).copyWith(
-                                          fontSize: 12,
-                                          color: whiteColor,
-                                        ),
-                                      ),
-                                    if (itemInfoData.transmission != null &&
-                                        itemInfoData.transmission!.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4),
-                                        child: Text(
-                                          "•",
-                                          style: TextStyle(
-                                              color: whiteColor, fontSize: 12),
-                                        ),
-                                      ),
-                                    if (itemInfoData.makeType != null &&
-                                        itemInfoData.makeType!.isNotEmpty)
-                                      Text(
-                                        itemInfoData.makeType!,
-                                        style: regular3(context).copyWith(
-                                          fontSize: 12,
-                                          color: whiteColor,
-                                        ),
-                                      ),
-                                    if (itemInfoData.makeType != null &&
-                                        itemInfoData.makeType!.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4),
-                                        child: Text(
-                                          "•",
-                                          style: TextStyle(
-                                              color: whiteColor, fontSize: 12),
-                                        ),
-                                      ),
-                                    if (itemInfoData.seatCapicity != null)
-                                      Text(
-                                        "${itemInfoData.seatCapicity} ${"Seats".tr}",
-                                        style: regular3(context).copyWith(
-                                          fontSize: 12,
-                                          color: whiteColor,
-                                        ),
-                                      ),
-                                    const Spacer(),
-                                    Row(
-                                      children: [
-                                        const SizedBox(
-                                          width: 5,
-                                        ),
-                                        Text(
-                                          "$currency ${list[index].price!.length > 8 ? list[index].price!.substring(0, 7) : list[index].price ?? ""}",
-                                          style: boldstyle(context).copyWith(
-                                            color:
-                                                getColorBasedOnActiveModuleid(),
-                                            fontSize: 14,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        serviceType == "booking"
-                                            ? Text(
-                                                ' /day'.tr,
-                                                style:
-                                                    regular(context).copyWith(
-                                                  color: notifires
-                                                      .getGrey4Whitecolor,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              )
-                                            : const SizedBox(),
-                                      ],
-                                    ),
-                                    SizedBox(
-                                      width: 5,
-                                    ),
-                                  ],
+                                VehicleCardHelper.buildSpecsAndPriceRow(
+                                  itemInfo: itemInfoData,
+                                  price: list[index].price,
+                                  showPerDay: serviceType == "booking",
+                                  chipStyle: regular3(context).copyWith(
+                                    fontSize: 12,
+                                    color: whiteColor,
+                                  ),
+                                  priceStyle: boldstyle(context).copyWith(
+                                    color: getColorBasedOnActiveModuleid(),
+                                    fontSize: 14,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  perDayStyle: regular(context).copyWith(
+                                    color: notifires.getGrey4Whitecolor,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1273,7 +1141,7 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
                         ),
                       ),
                       const Spacer(),
-                      if (itemInfoData.hostFirstName != null)
+                      if (itemInfoData?.hostFirstName != null)
                         Row(
                           children: [
                             Icon(
@@ -1285,7 +1153,7 @@ Widget itemVerticalViewPublic(list, bool shrink, bool fromWishList,
                               width: 5,
                             ),
                             Text(
-                              "${"By".tr} - ${itemInfoData.hostFirstName ?? ""}",
+                              "${"By".tr} - ${itemInfoData?.hostFirstName ?? ""}",
                               overflow: TextOverflow.ellipsis,
                               style: regular3(context).copyWith(
                                 fontSize: 12,
@@ -5036,7 +4904,12 @@ Widget _rulesSheetLineText(String translated) {
 String _getCancellationPolicyTranslation(String text) =>
     _translateRulesSheetLine(text);
 
-rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
+rulesbuttomSheet(
+  BuildContext context, {
+  final String? title,
+  dynamic list,
+  bool isCancellationPolicy = false,
+}) {
   showModalBottomSheet(
     enableDrag: true,
     useRootNavigator: true,
@@ -5046,18 +4919,18 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
     constraints: const BoxConstraints.expand(width: double.infinity),
     context: context,
     builder: (BuildContext context) {
-      // Normaliser la liste : si elle est vide, créer une liste à partir du titre
-      List<String> rulesList = [];
-      if (list != null && list is List && list.isNotEmpty) {
-        rulesList = list.map<String>((item) {
-          if (item is String) {
-            return item;
-          }
-          return item.toString();
-        }).toList();
-      } else if (title != null && title.isNotEmpty) {
-        // Fallback : utiliser le titre comme premier point si la liste est vide
-        rulesList = [title];
+      final isCancellation = isCancellationPolicy ||
+          CancellationPolicyHelper.isCancellationPolicyContext(title, list);
+
+      List<String> rulesList = CancellationPolicyHelper.resolveDisplayRules(
+        list,
+        isCancellationPolicy: isCancellation,
+      );
+      if (rulesList.isEmpty &&
+          !isCancellation &&
+          title != null &&
+          title.trim().isNotEmpty) {
+        rulesList = [title.trim()];
       }
       
       return Padding(
@@ -5090,8 +4963,12 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
             // Titre : ne pas re-traduire si déjà localisé (arabe) ou texte API long.
             Builder(
               builder: (ctx) {
-                String headerText = "Politique d'annulation".tr;
-                if (title != null && title!.trim().isNotEmpty) {
+                String headerText = isCancellation
+                    ? 'cancellation_policy_title'.tr
+                    : (title?.trim().isNotEmpty == true
+                        ? title!.trim()
+                        : 'cancellation_policy_title'.tr);
+                if (!isCancellation && title != null && title!.trim().isNotEmpty) {
                   final t = title!.trim();
                   if (_rulesTextHasArabicScript(t) || t.length > 72) {
                     headerText = t;
@@ -5139,25 +5016,29 @@ rulesbuttomSheet(BuildContext context, {final String? title, dynamic list}) {
                           ),
                         ]
                       : rulesList.map((rule) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(
-                                  Icons.done_all,
-                                  color: Colors.blue,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _rulesSheetLineText(
-                                    _translateRulesSheetLine(rule),
+                          final line = isCancellation
+                              ? rule
+                              : _translateRulesSheetLine(rule);
+                          return isCancellation
+                              ? CancellationPolicyHelper.buildRuleListTile(line)
+                              : Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.done_all,
+                                        color: Colors.blue,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _rulesSheetLineText(line),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
+                                );
                         }).toList(),
                 ),
               ),
@@ -5846,18 +5727,31 @@ showTokenExpirePlease() {
   );
 }
 
+void _openProfileFromHomeHeader(BuildContext context) {
+  if (token.isEmpty) {
+    loginAlert(context);
+    return;
+  }
+  if (!isHostMode.value) {
+    try {
+      generalController.tabController.animateTo(4);
+      generalController.currentIndex.value = 4;
+      return;
+    } catch (_) {
+      // TabController pas encore prêt : repli navigation classique.
+    }
+  }
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const MyProfile()),
+  );
+}
+
 Widget profilePhotoOnHomeScreen(BuildContext context) {
   return Row(
     children: [
       InkWell(
-        onTap: () {
-          if (token.isEmpty) {
-            loginAlert(context);
-            return;
-          }
-          Navigator.push(context,
-              MaterialPageRoute(builder: (context) => const MyProfile()));
-        },
+        onTap: () => _openProfileFromHomeHeader(context),
         child: Obx(
           () => Padding(
             padding: const EdgeInsets.all(8.0),

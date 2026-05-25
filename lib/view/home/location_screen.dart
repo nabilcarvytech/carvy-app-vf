@@ -4,6 +4,7 @@ import 'package:carvy/controller/search_controller.dart';
 import 'package:carvy/customwidget/data_not_found.dart';
 import 'package:carvy/customwidget/project_bar.dart';
 import 'package:carvy/customwidget/project_color.dart';
+import 'package:carvy/helper/city_name_helper.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import '../../../controller/home_controller.dart';
@@ -115,22 +116,24 @@ class _LocationScreenState extends State<LocationScreen> {
                                             mainAxisAlignment:
                                                 MainAxisAlignment.center,
                                             children: [
-                                              Text(
-                                                (widget.list!
-                                                                .elementAt(
-                                                                    index)
-                                                                .cityName
-                                                                ?.length ??
-                                                            0) >
-                                                        10
-                                                    ? "${widget.list!.elementAt(index).cityName!.substring(0, 9)}..."
-                                                    : widget.list!
-                                                            .elementAt(index)
-                                                            .cityName ??
-                                                        "",
-                                                style: boldstyle(context)
-                                                    .copyWith(
-                                                        color: whiteColor),
+                                              Flexible(
+                                                child: Text(
+                                                  CityNameHelper.displayName(
+                                                    widget.list!
+                                                        .elementAt(index)
+                                                        .cityName,
+                                                  ),
+                                                  style: boldstyle(context)
+                                                      .copyWith(
+                                                    color: whiteColor,
+                                                    fontSize: 13,
+                                                  ),
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  textAlign: TextAlign.center,
+                                                  softWrap: true,
+                                                ),
                                               ),
                                             ],
                                           ),

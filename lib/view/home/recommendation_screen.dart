@@ -19,6 +19,7 @@ import '../bottombar/home_main.dart';
 
 class RecommendationScreen extends StatefulWidget {
   final String? title;
+  final String? agencyName;
   final String? locationId;
   final String? userId;
   final dynamic itemTypeId;
@@ -27,6 +28,7 @@ class RecommendationScreen extends StatefulWidget {
   RecommendationScreen(
       {super.key,
       this.title,
+      this.agencyName,
       this.locationId,
       this.userId,
       this.comefromprofilepage,
@@ -189,6 +191,31 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
 
   stateSetter(fn) => setState(() {});
 
+  Widget _buildAgencyListingsTitle(BuildContext context) {
+    final name = (widget.agencyName ?? '').trim();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Text(
+              name,
+              style: heading2Grey1(context),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'agency_ads'.tr,
+          style: heading2Grey1(context),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
@@ -257,7 +284,13 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                   ),
                 ),
               )),
-          title: Text("${widget.title}".tr, style: heading2Grey1(context)),
+          title: widget.comefromprofilepage == true &&
+                  (widget.agencyName ?? '').trim().isNotEmpty
+              ? _buildAgencyListingsTitle(context)
+              : Text(
+                  (widget.title ?? '').tr,
+                  style: heading2Grey1(context),
+                ),
         ),
         backgroundColor: notifires.getbgcolor,
         body: Padding(

@@ -150,7 +150,11 @@ class _AgencySignUpScreenState extends State<AgencySignUpScreen> {
   }
 
   void _goBackToRegistrationType() {
-    Get.offAll(() => const UserRoleSelectionScreen());
+    if (Navigator.canPop(context)) {
+      Get.back();
+    } else {
+      Get.off(() => const UserRoleSelectionScreen());
+    }
   }
 
   void _submitForm() {
@@ -202,7 +206,8 @@ class _AgencySignUpScreenState extends State<AgencySignUpScreen> {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     return PopScope(
       canPop: false,
-      onPopInvoked: (v) {
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
         if (_currentStep > 0) {
           _previousStep();
         } else {
@@ -212,8 +217,8 @@ class _AgencySignUpScreenState extends State<AgencySignUpScreen> {
       child: Scaffold(
         backgroundColor: notifires.getbgcolor,
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
           elevation: 0,
-          backgroundColor: notifires.getbgcolor,
           leading: IconButton(
             icon: Icon(
               Icons.arrow_back,

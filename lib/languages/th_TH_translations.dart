@@ -1235,4 +1235,13 @@ const Map<String, String> thTH = {
       "จำนวนเงินนี้ไม่ถูกหักผ่านแอป ต้องจัดการโดยตรงกับเอเจนซี่เมื่อรับรถ (การกันวงเงินบัตร เช็ค หรือเงินสดตามเงื่อนไขของเอเจนซี่)",
   "booking_deposit_on_site_short":
       "จัดการที่สถานที่กับผู้ขาย",
+  "who_are_you": "คุณคือใคร?",
+  "choose_profile_subtitle": "เลือกโปรไฟล์ของคุณเพื่อสมัครสมาชิก",
+  "agency_role": "เอเจนซี่",
+  "agency_description": "ฉันต้องการให้เช่ารถของฉัน",
+  "client_role": "ลูกค้า",
+  "client_description": "ฉันกำลังมองหารถเช่า",
+  "already_have_account": "ฉันมีบัญชีอยู่แล้ว:",
+  "login_button": "เข้าสู่ระบบ",
+  "next_button": "ถัดไป",
 };

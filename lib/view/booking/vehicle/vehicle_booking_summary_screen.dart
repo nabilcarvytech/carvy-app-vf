@@ -1906,10 +1906,11 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                   
                                                   rulesbuttomSheet(
                                                     context,
-                                                    title: policy,
+                                                    title: 'cancellation_policy_title'.tr,
                                                     list: widget.itemDetails!
                                                             .cancellationReasonDescription ??
                                                         [],
+                                                    isCancellationPolicy: true,
                                                   );
                                                 },
                                                 child: vehicleDetailController

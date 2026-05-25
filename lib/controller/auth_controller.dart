@@ -39,6 +39,7 @@ import 'package:carvy/work_space.dart';
 import 'package:carvy/services/auth_service.dart';
 import 'package:carvy/service/onesignal_service.dart';
 import '../helper/http_service.dart';
+import '../view/auth/register/email_otp_screen.dart';
 import '../view/auth/reset_password_screen.dart';
 
 class AuthController extends GetxController implements GetxService {
@@ -249,6 +250,12 @@ class AuthController extends GetxController implements GetxService {
   /// `true` tant que l’utilisateur est sur [RegisterWizardScreen] (OTP → [NavPageView]).
   final RxBool registerWizardEmbarked = false.obs;
   Timer? _registerWizardResendTimer;
+  final RxInt emailOtpResendSeconds = 0.obs;
+  final RxBool emailOtpVerifying = false.obs;
+  final RxBool emailOtpResendLoading = false.obs;
+  final TextEditingController textEditingEmailOtpController =
+      TextEditingController();
+  Timer? _emailOtpResendTimer;
 
   /// Date de naissance choisie à l'inscription (client).
   DateTime? signUpSelectedBirthDate;
@@ -307,6 +314,451 @@ class AuthController extends GetxController implements GetxService {
     textEditingOtpController.clear();
     _registerWizardResendTimer?.cancel();
     _registerWizardResendTimer = null;
+    emailOtpResendSeconds.value = 0;
+    _emailOtpResendTimer?.cancel();
+    _emailOtpResendTimer = null;
+    textEditingEmailOtpController.clear();
+  }
+
+  void startEmailOtpResendCountdown(int seconds) {
+    _emailOtpResendTimer?.cancel();
+    emailOtpResendSeconds.value = seconds;
+    _emailOtpResendTimer =
+        Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (emailOtpResendSeconds.value <= 1) {
+        timer.cancel();
+        emailOtpResendSeconds.value = 0;
+      } else {
+        emailOtpResendSeconds.value--;
+      }
+    });
+  }
+
+  void _logRegisterHttpResponse(dynamic responseBody) {
+    if (responseBody is Map) {
+      final map = Map<String, dynamic>.from(responseBody);
+      final statusCode = map['statusCode'];
+      print('🚨 [DEBUG REGISTER] Statut HTTP: $statusCode');
+      print('🚨 [DEBUG REGISTER] Body: ${jsonEncode(map)}');
+      print(
+          '🚨 [DEBUG REGISTER] status=${map['status']} success=${map['success']}');
+    } else {
+      print('🚨 [DEBUG REGISTER] Statut HTTP: (non mappé)');
+      print('🚨 [DEBUG REGISTER] Body: $responseBody');
+    }
+  }
+
+  /// Ferme le loader d'inscription ([buildShowDialog] = Navigator, pas seulement GetX).
+  void _dismissRegisterLoadingOverlay([BuildContext? context]) {
+    registerWizardSubmitting.value = false;
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    }
+    final ctx = context ?? Get.context;
+    if (ctx != null) {
+      final navigator = Navigator.of(ctx, rootNavigator: true);
+      if (navigator.canPop()) {
+        navigator.pop();
+      }
+    }
+  }
+
+  bool _isRegisterOtpSentResponse(dynamic response) {
+    if (response is! Map) return false;
+    final map = Map<String, dynamic>.from(response);
+    final status = map['status']?.toString().toUpperCase();
+    if (status == 'OTP_SENT') return true;
+    final data = map['data'];
+    if (data is Map) {
+      final nested = data['status']?.toString().toUpperCase();
+      if (nested == 'OTP_SENT') return true;
+    }
+    return false;
+  }
+
+  String? _tokenFromRegisterResponse(Map<String, dynamic> map) {
+    final data = map['data'];
+    if (data is Map && data['token'] != null) {
+      return data['token'].toString();
+    }
+    return map['token']?.toString();
+  }
+
+  /// Inscription : e-mail OTP avant SMS (status OTP_SENT ou succès sans JWT).
+  bool _registerRequiresEmailOtpFirst(dynamic response) {
+    if (_isRegisterOtpSentResponse(response)) return true;
+    if (response is! Map) return false;
+    final map = Map<String, dynamic>.from(response);
+    if (map['success'] != true) return false;
+    final token = _tokenFromRegisterResponse(map);
+    if (token != null && token.isNotEmpty) return false;
+    final data = map['data'];
+    return data is Map && data['email'] != null;
+  }
+
+  /// OTP e-mail : ferme le loader, ouvre [EmailOtpScreen], stoppe le flux inscription.
+  Future<void> _navigateToEmailOtpAfterRegister({
+    required dynamic responseBody,
+    required String fallbackEmail,
+    required bool fromRegisterWizard,
+    String? phoneDialCode,
+    String? phoneIsoCode,
+    BuildContext? context,
+  }) async {
+    _dismissRegisterLoadingOverlay(context);
+
+    final email = _emailFromRegisterOtpSentResponse(
+      responseBody,
+      fallbackEmail,
+    );
+    textEditingEmailOtpController.clear();
+    startEmailOtpResendCountdown(60);
+    showToastMessage(
+      (responseBody is Map ? responseBody['message']?.toString() : null) ??
+          'Code sent'.tr,
+    );
+
+    debugPrint(
+        '🚨 [DEBUG REGISTER] OTP_SENT → navigation EmailOtpScreen ($email)');
+
+    if (fromRegisterWizard) {
+      registerWizardPhoneCodeSent.value = false;
+    }
+
+    final emailVerified = await Get.to<bool>(
+      () => EmailOtpScreen(
+        email: email.isNotEmpty ? email : textEditingSignUpControllerEmail.text,
+        fromRegisterWizard: fromRegisterWizard,
+        phoneDialCode: phoneDialCode,
+        phoneIsoCode: phoneIsoCode,
+      ),
+    );
+
+    if (fromRegisterWizard && emailVerified == true) {
+      registerWizardPhoneCodeSent.value = true;
+    }
+    update();
+  }
+
+  String _emailFromRegisterOtpSentResponse(dynamic response, String fallback) {
+    if (response is Map) {
+      final data = response['data'];
+      if (data is Map && data['email'] != null) {
+        return data['email'].toString().trim();
+      }
+    }
+    return fallback.trim();
+  }
+
+  Map<String, dynamic> _normalizeAuthResponseMap(Map<String, dynamic> raw) {
+    final m = Map<String, dynamic>.from(raw);
+    if (m['success'] == true && m['status'] is! num) {
+      final s = m['status']?.toString().toUpperCase() ?? '';
+      if (s != 'OTP_SENT' && s.isNotEmpty) {
+        m['status'] = 200;
+      }
+    }
+    return m;
+  }
+
+  /// Enregistre le JWT / profil. [deferPushSync] : OneSignal + FCM en arrière-plan
+  /// (inscription avant OTP téléphone — évite le blocage sur update-onesignal-id 403).
+  Future<void> _persistLoginFromResponse(
+    LoginModel loginModel, {
+    bool deferPushSync = false,
+  }) async {
+    if (loginModel.data?.token == null || loginModel.data!.token!.isEmpty) {
+      return;
+    }
+    GetStorage().write('Remember', true);
+    GetStorage().write('Firstuser', true);
+    token = loginModel.data!.token!;
+    GetStorage().remove('bearerToken');
+    bearerToken = '';
+    userId = loginModel.data!.id!;
+    setLoginModel(loginModel);
+    final encoded = jsonEncode(loginModel.toJson());
+    GetStorage().write('user_data', encoded);
+    final userObj = UserData();
+    userObj.saveLoginData('UserData', encoded);
+
+    if (deferPushSync) {
+      unawaited(_runPostRegistrationPushSync());
+    } else {
+      await _syncPushServicesAfterAuth();
+    }
+    update();
+  }
+
+  Future<void> _syncPushServicesAfterAuth() async {
+    try {
+      await OneSignal.login(userId.toString());
+      await OneSignalService.forceUpdatePlayerId();
+    } catch (e) {
+      debugPrint('❌ [OneSignal] _syncPushServicesAfterAuth: $e');
+    }
+    try {
+      database.child(userId.toString()).set({
+        'userId': userId.toString(),
+        'playerId': oneSiginalplayerid ?? 'null',
+      });
+    } catch (e) {
+      debugPrint('❌ [RTDB] _syncPushServicesAfterAuth: $e');
+    }
+    getFCMToken();
+  }
+
+  /// OneSignal / FCM après register (JWT OK, téléphone pas encore vérifié).
+  Future<void> _runPostRegistrationPushSync() async {
+    debugPrint(
+        '🔔 [OneSignal] Sync push en arrière-plan (OTP téléphone en attente)');
+    await _syncPushServicesAfterAuth();
+  }
+
+  /// Après JWT post-vérification e-mail : active l’OTP SMS dans le wizard.
+  Future<void> _finishRegisterWizardAfterEmailOtp({
+    required BuildContext context,
+    required LoginModel loginModel,
+    String? phoneDialCode,
+    String? phoneIsoCode,
+  }) async {
+    registerWizardPhoneCodeSent.value = true;
+    final otpVal = loginModel.data?.otpValue;
+    if (otpVal != null && otpVal.isNotEmpty) {
+      textEditingOtpController.text = otpVal;
+    }
+    startRegisterWizardResendCountdown(60);
+
+    final dial = phoneDialCode ?? '';
+    if (dial.isNotEmpty &&
+        textEditingSingUpControllerPhoneNumber.text.isNotEmpty) {
+      await _sendPhoneOtpAfterEmailVerified(context, dial, phoneIsoCode ?? '');
+    }
+
+    showToastMessage(
+      loginModel.message ?? 'Code sent'.tr,
+    );
+    update();
+  }
+
+  Future<void> _navigateAfterEmailVerified({
+    required BuildContext context,
+    required bool fromRegisterWizard,
+    String? phoneDialCode,
+    String? phoneIsoCode,
+    LoginModel? loginModel,
+  }) async {
+    if (fromRegisterWizard) {
+      if (loginModel != null) {
+        await _finishRegisterWizardAfterEmailOtp(
+          context: context,
+          loginModel: loginModel,
+          phoneDialCode: phoneDialCode,
+          phoneIsoCode: phoneIsoCode,
+        );
+      } else {
+        registerWizardPhoneCodeSent.value = true;
+        update();
+      }
+      if (context.mounted) {
+        Get.back(result: true);
+      }
+      return;
+    }
+
+    final dial = phoneDialCode ?? '';
+    if (textEditingSingUpControllerPhoneNumber.text.isNotEmpty &&
+        dial.isNotEmpty) {
+      final formattedDial = dial.startsWith('+') ? dial : '+$dial';
+      if (webPlateForm) {
+        Get.offNamed(
+          WebRoutes.otpScreen,
+          arguments: {
+            'number': textEditingSingUpControllerPhoneNumber.text,
+            'countryCode': formattedDial,
+            'otpValue': '',
+            'email': '',
+          },
+        );
+      } else {
+        Get.off(
+          () => OtpScreen(
+            number: textEditingSingUpControllerPhoneNumber.text,
+            countryCode: formattedDial,
+            otpValue: '',
+            email: '',
+          ),
+        );
+      }
+      return;
+    }
+
+    await _navigateToHomeAfterAuth();
+  }
+
+  Future<void> _navigateToHomeAfterAuth() async {
+    final vendorFlow = registerWizardIsAgency.value ||
+        (userRole.value.toLowerCase() == 'vendor');
+    isHostMode.value = vendorFlow;
+    GetStorage().write('isHostMode', vendorFlow);
+    if (webPlateForm) {
+      Get.offAllNamed(vendorFlow ? WebRoutes.buttomHost : WebRoutes.homeMain);
+    } else {
+      if (vendorFlow) {
+        Get.offAll(() => const BottomHost(initialIndex: 0));
+      } else {
+        Get.offAll(() => const NavPageView());
+      }
+    }
+  }
+
+  Future<void> _sendPhoneOtpAfterEmailVerified(
+    BuildContext context,
+    String dialCode,
+    String isoCode,
+  ) async {
+    final dial = dialCode.startsWith('+') ? dialCode : '+$dialCode';
+    try {
+      final result = await resendOtp({
+        'phone': textEditingSingUpControllerPhoneNumber.text,
+        'phone_country': dial,
+      });
+      if (result != null && result['status'] == 200) {
+        registerWizardPhoneCodeSent.value = true;
+        if (result['data'] != null && result['data']['otp_value'] != null) {
+          textEditingOtpController.text = '${result['data']['otp_value']}';
+        }
+        startRegisterWizardResendCountdown(60);
+        showToastMessage(result['message']?.toString() ?? 'Code sent'.tr);
+      } else if (result != null) {
+        showErrorToastMessage(
+            result['error']?.toString() ??
+                result['message']?.toString() ??
+                'Error'.tr);
+      }
+    } catch (e) {
+      showErrorToastMessage(e.toString());
+    }
+  }
+
+  /// Vérifie l’OTP e-mail (wizard) — utilise l’e-mail du formulaire d’inscription.
+  Future<bool> verifyEmailOtpCode(
+    String otpCode, {
+    BuildContext? context,
+    String? email,
+    bool fromRegisterWizard = false,
+    String? phoneDialCode,
+    String? phoneIsoCode,
+  }) {
+    final ctx = context ?? Get.context;
+    if (ctx == null) {
+      showErrorToastMessage('Something went wrong'.tr);
+      return Future.value(false);
+    }
+    return verifyEmailOtp(
+      ctx,
+      email ?? textEditingSignUpControllerEmail.text.trim(),
+      otpCode,
+      fromRegisterWizard: fromRegisterWizard,
+      phoneDialCode: phoneDialCode,
+      phoneIsoCode: phoneIsoCode,
+    );
+  }
+
+  /// POST [Config.verifyEmailOtp] → JWT puis étape OTP téléphone (wizard).
+  Future<bool> verifyEmailOtp(
+    BuildContext context,
+    String email,
+    String otpCode, {
+    bool fromRegisterWizard = false,
+    String? phoneDialCode,
+    String? phoneIsoCode,
+  }) async {
+    final code = otpCode.trim();
+    if (code.length != 6) {
+      showErrorToastMessage('Please fill the Otp'.tr);
+      return false;
+    }
+
+    emailOtpVerifying.value = true;
+    buildShowDialog(context);
+    try {
+      final raw = await httpPost(Config.verifyEmailOtp, {
+        'email': email.trim(),
+        'otp': code,
+        'otpCode': code,
+      });
+      _dismissRegisterLoadingOverlay(context);
+
+      if (raw == null || raw is! Map) {
+        showErrorToastMessage('Something went wrong'.tr);
+        return false;
+      }
+
+      final map = _normalizeAuthResponseMap(Map<String, dynamic>.from(raw));
+      final loginModel = LoginModel.fromJson(map);
+      final hasJwt = loginModel.data?.token != null &&
+          loginModel.data!.token!.isNotEmpty;
+      final statusOk = loginModel.status == 200 ||
+          map['success'] == true;
+      final ok = statusOk && hasJwt;
+      if (!ok) {
+        showErrorToastMessage(
+            loginModel.error ?? loginModel.message ?? 'Error'.tr);
+        return false;
+      }
+
+      await _persistLoginFromResponse(loginModel, deferPushSync: true);
+      showToastMessage(loginModel.message ?? 'email_verified_success'.tr);
+
+      await _navigateAfterEmailVerified(
+        context: context,
+        fromRegisterWizard: fromRegisterWizard,
+        phoneDialCode: phoneDialCode,
+        phoneIsoCode: phoneIsoCode,
+        loginModel: loginModel,
+      );
+      return true;
+    } catch (e) {
+      showErrorToastMessage(e.toString());
+      return false;
+    } finally {
+      _dismissRegisterLoadingOverlay(context);
+      emailOtpVerifying.value = false;
+    }
+  }
+
+  Future<void> resendEmailOtp(String email) async {
+    if (email.trim().isEmpty) return;
+    if (emailOtpResendLoading.value) return;
+    emailOtpResendLoading.value = true;
+    try {
+      final raw = await httpPost(Config.resendEmailOtp, {
+        'email': email.trim(),
+      });
+      if (raw is Map) {
+        final status = raw['status'];
+        final success = raw['success'] == true;
+        final statusOk = status == 200 ||
+            status == '200' ||
+            (success && status?.toString().toUpperCase() != 'OTP_SENT');
+        if (statusOk || _isRegisterOtpSentResponse(raw)) {
+          showToastMessage(raw['message']?.toString() ?? 'Code sent'.tr);
+          startEmailOtpResendCountdown(60);
+          return;
+        }
+        showErrorToastMessage(
+            raw['error']?.toString() ??
+                raw['message']?.toString() ??
+                'Error'.tr);
+      } else {
+        showErrorToastMessage('Something went wrong'.tr);
+      }
+    } catch (e) {
+      showErrorToastMessage(e.toString());
+    } finally {
+      emailOtpResendLoading.value = false;
+    }
   }
 
   void startRegisterWizardResendCountdown([int seconds = 60]) {
@@ -328,7 +780,79 @@ class AuthController extends GetxController implements GetxService {
     return m.contains('duplicate entry') ||
         m.contains('email already') ||
         m.contains('already used') ||
-        m.contains('already in use');
+        m.contains('already in use') ||
+        m.contains('déjà utilisé') ||
+        m.contains('deja utilise') ||
+        m.contains('e-mail est déjà') ||
+        m.contains('email est déjà');
+  }
+
+  void _notifyCheckEmailError(String message) {
+    final text = message.trim().isNotEmpty
+        ? message.trim()
+        : 'Cet e-mail est déjà utilisé.'.tr;
+    registerWizardEmailError.value = text;
+    Get.snackbar(
+      'Erreur'.tr,
+      text,
+      backgroundColor: Colors.redAccent,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.BOTTOM,
+      margin: const EdgeInsets.all(12),
+      duration: const Duration(seconds: 4),
+    );
+  }
+
+  /// `true` si la réponse check-email indique un échec (409, success:false, e-mail pris).
+  bool _handleCheckEmailClientError(dynamic response) {
+    if (response == null) {
+      _notifyCheckEmailError('Something went wrong'.tr);
+      return true;
+    }
+    if (response is! Map) return false;
+
+    final map = Map<String, dynamic>.from(response);
+    final rawError = map['error']?.toString().trim() ?? '';
+    if (rawError.isNotEmpty &&
+        map['success'] == null &&
+        (map['message'] == null || map['message'].toString().isEmpty)) {
+      _notifyCheckEmailError(rawError);
+      return true;
+    }
+
+    final statusRaw = map['statusCode'] ?? map['status'];
+    final statusCode = statusRaw is num
+        ? statusRaw.toInt()
+        : int.tryParse(statusRaw?.toString() ?? '');
+
+    final apiMessage = _extractApiError(map);
+    final duplicateByFlag = map['exists'] == true ||
+        (map['data'] is Map && map['data']['exists'] == true);
+    final duplicateByMessage = _isDuplicateEmailMessage(apiMessage);
+    final is409 = statusCode == 409;
+    final isHttpError = statusCode != null && statusCode >= 400;
+    final isLogicalFailure = map['success'] == false;
+
+    if (is409 ||
+        isLogicalFailure ||
+        isHttpError ||
+        duplicateByFlag ||
+        duplicateByMessage) {
+      final fallback = (is409 || duplicateByFlag || duplicateByMessage)
+          ? 'Cet e-mail est déjà utilisé.'.tr
+          : 'Something went wrong'.tr;
+      _notifyCheckEmailError(
+          apiMessage.isNotEmpty ? apiMessage : fallback);
+      return true;
+    }
+
+    if (statusCode != null && statusCode != 200) {
+      _notifyCheckEmailError(
+          apiMessage.isNotEmpty ? apiMessage : 'Something went wrong'.tr);
+      return true;
+    }
+
+    return false;
   }
 
   String _extractApiError(dynamic response) {
@@ -388,37 +912,20 @@ class AuthController extends GetxController implements GetxService {
     try {
       showLoading();
       final response = await httpPost(Config.checkEmail, {'email': email});
-      closeLoading();
-
-      final String apiError = _extractApiError(response);
-      final bool duplicateByMessage = _isDuplicateEmailMessage(apiError);
-      final bool duplicateByFlag = response is Map &&
-          (response['exists'] == true ||
-              (response['data'] is Map && response['data']['exists'] == true));
-
-      if (duplicateByMessage || duplicateByFlag) {
-        registerWizardEmailError.value = 'Cet email est déjà utilisé';
+      if (_handleCheckEmailClientError(response)) {
         return false;
-      }
-
-      if (response is Map && response['status'] != null) {
-        final status = int.tryParse(response['status'].toString()) ?? 0;
-        if (status >= 400) {
-          registerWizardEmailError.value =
-              apiError.isNotEmpty ? apiError : 'Something went wrong'.tr;
-          return false;
-        }
       }
       return true;
     } catch (e) {
-      closeLoading();
       final msg = e.toString();
       if (_isDuplicateEmailMessage(msg)) {
-        registerWizardEmailError.value = 'Cet email est déjà utilisé';
-        return false;
+        _notifyCheckEmailError('Cet e-mail est déjà utilisé.'.tr);
+      } else {
+        _notifyCheckEmailError(msg);
       }
-      showErrorToastMessage(msg);
       return false;
+    } finally {
+      closeLoading();
     }
   }
 
@@ -435,6 +942,7 @@ class AuthController extends GetxController implements GetxService {
       return;
     }
     final dial = dialCode.startsWith('+') ? dialCode : '+$dialCode';
+    registerWizardSubmitting.value = true;
     try {
       buildShowDialog(context);
       final data = await httpPost(Config.registerUser, {
@@ -448,17 +956,45 @@ class AuthController extends GetxController implements GetxService {
         'birthdate': signUpBirthdateForApi,
         'role': registerWizardIsAgency.value ? 'vendor' : 'user',
       });
-      Get.back();
+
+      // Toujours fermer le loader (showDialog Navigator) avant de mettre à jour l'UI OTP.
+      _dismissRegisterLoadingOverlay(context);
+
+      _logRegisterHttpResponse(data);
+
       if (data == null) {
         showErrorToastMessage('Something went wrong'.tr);
         return;
       }
+
+      final responseBody =
+          data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+
       if (_handleRegisterUserHttp409(data, onDuplicateEmail: onDuplicateEmail)) {
         return;
       }
-      final loginModel = LoginModel.fromJson(data);
+
+      // E-mail d’abord : ne pas afficher l’OTP téléphone tant que status == OTP_SENT.
+      if (_registerRequiresEmailOtpFirst(data)) {
+        registerWizardPhoneCodeSent.value = false;
+        await _navigateToEmailOtpAfterRegister(
+          responseBody: data,
+          fallbackEmail: textEditingSignUpControllerEmail.text,
+          fromRegisterWizard: true,
+          phoneDialCode: dial,
+          phoneIsoCode: isoCode,
+          context: context,
+        );
+        return;
+      }
+
+      final loginModel = LoginModel.fromJson(
+        data is Map
+            ? _normalizeAuthResponseMap(Map<String, dynamic>.from(data))
+            : data,
+      );
       if (loginModel.status != 200) {
-        final err = (loginModel.error ?? '').toString();
+        final err = (loginModel.error ?? loginModel.message ?? '').toString();
         if (_isDuplicateEmailMessage(err)) {
           registerWizardEmailError.value = 'Cet email est déjà utilisé';
           registerWizardPhoneCodeSent.value = false;
@@ -470,22 +1006,28 @@ class AuthController extends GetxController implements GetxService {
         return;
       }
 
-      GetStorage().write('Remember', true);
-      GetStorage().write('Firstuser', true);
-      getFCMToken();
-      token = loginModel.data!.token!;
-      GetStorage().remove('bearerToken');
-      bearerToken = '';
-      userId = loginModel.data!.id!;
-      try {
-        await OneSignal.login(userId.toString());
-        await OneSignalService.forceUpdatePlayerId();
-      } catch (_) {}
-      database.child(userId.toString()).set({
-        'userId': userId.toString(),
-        'playerId': oneSiginalplayerid ?? 'null',
-      });
+      final jwt = _tokenFromRegisterResponse(responseBody) ??
+          loginModel.data?.token;
+      if (jwt == null || jwt.isEmpty) {
+        if (_registerRequiresEmailOtpFirst(data)) {
+          registerWizardPhoneCodeSent.value = false;
+          await _navigateToEmailOtpAfterRegister(
+            responseBody: data,
+            fallbackEmail: textEditingSignUpControllerEmail.text,
+            fromRegisterWizard: true,
+            phoneDialCode: dial,
+            phoneIsoCode: isoCode,
+            context: context,
+          );
+          return;
+        }
+        showErrorToastMessage('Something went wrong'.tr);
+        return;
+      }
 
+      await _persistLoginFromResponse(loginModel, deferPushSync: true);
+
+      // JWT direct (ancien flux) : OTP SMS sans passage par EmailOtpScreen.
       registerWizardPhoneCodeSent.value = true;
       final otpVal = loginModel.data?.otpValue;
       if (otpVal != null && otpVal.isNotEmpty) {
@@ -495,7 +1037,7 @@ class AuthController extends GetxController implements GetxService {
       showToastMessage(loginModel.message ?? 'Code sent'.tr);
       update();
     } catch (e) {
-      if (Get.isDialogOpen ?? false) Get.back();
+      _dismissRegisterLoadingOverlay(context);
       if (_isDuplicateEmailMessage(e.toString())) {
         registerWizardEmailError.value = 'Cet email est déjà utilisé';
         registerWizardPhoneCodeSent.value = false;
@@ -503,6 +1045,8 @@ class AuthController extends GetxController implements GetxService {
         return;
       }
       showErrorToastMessage(e.toString());
+    } finally {
+      registerWizardSubmitting.value = false;
     }
   }
 
@@ -805,103 +1349,75 @@ class AuthController extends GetxController implements GetxService {
           "birthdate": signUpBirthdateForApi,
         });
 
-        // DEBUG: Log raw response from backend
-        print("DEBUG REGISTER RESPONSE: $data");
+        _dismissRegisterLoadingOverlay(context);
+        _logRegisterHttpResponse(data);
 
-        Get.back();
-        if (data != null) {
-          if (_handleRegisterUserHttp409(data)) {
-            return;
-          }
-          LoginModel loginModel = LoginModel.fromJson(data);
+        if (data == null) {
+          showErrorToastMessage('Something went wrong'.tr);
+          return;
+        }
 
-          // DEBUG: Log parsed model status
-          print("DEBUG: Parsed LoginModel status: ${loginModel.status}");
-          print("DEBUG: LoginModel data: ${loginModel.data?.toJson()}");
+        final responseBody = data is Map
+            ? Map<String, dynamic>.from(data)
+            : <String, dynamic>{};
 
-          if (loginModel.status == 200) {
-            print("DEBUG: Status is 200");
+        if (_handleRegisterUserHttp409(data)) {
+          return;
+        }
 
-            // DEBUG: Check verification status
-            print("DEBUG: Verified status: ${loginModel.data?.verified}");
-            print("DEBUG: OTP Value: ${loginModel.data?.otpValue}");
-            print("DEBUG: Token: ${loginModel.data?.token}");
+        if (_registerRequiresEmailOtpFirst(data)) {
+          await _navigateToEmailOtpAfterRegister(
+            responseBody: data,
+            fallbackEmail: textEditingSignUpControllerEmail.text,
+            fromRegisterWizard: false,
+            phoneDialCode: countryDialCode,
+            phoneIsoCode: countryIsoCode,
+            context: context,
+          );
+          return;
+        }
 
-            if (loginModel.data?.verified == '0' ||
-                loginModel.data?.verified == null) {
-              print("DEBUG: User NOT verified, should go to OTP");
-            } else {
-              print(
-                  "DEBUG: User already verified (status: ${loginModel.data?.verified}), but still navigating to OTP screen");
-            }
-            GetStorage().write('Remember', true);
-            GetStorage().write('Firstuser', true);
+        final loginModel = LoginModel.fromJson(
+          _normalizeAuthResponseMap(responseBody),
+        );
 
-            getFCMToken();
-            token = loginModel.data!.token!;
-            // --- FIX: FLUSH GUEST TOKEN ---
-            // Clear the old Guest Bearer Token so http_service is forced to generate a new User Bearer Token.
-            GetStorage().remove("bearerToken");
-            bearerToken = ""; // Reset the global variable immediately
-            print(
-                "🧹 [Auth] Old Bearer Token flushed. Ready for User Token generation.");
-            // ------------------------------
-            userId = loginModel.data!.id!;
-          // Lier l'utilisateur à OneSignal avec External User ID
-          try {
-            print('🆔 [ONESIGNAL_DEBUG] Tentative de login pour l\'utilisateur : $userId');
-            await OneSignal.login(userId.toString());
-            String? pushToken = OneSignal.User.pushSubscription.id;
-            print('🆔 [ONESIGNAL_DEBUG] ID de souscription actuel (PlayerID) : $pushToken');
-            print('🔔 [OneSignal] ID lié pour l\'utilisateur : $userId');
-            await OneSignalService.forceUpdatePlayerId();
-          } catch (e) {
-            print('❌ [OneSignal] Erreur lors de la liaison de l\'ID utilisateur : $e');
-          }
-            database.child(userId.toString()).set({
-              "userId": userId.toString(),
-              "playerId": oneSiginalplayerid ?? "null",
-            });
+        if (loginModel.status == 200 &&
+            loginModel.data?.token != null &&
+            loginModel.data!.token!.isNotEmpty) {
+          await _persistLoginFromResponse(loginModel, deferPushSync: true);
 
-            if (webPlateForm) {
-              print("DEBUG: Navigating to OTP Screen (Web Platform)");
-              Get.toNamed(
-                WebRoutes.otpScreen,
-                arguments: {
-                  'number': textEditingSingUpControllerPhoneNumber.text,
-                  'countryCode': "$countryDialCode",
-                  'otpValue': loginModel.data!.otpValue,
-                  'email': "",
-                },
-              );
-            } else {
-              print("DEBUG: Navigating to OTP Screen (Mobile Platform)");
-              Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                      builder: (builder) => OtpScreen(
-                            number: textEditingSingUpControllerPhoneNumber.text,
-                            countryCode: "$countryDialCode",
-                            otpValue: loginModel.data!.otpValue!,
-                            email: "",
-                          )));
-            }
+          if (webPlateForm) {
+            Get.toNamed(
+              WebRoutes.otpScreen,
+              arguments: {
+                'number': textEditingSingUpControllerPhoneNumber.text,
+                'countryCode': '$countryDialCode',
+                'otpValue': loginModel.data!.otpValue ?? '',
+                'email': '',
+              },
+            );
           } else {
-            print(
-                "DEBUG: Status is NOT 200. Status: ${loginModel.status}, Error: ${loginModel.error}");
-            print(
-                "DEBUG: Navigating to Login/Home. Verified status is: ${loginModel.data?.verified}");
-            showErrorToastMessage(loginModel.error);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (builder) => OtpScreen(
+                  number: textEditingSingUpControllerPhoneNumber.text,
+                  countryCode: '$countryDialCode',
+                  otpValue: loginModel.data!.otpValue ?? '',
+                  email: '',
+                ),
+              ),
+            );
           }
         } else {
-          print("DEBUG: Response data is NULL - Something went wrong");
-          showErrorToastMessage("Something went wrong".tr);
+          showErrorToastMessage(
+              loginModel.error ?? loginModel.message ?? 'Error'.tr);
         }
       }
     } catch (e) {
-      print("DEBUG: Exception caught in signUp: $e");
-      print("DEBUG: Stack trace: ${StackTrace.current}");
-      Get.back();
+      debugPrint('🚨 [DEBUG REGISTER] Exception signUp: $e');
+      _dismissRegisterLoadingOverlay(context);
+      showErrorToastMessage(e.toString());
     }
   }
 

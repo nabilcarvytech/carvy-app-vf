@@ -708,8 +708,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         
                         rulesbuttomSheet(
                           context,
-                          title: policy,
+                          title: 'cancellation_policy_title'.tr,
                           list: cancellationDescription,
+                          isCancellationPolicy: true,
                         );
                       },
                       borderRadius: BorderRadius.circular(12),

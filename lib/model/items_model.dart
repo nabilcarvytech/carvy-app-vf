@@ -30,6 +30,46 @@ int? _parseMinRentalDaysInt(dynamic v) {
   return n;
 }
 
+String _parseItemRatingFromJson(Map<String, dynamic> json) {
+  String? pick(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    if (s.isEmpty || s == '0' || s == '0.0') return null;
+    return s;
+  }
+
+  final fromRoot = pick(json['item_rating']) ?? pick(json['rating']);
+  if (fromRoot != null) return fromRoot;
+
+  final rawInfo = json['item_info'];
+  Map<String, dynamic>? infoMap;
+  if (rawInfo is Map) {
+    infoMap = Map<String, dynamic>.from(rawInfo);
+  } else if (rawInfo is String && rawInfo.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(rawInfo);
+      if (decoded is Map) {
+        infoMap = Map<String, dynamic>.from(decoded);
+      }
+    } catch (_) {}
+  }
+
+  if (infoMap != null) {
+    for (final key in [
+      'item_rating',
+      'rating',
+      'average_rating',
+      'vehicle_rating',
+      'avg_rating',
+    ]) {
+      final v = pick(infoMap[key]);
+      if (v != null) return v;
+    }
+  }
+
+  return '0';
+}
+
 class ItemModel {
   num? _status;
   String? _message;
@@ -216,15 +256,8 @@ class Items {
     // Ancien backend: "name", Nouveau: "title"
     _name = (json['name'] ?? json['title'] ?? '').toString();
 
-    // Note moyenne
-    // Ancien: "item_rating" (string), Nouveau: "rating" (number)
-    if (json['item_rating'] != null) {
-      _itemRating = json['item_rating'].toString();
-    } else if (json['rating'] != null) {
-      _itemRating = json['rating'].toString();
-    } else {
-      _itemRating = '0';
-    }
+    // Note moyenne (racine puis item_info / champs alternatifs)
+    _itemRating = _parseItemRatingFromJson(json);
 
     _mobile = json['mobile']?.toString() ?? '';
     _personAllowed = json['person_allowed']?.toString() ?? '';

@@ -57,8 +57,10 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOut,
       );
-    } else {
+    } else if (webPlateForm) {
       backbuttonforWeb(context);
+    } else if (Navigator.canPop(context)) {
+      Get.back();
     }
   }
 
@@ -580,23 +582,23 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     return PopScope(
       canPop: false,
-      onPopInvoked: (v) {
-        backbuttonforWeb(context);
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _goBack();
       },
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
-          automaticallyImplyLeading: false,
-          leading: _currentPage == 0
-              ? null
-              : IconButton(
-                  icon: Icon(Icons.arrow_back_ios_new,
-                      color: notifires.getwhiteblackcolor, size: 20),
-                  onPressed: _goBack,
-                ),
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back,
+              color: notifires.getwhiteblackcolor,
+            ),
+            onPressed: _goBack,
+          ),
           title: Text(
             'register_wizard_app_bar_title'.tr,
             style: heading2Grey1(context),
