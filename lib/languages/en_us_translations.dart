@@ -1233,6 +1233,7 @@ const Map<String, String> enUs = {
   "email_otp_verify_button": "Verify",
   "email_otp_resend": "Resend code",
   "email_otp_resend_in": "Resend code in @n s",
+  "email_otp_skip": "Skip this step",
   "email_verified_success": "Email verified successfully",
   "Cet e-mail est déjà utilisé.": "This email is already in use.",
 };

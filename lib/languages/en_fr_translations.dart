@@ -1459,6 +1459,7 @@ const Map<String, String> frFR = {
   "email_otp_verify_button": "Vérifier",
   "email_otp_resend": "Renvoyer le code",
   "email_otp_resend_in": "Renvoyer le code dans @n s",
+  "email_otp_skip": "Ignorer cette étape",
   "email_verified_success": "E-mail vérifié avec succès",
   "Cet e-mail est déjà utilisé.": "Cet e-mail est déjà utilisé.",
 };

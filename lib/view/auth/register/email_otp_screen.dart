@@ -94,6 +94,12 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
     );
   }
 
+  void _onSkipEmailOtp() {
+    auth.registerWizardPhoneCodeSent.value = true;
+    auth.update();
+    Get.back(result: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final subtitle = 'email_otp_description'.trParams({'email': widget.email});
@@ -228,6 +234,21 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
                         ),
                       );
                     }),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: TextButton(
+                        onPressed: auth.emailOtpVerifying.value
+                            ? null
+                            : _onSkipEmailOtp,
+                        child: Text(
+                          'email_otp_skip'.tr,
+                          style: regular2(context).copyWith(
+                            color: notifires.getGrey3Whitecolor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

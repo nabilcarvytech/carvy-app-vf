@@ -235,6 +235,7 @@ class AuthController extends GetxController implements GetxService {
   // Tant que `true`, tout nouvel appel à `googleLogin` ou `prefillSignUpFormFromGoogle`
   // est ignoré (évite la double pop-up et l'erreur fantôme [16] Canceled).
   final RxBool isGoogleAuthLoading = false.obs;
+  String? registerGoogleIdToken;
 
   // --- Inscription wizard (multi-étapes) ---
   final RxBool registerWizardTermsAccepted = false.obs;
@@ -384,6 +385,14 @@ class AuthController extends GetxController implements GetxService {
     return map['token']?.toString();
   }
 
+  String? _otpValueFromRegisterResponse(Map<String, dynamic> map) {
+    final data = map['data'];
+    if (data is Map && data['otp_value'] != null) {
+      return data['otp_value'].toString();
+    }
+    return map['otp_value']?.toString();
+  }
+
   /// Inscription : e-mail OTP avant SMS (status OTP_SENT ou succès sans JWT).
   bool _registerRequiresEmailOtpFirst(dynamic response) {
     if (_isRegisterOtpSentResponse(response)) return true;
@@ -452,9 +461,10 @@ class AuthController extends GetxController implements GetxService {
 
   Map<String, dynamic> _normalizeAuthResponseMap(Map<String, dynamic> raw) {
     final m = Map<String, dynamic>.from(raw);
-    if (m['success'] == true && m['status'] is! num) {
+    final hasToken = _tokenFromRegisterResponse(m)?.isNotEmpty ?? false;
+    if ((m['success'] == true || hasToken) && m['status'] is! num) {
       final s = m['status']?.toString().toUpperCase() ?? '';
-      if (s != 'OTP_SENT' && s.isNotEmpty) {
+      if (s != 'OTP_SENT') {
         m['status'] = 200;
       }
     }
@@ -711,13 +721,16 @@ class AuthController extends GetxController implements GetxService {
       await _persistLoginFromResponse(loginModel, deferPushSync: true);
       showToastMessage(loginModel.message ?? 'email_verified_success'.tr);
 
-      await _navigateAfterEmailVerified(
-        context: context,
-        fromRegisterWizard: fromRegisterWizard,
-        phoneDialCode: phoneDialCode,
-        phoneIsoCode: phoneIsoCode,
-        loginModel: loginModel,
-      );
+      registerWizardPhoneCodeSent.value = true;
+      final otpVal = loginModel.data?.otpValue;
+      if (otpVal != null && otpVal.isNotEmpty && otpVal != '0') {
+        textEditingOtpController.text = otpVal;
+      }
+      startRegisterWizardResendCountdown(60);
+      update();
+      if (context.mounted) {
+        Get.back(result: true);
+      }
       return true;
     } catch (e) {
       showErrorToastMessage(e.toString());
@@ -945,7 +958,7 @@ class AuthController extends GetxController implements GetxService {
     registerWizardSubmitting.value = true;
     try {
       buildShowDialog(context);
-      final data = await httpPost(Config.registerUser, {
+      final registerPayload = <String, dynamic>{
         'phone': textEditingSingUpControllerPhoneNumber.text,
         'email': textEditingSignUpControllerEmail.text,
         'first_name': textEditingSignUpControllerFirstName.text,
@@ -955,7 +968,12 @@ class AuthController extends GetxController implements GetxService {
         'last_name': textEditingSingUpControllerlastName.text,
         'birthdate': signUpBirthdateForApi,
         'role': registerWizardIsAgency.value ? 'vendor' : 'user',
-      });
+      };
+      final googleIdToken = registerGoogleIdToken;
+      if (googleIdToken != null && googleIdToken.isNotEmpty) {
+        registerPayload['google_id_token'] = googleIdToken;
+      }
+      final data = await httpPost(Config.registerUser, registerPayload);
 
       // Toujours fermer le loader (showDialog Navigator) avant de mettre à jour l'UI OTP.
       _dismissRegisterLoadingOverlay(context);
@@ -993,7 +1011,15 @@ class AuthController extends GetxController implements GetxService {
             ? _normalizeAuthResponseMap(Map<String, dynamic>.from(data))
             : data,
       );
-      if (loginModel.status != 200) {
+
+      final jwt = _tokenFromRegisterResponse(responseBody) ??
+          loginModel.data?.token;
+      final isSuccess = responseBody['success'] == true ||
+          responseBody['status'] == 200 ||
+          responseBody['status'] == '200' ||
+          (jwt != null && jwt.isNotEmpty);
+
+      if (!isSuccess) {
         final err = (loginModel.error ?? loginModel.message ?? '').toString();
         if (_isDuplicateEmailMessage(err)) {
           registerWizardEmailError.value = 'Cet email est déjà utilisé';
@@ -1006,8 +1032,6 @@ class AuthController extends GetxController implements GetxService {
         return;
       }
 
-      final jwt = _tokenFromRegisterResponse(responseBody) ??
-          loginModel.data?.token;
       if (jwt == null || jwt.isEmpty) {
         if (_registerRequiresEmailOtpFirst(data)) {
           registerWizardPhoneCodeSent.value = false;
@@ -1029,9 +1053,10 @@ class AuthController extends GetxController implements GetxService {
 
       // JWT direct (ancien flux) : OTP SMS sans passage par EmailOtpScreen.
       registerWizardPhoneCodeSent.value = true;
-      final otpVal = loginModel.data?.otpValue;
-      if (otpVal != null && otpVal.isNotEmpty) {
-        textEditingOtpController.text = otpVal;
+      final autoOtp = _otpValueFromRegisterResponse(responseBody) ??
+          loginModel.data?.otpValue;
+      if (autoOtp != null && autoOtp.isNotEmpty && autoOtp != '0') {
+        textEditingOtpController.text = autoOtp;
       }
       startRegisterWizardResendCountdown(60);
       showToastMessage(loginModel.message ?? 'Code sent'.tr);
@@ -1046,6 +1071,7 @@ class AuthController extends GetxController implements GetxService {
       }
       showErrorToastMessage(e.toString());
     } finally {
+      registerGoogleIdToken = null;
       registerWizardSubmitting.value = false;
     }
   }
@@ -1333,12 +1359,14 @@ class AuthController extends GetxController implements GetxService {
       countryDialCode = '+$countryDialCode';
     }
 
+    var registerAttempted = false;
     try {
       if (formKey.currentState!.validate() && (isChecked == true)) {
+        registerAttempted = true;
         registerWizardEmailError.value = '';
         phoneError.value = '';
         buildShowDialog(context);
-        var data = await httpPost(Config.registerUser, {
+        final registerPayload = <String, dynamic>{
           "phone": textEditingSingUpControllerPhoneNumber.text,
           "email": textEditingSignUpControllerEmail.text,
           "first_name": textEditingSignUpControllerFirstName.text,
@@ -1347,7 +1375,12 @@ class AuthController extends GetxController implements GetxService {
           "default_country": countryIsoCode,
           "last_name": textEditingSingUpControllerlastName.text,
           "birthdate": signUpBirthdateForApi,
-        });
+        };
+        final googleIdToken = registerGoogleIdToken;
+        if (googleIdToken != null && googleIdToken.isNotEmpty) {
+          registerPayload['google_id_token'] = googleIdToken;
+        }
+        var data = await httpPost(Config.registerUser, registerPayload);
 
         _dismissRegisterLoadingOverlay(context);
         _logRegisterHttpResponse(data);
@@ -1418,6 +1451,10 @@ class AuthController extends GetxController implements GetxService {
       debugPrint('🚨 [DEBUG REGISTER] Exception signUp: $e');
       _dismissRegisterLoadingOverlay(context);
       showErrorToastMessage(e.toString());
+    } finally {
+      if (registerAttempted) {
+        registerGoogleIdToken = null;
+      }
     }
   }
 
@@ -1832,6 +1869,7 @@ class AuthController extends GetxController implements GetxService {
       return;
     }
     isGoogleAuthLoading.value = true;
+    registerGoogleIdToken = null;
     debugPrint('🔍 [GOOGLE_AUTH/PREFILL] 1. Bouton cliqué (prefill signup)');
 
     final googleSignIn = GoogleSignIn.instance;
@@ -1897,8 +1935,10 @@ class AuthController extends GetxController implements GetxService {
       String givenName = '';
       String familyName = '';
 
-      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final String? idToken = googleAuth.idToken;
+      registerGoogleIdToken = idToken;
       final Map<String, dynamic>? payload =
           idToken != null ? JwtDecoder.tryDecode(idToken) : null;
       if (payload != null) {

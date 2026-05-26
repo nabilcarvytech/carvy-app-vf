@@ -1373,6 +1373,7 @@ const Map<String, String> arAR = {
   "email_otp_verify_button": "تحقق",
   "email_otp_resend": "إعادة إرسال الرمز",
   "email_otp_resend_in": "إعادة الإرسال خلال @n ث",
+  "email_otp_skip": "تخطي هذه الخطوة",
   "email_verified_success": "تم تأكيد البريد الإلكتروني بنجاح",
   "Cet e-mail est déjà utilisé.": "هذا البريد الإلكتروني مستخدم بالفعل.",
 };

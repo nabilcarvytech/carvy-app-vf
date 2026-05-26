@@ -26,7 +26,7 @@ class Config {
   //static const String baseurlForBearer = 'https://carvy.tech/api/v1/';
 
   static const String secretKey = '49382716504938271650493827165049';
-  static const String registerUser = 'auth/register';
+  static const String registerUser = 'userRegister';
   static const String verifyEmailOtp = 'auth/verify-email-otp';
   static const String resendEmailOtp = 'auth/resend-email-otp';
   static const String socialLogin = 'social-login';
