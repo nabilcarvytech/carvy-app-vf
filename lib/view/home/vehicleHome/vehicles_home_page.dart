@@ -309,7 +309,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                       generalScopeController.textEditingControllerCity.text;
                   final bool isHint = loc.isEmpty && city.isEmpty;
                   final String label =
-                      loc.isNotEmpty ? loc : (city.isNotEmpty ? city : 'Destination ?'.tr);
+                      loc.isNotEmpty
+                          ? loc
+                          : (city.isNotEmpty ? city : 'search_destination'.tr);
                   return Row(
                     children: [
                       Icon(
@@ -342,7 +344,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                   final String e = filterController.endDates.value;
                   final bool isHint = s.isEmpty || e.isEmpty;
                   final String label =
-                      isHint ? 'Dates ?'.tr : '$s – $e';
+                      isHint ? 'search_dates'.tr : '$s – $e';
                   return Row(
                     children: [
                       Icon(

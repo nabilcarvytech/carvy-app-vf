@@ -2738,8 +2738,15 @@ class VendorOrderListView extends StatelessWidget {
         dynamic longitude = itemData[0]['longitude'] ?? 'N/A'.tr;
         String? startDate = list[index].checkIn;
         bool isMatching = isStartDateMatchingCurrentDate(startDate);
-        String? totalNights =
-            "${list[index].currencyCode} ${list[index].total}";
+        final totalNights = formatBookingCardPriceLine(
+          currencyCode: list[index].currencyCode,
+          total: list[index].total,
+          totalNight: list[index].totalNight,
+        );
+        final userPhoneDisplay = formatBookingPhoneDisplay(
+          list[index].userPhoneCountry,
+          list[index].userNumber,
+        );
         Map<String, dynamic> itemInfoMap = jsonDecode(itemData[0]['item_info']);
         ItemInfo? itemInfoData;
         itemInfoData = ItemInfo.fromJson(itemInfoMap);
@@ -2891,9 +2898,8 @@ class VendorOrderListView extends StatelessWidget {
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
-                                        list[index].status.isPending
-                                            ? 'EN ATTENTE'
-                                            : 'CONFIRMEE',
+                                        bookingStatusLabel(
+                                            list[index].status?.toString()),
                                         style: regular2(context).copyWith(
                                           color: whiteColor,
                                           fontWeight: FontWeight.bold,
@@ -2998,7 +3004,7 @@ class VendorOrderListView extends StatelessWidget {
                                       ),
                                       const Spacer(),
                                       Text(
-                                        totalNights.tr,
+                                        totalNights,
                                         style: boldstyle(context).copyWith(
                                             color:
                                                 getColorBasedOnActiveModuleid(),
@@ -3095,8 +3101,7 @@ class VendorOrderListView extends StatelessWidget {
                                     ],
                                   ),
                                 ),
-                                list[index].userName != null &&
-                                        (list[index].userName?.isNotEmpty ?? false)
+                                userPhoneDisplay.isNotEmpty
                                     ? Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.end,
@@ -3110,14 +3115,16 @@ class VendorOrderListView extends StatelessWidget {
                                           const SizedBox(width: 10),
                                           InkWell(
                                             onTap: () {
-                                              final userNumber = list[index].userNumber ?? '';
-                                              final userPhoneCountry = list[index].userPhoneCountry ?? '';
-                                              if (userNumber.isNotEmpty) {
-                                                launchUrl(Uri.parse('tel:$userPhoneCountry$userNumber'));
+                                              final tel = bookingPhoneTelUri(
+                                                list[index].userPhoneCountry,
+                                                list[index].userNumber,
+                                              );
+                                              if (tel.length > 4) {
+                                                launchUrl(Uri.parse(tel));
                                               }
                                             },
                                             child: Text(
-                                              "${list[index].userPhoneCountry ?? ''} ${list[index].userNumber ?? ''}",
+                                              userPhoneDisplay,
                                               style: regular2(context),
                                             ),
                                           ),
@@ -3213,7 +3220,8 @@ class VendorOrderListView extends StatelessWidget {
                                       const SizedBox(width: 7),
                                       Flexible(
                                         child: Text(
-                                          "${itemInfoData.transmission}",
+                                          translateBookingVehicleSpec(
+                                              itemInfoData.transmission),
                                           style: regular2(context),
                                           overflow: TextOverflow.ellipsis,
                                           maxLines: 1,
@@ -3241,7 +3249,8 @@ class VendorOrderListView extends StatelessWidget {
                                       const SizedBox(width: 7),
                                       Flexible(
                                         child: Text(
-                                          "${itemInfoData.fuelType}",
+                                          translateBookingVehicleSpec(
+                                              itemInfoData.fuelType),
                                           style: regular2(context),
                                           overflow: TextOverflow.ellipsis,
                                           maxLines: 1,

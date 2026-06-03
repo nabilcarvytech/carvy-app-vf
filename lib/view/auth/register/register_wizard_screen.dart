@@ -16,7 +16,7 @@ import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/auth/register/widgets/terms_step.dart';
 import 'package:carvy/work_space.dart';
 
-/// Inscription en 3 étapes : identité → téléphone / OTP → conditions générales (comme maquette).
+/// Inscription : identité → e-mail OTP optionnel → téléphone / OTP SMS.
 class RegisterWizardScreen extends StatefulWidget {
   const RegisterWizardScreen({super.key});
 
@@ -62,6 +62,15 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
     } else if (Navigator.canPop(context)) {
       Get.back();
     }
+  }
+
+  void _goToPhoneStep() {
+    if (!mounted) return;
+    _pageController.animateToPage(
+      1,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOut,
+    );
   }
 
   Future<void> _launchSupportUri(Uri uri) async {
@@ -196,7 +205,7 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
     );
   }
 
-  /// Barre de progression sur 3 étapes.
+  /// Barre de progression sur 3 étapes Flutter (l'OTP e-mail est un écran séparé).
   Widget _wizardProgressBar() {
     final progress = (_currentPage + 1) / 3;
     return Padding(
@@ -340,10 +349,24 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
                   final available =
                       await auth.registerWizardCheckEmailAvailability(context);
                   if (!available) return;
-                  _pageController.nextPage(
-                    duration: const Duration(milliseconds: 320),
-                    curve: Curves.easeOut,
+                  final readyForPhone =
+                      await auth.registerWizardSendPhoneCode(
+                    context,
+                    profileController.selectedCountry.value,
+                    profileController.defaultCountry.value,
+                    onDuplicateEmail: () {
+                      if (!mounted) return;
+                      if (_currentPage != 0) {
+                        _pageController.animateToPage(
+                          0,
+                          duration: const Duration(milliseconds: 280),
+                          curve: Curves.easeOut,
+                        );
+                      }
+                    },
                   );
+                  if (!readyForPhone || !mounted) return;
+                  _goToPhoneStep();
                 }
               },
               text: 'Next'.tr,
@@ -434,20 +457,10 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
                 return CustomsButtons(
                   onPressed: () {
                     if (_formKeyPhone.currentState?.validate() ?? false) {
-                      auth.registerWizardSendPhoneCode(
+                      auth.requestPhoneOtp(
                         context,
                         profileController.selectedCountry.value,
                         profileController.defaultCountry.value,
-                        onDuplicateEmail: () {
-                          if (!mounted) return;
-                          if (_currentPage != 0) {
-                            _pageController.animateToPage(
-                              0,
-                              duration: const Duration(milliseconds: 280),
-                              curve: Curves.easeOut,
-                            );
-                          }
-                        },
                       );
                     }
                   },
@@ -516,9 +529,10 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : InkWell(
-                                  onTap: () => auth.registerWizardResendOtp(
+                                  onTap: () => auth.requestPhoneOtp(
                                     context,
                                     dial.startsWith('+') ? dial : '+$dial',
+                                    profileController.defaultCountry.value,
                                   ),
                                   child: Text(
                                     'Resend New Code'.tr,
@@ -534,33 +548,15 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
                   const SizedBox(height: 20),
                   CustomsButtons(
                     onPressed: () {
-                      auth.verifyFunction(
+                      auth.verifyPhoneOtp(
                         context,
-                        _formKeyPhone,
-                        otp: auth.textEditingOtpController.text,
-                        changeEmail: null,
-                        changeMobile: null,
-                        number: auth.textEditingSingUpControllerPhoneNumber.text,
-                        cuntryCode:
-                            dial.startsWith('+') ? dial : '+$dial',
-                        email: '',
-                        defaultCountry: profileController.defaultCountry.value,
-                        onRegisterWizardPhoneVerified: () {
-                          if (!mounted) return;
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 280),
-                            curve: Curves.easeOut,
+                        auth.textEditingOtpController.text,
+                        onSuccess: () {
+                          _pageController.animateToPage(
+                            2,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
                           );
-                        },
-                        onRegisterWizardDuplicateEmail: () {
-                          if (!mounted) return;
-                          if (_currentPage != 0) {
-                            _pageController.animateToPage(
-                              0,
-                              duration: const Duration(milliseconds: 280),
-                              curve: Curves.easeOut,
-                            );
-                          }
                         },
                       );
                     },

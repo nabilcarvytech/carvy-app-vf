@@ -95,7 +95,7 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
   }
 
   void _onSkipEmailOtp() {
-    auth.registerWizardPhoneCodeSent.value = true;
+    auth.registerWizardPhoneCodeSent.value = false;
     auth.update();
     Get.back(result: true);
   }

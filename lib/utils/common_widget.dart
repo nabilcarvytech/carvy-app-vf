@@ -142,29 +142,157 @@ bool shouldShowBookingAgencyDirections({
   return false;
 }
 
+/// Clé GetX pour le libellé de statut réservation (évite le texte brut API).
+String bookingStatusTranslationKey(String? status) {
+  switch (status.toStandardStatus()) {
+    case 'CONFIRMED':
+      return 'status_confirmed';
+    case 'PENDING':
+      return 'status_pending';
+    case 'CANCELLED':
+      return 'status_cancelled';
+    case 'COMPLETED':
+      return 'status_completed';
+    case 'DECLINED':
+      return 'status_cancelled';
+    case 'LIVE':
+    case 'ONGOING':
+      return 'status_confirmed';
+    default:
+      final raw = status?.trim().toLowerCase() ?? '';
+      if (raw.isEmpty || raw == 'null') return 'status_pending';
+      return 'status_$raw';
+  }
+}
+
+String bookingStatusLabel(String? status) =>
+    bookingStatusTranslationKey(status).tr;
+
+/// Code réservation court : token / référence API, sinon 8 derniers caractères de l’id.
+String formatBookingReservationCode({String? token, String? id}) {
+  String? raw;
+  final t = token?.trim();
+  if (t != null && t.isNotEmpty && t.toLowerCase() != 'null') {
+    raw = t;
+  } else {
+    final i = id?.trim();
+    if (i != null && i.isNotEmpty && i.toLowerCase() != 'null') raw = i;
+  }
+  if (raw == null) return 'Pending'.tr;
+  final upper = raw.toUpperCase();
+  if (upper.length <= 10) return '#$upper';
+  final start = upper.length > 8 ? upper.length - 8 : 0;
+  return '#${upper.substring(start)}';
+}
+
+String paymentStatusLabel(String? paymentStatus) {
+  final s = paymentStatus?.trim().toLowerCase() ?? '';
+  if (s.isEmpty || s == 'null') return 'status_pending'.tr;
+  if (s == 'paid') return 'paid'.tr;
+  return 'status_$s'.tr;
+}
+
+String paymentMethodLabel(String? method) {
+  final s = method?.trim().toLowerCase() ?? '';
+  if (s.isEmpty || s == 'null') return '';
+  const aliases = <String, String>{
+    'cash': 'cash_payment',
+    'espece': 'cash_payment',
+    'espèce': 'cash_payment',
+    'espèces': 'cash_payment',
+    'especes': 'cash_payment',
+  };
+  final key = aliases[s] ?? 'payment_method_$s';
+  final translated = key.tr;
+  if (translated == key && method != null) return method;
+  return translated;
+}
+
+/// Indicatif + numéro sans afficher la chaîne « null ».
+String formatBookingPhoneDisplay(String? countryCode, String? phone) {
+  final cc = countryCode?.trim();
+  final validCc =
+      cc != null && cc.isNotEmpty && cc.toLowerCase() != 'null';
+  final num = phone?.trim();
+  final validNum =
+      num != null && num.isNotEmpty && num.toLowerCase() != 'null';
+  if (!validCc && !validNum) return '';
+  if (validCc && validNum) return '$cc $num';
+  return validNum ? num! : cc!;
+}
+
+String bookingPhoneTelUri(String? countryCode, String? phone) {
+  final cc = countryCode?.trim();
+  final validCc =
+      cc != null && cc.isNotEmpty && cc.toLowerCase() != 'null' ? cc : '';
+  final num = phone?.trim();
+  final validNum =
+      num != null && num.isNotEmpty && num.toLowerCase() != 'null' ? num : '';
+  return 'tel:$validCc$validNum';
+}
+
+String formatBookingCardPriceLine({
+  required String? currencyCode,
+  required String? total,
+  required String? totalNight,
+}) {
+  final currency = currencyCode?.trim() ?? '';
+  final amount = total?.trim() ?? '';
+  final nights = totalNight?.trim() ?? '';
+  final validNights =
+      nights.isNotEmpty && nights.toLowerCase() != 'null';
+  if (!validNights) {
+    return '$currency $amount'.trim();
+  }
+  return '$currency $amount ${'for_x_days'.trParams({'count': nights})}'
+      .trim();
+}
+
+/// Transmission / carburant : normalise la valeur API puis .tr.
+String translateBookingVehicleSpec(String? value) {
+  final s = value?.trim().toLowerCase() ?? '';
+  if (s.isEmpty || s == 'null') return '';
+  const aliases = <String, String>{
+    'manual': 'manuelle',
+    'manu': 'manuelle',
+    'automatic': 'automatique',
+    'auto': 'automatique',
+    'gasoline': 'essence',
+    'petrol': 'essence',
+    'gas': 'essence',
+  };
+  return (aliases[s] ?? s).tr;
+}
+
 BookingStatusDetails getBookingStatusDetails(String? status) {
   switch (status.toStandardStatus()) {
     case 'CONFIRMED':
       return BookingStatusDetails(
-        label: 'CONFIRMEE'.tr,
+        label: bookingStatusLabel(status),
         color: greensColor,
         icon: Icons.check_circle_outline,
       );
     case 'PENDING':
       return BookingStatusDetails(
-        label: 'EN ATTENTE'.tr,
+        label: bookingStatusLabel(status),
         color: orangeColor,
         icon: Icons.schedule,
       );
     case 'CANCELLED':
       return BookingStatusDetails(
-        label: 'ANNULEE'.tr,
+        label: bookingStatusLabel(status),
         color: redColor,
         icon: Icons.close,
       );
+    case 'COMPLETED':
+      return BookingStatusDetails(
+        label: bookingStatusLabel(status),
+        color: greensColor,
+        icon: Icons.check_circle,
+      );
     default:
       return BookingStatusDetails(
-        label: status.toStandardStatus(),
+        label: bookingStatusLabel(status),
         color: greyColor,
         icon: Icons.info_outline,
       );
@@ -1576,8 +1704,15 @@ myBookingListWidget(
             print('🖼️ [DEBUG IMAGE] [WIDGET] Aucune image trouvée (propImg et itemData sont null/vides)');
           }
         }
-        String? totalNights =
-            "${list[index].currencyCode} ${list[index].total} for ${list[index].totalNight} day";
+        final totalNights = formatBookingCardPriceLine(
+          currencyCode: list[index].currencyCode,
+          total: list[index].total,
+          totalNight: list[index].totalNight,
+        );
+        final hostPhoneDisplay = formatBookingPhoneDisplay(
+          list[index].hostPhoneCountry,
+          list[index].hostNumber,
+        );
         ItemInfo? itemInfoData;
         try {
           final rawInfo = firstItem['item_info'];
@@ -2115,7 +2250,7 @@ myBookingListWidget(
                                   ),
                                   const Spacer(),
                                   Text(
-                                    totalNights.tr,
+                                    totalNights,
                                     style: boldstyle(context).copyWith(
                                         color: getColorBasedOnActiveModuleid(),
                                         fontSize: 16),
@@ -2294,8 +2429,7 @@ myBookingListWidget(
                                 ],
                               ),
                             ),
-                            list[index].hostNumber != null &&
-                                    list[index].hostNumber!.isNotEmpty
+                            hostPhoneDisplay.isNotEmpty
                                 ? Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
@@ -2307,9 +2441,12 @@ myBookingListWidget(
                                       const SizedBox(width: 10),
                                       InkWell(
                                         onTap: () => launchUrl(Uri.parse(
-                                            'tel:${list[index].hostPhoneCountry}${list[index].hostNumber}')),
+                                            bookingPhoneTelUri(
+                                              list[index].hostPhoneCountry,
+                                              list[index].hostNumber,
+                                            ))),
                                         child: Text(
-                                          "${list[index].hostPhoneCountry} ${list[index].hostNumber!}",
+                                          hostPhoneDisplay,
                                           style: regular2(context),
                                         ),
                                       ),
@@ -2405,7 +2542,8 @@ myBookingListWidget(
                                   const SizedBox(width: 7),
                                   Flexible(
                                     child: Text(
-                                      "${itemInfoData.transmission}",
+                                      translateBookingVehicleSpec(
+                                          itemInfoData.transmission),
                                       style: regular2(context),
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
@@ -2433,7 +2571,8 @@ myBookingListWidget(
                                   const SizedBox(width: 7),
                                   Flexible(
                                     child: Text(
-                                      "${itemInfoData.fuelType}",
+                                      translateBookingVehicleSpec(
+                                          itemInfoData.fuelType),
                                       style: regular2(context),
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 1,

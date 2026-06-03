@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
 import 'package:location/location.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -349,12 +350,24 @@ class AuthController extends GetxController implements GetxService {
     }
   }
 
-  /// Ferme le loader d'inscription ([buildShowDialog] = Navigator, pas seulement GetX).
+  bool _registerLoadingOverlayVisible = false;
+
+  void _showRegisterLoadingOverlay(BuildContext context) {
+    _registerLoadingOverlayVisible = true;
+    buildShowDialog(context);
+  }
+
+  /// Ferme uniquement le loader d'inscription, jamais l'écran sous-jacent.
   void _dismissRegisterLoadingOverlay([BuildContext? context]) {
     registerWizardSubmitting.value = false;
     if (Get.isDialogOpen ?? false) {
       Get.back();
+      _registerLoadingOverlayVisible = false;
+      return;
     }
+
+    if (!_registerLoadingOverlayVisible) return;
+
     final ctx = context ?? Get.context;
     if (ctx != null) {
       final navigator = Navigator.of(ctx, rootNavigator: true);
@@ -362,6 +375,7 @@ class AuthController extends GetxController implements GetxService {
         navigator.pop();
       }
     }
+    _registerLoadingOverlayVisible = false;
   }
 
   bool _isRegisterOtpSentResponse(dynamic response) {
@@ -373,6 +387,19 @@ class AuthController extends GetxController implements GetxService {
     if (data is Map) {
       final nested = data['status']?.toString().toUpperCase();
       if (nested == 'OTP_SENT') return true;
+    }
+    return false;
+  }
+
+  bool _isEmailVerifiedPhoneRequired(dynamic response) {
+    if (response is! Map) return false;
+    final map = Map<String, dynamic>.from(response);
+    final status = map['status']?.toString().toUpperCase();
+    if (status == 'EMAIL_VERIFIED_PHONE_REQUIRED') return true;
+    final data = map['data'];
+    if (data is Map) {
+      final nested = data['status']?.toString().toUpperCase();
+      if (nested == 'EMAIL_VERIFIED_PHONE_REQUIRED') return true;
     }
     return false;
   }
@@ -393,6 +420,62 @@ class AuthController extends GetxController implements GetxService {
     return map['otp_value']?.toString();
   }
 
+  void _persistTemporaryRegisterToken(Map<String, dynamic> responseBody) {
+    final registerToken = _tokenFromRegisterResponse(responseBody);
+    if (registerToken == null || registerToken.isEmpty) return;
+    token = registerToken;
+    GetStorage().write('raw_user_token', registerToken);
+    GetStorage().write('token', registerToken);
+    GetStorage().remove('bearerToken');
+    bearerToken = '';
+  }
+
+  String? _currentRegisterBearerToken() {
+    if (token.isNotEmpty) return token;
+    final storedRaw = GetStorage().read('raw_user_token')?.toString();
+    if (storedRaw != null && storedRaw.isNotEmpty) {
+      token = storedRaw;
+      return storedRaw;
+    }
+    final storedToken = GetStorage().read('token')?.toString();
+    if (storedToken != null && storedToken.isNotEmpty) {
+      token = storedToken;
+      return storedToken;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> _postWithRegisterBearer(
+    String path,
+    Map<String, dynamic> payload,
+  ) async {
+    final registerToken = _currentRegisterBearerToken();
+    if (registerToken == null || registerToken.isEmpty) {
+      showErrorToastMessage('Something went wrong'.tr);
+      return null;
+    }
+
+    final response = await http.post(
+      Uri.parse('${Config.baseurl}$path'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $registerToken',
+        'x-auth-token': registerToken,
+      },
+      body: jsonEncode(payload),
+    );
+    final decoded = jsonDecode(response.body);
+    if (decoded is Map) {
+      final map = Map<String, dynamic>.from(decoded);
+      map['statusCode'] = response.statusCode;
+      return map;
+    }
+    return {
+      'statusCode': response.statusCode,
+      'message': response.body,
+    };
+  }
+
   /// Inscription : e-mail OTP avant SMS (status OTP_SENT ou succès sans JWT).
   bool _registerRequiresEmailOtpFirst(dynamic response) {
     if (_isRegisterOtpSentResponse(response)) return true;
@@ -406,7 +489,7 @@ class AuthController extends GetxController implements GetxService {
   }
 
   /// OTP e-mail : ferme le loader, ouvre [EmailOtpScreen], stoppe le flux inscription.
-  Future<void> _navigateToEmailOtpAfterRegister({
+  Future<bool> _navigateToEmailOtpAfterRegister({
     required dynamic responseBody,
     required String fallbackEmail,
     required bool fromRegisterWizard,
@@ -444,9 +527,10 @@ class AuthController extends GetxController implements GetxService {
     );
 
     if (fromRegisterWizard && emailVerified == true) {
-      registerWizardPhoneCodeSent.value = true;
+      registerWizardPhoneCodeSent.value = false;
     }
     update();
+    return emailVerified == true;
   }
 
   String _emailFromRegisterOtpSentResponse(dynamic response, String fallback) {
@@ -691,7 +775,8 @@ class AuthController extends GetxController implements GetxService {
     }
 
     emailOtpVerifying.value = true;
-    buildShowDialog(context);
+    _showRegisterLoadingOverlay(context);
+    var loadingOverlayClosed = false;
     try {
       final raw = await httpPost(Config.verifyEmailOtp, {
         'email': email.trim(),
@@ -699,6 +784,7 @@ class AuthController extends GetxController implements GetxService {
         'otpCode': code,
       });
       _dismissRegisterLoadingOverlay(context);
+      loadingOverlayClosed = true;
 
       if (raw == null || raw is! Map) {
         showErrorToastMessage('Something went wrong'.tr);
@@ -707,10 +793,14 @@ class AuthController extends GetxController implements GetxService {
 
       final map = _normalizeAuthResponseMap(Map<String, dynamic>.from(raw));
       final loginModel = LoginModel.fromJson(map);
+      final responseToken = _tokenFromRegisterResponse(map);
       final hasJwt = loginModel.data?.token != null &&
-          loginModel.data!.token!.isNotEmpty;
+          loginModel.data!.token!.isNotEmpty ||
+          (responseToken != null && responseToken.isNotEmpty);
+      final phoneRequired = _isEmailVerifiedPhoneRequired(raw);
       final statusOk = loginModel.status == 200 ||
-          map['success'] == true;
+          map['success'] == true ||
+          phoneRequired;
       final ok = statusOk && hasJwt;
       if (!ok) {
         showErrorToastMessage(
@@ -718,15 +808,12 @@ class AuthController extends GetxController implements GetxService {
         return false;
       }
 
-      await _persistLoginFromResponse(loginModel, deferPushSync: true);
+      // Email validé : on garde seulement le token temporaire pour l'étape téléphone.
+      // La session complète et la navigation Home arrivent uniquement après verifyPhoneOtp.
+      _persistTemporaryRegisterToken(map);
       showToastMessage(loginModel.message ?? 'email_verified_success'.tr);
 
-      registerWizardPhoneCodeSent.value = true;
-      final otpVal = loginModel.data?.otpValue;
-      if (otpVal != null && otpVal.isNotEmpty && otpVal != '0') {
-        textEditingOtpController.text = otpVal;
-      }
-      startRegisterWizardResendCountdown(60);
+      registerWizardPhoneCodeSent.value = false;
       update();
       if (context.mounted) {
         Get.back(result: true);
@@ -736,7 +823,9 @@ class AuthController extends GetxController implements GetxService {
       showErrorToastMessage(e.toString());
       return false;
     } finally {
-      _dismissRegisterLoadingOverlay(context);
+      if (!loadingOverlayClosed) {
+        _dismissRegisterLoadingOverlay(context);
+      }
       emailOtpVerifying.value = false;
     }
   }
@@ -942,7 +1031,7 @@ class AuthController extends GetxController implements GetxService {
     }
   }
 
-  Future<void> registerWizardSendPhoneCode(
+  Future<bool> registerWizardSendPhoneCode(
     BuildContext context,
     String dialCode,
     String isoCode,
@@ -950,20 +1039,13 @@ class AuthController extends GetxController implements GetxService {
   ) async {
     phoneError.value = '';
     registerWizardEmailError.value = '';
-    if (textEditingSingUpControllerPhoneNumber.text.isEmpty) {
-      showErrorToastMessage('Fill valid mobile number'.tr);
-      return;
-    }
-    final dial = dialCode.startsWith('+') ? dialCode : '+$dialCode';
     registerWizardSubmitting.value = true;
     try {
-      buildShowDialog(context);
+      _showRegisterLoadingOverlay(context);
       final registerPayload = <String, dynamic>{
-        'phone': textEditingSingUpControllerPhoneNumber.text,
         'email': textEditingSignUpControllerEmail.text,
         'first_name': textEditingSignUpControllerFirstName.text,
         'password': textEditingSignUpControllerPassword.text,
-        'phone_country': dial,
         'default_country': isoCode,
         'last_name': textEditingSingUpControllerlastName.text,
         'birthdate': signUpBirthdateForApi,
@@ -982,28 +1064,28 @@ class AuthController extends GetxController implements GetxService {
 
       if (data == null) {
         showErrorToastMessage('Something went wrong'.tr);
-        return;
+        return false;
       }
 
       final responseBody =
           data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
 
       if (_handleRegisterUserHttp409(data, onDuplicateEmail: onDuplicateEmail)) {
-        return;
+        return false;
       }
 
       // E-mail d’abord : ne pas afficher l’OTP téléphone tant que status == OTP_SENT.
       if (_registerRequiresEmailOtpFirst(data)) {
+        _persistTemporaryRegisterToken(responseBody);
         registerWizardPhoneCodeSent.value = false;
-        await _navigateToEmailOtpAfterRegister(
+        return await _navigateToEmailOtpAfterRegister(
           responseBody: data,
           fallbackEmail: textEditingSignUpControllerEmail.text,
           fromRegisterWizard: true,
-          phoneDialCode: dial,
+          phoneDialCode: dialCode,
           phoneIsoCode: isoCode,
           context: context,
         );
-        return;
       }
 
       final loginModel = LoginModel.fromJson(
@@ -1025,53 +1107,174 @@ class AuthController extends GetxController implements GetxService {
           registerWizardEmailError.value = 'Cet email est déjà utilisé';
           registerWizardPhoneCodeSent.value = false;
           onDuplicateEmail?.call();
-          return;
+          return false;
         }
         phoneError.value = loginModel.error ?? '';
         showErrorToastMessage(loginModel.error ?? 'Error'.tr);
-        return;
+        return false;
       }
 
       if (jwt == null || jwt.isEmpty) {
         if (_registerRequiresEmailOtpFirst(data)) {
           registerWizardPhoneCodeSent.value = false;
-          await _navigateToEmailOtpAfterRegister(
+          return await _navigateToEmailOtpAfterRegister(
             responseBody: data,
             fallbackEmail: textEditingSignUpControllerEmail.text,
             fromRegisterWizard: true,
-            phoneDialCode: dial,
+            phoneDialCode: dialCode,
             phoneIsoCode: isoCode,
             context: context,
           );
-          return;
         }
         showErrorToastMessage('Something went wrong'.tr);
-        return;
+        return false;
       }
 
-      await _persistLoginFromResponse(loginModel, deferPushSync: true);
-
-      // JWT direct (ancien flux) : OTP SMS sans passage par EmailOtpScreen.
-      registerWizardPhoneCodeSent.value = true;
-      final autoOtp = _otpValueFromRegisterResponse(responseBody) ??
-          loginModel.data?.otpValue;
-      if (autoOtp != null && autoOtp.isNotEmpty && autoOtp != '0') {
-        textEditingOtpController.text = autoOtp;
-      }
-      startRegisterWizardResendCountdown(60);
-      showToastMessage(loginModel.message ?? 'Code sent'.tr);
+      _persistTemporaryRegisterToken(responseBody);
+      registerWizardPhoneCodeSent.value = false;
+      showToastMessage(loginModel.message ?? 'Registration successful'.tr);
       update();
+      return true;
     } catch (e) {
       _dismissRegisterLoadingOverlay(context);
       if (_isDuplicateEmailMessage(e.toString())) {
         registerWizardEmailError.value = 'Cet email est déjà utilisé';
         registerWizardPhoneCodeSent.value = false;
         onDuplicateEmail?.call();
-        return;
+        return false;
       }
       showErrorToastMessage(e.toString());
+      return false;
     } finally {
       registerGoogleIdToken = null;
+      registerWizardSubmitting.value = false;
+    }
+  }
+
+  Future<void> requestPhoneOtp(
+    BuildContext context,
+    String dialCode,
+    String isoCode,
+  ) async {
+    phoneError.value = '';
+    if (textEditingSingUpControllerPhoneNumber.text.isEmpty) {
+      showErrorToastMessage('Fill valid mobile number'.tr);
+      return;
+    }
+
+    final dial = dialCode.startsWith('+') ? dialCode : '+$dialCode';
+    registerWizardSubmitting.value = true;
+    try {
+      _showRegisterLoadingOverlay(context);
+      final response = await _postWithRegisterBearer(
+        Config.requestPhoneOtp,
+        {
+          'phone': textEditingSingUpControllerPhoneNumber.text,
+          'phone_country': dial,
+          'default_country': isoCode,
+        },
+      );
+      _dismissRegisterLoadingOverlay(context);
+      if (response == null) return;
+
+      final success = response['success'] == true ||
+          response['status'] == 200 ||
+          response['status'] == '200' ||
+          response['statusCode'] == 200;
+      if (!success) {
+        phoneError.value = (response['error'] ?? '').toString();
+        showErrorToastMessage(
+          response['error']?.toString() ??
+              response['message']?.toString() ??
+              'Error'.tr,
+        );
+        return;
+      }
+
+      registerWizardPhoneCodeSent.value = true;
+      final autoOtp = _otpValueFromRegisterResponse(response);
+      if (autoOtp != null && autoOtp.isNotEmpty && autoOtp != '0') {
+        textEditingOtpController.text = autoOtp;
+      }
+      startRegisterWizardResendCountdown(60);
+      showToastMessage(response['message']?.toString() ?? 'Code sent'.tr);
+      update();
+    } catch (e) {
+      _dismissRegisterLoadingOverlay(context);
+      showErrorToastMessage(e.toString());
+    } finally {
+      registerWizardSubmitting.value = false;
+    }
+  }
+
+  Future<void> verifyPhoneOtp(
+    BuildContext context,
+    String otpCode, {
+    VoidCallback? onSuccess,
+  }) async {
+    final code = otpCode.trim();
+    if (code.isEmpty) {
+      showErrorToastMessage('Please fill the Otp'.tr);
+      return;
+    }
+
+    registerWizardSubmitting.value = true;
+    try {
+      _showRegisterLoadingOverlay(context);
+      final response = await _postWithRegisterBearer(
+        Config.verifyPhoneOtp,
+        {
+          'otp_value': code,
+          'otpCode': code,
+        },
+      );
+      _dismissRegisterLoadingOverlay(context);
+      if (response == null) return;
+
+      final responseBody = Map<String, dynamic>.from(response);
+      final finalToken = _tokenFromRegisterResponse(responseBody);
+      final success = responseBody['success'] == true ||
+          responseBody['status'] == 200 ||
+          responseBody['status'] == '200' ||
+          responseBody['statusCode'] == 200 ||
+          (finalToken != null && finalToken.isNotEmpty);
+      if (!success) {
+        showErrorToastMessage(
+          responseBody['error']?.toString() ??
+              responseBody['message']?.toString() ??
+              'Error'.tr,
+        );
+        return;
+      }
+
+      final normalized = _normalizeAuthResponseMap(responseBody);
+      final tokenValue = _tokenFromRegisterResponse(normalized) ?? finalToken;
+      if (tokenValue != null && tokenValue.isNotEmpty) {
+        final data = normalized['data'];
+        if (data is Map && data['token'] == null) {
+          data['token'] = tokenValue;
+        }
+      }
+      final loginModel = LoginModel.fromJson(normalized);
+      if (loginModel.data?.token == null ||
+          loginModel.data!.token!.isEmpty) {
+        showErrorToastMessage('Something went wrong'.tr);
+        return;
+      }
+
+      await _persistLoginFromResponse(loginModel);
+      registerWizardEmbarked.value = false;
+      showToastMessage(loginModel.message ?? 'Registration successful'.tr);
+
+      if (onSuccess != null) {
+        onSuccess();
+      } else {
+        await _navigateToHomeAfterAuth();
+      }
+    } catch (e) {
+      _dismissRegisterLoadingOverlay(context);
+      showErrorToastMessage(e.toString());
+    } finally {
       registerWizardSubmitting.value = false;
     }
   }
@@ -1365,13 +1568,11 @@ class AuthController extends GetxController implements GetxService {
         registerAttempted = true;
         registerWizardEmailError.value = '';
         phoneError.value = '';
-        buildShowDialog(context);
+        _showRegisterLoadingOverlay(context);
         final registerPayload = <String, dynamic>{
-          "phone": textEditingSingUpControllerPhoneNumber.text,
           "email": textEditingSignUpControllerEmail.text,
           "first_name": textEditingSignUpControllerFirstName.text,
           "password": textEditingSignUpControllerPassword.text,
-          "phone_country": countryDialCode,
           "default_country": countryIsoCode,
           "last_name": textEditingSingUpControllerlastName.text,
           "birthdate": signUpBirthdateForApi,

@@ -325,6 +325,8 @@ const Map<String, String> esES = {
   "Trip Details": "Detalles del viaje",
   "Duration": "Duración",
   "days": "días",
+  "days_count": "@count días",
+  "total_to_pay": "Total a pagar",
   "Renter info": "Información del arrendatario",
   "Name :": "Nombre :",
   "DOB :": "Fecha de nacimiento :",

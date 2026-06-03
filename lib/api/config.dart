@@ -29,6 +29,8 @@ class Config {
   static const String registerUser = 'userRegister';
   static const String verifyEmailOtp = 'auth/verify-email-otp';
   static const String resendEmailOtp = 'auth/resend-email-otp';
+  static const String requestPhoneOtp = 'auth/request-phone-otp';
+  static const String verifyPhoneOtp = 'auth/verify-phone-otp';
   static const String socialLogin = 'social-login';
   static const String verifyResetToken = 'verify-reset-token';
   static const String featuredItems = 'featuredItems';

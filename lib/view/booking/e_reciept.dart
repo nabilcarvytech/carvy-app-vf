@@ -145,11 +145,10 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
     return id != null ? '#$id' : 'Pending'.tr;
   }
 
-  String get _reservationCodeDisplay {
-    return _prefixedIdOrPending(
-      _nonEmptyId(widget.bookings?.token) ?? _nonEmptyId(widget.bookings?.id),
-    );
-  }
+  String get _reservationCodeDisplay => formatBookingReservationCode(
+        token: widget.bookings?.token,
+        id: widget.bookings?.id,
+      );
 
   String get _transactionIdDisplay {
     final tx = widget.bookings?.transaction;
@@ -234,7 +233,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
         children: [
           Center(
             child: Text(
-              "Reçu".tr,
+              'receipt_title'.tr,
               style: heading1(context).copyWith(fontWeight: FontWeight.w700),
             ),
           ),
@@ -257,7 +256,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Booked Date".tr, style: heading3Grey1(context)),
+                Text('booked_date'.tr, style: heading3Grey1(context)),
                 const SizedBox(
                   height: 7,
                 ),
@@ -311,7 +310,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Vehicle Name",
+                  'vehicle_name'.tr,
                   style: heading3Grey1(context),
                 ),
                 const SizedBox(
@@ -390,7 +389,9 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("${bookingController.vehicleTransmission}",
+                          Text(
+                              translateBookingVehicleSpec(
+                                  bookingController.vehicleTransmission),
                               style: regular2(context)),
                           Text("${bookingController.vehicleOdometer}",
                               style: regular2(context)),
@@ -770,7 +771,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
           ),
           _buildSecurityDepositSection(context),
           const SizedBox(height: 10),
-          Text("Status".tr, style: heading2Grey1(context)),
+          Text('status_title'.tr, style: heading2Grey1(context)),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(18),
@@ -794,8 +795,8 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                   children: [
                     Text("Payment Status".tr, style: heading3Grey1(context)),
                     Text(
-                      "${widget.bookings!.paymentStatus.toString() == "paid" ? "Paid" : widget.bookings!.paymentStatus}"
-                          .tr,
+                      paymentStatusLabel(
+                          widget.bookings!.paymentStatus?.toString()),
                       style: regular2(context)
                           .copyWith(fontSize: 16, color: themeColor),
                     ),
@@ -807,7 +808,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                   children: [
                     Text("Booking Status".tr, style: heading3Grey1(context)),
                     Text(
-                      "${widget.bookings!.status}".tr,
+                      bookingStatusLabel(widget.bookings!.status),
                       style: regular2(context)
                           .copyWith(fontSize: 16, color: themeColor),
                     ),
@@ -819,7 +820,8 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                   children: [
                     Text("Payment Method".tr, style: heading3Grey1(context)),
                     Text(
-                      "${widget.bookings!.paymentMethod}".tr,
+                      paymentMethodLabel(
+                          widget.bookings!.paymentMethod?.toString()),
                       style: regular2(context)
                           .copyWith(fontSize: 16, color: themeColor),
                     ),

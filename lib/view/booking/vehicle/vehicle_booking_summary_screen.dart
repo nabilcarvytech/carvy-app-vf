@@ -1454,11 +1454,6 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                           '0',
                                                     ) ??
                                                     0;
-                                                final nightLabel =
-                                                    totalNights > 1
-                                                        ? "days"
-                                                        : "day";
-
                                                 final priceDetails =
                                                     widget.itemDetails
                                                         ?.priceDetails;
@@ -1544,7 +1539,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                                   .start,
                                                           children: [
                                                             Text(
-                                                              "${"Price".tr} ( $totalNights $nightLabel )",
+                                                              '${"Price".tr} (${'days_count'.trParams({'count': '$totalNights'})})',
                                                               style: regular2(
                                                                       context)
                                                                   .copyWith(
@@ -1794,7 +1789,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.start,
                                                   children: [
-                                                    Text("Total à payer".tr,
+                                                    Text('total_to_pay'.tr,
                                                         style: heading3(context)
                                                             .copyWith(
                                                                 color:
