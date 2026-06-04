@@ -14,7 +14,6 @@ import 'package:carvy/api/config.dart';
 import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/controller/global_scope_controller.dart';
 import 'package:carvy/customwidget/project_color.dart';
-import 'package:carvy/model/check_email.dart';
 import 'package:carvy/model/check_mobile_model.dart';
 import 'package:carvy/model/login_model.dart' as logmod;
 import 'package:carvy/model/login_model.dart';
@@ -35,6 +34,26 @@ class ProfileController extends GetxController implements GetxService {
   RxString selectedCountryReset = "".obs;
   RxString defaultCountry = "".obs;
   RxString defaultCountryReset = "".obs;
+
+  final List<String> availableLanguages = const [
+    'Français',
+    'English',
+    'العربية',
+    'Español',
+    'Русский',
+    'ภาษาไทย',
+  ];
+
+  final RxString selectedLanguage = 'Français'.obs;
+
+  static const Map<String, String> _languageNameToCode = {
+    'Français': 'fr',
+    'English': 'en',
+    'العربية': 'ar',
+    'Español': 'es',
+    'Русский': 'ru',
+    'ภาษาไทย': 'th',
+  };
 
   bool loading = false;
   TextEditingController firetnameControllerSocialMedialogin =
@@ -73,6 +92,48 @@ class ProfileController extends GetxController implements GetxService {
     textEditingPhoneUpdateController = TextEditingController();
   }
 
+  String getLanguageCode(String languageName) {
+    return _languageNameToCode[languageName] ??
+        languageName.toLowerCase().substring(0, 2);
+  }
+
+  String languageNameFromCodeOrName(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return availableLanguages.first;
+
+    for (final lang in availableLanguages) {
+      if (lang.toLowerCase() == trimmed.toLowerCase()) return lang;
+    }
+
+    final lower = trimmed.toLowerCase();
+    const aliases = <String, String>{
+      'fr': 'Français',
+      'french': 'Français',
+      'français': 'Français',
+      'en': 'English',
+      'english': 'English',
+      'ar': 'العربية',
+      'arabic': 'العربية',
+      'arab': 'العربية',
+      'es': 'Español',
+      'spanish': 'Español',
+      'español': 'Español',
+      'ru': 'Русский',
+      'russian': 'Русский',
+      'th': 'ภาษาไทย',
+      'thai': 'ภาษาไทย',
+    };
+
+    return aliases[lower] ?? availableLanguages.first;
+  }
+
+  void applyLanguageFromStored(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return;
+    selectedLanguage.value = languageNameFromCodeOrName(raw);
+    textEditingProfileControllerLangauge.text =
+        getLanguageCode(selectedLanguage.value);
+  }
+
   Future<void> setFirstNameFromLoginModel() async {
     clear();
     if (loginModel != null) {
@@ -100,7 +161,7 @@ class ProfileController extends GetxController implements GetxService {
         textEditingProfileControllerDescription.text = loginModel!.data!.intro;
       }
       if (loginModel!.data!.langauge != null) {
-        textEditingProfileControllerLangauge.text = loginModel!.data!.langauge;
+        applyLanguageFromStored(loginModel!.data!.langauge);
       }
 
       if (loginModel!.data!.phone != null) {
@@ -113,9 +174,6 @@ class ProfileController extends GetxController implements GetxService {
         print(loginModel!.data!.birthdate!);
 
         textEditingProfileControllerDOB.text = loginModel!.data!.birthdate!;
-      }
-      if (loginModel!.data!.langauge != null) {
-        textEditingProfileControllerLangauge.text = loginModel!.data!.langauge!;
       }
       if (loginModel!.data!.intro != null) {
         textEditingProfileControllerDescription.text = loginModel!.data!.intro!;
@@ -151,7 +209,7 @@ class ProfileController extends GetxController implements GetxService {
         "phone": textEditingPhoneUpdateController.text,
         "birthdate": textEditingProfileControllerDOB.text,
         "intro": textEditingProfileControllerDescription.text,
-        "langauge": textEditingProfileControllerLangauge.text,
+        "langauge": getLanguageCode(selectedLanguage.value),
         "country": selectedCountryDrop ?? "",
         "identity_image": identityBase64 ?? ""
       };
@@ -236,39 +294,42 @@ class ProfileController extends GetxController implements GetxService {
       BuildContext context, GlobalKey<FormState> formKey) async {
     if (formKey.currentState!.validate()) {
       showLoading();
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var response = await httpPost(Config.checkEmail,
-      //     {"email": textEditingProfileControllerCheckEmail.text});
+      try {
+        final email = textEditingProfileControllerCheckEmail.text.trim();
+        final response = await httpPost(
+          Config.requestEmailChangeOtp,
+          {"email": email},
+        );
 
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // MOCK: Static success response for checking email
-      var response = {
-        "status": 200,
-        "message": "OTP sent to email successfully",
-        "error": "",
-        "data": {
-          "email": textEditingProfileControllerCheckEmail.text,
-          "otp": "123456"
+        if (response == null) {
+          showErrorToastMessage('Something went wrong'.tr);
+          return;
         }
-      };
-      // ========== END MOCK DATA ==========
-      closeLoading();
-      if (response != null) {
-        CheckEmail checkEmail = CheckEmail.fromJson(response);
-        if (checkEmail.status == 200) {
-          showToastMessage(checkEmail.message);
-          Get.off(() => OtpScreen(
-                number: "",
-                countryCode: "",
-                otpValue: checkEmail.data!.otp!,
-                email: textEditingProfileControllerCheckEmail.text,
+
+        final success = response['success'] == true ||
+            response['status'] == 200 ||
+            response['status'] == '200' ||
+            response['statusCode'] == 200;
+
+        if (success) {
+          final msg = response['message']?.toString();
+          if (msg != null && msg.isNotEmpty) {
+            showToastMessage(msg);
+          }
+          Get.to(() => OtpScreen(
                 changeEmail: true,
+                email: email,
               ));
         } else {
-          showErrorToastMessage(checkEmail.error);
+          showErrorToastMessage(
+            (response['error'] ?? response['message'] ?? 'Error'.tr)
+                .toString(),
+          );
         }
+      } catch (e) {
+        showErrorToastMessage(e.toString());
+      } finally {
+        closeLoading();
       }
     }
   }

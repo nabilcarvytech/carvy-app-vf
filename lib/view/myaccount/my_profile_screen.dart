@@ -491,18 +491,67 @@ class _MyProfileState extends State<MyProfile> {
                               SizedBox(
                                 height: spacingBeteenFeilds,
                               ),
-                              TextFieldRefs(
-                                inputAlignment: TextAlign.start,
-                                txt: 'Language'.tr,
-                                icons: Icon(
-                                  Icons.language,
-                                  color: getColorBasedOnActiveModuleid(),
-                                ),
-                                textEditingControllerCommon: profileController
-                                    .textEditingProfileControllerLangauge,
-                                inputType: TextInputType.text,
-                                validator: (value) {
-                                  return null;
+                              Obx(
+                                () {
+                                  final languages =
+                                      profileController.availableLanguages;
+                                  final current =
+                                      profileController.selectedLanguage.value;
+                                  final dropdownValue = languages
+                                          .contains(current)
+                                      ? current
+                                      : languages.first;
+                                  return DropdownButtonFormField<String>(
+                                    value: dropdownValue,
+                                    decoration: InputDecoration(
+                                      hintText: 'Language'.tr,
+                                      hintStyle: regular3(context),
+                                      prefixIcon: Icon(
+                                        Icons.language,
+                                        color:
+                                            getColorBasedOnActiveModuleid(),
+                                      ),
+                                      filled: true,
+                                      fillColor: notifires.getBoxColor,
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                            color: notifires.getBoxColor),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                            color: notifires.getBoxColor),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(
+                                            color: notifires.getBoxColor),
+                                      ),
+                                    ),
+                                    items: languages
+                                        .map(
+                                          (lang) => DropdownMenuItem<String>(
+                                            value: lang,
+                                            child: Text(
+                                              lang,
+                                              style: regular2(context),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (String? newValue) {
+                                      if (newValue != null) {
+                                        profileController
+                                            .selectedLanguage.value = newValue;
+                                        profileController
+                                                .textEditingProfileControllerLangauge
+                                                .text =
+                                            profileController.getLanguageCode(
+                                                newValue);
+                                      }
+                                    },
+                                  );
                                 },
                               ),
                               SizedBox(

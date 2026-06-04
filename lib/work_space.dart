@@ -186,8 +186,8 @@ getUserDataLocallyToHandleTheState() async {
                 loginModel!.data!.intro!;
           }
           if (loginModel!.data!.langauge != null) {
-            profileController.textEditingProfileControllerLangauge.text =
-                loginModel!.data!.langauge!;
+            profileController.applyLanguageFromStored(
+                loginModel!.data!.langauge);
           }
 
           if (loginModel!.data!.id != null) {

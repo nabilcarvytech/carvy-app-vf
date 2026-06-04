@@ -237,61 +237,51 @@ class _UserRoleSelectionScreenState extends State<UserRoleSelectionScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'already_have_account'.tr,
-                    textAlign: TextAlign.center,
-                    style: heading2Grey1(context).copyWith(fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => Get.to(() => const LoginScreen()),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      side: const BorderSide(color: Color(0xFF2B489A)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'login_button'.tr,
-                      style: const TextStyle(
-                        color: Color(0xFF2B489A),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+              child: CustomsButtons(
+                text: 'next_button'.tr,
+                backgroundColor: selectedRole != null
+                    ? vehicalThemColor
+                    : Colors.grey.withOpacity(0.5),
+                onPressed:
+                    selectedRole != null ? _continueToNextScreen : () {},
               ),
             ),
-            const SizedBox(height: 10),
-            // Bouton Suivant fixé en bas
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: whiteColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: CustomsButtons(
-                  text: 'next_button'.tr,
-                  backgroundColor: selectedRole != null
-                      ? vehicalThemColor
-                      : Colors.grey.withOpacity(0.5),
-                  onPressed: selectedRole != null ? _continueToNextScreen : () {},
+            const SizedBox(height: 16),
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.only(bottom: 8),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'already_have_account'.tr,
+                      textAlign: TextAlign.center,
+                      style: heading2Grey1(context).copyWith(fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: () => Get.to(() => const LoginScreen()),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                        side: const BorderSide(color: Color(0xFF2B489A)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'login_button'.tr,
+                        style: const TextStyle(
+                          color: Color(0xFF2B489A),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

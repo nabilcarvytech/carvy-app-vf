@@ -39,13 +39,7 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void initState() {
     super.initState();
-
-    Future.delayed(
-      const Duration(seconds: 1),
-      () {
-        controller.textEditingOtpController.text = widget.otpValue!;
-      },
-    );
+    controller.textEditingOtpController.clear();
     startResendTimer();
   }
 

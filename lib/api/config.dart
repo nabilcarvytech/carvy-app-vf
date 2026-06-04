@@ -125,7 +125,7 @@ class Config {
   static const String getBankAccount = 'get-bank-account';
   static const String checkEmail = 'check-email';
   static const String changeEmail = 'change-email';
-  static const String resendTokenEmailChange = 'resend-token-email-change';
+  static const String requestEmailChangeOtp = 'request-email-change-otp';
   static const String emailSmsNotification = 'emailSmsNotification';
   static const String addEditItemImage = 'add-update-item-image';
   static const String addEditCalender = 'add-editCalender';

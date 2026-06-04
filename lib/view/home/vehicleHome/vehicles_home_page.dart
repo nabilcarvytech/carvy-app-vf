@@ -1010,6 +1010,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             const Spacer(),
             InkWell(
               onTap: () {
+                final makes =
+                    homeController.homeDataModel?.data?.makes ?? [];
+                if (makes.isEmpty) return;
                 if (webPlateForm) {
                   Get.toNamed(WebRoutes.topCategory,
                       arguments: {'title': "Make".tr});
@@ -1019,7 +1022,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                     MaterialPageRoute(
                       builder: (builder) => TopCategories(
                         title: "Make".tr,
-                        list: homeController.homeDataModel!.data!.makes!,
+                        list: makes,
                       ),
                     ),
                   );
@@ -1042,7 +1045,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
               return topCateforyBoatShimmer();
             } else {
               final vehicleMake =
-                  homeController.homeDataModel?.data!.makes ?? [];
+                  homeController.homeDataModel?.data?.makes ?? [];
 
               if (vehicleMake.isNotEmpty) {
                 return vehicalCategory(vehicleMake, notifires);

@@ -1928,18 +1928,28 @@ class AuthController extends GetxController implements GetxService {
           changeMobiles!['otp_value'] = textEditingOtpController.text;
         }
       } else if (changeEmail != null) {
-        var resultToken = await httpPost(Config.resendTokenEmailChange,
-            {"email": email, "type": "email_reset"});
+        final resultToken = await httpPost(
+          Config.requestEmailChangeOtp,
+          {"email": email},
+        );
+        closeLoading();
         if (resultToken != null) {
-          closeLoading();
-          if (resultToken['status'] == 200) {
-            showToastMessage(resultToken['message']);
-            if (resultToken['data'] != null) {
-              textEditingOtpController.text =
-                  resultToken['data']['reset_token'];
-            }
+          final ok = resultToken['success'] == true ||
+              resultToken['status'] == 200 ||
+              resultToken['status'] == '200' ||
+              resultToken['statusCode'] == 200;
+          if (ok) {
+            showToastMessage(
+              resultToken['message']?.toString() ?? 'Code sent'.tr,
+            );
+            textEditingOtpController.clear();
           } else {
-            showToastMessage(resultToken['success']);
+            showErrorToastMessage(
+              (resultToken['error'] ??
+                      resultToken['message'] ??
+                      'Error'.tr)
+                  .toString(),
+            );
           }
         }
       } else if (email.isEmpty) {
