@@ -134,6 +134,42 @@ class AuthController extends GetxController implements GetxService {
     }
   }
   
+  /// Enregistre le nouvel e-mail localement, met à jour le formulaire profil et
+  /// ferme OTP + saisie e-mail pour revenir sur [MyProfile].
+  Future<void> completeEmailChangeAndReturnToProfile({
+    required LoginModel apiModel,
+    required String newEmail,
+  }) async {
+    final trimmed = newEmail.trim();
+
+    final Map<String, dynamic> map =
+        Map<String, dynamic>.from(apiModel.toJson());
+    if (map['data'] is Map && trimmed.isNotEmpty) {
+      (map['data'] as Map<String, dynamic>)['email'] = trimmed;
+    }
+    final updated = LoginModel.fromJson(map);
+    final payload = jsonEncode(updated.toJson());
+
+    GetStorage().write('user_data', payload);
+    UserData().saveLoginData('UserData', payload);
+    setLoginModel(updated);
+
+    profileController.textEditingProfileControllerEmail.text = trimmed;
+    profileController.emailControllerSocialMedialogin.text = trimmed;
+    profileController.textEditingProfileControllerCheckEmail.text = trimmed;
+    profileController.update();
+
+    showToastMessage('email_updated_success'.tr);
+
+    if (webPlateForm) {
+      if (Get.currentRoute != WebRoutes.myprofile) {
+        Get.until((route) => route.settings.name == WebRoutes.myprofile);
+      }
+    } else {
+      Get.close(2);
+    }
+  }
+
   // Méthode pour afficher une alerte si l'utilisateur n'est pas connecté
   void loginAlert(BuildContext context) {
     showDialog<void>(
@@ -1725,21 +1761,15 @@ class AuthController extends GetxController implements GetxService {
         if (response != null) {
           LoginModel loginModel = LoginModel.fromJson(response);
           if (loginModel.status == 200) {
-            showToastMessage(loginModel.message);
-            
-            // Sauvegarder TOUT l'objet dans 'user_data' pour inclure le rôle
-            GetStorage().write('user_data', jsonEncode(loginModel.toJson()));
-            print('💾 [CHANGE_EMAIL] Données sauvegardées dans user_data');
-            
-            UserData userObj = UserData();
-            userObj.saveLoginData("UserData", jsonEncode(loginModel.toJson()));
-            generalController.currentIndex.value = 0;
-            setLoginModel(loginModel);
-            if (webPlateForm) {
-              Get.toNamed(WebRoutes.myprofile);
-            } else {
-              Get.offAll(() => const MyProfile());
-            }
+            final newEmail = (email?.trim().isNotEmpty == true
+                    ? email!.trim()
+                    : loginModel.data?.email?.trim() ?? '')
+                .trim();
+
+            await completeEmailChangeAndReturnToProfile(
+              apiModel: loginModel,
+              newEmail: newEmail,
+            );
           } else {
             showErrorToastMessage(loginModel.error);
           }

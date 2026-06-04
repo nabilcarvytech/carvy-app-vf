@@ -121,7 +121,8 @@ class _VehicleFeaturesScreenState extends State<VehicleFeaturesScreen> {
                                             width: 10,
                                           ),
                                           Expanded(
-                                            child: Text(amenity.name!,
+                                            child: Text(
+                                              amenity.name!.trim().tr,
                                                 textAlign: TextAlign.start,
                                                 style: regular3(context).copyWith(
                                                     color: notifires

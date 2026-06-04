@@ -53,6 +53,13 @@ class FilterLabelHelper {
     return raw;
   }
 
+  /// Équipements / amenities : la chaîne API exacte sert de clé GetX.
+  static String translateVehicleFeature(String? raw) {
+    final key = (raw ?? '').trim();
+    if (key.isEmpty || key.toLowerCase() == 'null') return '';
+    return key.tr;
+  }
+
   static String translateOdometerLabel(String? raw) {
     if (raw == null || raw.trim().isEmpty) return '';
     final text = raw.trim();

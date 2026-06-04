@@ -3249,7 +3249,7 @@ class VendorOrderListView extends StatelessWidget {
                                       const SizedBox(width: 7),
                                       Flexible(
                                         child: Text(
-                                          translateBookingVehicleSpec(
+                                          translateBookingFuelType(
                                               itemInfoData.fuelType),
                                           style: regular2(context),
                                           overflow: TextOverflow.ellipsis,

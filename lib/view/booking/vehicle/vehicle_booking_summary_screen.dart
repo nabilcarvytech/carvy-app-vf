@@ -1568,7 +1568,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                       Row(
                                                         children: [
                                                           Text(
-                                                            "Prix total initial"
+                                                            'initial_total_price'
                                                                 .tr,
                                                             style:
                                                                 regular2(context)
@@ -1604,7 +1604,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                       Row(
                                                         children: [
                                                           Text(
-                                                            "Économie longue durée"
+                                                            'long_term_discount'
                                                                 .tr,
                                                             style: regular2(
                                                                     context)

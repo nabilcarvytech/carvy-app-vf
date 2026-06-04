@@ -79,6 +79,16 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
+  /// Destination affichée (téléphone ou e-mail) — null-safe pour le flux changeEmail.
+  String get _verificationDestination {
+    final number = widget.number?.trim() ?? '';
+    if (number.isNotEmpty) {
+      final code = widget.countryCode?.trim() ?? '';
+      return code.isEmpty ? number : '$code $number';
+    }
+    return widget.email?.trim() ?? '';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Align(
@@ -121,10 +131,10 @@ class _OtpScreenState extends State<OtpScreen> {
                               style: regular(context)),
                           const SizedBox(height: 10),
                           Text(
-                              widget.number!.isNotEmpty
-                                  ? "${widget.countryCode} ${widget.number}"
-                                  : "${widget.email}".tr,
-                              style: heading3(context)),
+                            _verificationDestination,
+                            style: heading3(context),
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(
                             height: 20,
                           ),
@@ -243,7 +253,6 @@ class _OtpScreenState extends State<OtpScreen> {
                                 controller.verifyFunction(context, _formKey,
                                     otp: controller
                                         .textEditingOtpController.text,
-                                    // otp: widget.otpValue,
                                     changeEmail: widget.changeEmail,
                                     changeMobile: widget.changeMobile,
                                     number: widget.number,

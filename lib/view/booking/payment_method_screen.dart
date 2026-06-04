@@ -73,6 +73,28 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     }
   }
 
+  /// Libellé localisé pour les noms renvoyés par l'API (Espèce, PayPal, etc.).
+  String _localizedPaymentMethodName(String? rawName) {
+    final normalized = (rawName ?? '').trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return 'payment_method_default'.tr;
+    }
+    if (normalized.contains('paypal')) {
+      return 'paypal_payment'.tr;
+    }
+    if (normalized.contains('esp') ||
+        normalized.contains('cash') ||
+        normalized.contains('espèce') ||
+        normalized.contains('espece') ||
+        normalized.contains('espèces')) {
+      return 'cash_payment'.tr;
+    }
+    if (normalized.contains('stripe') || normalized.contains('card')) {
+      return 'card_payment'.tr;
+    }
+    return rawName!.trim();
+  }
+
   // Formater le montant avec la devise
   String formatAmount(double amount) {
     final formatter = NumberFormat.currency(
@@ -128,7 +150,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           ),
         ),
         title: Text(
-          'Sélectionner une méthode de paiement'.tr,
+          'select_payment_method'.tr,
           style: heading2Grey1(context),
         ),
       ),
@@ -171,7 +193,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Aucune méthode de paiement disponible'.tr,
+                      'no_payment_methods_available'.tr,
                       style: heading2Grey1(context),
                     ),
                     const SizedBox(height: 8),
@@ -252,25 +274,24 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Logo à gauche
                           if (method.logoUrl != null &&
                               method.logoUrl!.isNotEmpty)
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: Image.network(
                                 cleanImageUrl(method.logoUrl),
-                                width: 60,
-                                height: 60,
+                                width: 52,
+                                height: 52,
                                 fit: BoxFit.contain,
                                 loadingBuilder: (context, child, loadingProgress) {
                                   if (loadingProgress == null) {
                                     return child;
                                   }
-                                  return Container(
-                                    width: 60,
-                                    height: 60,
-                                    color: notifires.getboxcolor,
+                                  return SizedBox(
+                                    width: 52,
+                                    height: 52,
                                     child: Center(
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
@@ -283,95 +304,97 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                   );
                                 },
                                 errorBuilder: (context, error, stackTrace) {
-                                  debugPrint('❌ Erreur chargement logo: $error');
-                                  debugPrint('❌ URL tentée: ${cleanImageUrl(method.logoUrl)}');
-                                  return Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      color: notifires.getboxcolor,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                                  return SizedBox(
+                                    width: 52,
+                                    height: 52,
                                     child: Icon(
                                       Icons.payment,
                                       color: notifires.getgreycolor,
-                                      size: 30,
+                                      size: 28,
                                     ),
                                   );
                                 },
                               ),
                             )
                           else
-                            Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: notifires.getboxcolor,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                            SizedBox(
+                              width: 52,
+                              height: 52,
                               child: Icon(
                                 Icons.payment,
                                 color: notifires.getgreycolor,
+                                size: 28,
                               ),
                             ),
-                          const SizedBox(width: 16),
-                          // Nom et description au centre
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  method.name ?? 'Méthode de paiement'.tr,
-                                  style: heading2(context).copyWith(
-                                    fontWeight: FontWeight.bold,
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    _localizedPaymentMethodName(method.name),
+                                    style: heading2(context).copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 if (method.instructions != null &&
-                                    method.instructions!.isNotEmpty)
+                                    method.instructions!.isNotEmpty) ...[
                                   const SizedBox(height: 4),
-                                if (method.instructions != null &&
-                                    method.instructions!.isNotEmpty)
                                   Text(
                                     method.instructions!,
                                     style: regular3(context).copyWith(
                                       color: notifires.getgreycolor,
-                                      fontSize: 12,
+                                      fontSize: 11,
                                     ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
+                                ],
                               ],
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          // Montant final à droite
+                          const SizedBox(width: 8),
                           Column(
+                            mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
                                 formatAmount(finalAmount),
                                 style: heading2(context).copyWith(
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 15,
                                   color: getColorBasedOnActiveModuleid(),
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               if (method.feePercentage != null &&
                                   method.feePercentage! > 0)
                                 Text(
-                                  '+${method.feePercentage}% frais'.tr,
+                                  '+${method.feePercentage}% ${'fees_label'.tr}',
                                   style: regular3(context).copyWith(
                                     color: notifires.getgreycolor,
                                     fontSize: 10,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                             ],
                           ),
-                          const SizedBox(width: 8),
-                          // Indicateur de sélection
+                          const SizedBox(width: 6),
                           Icon(
                             isSelected
                                 ? Icons.check_circle
                                 : Icons.radio_button_unchecked,
+                            size: 22,
                             color: isSelected
                                 ? getColorBasedOnActiveModuleid()
                                 : notifires.getgreycolor,
@@ -475,7 +498,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         ),
                       )
                     : Text(
-                        'Confirmer le paiement'.tr,
+                        'confirm_payment'.tr,
                         style: heading2(context).copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,

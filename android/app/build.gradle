@@ -1,3 +1,4 @@
+/*
 plugins {
     id "com.android.application"
     id "kotlin-android"
@@ -83,6 +84,93 @@ flutter {
 
 dependencies {
     // Firebase est conservé ici, mais le plugin de vérification stricte est désactivé plus haut
+    implementation platform('com.google.firebase:firebase-bom:33.1.0')
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+} */    
+
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+    // 1. ON RÉACTIVE LE PLUGIN OBLIGATOIRE POUR LES NOTIFICATIONS
+    id "com.google.gms.google-services" 
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader("UTF-8") { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
+if (flutterVersionCode == null) {
+    flutterVersionCode = "1"
+}
+
+def flutterVersionName = localProperties.getProperty("flutter.versionName")
+if (flutterVersionName == null) {
+    flutterVersionName = "1.0"
+}
+
+def keystorePropertiesFile = rootProject.file("key.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    // 2. ON ALIGNE LE NAMESPACE POUR QU'IL SOIT IDENTIQUE À L'APPLICATION ID
+    namespace "com.carvy.app.v2" 
+    compileSdkVersion 36
+    ndkVersion '26.1.10909125'
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+        coreLibraryDesugaringEnabled true
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        applicationId "com.carvy.app.v2"
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion 36
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+        }
+    }
+    
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }

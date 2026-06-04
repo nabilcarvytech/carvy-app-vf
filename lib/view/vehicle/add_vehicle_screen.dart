@@ -3449,7 +3449,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                             // Nom de l'équipement
                             Expanded(
                               child: Text(
-                                featureName.isNotEmpty ? featureName : 'Équipement',
+                                featureName.isNotEmpty
+                                    ? featureName.trim().tr
+                                    : 'Équipement'.tr,
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

@@ -1250,7 +1250,10 @@ class _VehicleHomePageState extends State<VehicleHomePage>
 
                       return ListTile(
                         title: Text(
-                          "${filteredVehicleTypes[index].name}",
+                          (filteredVehicleTypes[index].name ?? '')
+                              .toString()
+                              .trim()
+                              .tr,
                           style: regular3(context).copyWith(
                             color: notifires.getGrey1Whitecolor,
                             fontSize: 13,

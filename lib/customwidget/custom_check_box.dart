@@ -1002,7 +1002,8 @@ class _MyCustomCheckBoxState extends State<MyCustomCheckBox> {
                           widget.isOdometer == true
                               ? FilterLabelHelper.translateOdometerLabel(
                                   widget.options[index]?.toString())
-                              : widget.options[index]?.toString() ?? '',
+                              : FilterLabelHelper.translateVehicleFeature(
+                                  widget.options[index]?.toString()),
                           style: regular2(context).copyWith(
                             color: isSelected
                                 ? getColorBasedOnActiveModuleid()
@@ -1180,7 +1181,8 @@ class _MyCustomCheckBoxForFitState extends State<MyCustomCheckBoxForFit> {
                             Transform.translate(
                               offset: const Offset(-16, 0),
                               child: Text(
-                                widget.name[index],
+                                FilterLabelHelper.translateVehicleFeature(
+                                    widget.name[index]?.toString()),
                                 style: regular2(context).copyWith(
                                     color: notifires.getGrey2Whitecolor),
                                 overflow: TextOverflow

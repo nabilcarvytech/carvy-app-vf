@@ -17,6 +17,7 @@ import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/work_space.dart';
 import 'package:carvy/service/onesignal_service.dart';
 import 'package:country_picker/country_picker.dart';
+import 'package:intl/intl.dart';
 
 class MyProfile extends StatefulWidget {
   const MyProfile({super.key});
@@ -40,6 +41,44 @@ class _MyProfileState extends State<MyProfile> {
     final r = (loginModel?.data?.role ?? '').toLowerCase();
     return r == 'vendor' || r == 'host';
   }
+
+  Future<void> _pickBirthDate() async {
+    DateTime initialDate = DateTime(2000, 1, 1);
+    final raw = profileController.textEditingProfileControllerDOB.text.trim();
+    if (raw.isNotEmpty) {
+      try {
+        initialDate = DateTime.parse(raw);
+      } catch (_) {}
+    }
+    final now = DateTime.now();
+    if (initialDate.isAfter(now)) {
+      initialDate = now;
+    }
+
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: now,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: getColorBasedOnActiveModuleid(),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null) {
+      profileController.textEditingProfileControllerDOB.text =
+          DateFormat('yyyy-MM-dd').format(pickedDate);
+      setState(() {});
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -487,6 +526,28 @@ class _MyProfileState extends State<MyProfile> {
                                           child: SvgPicture.asset(
                                               "assets/images/editIcon.svg")))
                                 ],
+                              ),
+                              SizedBox(
+                                height: spacingBeteenFeilds,
+                              ),
+                              TextFieldRefs(
+                                readOnly: true,
+                                inputAlignment: TextAlign.start,
+                                txt: 'Date of birth'.tr,
+                                icons: Icon(
+                                  Icons.calendar_today,
+                                  color: getColorBasedOnActiveModuleid(),
+                                ),
+                                textEditingControllerCommon: profileController
+                                    .textEditingProfileControllerDOB,
+                                inputType: TextInputType.none,
+                                onTap: _pickBirthDate,
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Please enter Date of Birth'.tr;
+                                  }
+                                  return null;
+                                },
                               ),
                               SizedBox(
                                 height: spacingBeteenFeilds,

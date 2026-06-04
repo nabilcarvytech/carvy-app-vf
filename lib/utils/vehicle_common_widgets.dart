@@ -23,6 +23,7 @@ import '../customwidget/project_color.dart';
 import '../view/itemdetail/vehicle/vehicle_detail_screen.dart';
 import '../view/wishlist/wish_list_screen.dart';
 import '../helper/cancellation_policy_helper.dart';
+import '../helper/filter_label_helper.dart';
 import '../helper/vehicle_card_helper.dart';
 import '../work_space.dart';
 import 'common_widget.dart';
@@ -50,6 +51,7 @@ Widget vehicleTypeWidget(
         itemBuilder: (context, index) {
           final dynamic id = list[index].id!;
           final dynamic city = list[index].name!;
+          final typeLabel = (list[index].name ?? '').toString().trim().tr;
           return Padding(
             padding:
                 const EdgeInsets.only(right: 10, top: 5, bottom: 5, left: 2),
@@ -94,9 +96,9 @@ Widget vehicleTypeWidget(
                           width: 5,
                         ),
                         Text(
-                          list[index].name!.length > 10
-                              ? list[index].name!.substring(0, 9)
-                              : list[index].name.toString().tr,
+                          typeLabel.length > 10
+                              ? typeLabel.substring(0, 9)
+                              : typeLabel,
                           style: boldstyle(context)
                               .copyWith(fontSize: 16, color: themeColor),
                         ),
@@ -2087,9 +2089,16 @@ Widget vehicalHorizontalViewNearYou(
                                         width: 8,
                                       ),
                                       Text(
-                                        list[index].name!.length > 21
-                                            ? list[index].name!.substring(0, 20)
-                                            : list[index].name!.tr,
+                                        () {
+                                          final label =
+                                              FilterLabelHelper
+                                                  .translateVehicleFeature(
+                                                      list[index].name
+                                                          ?.toString());
+                                          return label.length > 21
+                                              ? label.substring(0, 20)
+                                              : label;
+                                        }(),
                                         style: heading3Grey1(context).copyWith(
                                           color: whiteColor,
                                           overflow: TextOverflow.ellipsis,

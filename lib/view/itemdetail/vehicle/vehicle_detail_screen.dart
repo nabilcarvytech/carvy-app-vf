@@ -308,7 +308,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                       final displayCity = itemDetails?.city ?? widget.city;
                       final displayCityLabel = (displayCity != null &&
                               displayCity.trim().isNotEmpty)
-                          ? CityNameHelper.displayName(displayCity)
+                          ? CityNameHelper.formatCityCountryLabel(displayCity)
                           : "Unknown Location".tr;
                       final displayFrontImage = itemDetails?.frontImageUrl ?? widget.frontImage;
                       final displayGalleryImages = itemDetails?.galleryImageUrls ?? currentItemInfo?.galleryImageUrls ?? [];
@@ -757,7 +757,9 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                             child: Column(
                                               children: [
                                                 featuresbox(
-                                                  txt: '${x.name}',
+                                                  txt: (x.name ?? '')
+                                                      .toString()
+                                                      .trim(),
                                                   image: "${x.imageUrl}",
                                                 ),
                                                 const SizedBox(height: 10),
@@ -831,10 +833,11 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                   (itemDetails?.stateRegion ?? '')
                                       .toString()
                                       .trim();
-                              final locationLabel = [
-                                cityName,
-                                countryName,
-                              ].where((value) => value.isNotEmpty).join(', ');
+                              final locationLabel =
+                                  CityNameHelper.formatLocationLabel(
+                                city: cityName,
+                                country: countryName,
+                              );
 
                               return Padding(
                                 padding:
@@ -1307,7 +1310,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                           return Directionality(
                             textDirection: ui.TextDirection.ltr,
                             child: Text(
-                              "$currency $displayPrice",
+                              "${CityNameHelper.localizedCurrencyLabel(currency)} $displayPrice",
                               style: heading2(context).copyWith(
                                   color: getColorBasedOnActiveModuleid()),
                               textDirection: ui.TextDirection.ltr,
@@ -1513,7 +1516,8 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
       MaterialPageRoute(
         builder: (context) => VehicleCheckAvailability(
           idFeatured: widget.id,
-          itemDetails: widget.itemInfo,
+          // ItemInfo enrichi par getdataVehicle() (cancellationReasonDescription, etc.)
+          itemDetails: currentItemInfo,
           address: widget.address,
           frontImage: widget.frontImage,
           title: widget.title,
@@ -1554,7 +1558,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                   const Text('🚚', style: TextStyle(fontSize: 22)),
                   const SizedBox(width: 12),
                   Text(
-                    'Livraison à domicile'.tr,
+                    'home_delivery'.tr,
                     style: TextStyle(
                       color: Colors.grey[800],
                       fontWeight: FontWeight.w600,
@@ -1582,7 +1586,9 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
   Widget _buildDeliveryLocationRow(BuildContext context, dynamic item) {
     final price = item is Map ? item['price'] : null;
     final priceText = price?.toString() ?? '';
-    final displayCity = CityNameHelper.deliveryLocationLabel(item);
+    final displayCity = CityNameHelper.localizeCountryInText(
+      CityNameHelper.deliveryLocationLabel(item),
+    );
     final isArabicLocale =
         (Get.locale?.languageCode ?? 'fr').toLowerCase() == 'ar';
 
@@ -1604,7 +1610,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
             ),
           ),
           Text(
-            'MAD $priceText',
+            "${CityNameHelper.localizedCurrencyLabel('MAD')} $priceText",
             textAlign: TextAlign.left,
             style: regular2(context).copyWith(
               fontSize: 14,

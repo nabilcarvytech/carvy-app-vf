@@ -153,4 +153,69 @@ class CityNameHelper {
         location['city_name']?.toString() ??
         location['name']?.toString();
   }
+
+  /// Libellé devise : MAD → clé i18n (`currency_mad`, ex. « درهم » en arabe).
+  static String localizedCurrencyLabel([String? currencyCode]) {
+    final code = (currencyCode ?? '').trim().toUpperCase();
+    if (code.isEmpty || code == 'MAD') {
+      return 'currency_mad'.tr;
+    }
+    return currencyCode!.trim();
+  }
+
+  /// Traduit Maroc / Morocco dans une chaîne (ex. « rabat, Maroc »).
+  static String localizeCountryInText(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return text;
+    return trimmed.replaceAll(
+      RegExp(r'Maroc|Morocco', caseSensitive: false),
+      'morocco'.tr,
+    );
+  }
+
+  static String localizedCountryName(String? raw) {
+    final trimmed = (raw ?? '').trim();
+    if (trimmed.isEmpty) return '';
+    if (RegExp(r'^(maroc|morocco)$', caseSensitive: false).hasMatch(trimmed)) {
+      return 'morocco'.tr;
+    }
+    return trimmed;
+  }
+
+  /// Ville (+ pays optionnel dans la même chaîne) pour l'affichage UI.
+  static String formatCityCountryLabel(String? raw, {String? languageCode}) {
+    final trimmed = (raw ?? '').trim();
+    if (trimmed.isEmpty) return '-';
+    if (!trimmed.contains(',')) {
+      return displayName(trimmed, languageCode: languageCode);
+    }
+    final parts = trimmed
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '-';
+    final city = displayName(parts.first, languageCode: languageCode);
+    final countries =
+        parts.skip(1).map(localizedCountryName).where((e) => e.isNotEmpty);
+    if (countries.isEmpty) return city;
+    return '$city, ${countries.join(', ')}';
+  }
+
+  /// Libellé « ville, pays » à partir de champs séparés.
+  static String formatLocationLabel({
+    String? city,
+    String? country,
+    String? languageCode,
+  }) {
+    final cityDisplay = (city ?? '').trim().isNotEmpty
+        ? displayName(city, languageCode: languageCode)
+        : '';
+    final countryDisplay = localizedCountryName(country);
+    final parts = [cityDisplay, countryDisplay]
+        .where((value) => value.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '';
+    return parts.join(', ');
+  }
 }

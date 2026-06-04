@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import 'package:carvy/utils/common_widget.dart' show getColorBasedOnActiveModuleid;
@@ -139,7 +140,9 @@ class VehicleRentalBillableDaysInfoBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Total : $totalBillableDays jours de location',
+                    'total_rental_days'
+                        .tr
+                        .replaceAll('@days', totalBillableDays.toString()),
                     style: regular2(context).copyWith(
                       color: Colors.blue.shade900,
                       fontSize: 13,

@@ -2024,12 +2024,12 @@ class BookingController extends GetxController implements GetxService {
         debugPrint('🔍 [processBooking] otp.drop: $otpDrop');
 
         // Construire le message de succès avec les codes OTP
-        String successMessage =
-            'Votre réservation a été créée avec succès !'.tr;
+        String successMessage = 'booking_success_message'.tr;
         String instructionsMessage = '';
 
         if (bookingId != null) {
-          successMessage += '\n\n📋 ID de réservation: $bookingId';
+          successMessage +=
+              '\n\n${'booking_id_label'.tr} 📋\n$bookingId';
         }
 
         // Afficher les codes OTP si disponibles
@@ -2095,7 +2095,7 @@ class BookingController extends GetxController implements GetxService {
                   const SizedBox(height: 20),
                   // Titre
                   Text(
-                    'Réservation réussie !'.tr,
+                    'booking_success_title'.tr,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -2151,7 +2151,7 @@ class BookingController extends GetxController implements GetxService {
                         ),
                       ),
                       child: Text(
-                        'Voir mes réservations'.tr,
+                        'view_my_bookings'.tr,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,

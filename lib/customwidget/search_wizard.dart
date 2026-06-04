@@ -95,6 +95,12 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
   String _endTime = "09:00";
   bool _returnTimeUserTouched = false;
 
+  String get _dateLocale => Get.locale?.languageCode ?? 'fr';
+
+  String _formatWizardDate(DateTime date, {String pattern = 'MMM d'}) {
+    return DateFormat(pattern, _dateLocale).format(date);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -186,13 +192,13 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
     // Sauvegarder les valeurs
     if (_startDate != null) {
       filterController.startDate.value =
-          DateFormat('MMM d, E').format(_startDate!);
+          _formatWizardDate(_startDate!, pattern: 'MMM d, E');
       generalScopeController.startDateCustomDate.value =
           DateFormat('yyyy-MM-dd').format(_startDate!);
     }
     if (_endDate != null) {
       filterController.endDates.value =
-          DateFormat('MMM d, E').format(_endDate!);
+          _formatWizardDate(_endDate!, pattern: 'MMM d, E');
       generalScopeController.endDateCustomDate.value =
           DateFormat('yyyy-MM-dd').format(_endDate!);
     }
@@ -684,7 +690,7 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
                       color: getColorBasedOnActiveModuleid(), size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    '${DateFormat('MMM d').format(_startDate!)} - ${DateFormat('MMM d').format(_endDate!)}',
+                    '${_formatWizardDate(_startDate!)} - ${_formatWizardDate(_endDate!)}',
                     style: regular2(context).copyWith(
                       color: getColorBasedOnActiveModuleid(),
                       fontWeight: FontWeight.w600,
@@ -856,13 +862,12 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Text(
-                                '${DateFormat('MMM d').format(_startDate!)} - ',
+                                '${_formatWizardDate(_startDate!)} - ',
                                 style: regular2(context).copyWith(fontSize: 13),
                               ),
                               Flexible(
                                 child: VehicleReturnDateWithBillingBadgeRow(
-                                  dateText:
-                                      DateFormat('MMM d').format(_endDate!),
+                                  dateText: _formatWizardDate(_endDate!),
                                   textAlign: TextAlign.start,
                                   isExtraDay: hasExtra,
                                   emphasizeOvertime: hasExtra,
@@ -884,7 +889,7 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
             margin: const EdgeInsets.only(top: 16, bottom: 16),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Text(
-              'Pour toute demande effectuée en dehors des horaires d\'ouverture de l\'agence, l\'horaire devra être confirmé directement avec l\'agence après la validation de la réservation.',
+              'out_of_hours_warning'.tr,
               textAlign: TextAlign.center,
               style: regular2(context).copyWith(
                 fontSize: 12,

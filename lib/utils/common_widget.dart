@@ -248,7 +248,21 @@ String formatBookingCardPriceLine({
       .trim();
 }
 
-/// Transmission / carburant : normalise la valeur API puis .tr.
+/// Carburant (carte réservation, etc.) : clé API en minuscules → .tr.
+String translateBookingFuelType(dynamic fuelType) {
+  final s = fuelType?.toString().trim().toLowerCase() ?? '';
+  if (s.isEmpty || s == 'null') return '';
+  const aliases = <String, String>{
+    'gas': 'gasoline',
+    'essence': 'petrol',
+    'hybride': 'hybrid',
+    'electrique': 'electric',
+    'électrique': 'electric',
+  };
+  return (aliases[s] ?? s).tr;
+}
+
+/// Transmission : normalise la valeur API puis .tr.
 String translateBookingVehicleSpec(String? value) {
   final s = value?.trim().toLowerCase() ?? '';
   if (s.isEmpty || s == 'null') return '';
@@ -257,9 +271,6 @@ String translateBookingVehicleSpec(String? value) {
     'manu': 'manuelle',
     'automatic': 'automatique',
     'auto': 'automatique',
-    'gasoline': 'essence',
-    'petrol': 'essence',
-    'gas': 'essence',
   };
   return (aliases[s] ?? s).tr;
 }
@@ -2571,7 +2582,7 @@ myBookingListWidget(
                                   const SizedBox(width: 7),
                                   Flexible(
                                     child: Text(
-                                      translateBookingVehicleSpec(
+                                      translateBookingFuelType(
                                           itemInfoData.fuelType),
                                       style: regular2(context),
                                       overflow: TextOverflow.ellipsis,
@@ -4862,7 +4873,7 @@ featuresBottomSheet(BuildContext context, {final String? title, dynamic list}) {
                       Column(
                         children: [
                           featuresbox(
-                            txt: '${x.name}'.tr,
+                            txt: (x.name ?? '').toString().trim(),
                             image: "${x.imageUrl}",
                           ),
                           const SizedBox(height: 10),
