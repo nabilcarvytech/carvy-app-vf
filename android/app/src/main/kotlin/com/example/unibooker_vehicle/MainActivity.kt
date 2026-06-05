@@ -1,4 +1,4 @@
-package com.carvy.app.v2
+package com.carvy.app
 
 import io.flutter.embedding.android.FlutterActivity
 
