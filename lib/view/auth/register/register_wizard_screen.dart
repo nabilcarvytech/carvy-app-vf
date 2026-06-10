@@ -13,12 +13,22 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
+import 'package:carvy/view/auth/login_screen.dart';
 import 'package:carvy/view/auth/register/widgets/terms_step.dart';
 import 'package:carvy/work_space.dart';
 
 /// Inscription : identité → e-mail OTP optionnel → téléphone / OTP SMS.
 class RegisterWizardScreen extends StatefulWidget {
-  const RegisterWizardScreen({super.key});
+  /// Reprise après login 403 : étape téléphone uniquement (token déjà en session).
+  final bool resumePhoneOnly;
+  /// Reprise après login 403 : étape CGU uniquement (token déjà en session).
+  final bool resumeCguOnly;
+
+  const RegisterWizardScreen({
+    super.key,
+    this.resumePhoneOnly = false,
+    this.resumeCguOnly = false,
+  });
 
   @override
   State<RegisterWizardScreen> createState() => _RegisterWizardScreenState();
@@ -34,13 +44,47 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
   int _currentPage = 0;
   late final TapGestureRecognizer _supportTapRecognizer;
 
+  bool get _resumePhoneOnly {
+    if (widget.resumePhoneOnly) return true;
+    final args = Get.arguments;
+    if (args is Map && args['resumePhoneOnly'] == true) return true;
+    return auth.isIncompleteVerificationResume;
+  }
+
+  bool get _resumeCguOnly {
+    if (widget.resumeCguOnly) return true;
+    final args = Get.arguments;
+    if (args is Map && args['resumeCguOnly'] == true) return true;
+    return auth.isCguResumeFromLogin;
+  }
+
   @override
   void initState() {
     super.initState();
-    auth.resetRegisterWizardFlow();
-    auth.registerWizardEmbarked.value = true;
     _supportTapRecognizer =
         TapGestureRecognizer()..onTap = _showSupportBottomSheet;
+
+    if (_resumeCguOnly) {
+      auth.registerWizardEmbarked.value = true;
+      auth.registerWizardTermsAccepted.value = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _pageController.jumpToPage(2);
+        setState(() => _currentPage = 2);
+      });
+    } else if (_resumePhoneOnly) {
+      auth.registerWizardEmbarked.value = true;
+      auth.registerWizardPhoneCodeSent.value = false;
+      auth.textEditingOtpController.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _pageController.jumpToPage(1);
+        setState(() => _currentPage = 1);
+      });
+    } else {
+      auth.resetRegisterWizardFlow();
+      auth.registerWizardEmbarked.value = true;
+    }
   }
 
   @override
@@ -52,6 +96,26 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
   }
 
   void _goBack() {
+    if (_resumeCguOnly && _currentPage >= 2) {
+      auth.isCguResumeFromLogin = false;
+      auth.registerWizardEmbarked.value = false;
+      if (webPlateForm) {
+        Get.offAllNamed(WebRoutes.loginScreen);
+      } else {
+        Get.offAll(() => const LoginScreen());
+      }
+      return;
+    }
+    if (_resumePhoneOnly && _currentPage <= 1) {
+      auth.isIncompleteVerificationResume = false;
+      auth.registerWizardEmbarked.value = false;
+      if (webPlateForm) {
+        Get.offAllNamed(WebRoutes.loginScreen);
+      } else {
+        Get.offAll(() => const LoginScreen());
+      }
+      return;
+    }
     if (_currentPage > 0) {
       _pageController.previousPage(
         duration: const Duration(milliseconds: 280),

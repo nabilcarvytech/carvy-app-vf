@@ -22,7 +22,7 @@ import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/chat_message_payload.dart';
 import 'package:carvy/model/booking_model.dart';
-import 'package:carvy/model/conversation_model.dart';
+import 'package:carvy/services/chat_service.dart';
 import 'package:carvy/services/socket_service.dart';
 import '../../controller/global_scope_controller.dart';
 import '../../utils/theme_style.dart';
@@ -88,8 +88,11 @@ class _ConversationScreenState extends State<ConversationScreen> {
   List<dynamic> catList = [];
 
   List<ChatMessagePayload> _messages = [];
-  /// Dernier identifiant utilisé pour `GET /chat/history/...` (Mongo ou bookingId).
+  /// ID Mongo officiel renvoyé par get-or-create (source unique pour socket + historique).
+  String? currentMongoId;
+  /// Dernier identifiant utilisé pour `GET /chat/history/...` (Mongo).
   String? _activeRestHistoryId;
+  bool _initializingChat = true;
   bool _loadingHistory = true;
   bool _isMarkedAsRead = false;
   StreamSubscription<dynamic>? _socketSubscription;
@@ -99,14 +102,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   Future<void> _markConversationAsReadOnce() async {
     if (_isMarkedAsRead) return;
-    final id =
-        (widget.mongoId ?? _activeRestHistoryId ?? widget.historyId ?? '')
-            .trim();
+    final id = (currentMongoId ??
+            widget.mongoId ??
+            _activeRestHistoryId ??
+            widget.historyId ??
+            '')
+        .trim();
     if (id.isEmpty) return;
     _isMarkedAsRead = true;
 
     try {
-      // Backend : PATCH /api/chat/read/:conversationId
       await httpPatch('chat/read/${Uri.encodeComponent(id)}');
     } catch (_) {
       // Best-effort : on ne bloque pas l'écran si la requête échoue.
@@ -128,6 +133,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
 
   String get _historyId {
+    final mongo = (currentMongoId ?? '').trim();
+    if (mongo.isNotEmpty) return mongo;
     final explicit = (widget.historyId ?? '').trim();
     if (explicit.isNotEmpty) return _resolveMongoHistoryId(explicit);
     final fallback = (widget.conversationId ?? '').trim();
@@ -135,13 +142,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   String get _socketRoomId {
+    final mongo = (currentMongoId ?? '').trim();
+    if (mongo.isNotEmpty) return mongo;
     if (_effectiveSocketRoomId.trim().isNotEmpty) {
       return _effectiveSocketRoomId.trim();
     }
     final explicit = (widget.socketRoomId ?? '').trim();
-    if (explicit.isNotEmpty) return explicit;
+    if (explicit.isNotEmpty && _looksLikeMongoId(explicit)) return explicit;
     final fallback = (widget.conversationId ?? '').trim();
-    return fallback;
+    if (_looksLikeMongoId(fallback)) return fallback;
+    return '';
   }
 
   bool _looksLikeMongoId(String value) {
@@ -159,93 +169,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     if (_looksLikeMongoId(v)) return v;
     final extracted = _extractMongoId(v);
     if (extracted.isNotEmpty) return extracted;
-    // Fallback sécurité: on renvoie brut si aucun ObjectId n'est détecté.
     return v;
-  }
-
-  /// Même logique que [InboxScreen._extractConversationsList] pour GET /chat/inbox.
-  List<dynamic> _extractInboxConversationsList(dynamic res) {
-    if (res is! Map) return [];
-    if (res['error'] != null) return [];
-    final d = res['data'];
-    if (d is List) return d;
-    if (d is Map) {
-      if (d['conversations'] is List) return d['conversations'] as List;
-      if (d['items'] is List) return d['items'] as List;
-      if (d['inbox'] is List) return d['inbox'] as List;
-    }
-    if (res['conversations'] is List) return res['conversations'] as List;
-    return [];
-  }
-
-  /// Résout l’`_id` Mongo de la **conversation** (comme l’inbox) à partir du booking.
-  Future<String?> _mongoFromInboxByBookingId(String bookingId) async {
-    final bid = bookingId.trim();
-    if (bid.isEmpty || token.isEmpty) return null;
-    try {
-      debugPrint(
-          '🔎 [CHAT_INBOX_LOOKUP] GET ${Config.chatInboxPath} — recherche bookingId=$bid');
-      final res = await httpGetAdmin(Config.chatInboxPath, {});
-      final raw = _extractInboxConversationsList(res);
-      final uid = userId.toString();
-      for (final e in raw) {
-        if (e is! Map) continue;
-        final conv = ConversationModel.fromJson(
-          Map<String, dynamic>.from(e),
-          uid,
-        );
-        if ((conv.bookingId ?? '').trim() != bid) continue;
-        final mid = (conv.mongoId ?? '').trim();
-        if (_looksLikeMongoId(mid)) return mid;
-        final cid = conv.conversationId.trim();
-        if (_looksLikeMongoId(cid)) return cid;
-        final extracted =
-            RegExp(r'([a-fA-F0-9]{24})').firstMatch(cid)?.group(1) ?? '';
-        if (_looksLikeMongoId(extracted)) return extracted;
-      }
-      debugPrint(
-          '⚠️ [CHAT_INBOX_LOOKUP] Aucune conversation inbox pour bookingId=$bid');
-    } catch (e, st) {
-      log('inbox by booking', error: e, stackTrace: st);
-    }
-    return null;
-  }
-
-  /// Identifiant Mongo du **document conversation** pour `GET .../chat/history/:id`
-  /// (jamais l’ObjectId « réservation » seul sans résolution).
-  Future<String?> _resolveConversationMongoForHistory() async {
-    final m = (widget.mongoId ?? '').trim();
-    if (_looksLikeMongoId(m)) {
-      debugPrint('📜 [CHAT_REST] Mongo conversation = widget.mongoId → $m');
-      return m;
-    }
-
-    final bid = (widget.bookingId ?? widget.booking?.id ?? '').trim();
-    if (bid.isNotEmpty) {
-      final inboxMongo = await _mongoFromInboxByBookingId(bid);
-      if (inboxMongo != null && _looksLikeMongoId(inboxMongo)) {
-        debugPrint(
-            '📜 [CHAT_REST] Mongo conversation = inbox (bookingId=$bid) → $inboxMongo');
-        return inboxMongo;
-      }
-      final apiMongo = await _tryResolveConversationMongoFromBooking(bid);
-      if (apiMongo != null && _looksLikeMongoId(apiMongo)) {
-        debugPrint(
-            '📜 [CHAT_REST] Mongo conversation = API conversation-for-booking → $apiMongo');
-        return apiMongo;
-      }
-    }
-
-    final h = (widget.historyId ?? '').trim();
-    if (h.isNotEmpty && !h.contains('_') && _looksLikeMongoId(h)) {
-      debugPrint(
-          '📜 [CHAT_REST] Mongo conversation = widget.historyId (fallback) → $h');
-      return h;
-    }
-
-    debugPrint(
-        '❌ [CHAT_REST] Impossible de résoudre un Mongo **conversation** pour /chat/history');
-    return null;
   }
 
   String _firstNonEmpty(List<dynamic> values) {
@@ -387,16 +311,87 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final incomingCid = (message.conversationId ?? '').trim();
     if (incomingCid.isEmpty) return false;
 
-    final socketRoomId = _socketRoomId.trim();
-    final conversationId = (widget.conversationId ?? '').trim();
-    final historyId = _historyId.trim();
-    final restLayer = (_activeRestHistoryId ?? '').trim();
+    final mongo = (currentMongoId ?? '').trim();
+    if (mongo.isNotEmpty && incomingCid == mongo) return true;
 
-    // Accepte les différents identifiants utilisés selon les écrans/backend.
-    return incomingCid == socketRoomId ||
-        incomingCid == conversationId ||
-        incomingCid == historyId ||
-        (restLayer.isNotEmpty && incomingCid == restLayer);
+    final restLayer = (_activeRestHistoryId ?? '').trim();
+    return restLayer.isNotEmpty && incomingCid == restLayer;
+  }
+
+  String _resolveBookingId() {
+    return (widget.bookingId ?? widget.booking?.id ?? '').trim();
+  }
+
+  Future<void> _initializeChat() async {
+    if (!mounted) return;
+    setState(() {
+      _initializingChat = true;
+      _loadingHistory = true;
+    });
+
+    final bookingId = _resolveBookingId();
+
+    try {
+      if (bookingId.isNotEmpty) {
+        debugPrint('🔁 [CHAT] POST get-or-create bookingId=$bookingId');
+        final result = await ChatService.getOrCreateConversation(bookingId);
+        debugPrint('🔁 [CHAT] get-or-create body: $result');
+        final mongoId = ChatService.extractConversationId(result);
+        final compositeId = ChatService.extractCompositeId(result);
+        if (compositeId != null && compositeId.isNotEmpty) {
+          debugPrint('ℹ️ [CHAT] compositeId (legacy): $compositeId');
+        }
+        if (mongoId != null && mongoId.isNotEmpty) {
+          currentMongoId = mongoId;
+          _activeRestHistoryId = mongoId;
+          _effectiveSocketRoomId = mongoId;
+        }
+      }
+
+      if ((currentMongoId ?? '').isEmpty) {
+        final fallback = _resolveMongoHistoryId(
+          (widget.mongoId ??
+                  widget.historyId ??
+                  widget.conversationId ??
+                  '')
+              .trim(),
+        );
+        if (fallback.isNotEmpty && _looksLikeMongoId(fallback)) {
+          currentMongoId = fallback;
+          _activeRestHistoryId = fallback;
+          _effectiveSocketRoomId = fallback;
+          debugPrint('🔁 [CHAT] Fallback mongo depuis widget: $fallback');
+        }
+      }
+
+      if ((currentMongoId ?? '').isEmpty) {
+        debugPrint('❌ [CHAT] conversationId Mongo introuvable — arrêt init');
+        return;
+      }
+
+      debugPrint('✅ [CHAT] currentMongoId=$currentMongoId');
+
+      await SocketService.instance.connect();
+      final sock = SocketService.instance.socket;
+      if (sock != null) {
+        sock.off('play_notification_sound');
+        sock.on('play_notification_sound', (dynamic _) {
+          _playIncomingMessageSound();
+        });
+      }
+      SocketService.instance.joinRoom(currentMongoId!);
+      await _fetchChatHistory(currentMongoId!);
+      await _markConversationAsReadOnce();
+    } catch (e, st) {
+      log('_initializeChat: $e', stackTrace: st);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _initializingChat = false;
+          _loadingHistory = false;
+        });
+      }
+    }
   }
 
   Future<void> _fetchBookingContext() async {
@@ -432,33 +427,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
-  Future<String?> _tryResolveConversationMongoFromBooking(
-      String bookingId) async {
-    try {
-      debugPrint(
-          '🔎 [CHAT_RESOLVE] GET ${Config.chatConversationForBookingPath(bookingId)}');
-      final res = await httpGetAdmin(
-          Config.chatConversationForBookingPath(bookingId), {});
-      if (res is! Map || res['error'] != null) return null;
-      final dynamic d = res['data'];
-      if (d is Map) {
-        for (final key in ['mongoId', '_id', 'conversationMongoId', 'id']) {
-          final v = d[key]?.toString().trim() ?? '';
-          if (v.isNotEmpty && _looksLikeMongoId(v)) return v;
-        }
-        final conv = d['conversation'];
-        if (conv is Map) {
-          final v = conv['_id']?.toString().trim() ?? '';
-          if (v.isNotEmpty && _looksLikeMongoId(v)) return v;
-        }
-      }
-    } catch (e, st) {
-      debugPrint('⚠️ [CHAT_RESOLVE] échec ou endpoint absent: $e');
-      log('chat resolve by booking', error: e, stackTrace: st);
-    }
-    return null;
-  }
-
   Future<void> _fetchChatHistory(String historyRestId) async {
     final historyId = historyRestId.trim();
     if (historyId.isEmpty) {
@@ -489,32 +457,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
-  Future<void> _loadMessages() async {
-    if (!mounted) return;
-    setState(() => _loadingHistory = true);
-    final String socketLabel = _socketRoomId;
-    try {
-      debugPrint('🛋️ [CHAT_SOCKET] Room Socket / composite = "$socketLabel"');
-
-      final String? mongo = await _resolveConversationMongoForHistory();
-      debugPrint(
-          '📜 [CHAT_REST]   ID Mongo **conversation** pour GET .../chat/history = "${mongo ?? "(aucun)"}"');
-
-      if (mongo == null || !_looksLikeMongoId(mongo)) {
-        debugPrint(
-            '❌ [CHAT_REST] Pas d’appel /chat/history sans document conversation Mongo valide');
-        return;
-      }
-
-      _activeRestHistoryId = mongo;
-      await _fetchChatHistory(mongo);
-    } catch (e, st) {
-      log('_loadMessages: $e', stackTrace: st);
-    } finally {
-      if (mounted) setState(() => _loadingHistory = false);
-    }
-  }
-
   List<dynamic> _extractMessagesList(dynamic res) {
     if (res is! Map) return [];
     if (res['error'] != null) return [];
@@ -531,90 +473,22 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   void _submitMessage() async {
     final String messageText = textEditingControllermessage.text.trim();
-    // Validation coordonnees desactivee temporairement pour debug envoi.
     if (messageText.isEmpty) {
       return;
     }
 
-    // Reconstruction agressive du CID si vide
-    String cid = (_socketRoomId).trim();
-    final socketRoomId = cid;
-    // ignore: avoid_print
-    print('📤 [DEBUG SEND] CID final: "$socketRoomId" | Text: "$messageText"');
+    final cid = (currentMongoId ?? _socketRoomId).trim();
+    debugPrint('📤 [CHAT_SEND] conversationId=$cid | text=$messageText');
     if (cid.isEmpty) {
-      // On tente de reconstruire l'ID composite à la volée
-      String? bId = (widget.bookingId ?? widget.booking?.id)?.trim();
-      final buyId = widget.buyerId?.trim();
-      final selId = widget.sellerId?.trim();
-
-      // Fallback de secours : essayer d'extraire bookingId depuis historyId composite.
-      if (bId == null || bId.isEmpty) {
-        final historyRaw = (widget.historyId ?? '').trim();
-        final historyParts = historyRaw.split('_');
-        if (historyParts.length >= 3 && historyParts[1].trim().isNotEmpty) {
-          bId = historyParts[1].trim();
-        } else {
-          bId = 'fallback_booking';
-        }
-      }
-
-      if (bId != null &&
-          bId.isNotEmpty &&
-          buyId != null &&
-          buyId.isNotEmpty &&
-          selId != null &&
-          selId.isNotEmpty) {
-        cid = '${buyId}_${bId}_${selId}';
-        // On met à jour la variable de classe pour les prochains messages
-        _effectiveSocketRoomId = cid;
-        // ignore: avoid_print
-        print('🛠️ [FIX] CID reconstruit dynamiquement : "$cid"');
-      }
-    }
-    if (cid.isEmpty) {
-      // ignore: avoid_print
-      print('❌ [CRITICAL] Impossible de construire le CID. Tous les IDs sont NULL !');
-      final emergencyBuyer = _firstNonEmpty([
-        widget.buyerId,
-        widget.senderId,
-        widget.booking?.userid,
-        userId.toString(),
-      ]);
-      final emergencyBooking = _firstNonEmpty([
-        widget.bookingId,
-        widget.booking?.id,
-        (widget.historyId ?? '').split('_').length >= 2
-            ? (widget.historyId ?? '').split('_')[1]
-            : '',
-        'fallback_booking',
-      ]);
-      final emergencySeller = _firstNonEmpty([
-        widget.sellerId,
-        widget.reciverId,
-        widget.booking?.hostId,
-        'fallback_seller',
-      ]);
-      cid = '${emergencyBuyer}_${emergencyBooking}_${emergencySeller}';
-      _effectiveSocketRoomId = cid;
-      // ignore: avoid_print
-      print('🧯 [EMERGENCY CID] CID forcé : "$cid"');
+      showErrorToastMessage('Conversation not ready'.tr);
+      return;
     }
 
     setState(() {
       isSending = true;
     });
     try {
-      // ignore: avoid_print
-      print("📤 [UI] Tentative d'envoi du message...");
-      // ignore: avoid_print
-      print('📡 [UI] État de la socket : ${SocketService.instance.isConnected}');
-      // ignore: avoid_print
-      print('🚀 SOCKET EMIT sur room : $cid');
-      // ignore: avoid_print
-      print('✈️ [SOCKET EMIT] Envoi sur la room : $_socketRoomId');
       SocketService.instance.sendMessage(cid, messageText);
-      // ignore: avoid_print
-      print('✅ [UI] Appel sendMessage effectué.');
     } finally {
       _messageController.clear();
       if (mounted) {
@@ -630,27 +504,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
     super.initState();
     isChatOpen = true;
     _fetchBookingContext();
-    _effectiveSocketRoomId = _socketRoomId;
-
-    // Marquer comme lu une seule fois dès l'affichage de la page.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _markConversationAsReadOnce();
-    });
-    if (_effectiveSocketRoomId.isEmpty) {
-      final buyerId =
-          (widget.booking?.userid ?? widget.senderId ?? userId.toString())
-              .toString()
-              .trim();
-      final bookingId =
-          (widget.bookingId ?? widget.booking?.id ?? '').toString().trim();
-      final sellerId =
-          (widget.booking?.hostId ?? widget.reciverId ?? '').toString().trim();
-      if (buyerId.isNotEmpty && bookingId.isNotEmpty && sellerId.isNotEmpty) {
-        _effectiveSocketRoomId = '${buyerId}_${bookingId}_${sellerId}';
-        // ignore: avoid_print
-        print('🛠️ CID RECONSTRUIT : $_effectiveSocketRoomId');
-      }
-    }
 
     _socketSubscription = SocketService.instance.onNewMessage((data) {
       // ignore: avoid_print
@@ -708,60 +561,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
       }
     });
 
-    SocketService.instance.connect().then((_) {
-      // Signal serveur `play_notification_sound` (indépendant de new_message)
-      final sock = SocketService.instance.socket;
-      if (sock != null) {
-        sock.off('play_notification_sound');
-        sock.on('play_notification_sound', (dynamic _) {
-          debugPrint('🎵 [SOUND EVENT] Signal reçu du serveur !');
-          _playIncomingMessageSound();
-        });
-      } else {
-        debugPrint('⚠️ [SOUND] socket null après connect — listener play_notification_sound ignoré');
-      }
-      final cid = _socketRoomId;
-      if (mounted && cid.isNotEmpty) {
-        final id = cid;
-        // ignore: avoid_print
-        print('🕵️‍♂️ [DIAGNOSTIC CHAT] === DÉBUT ===');
-        // ignore: avoid_print
-        print("➡️ Source d'ouverture : ${widget.booking != null ? 'ICÔNE BOOKING' : 'INBOX'}");
-        // ignore: avoid_print
-        print('🆔 ID de conversation reçu (widget.conversationId) : "${widget.conversationId}"');
-        // ignore: avoid_print
-        print('🆔 ID historique reçu (widget.historyId) : "${widget.historyId}"');
-        String finalRoomId = (widget.conversationId ?? widget.historyId ?? '').trim();
-        // ignore: avoid_print
-        print('🗝️ ID de ROOM final utilisé pour le SOCKET : "$finalRoomId"');
-        if (!finalRoomId.contains('_')) {
-          // ignore: avoid_print
-          print("⚠️ ALERTE : L'ID utilisé n'est PAS un ID composite. Le temps réel risque de ne pas fonctionner avec ce backend.");
-        }
-        // ignore: avoid_print
-        print('🕵️‍♂️ [DIAGNOSTIC CHAT] === FIN ===');
-        final socketRoomId = cid;
-        // ignore: avoid_print
-        print('🕵️‍♂️ [DIAGNOSTIC ID] --- DÉBUT ---');
-        // ignore: avoid_print
-        print('1. widget.conversationId: "${widget.conversationId}"');
-        // ignore: avoid_print
-        print('2. widget.historyId: "${widget.historyId}"');
-        // ignore: avoid_print
-        print('3. widget.bookingId: "${widget.bookingId}"');
-        // ignore: avoid_print
-        print('4. widget.booking.id: "${widget.booking?.id}"');
-        // ignore: avoid_print
-        print('5. Variable socketRoomId actuelle: "$socketRoomId"');
-        // ignore: avoid_print
-        print('🕵️‍♂️ [DIAGNOSTIC ID] --- FIN ---');
-        // ignore: avoid_print
-        print('DEBUG SOCKET VENDEUR : joinRoom($id)');
-        SocketService.instance.joinRoom(cid);
-      }
-      _loadMessages();
-    });
-
+    _initializeChat();
     scrollController.addListener(_scrollListener);
   }
 
@@ -895,12 +695,19 @@ class _ConversationScreenState extends State<ConversationScreen> {
                         indent: 10,
                       ),
                       Expanded(
-                        child: _loadingHistory
+                        child: (_initializingChat || _loadingHistory)
                             ? Center(
                                 child: CircularProgressIndicator(
                                   color: getColorBasedOnActiveModuleid(),
                                 ),
                               )
+                            : (currentMongoId ?? '').isEmpty
+                                ? Center(
+                                    child: Text(
+                                      'Unable to load conversation'.tr,
+                                      style: regular(context),
+                                    ),
+                                  )
                             : _messages.isEmpty
                                 ? Center(
                                     child: Text(

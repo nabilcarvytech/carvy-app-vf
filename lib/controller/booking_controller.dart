@@ -30,6 +30,7 @@ import '../helper/http_service.dart';
 import '../model/book_date_real_estate.dart';
 import '../model/booking_model.dart';
 import '../model/booking_payment_method_model.dart';
+import '../model/extension_payment_context.dart';
 import '../model/calendar_model.dart';
 import '../model/get_item_prices.dart';
 import '../model/wallet_model.dart';
@@ -633,6 +634,7 @@ class BookingController extends GetxController implements GetxService {
   RxBool isLoadingPaymentMethods = false.obs;
   PaymentMethod? selectedPaymentMethod;
   List<PaymentMethod> paymentMethodsList = []; // Liste synchronisée pour l'UI
+  ExtensionPaymentContext? extensionPaymentContext;
   TextEditingController textEditingController = TextEditingController();
   listner() {
     if (textEditingController.text.isNotEmpty) {
@@ -2230,6 +2232,140 @@ class BookingController extends GetxController implements GetxService {
     }
   }
   // ========== FIN FONCTION processBooking() ==========
+
+  void setExtensionPaymentContext(ExtensionPaymentContext? ctx) {
+    extensionPaymentContext = ctx;
+    if (ctx != null && ctx.currency.isNotEmpty) {
+      currency = ctx.currency;
+    }
+  }
+
+  double extensionCheckoutBaseAmount() {
+    return extensionPaymentContext?.additionalAmount ?? 0.0;
+  }
+
+  bool isExtensionCheckoutActive() => extensionPaymentContext != null;
+
+  bool _paymentMethodRequiresOnlineCheckout(PaymentMethod? method) {
+    if (method == null) return false;
+    final name = (method.name ?? '').toLowerCase();
+    final type = (method.type ?? '').toLowerCase();
+    if (type == 'online' || type.contains('online')) return true;
+    return name.contains('stripe') ||
+        name.contains('card') ||
+        name.contains('carte') ||
+        name.contains('paypal') ||
+        name.contains('digital wallet');
+  }
+
+  Future<void> _finishExtensionAfterPayment(String paymentMethodId) async {
+    final ctx = extensionPaymentContext;
+    if (ctx == null) return;
+
+    final recordController = Get.find<BookingRecordController>();
+    final ok = await recordController.extendReservationConfirm(
+      bookingId: ctx.bookingId,
+      newEndDate: ctx.newEndDateIso,
+      paymentMethodId: paymentMethodId,
+    );
+    isProcessingBooking.value = false;
+    if (!ok) return;
+
+    extensionPaymentContext = null;
+    selectedPaymentMethod = null;
+    await recordController.getBookingRecord(type: 'ongoing', offset: 0);
+
+    if (Get.key.currentState?.canPop() == true) {
+      Get.back();
+    }
+
+    Get.snackbar(
+      'Succes'.tr,
+      'Reservation extended successfully'.tr,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 3),
+    );
+  }
+
+  Future<void> processExtensionPayment() async {
+    final ctx = extensionPaymentContext;
+    if (ctx == null) {
+      debugPrint('❌ [processExtensionPayment] contexte extension manquant');
+      return;
+    }
+    if (isProcessingBooking.value) return;
+
+    final paymentMethodId = selectedPaymentMethod?.id?.trim();
+    if (paymentMethodId == null || paymentMethodId.isEmpty) {
+      showErrorToastMessage('Error'.tr);
+      return;
+    }
+
+    isProcessingBooking.value = true;
+    final recordController = Get.find<BookingRecordController>();
+
+    try {
+      if (_paymentMethodRequiresOnlineCheckout(selectedPaymentMethod)) {
+        var paymentUrl = ctx.paymentUrl?.trim() ?? '';
+        if (paymentUrl.isEmpty) {
+          final session =
+              await recordController.extendReservationConfirmWithDetails(
+            bookingId: ctx.bookingId,
+            newEndDate: ctx.newEndDateIso,
+            paymentMethodId: paymentMethodId,
+          );
+          paymentUrl = session?.paymentUrl?.trim() ?? '';
+          if (paymentUrl.isEmpty) {
+            isProcessingBooking.value = false;
+            if (session?.success == true) {
+              extensionPaymentContext = null;
+              selectedPaymentMethod = null;
+              await recordController.getBookingRecord(
+                type: 'ongoing',
+                offset: 0,
+              );
+              if (Get.key.currentState?.canPop() == true) {
+                Get.back();
+              }
+              Get.snackbar(
+                'Succes'.tr,
+                'Reservation extended successfully'.tr,
+                snackPosition: SnackPosition.TOP,
+                backgroundColor: Colors.green,
+                colorText: Colors.white,
+              );
+              return;
+            }
+            showErrorToastMessage('extension_online_payment_unavailable'.tr);
+            return;
+          }
+        }
+
+        isProcessingBooking.value = false;
+        final paid = await Get.to<String?>(() => PaymentScreen(
+              url: paymentUrl,
+              bookingId: ctx.bookingId,
+              price: ctx.additionalAmount,
+              fromBooking: true,
+              isExtension: true,
+            ));
+        if (paid != 'Paid') return;
+
+        isProcessingBooking.value = true;
+        await _finishExtensionAfterPayment(paymentMethodId);
+        return;
+      }
+
+      await _finishExtensionAfterPayment(paymentMethodId);
+    } catch (e, stackTrace) {
+      debugPrint('❌ [processExtensionPayment] $e');
+      debugPrint('❌ [processExtensionPayment] StackTrace: $stackTrace');
+      showErrorToastMessage('Something went wrong'.tr);
+      isProcessingBooking.value = false;
+    }
+  }
 
   var isenqablestarttime = false.obs;
   var isenableendTime = false.obs;

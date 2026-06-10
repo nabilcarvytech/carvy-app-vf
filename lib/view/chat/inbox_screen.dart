@@ -371,8 +371,6 @@ class _InboxScreenState extends State<InboxScreen> {
                                             borderRadius:
                                                 BorderRadius.circular(16),
                                             onTap: () async {
-                                              final resolvedConversationId =
-                                                  _resolveConversationId(conv);
                                               final currentUserId =
                                                   userId.toString().trim();
                                               final participants = conv.participants;
@@ -398,22 +396,6 @@ class _InboxScreenState extends State<InboxScreen> {
                                                 actualSellerId = '69511e84eee94e05f0cd312e';
                                               }
 
-                                              // Construction de la Room ID identique au bouton Booking
-                                              final unifiedRoomId =
-                                                  '${currentUserId}_${conv.bookingId}_$actualSellerId';
-                                              // ignore: avoid_print
-                                              print('📦 [INBOX DIAGNOSTIC] Données conversation => conversationId=${conv.conversationId} | bookingId=${conv.bookingId} | mongoId=${conv.mongoId} | buyerId=${conv.buyerId} | sellerId=${conv.sellerId} | recipientId=${conv.recipientId} | playerId=${conv.playerId} | fromName=${conv.fromName} | itemName=${conv.itemName} | bookingStatus=${conv.bookingStatus}');
-                                              // ignore: avoid_print
-                                              print('📦 [INBOX DIAGNOSTIC] Participants : ${conv.participants}');
-                                              // ignore: avoid_print
-                                              print('🎯 [INBOX UNIFICATION] Room ID généré : $unifiedRoomId');
-                                              // ignore: avoid_print
-                                              print('🚀 GO TO CHAT: HistoryID (Mongo) = ${conv.mongoId ?? conv.conversationId} | RoomID (Composite) = $resolvedConversationId');
-                                              // ignore: avoid_print
-                                              print('📤 [INBOX SEND] On envoie au chat : Buyer=${conv.participants[0]} | Booking=${conv.bookingId}');
-
-                                              // Optimistic UI : enlever le style gras + badges
-                                              // immédiatement avant navigation.
                                               if (mounted) {
                                                 setState(() {
                                                   _conversations[index] =
@@ -445,16 +427,8 @@ class _InboxScreenState extends State<InboxScreen> {
                                                             .isNotEmpty
                                                         ? conv.imageUrl
                                                         : null,
-                                                    historyId:
-                                                        (conv.mongoId != null && conv.mongoId!.trim().isNotEmpty)
-                                                            ? conv.mongoId
-                                                            : conv.conversationId,
-                                                    socketRoomId:
-                                                        unifiedRoomId,
                                                     buyerId: currentUserId,
                                                     sellerId: actualSellerId,
-                                                    conversationId:
-                                                        unifiedRoomId,
                                                     city: conv.city,
                                                     senderId:
                                                         currentUserId,

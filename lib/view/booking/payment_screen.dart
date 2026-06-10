@@ -43,6 +43,7 @@ class PaymentScreen extends StatefulWidget {
   final String? title;
 
   final String? isAddDoorStepPrice;
+  final bool isExtension;
   const PaymentScreen({
     super.key,
     this.url,
@@ -61,6 +62,7 @@ class PaymentScreen extends StatefulWidget {
     this.title,
     this.isAddDoorStepPrice,
     this.frontImage,
+    this.isExtension = false,
   });
 
   @override
@@ -124,6 +126,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.isExtension) {
+      isPolicyAccepted = true;
+    }
     _startTimer();
 
     // Listen for keyboard visibility changes
@@ -416,20 +421,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _stopTimer();
       _isNavigating = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context)
-            .pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => BookingSuccessPage(
-              bookingId: widget.bookingId!,
-              initialStatus: "Paid",
+        if (widget.isExtension) {
+          Navigator.of(context).pop('Paid');
+        } else {
+          Navigator.of(context)
+              .pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => BookingSuccessPage(
+                bookingId: widget.bookingId!,
+                initialStatus: "Paid",
+              ),
             ),
-          ),
-        )
-            .then((_) {
-          generalController.currentIndex.value = 2;
-          generalController.tabController.index = 2;
-          Get.offAll(() => const HomeMain(initialIndex: 2));
-        });
+          )
+              .then((_) {
+            generalController.currentIndex.value = 2;
+            generalController.tabController.index = 2;
+            Get.offAll(() => const HomeMain(initialIndex: 2));
+          });
+        }
         _isNavigating = false;
       });
       return; // Exit early, don't process other conditions
@@ -461,20 +470,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _stopTimer();
       _isNavigating = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context)
-            .pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => BookingSuccessPage(
-              bookingId: widget.bookingId!,
-              initialStatus: "Paid",
+        if (widget.isExtension) {
+          Navigator.of(context).pop('Paid');
+        } else {
+          Navigator.of(context)
+              .pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => BookingSuccessPage(
+                bookingId: widget.bookingId!,
+                initialStatus: "Paid",
+              ),
             ),
-          ),
-        )
-            .then((_) {
-          generalController.currentIndex.value = 2;
-          generalController.tabController.index = 2;
-          Get.offAll(() => const HomeMain(initialIndex: 2));
-        });
+          )
+              .then((_) {
+            generalController.currentIndex.value = 2;
+            generalController.tabController.index = 2;
+            Get.offAll(() => const HomeMain(initialIndex: 2));
+          });
+        }
+        _isNavigating = false;
       });
     } else if (url.contains("/invalid-order")) {
       _stopTimer();

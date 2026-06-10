@@ -120,6 +120,28 @@ const Map<String, String> frFR = {
   "Booking Start": "Prise en charge",
   "Booking end": "Retour",
   "Extend a day": "Prolonger d’un jour",
+  "Extend duration": "Prolonger la durée",
+  "Select new end date": "Sélectionner une nouvelle date de fin",
+  "Confirm extension": "Confirmer la prolongation",
+  "Current end date": "Date de fin actuelle",
+  "New end date": "Nouvelle date de fin",
+  "New end date must be after the current end date":
+      "La nouvelle date de fin doit être postérieure à la date de fin actuelle",
+  "Extension of @days days": "Prolongation de @days jours",
+  "extension_added_period":
+      "Période ajoutée : du @from au @to",
+  "extension_total_rental_period":
+      "Période totale de location : du @from au @to",
+  "extension_checkout_title": "Paiement de la prolongation",
+  "extension_online_payment_unavailable":
+      "Le paiement en ligne n'est pas disponible pour cette prolongation. Veuillez choisir une autre méthode.",
+  "Additional amount to pay: @amount @currency":
+      "Supplément à régler : @amount @currency",
+  "extension_payment_notice":
+      "Le supplément sera ajouté au total et à régler selon les conditions de l'agence.",
+  "extension_days_summary":
+      "Vous ajoutez @days jours de location (du @from au @to)",
+  "Reservation extended successfully": "Réservation prolongée avec succès",
   "Reservation Charges": "Frais de réservation",
   "Price (1 hr)": "Prix (1 h)",
   "Long booking discount": "Remise longue durée",
@@ -391,6 +413,8 @@ const Map<String, String> frFR = {
   "Previous": "Précédentes",
   "No Completed Available": "Aucune réservation terminée disponible",
   "Add Review": "Ajouter un avis",
+  "Avis envoyé": "Avis envoyé",
+  "Avis publié avec succès": "Avis publié avec succès",
   "No upcoming Booking Availability": "Aucune réservation à venir disponible",
   "Cancel": "Annuler",
   "UpComing": "À venir",

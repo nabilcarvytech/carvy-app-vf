@@ -441,6 +441,76 @@ Future<dynamic> httpGetAdmin(String path, Map<String, dynamic> params) async {
   return responseData;
 }
 
+/// POST admin (sans params auto) — même base URL que [httpGetAdmin].
+Future<dynamic> httpPostAdmin(
+  String path,
+  Map<String, dynamic> body,
+) async {
+  connectionLost = false;
+  Map<String, dynamic>? responseData;
+  try {
+    final url = Config.adminBaseUrl + path;
+
+    if (bearerToken.isEmpty) {
+      bearerToken = await generateToken() ?? '';
+      if (bearerToken.isEmpty) {
+        developer.log('❌ [ADMIN POST] Failed to generate bearer token');
+        return {'error': 'Token generation failed'};
+      }
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $bearerToken',
+    };
+
+    developer.log('🌐 [ADMIN POST] Api-Url: $url');
+    developer.log('📋 [ADMIN POST] Body: ${jsonEncode(body)}');
+
+    http.Response response = await http.post(
+      Uri.parse(url),
+      headers: headers,
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 498) {
+      final newToken = await generateToken();
+      if (newToken != null && newToken.isNotEmpty) {
+        bearerToken = newToken;
+        headers['Authorization'] = 'Bearer $newToken';
+        response = await http.post(
+          Uri.parse(url),
+          headers: headers,
+          body: jsonEncode(body),
+        );
+      }
+    }
+
+    if (response.bodyBytes.isEmpty) {
+      return {'statusCode': response.statusCode};
+    }
+
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is Map) {
+      responseData = Map<String, dynamic>.from(decoded);
+      responseData['statusCode'] = response.statusCode;
+    } else {
+      responseData = {
+        'statusCode': response.statusCode,
+        'data': decoded,
+      };
+    }
+    developer.log('✅ [ADMIN POST] Response: $responseData');
+  } catch (err, stackTrace) {
+    if (err is FormatException) {
+      connectionLost = true;
+    }
+    developer.log('❗ [ADMIN POST] Error: $err', stackTrace: stackTrace);
+    return {'error': err.toString()};
+  }
+  return responseData;
+}
+
 /// POST [Config.uploadApi] (multipart, champ `file`). Retourne l’URL publique ou null.
 Future<String?> uploadChatImage(File file) async {
   connectionLost = false;

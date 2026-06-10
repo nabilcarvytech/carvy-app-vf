@@ -91,7 +91,7 @@ class _LiveBookingState extends State<LiveBooking> {
                     )
                   : myBookingListWidget(
                       bookingRecordController.bookingsList,
-                      "Cancel",
+                      "Extend duration",
                       stateSetter,
                       widget.fromPropBooking,
                       "ongoing",

@@ -372,6 +372,8 @@ const Map<String, String> enUs = {
   "Previous": "Previous",
   "No Completed Available": "No Completed Bookings Available",
   "Add Review": "Add Review",
+  "Avis envoyé": "Review sent",
+  "Avis publié avec succès": "Review published successfully",
   "Review submitted": "⭐️ Review submitted",
   "opening_review_form_dev": "Opening the review form — coming soon...",
   "Rate your experience": "Rate your experience",

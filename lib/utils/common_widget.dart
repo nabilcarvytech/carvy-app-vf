@@ -15,6 +15,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:pinput/pinput.dart';
 import 'package:carvy/controller/booking_controller.dart';
+import 'package:carvy/controller/booking_record_controller.dart';
 import 'package:carvy/controller/home_controller.dart';
 import 'package:carvy/controller/push_notifications.dart';
 import 'package:carvy/controller/search_controller.dart';
@@ -25,6 +26,8 @@ import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/utils/vehicle_common_widgets.dart';
+import 'package:carvy/model/extension_payment_context.dart';
+import 'package:carvy/view/booking/payment_method_screen.dart';
 import 'package:carvy/view/booking/vehicle/vehicle_booking_summary_screen.dart';
 import 'package:carvy/view/booking/vehicle_photoes_booking.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
@@ -1414,6 +1417,318 @@ Widget _buildClientBookingReviewSection(
   );
 }
 
+DateTime? _parseBookingDateTime(String? raw) {
+  final value = raw?.trim() ?? '';
+  if (value.isEmpty) return null;
+  try {
+    return DateFormat('dd-MM-yyyy hh:mm a').parse(value);
+  } catch (_) {}
+  try {
+    return DateTime.parse(value);
+  } catch (_) {}
+  return null;
+}
+
+DateTime? _parseBookingEndDateTime(Bookings booking) {
+  return _parseBookingDateTime(booking.checkOut);
+}
+
+DateTime? _parseBookingStartDateTime(Bookings booking) {
+  return _parseBookingDateTime(booking.checkIn);
+}
+
+Color _bookingListPrimaryActionColor(String btnText) {
+  if (btnText == 'Extend duration') {
+    return getColorBasedOnActiveModuleid();
+  }
+  if (btnText == 'Cancel') {
+    return redColor;
+  }
+  return getColorBasedOnActiveModuleid();
+}
+
+bool _bookingAllowsExtension(String? status) {
+  final s = status.toStandardStatus();
+  return s == 'LIVE' || s == 'CONFIRMED';
+}
+
+DateTime _bookingEndDateOnly(DateTime dateTime) {
+  return DateTime(dateTime.year, dateTime.month, dateTime.day);
+}
+
+DateTime _newEndFromPickedDate(DateTime currentEnd, DateTime pickedDate) {
+  return DateTime(
+    pickedDate.year,
+    pickedDate.month,
+    pickedDate.day,
+    currentEnd.hour,
+    currentEnd.minute,
+  );
+}
+
+String _formatBookingDateForDisplay(DateTime dateTime) {
+  return DateFormat('dd-MM-yyyy').format(dateTime);
+}
+
+String _formatNewEndDateIso(DateTime currentEnd, DateTime pickedDate) {
+  return _newEndFromPickedDate(currentEnd, pickedDate).toIso8601String();
+}
+
+int _extensionDaysBetween(DateTime oldEnd, DateTime newEnd) {
+  return _bookingEndDateOnly(newEnd)
+      .difference(_bookingEndDateOnly(oldEnd))
+      .inDays;
+}
+
+Future<void> _showExtendReservationConfirmSheet({
+  required BuildContext context,
+  required Bookings booking,
+  required DateTime currentEnd,
+  required DateTime selectedNewEnd,
+  required String newEndDateIso,
+  required StateSetter setState,
+}) async {
+  final recordController = Get.find<BookingRecordController>();
+  final extraDays = _extensionDaysBetween(currentEnd, selectedNewEnd);
+  final oldEndLabel = _formatBookingDateForDisplay(currentEnd);
+  final newEndLabel = _formatBookingDateForDisplay(selectedNewEnd);
+  final startDate = _parseBookingStartDateTime(booking);
+  final startLabel = startDate != null
+      ? _formatBookingDateForDisplay(startDate)
+      : null;
+  var previewRequested = false;
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (sheetContext) {
+      Map<String, dynamic>? previewData;
+      var previewLoading = true;
+      var confirming = false;
+
+      return StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          if (!previewRequested) {
+            previewRequested = true;
+            recordController
+                .extendReservationPreview(
+              bookingId: '${booking.id}',
+              newEndDate: newEndDateIso,
+            )
+                .then((preview) {
+              if (!sheetContext.mounted) return;
+              setSheetState(() {
+                previewData = preview;
+                previewLoading = false;
+              });
+            });
+          }
+
+          final additionalAmount = previewData == null
+              ? null
+              : '${previewData!['additionalAmount'] ?? previewData!['additional_amount'] ?? '0'}';
+          final currency = previewData == null
+              ? ''
+              : '${previewData!['currency'] ?? previewData!['currencyCode'] ?? booking.currencyCode ?? ''}';
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 8,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Extend duration'.tr, style: heading1(sheetContext)),
+                const SizedBox(height: 16),
+                CustomsButtons(
+                  text: 'Select new end date'.tr,
+                  backgroundColor: getColorBasedOnActiveModuleid(),
+                  onPressed: () {},
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.center,
+                  child: Text(
+                    newEndLabel,
+                    style: boldstyle(sheetContext).copyWith(fontSize: 15),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: notifires.getBoxColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: notifires.getGrey6Whitecolor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Extension of @days days'.trParams({
+                          'days': '$extraDays',
+                        }),
+                        style: boldstyle(sheetContext).copyWith(fontSize: 16),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'extension_added_period'.trParams({
+                          'from': oldEndLabel,
+                          'to': newEndLabel,
+                        }),
+                        style: regular2(sheetContext),
+                      ),
+                      if (startLabel != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'extension_total_rental_period'.trParams({
+                            'from': startLabel,
+                            'to': newEndLabel,
+                          }),
+                          style: regular3(sheetContext).copyWith(
+                            color: notifires.getGrey2Whitecolor,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (previewLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (previewData != null && additionalAmount != null)
+                  Text(
+                    'Additional amount to pay: @amount @currency'.trParams({
+                      'amount': additionalAmount,
+                      'currency': currency,
+                    }),
+                    style: boldstyle(sheetContext).copyWith(
+                      fontSize: 16,
+                      color: getColorBasedOnActiveModuleid(),
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                Text(
+                  'extension_payment_notice'.tr,
+                  style: regular3(sheetContext).copyWith(
+                    color: notifires.getGrey2Whitecolor,
+                  ),
+                ),
+                if (previewData != null && !previewLoading) ...[
+                  const SizedBox(height: 20),
+                  confirming
+                      ? const Center(child: CircularProgressIndicator())
+                      : CustomsButtons(
+                          text: 'Confirm extension'.tr,
+                          backgroundColor: getColorBasedOnActiveModuleid(),
+                          onPressed: () async {
+                            setSheetState(() => confirming = true);
+
+                            final amountRaw = previewData![
+                                    'additionalAmount'] ??
+                                previewData!['additional_amount'] ??
+                                '0';
+                            final amount =
+                                double.tryParse('$amountRaw') ?? 0.0;
+                            final paymentUrl = previewData!['payment_url']
+                                    ?.toString() ??
+                                previewData!['paymentUrl']?.toString();
+
+                            final bookingController =
+                                Get.find<BookingController>();
+                            bookingController.setExtensionPaymentContext(
+                              ExtensionPaymentContext(
+                                bookingId: '${booking.id}',
+                                newEndDateIso: newEndDateIso,
+                                additionalAmount: amount,
+                                currency: currency,
+                                extraDays: extraDays,
+                                oldEndLabel: oldEndLabel,
+                                newEndLabel: newEndLabel,
+                                startLabel: startLabel,
+                                paymentUrl: paymentUrl,
+                              ),
+                            );
+                            bookingController.selectedPaymentMethod = null;
+
+                            if (!sheetContext.mounted) return;
+                            setSheetState(() => confirming = false);
+                            Navigator.pop(sheetContext);
+
+                            final vehicleId = booking.vehicleId ??
+                                booking.itemid ??
+                                '';
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PaymentMethodScreen(
+                                  vehicleId: vehicleId.toString(),
+                                  isExtension: true,
+                                ),
+                              ),
+                            );
+
+                            bookingController.setExtensionPaymentContext(null);
+                            await recordController.getBookingRecord(
+                              type: 'ongoing',
+                              offset: 0,
+                            );
+                            setState(() {});
+                          },
+                        ),
+                ],
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+Future<void> _openExtendReservationFlow({
+  required BuildContext context,
+  required Bookings booking,
+  required StateSetter setState,
+}) async {
+  final currentEnd = _parseBookingEndDateTime(booking);
+  if (currentEnd == null) {
+    showErrorToastMessage('Something went wrong'.tr);
+    return;
+  }
+
+  final firstDate = _bookingEndDateOnly(currentEnd).add(const Duration(days: 1));
+
+  final pickedDate = await showDatePicker(
+    context: context,
+    initialDate: firstDate,
+    firstDate: firstDate,
+    lastDate: firstDate.add(const Duration(days: 365)),
+  );
+  if (pickedDate == null || !context.mounted) return;
+
+  final selectedNewEnd = _newEndFromPickedDate(currentEnd, pickedDate);
+  final newEndDateIso = selectedNewEnd.toIso8601String();
+
+  await _showExtendReservationConfirmSheet(
+    context: context,
+    booking: booking,
+    currentEnd: currentEnd,
+    selectedNewEnd: selectedNewEnd,
+    newEndDateIso: newEndDateIso,
+    setState: setState,
+  );
+}
+
 myBookingListWidget(
   List<Bookings> list,
   btnText,
@@ -1424,7 +1739,17 @@ myBookingListWidget(
 ) {
   BookingController bookingController = Get.find();
   innerMethod(context, index) async {
-    if (btnText == "Cancel") {
+    if (btnText == 'Extend duration') {
+      if (!_bookingAllowsExtension(list[index].status)) {
+        showErrorToastMessage('Something went wrong'.tr);
+        return;
+      }
+      await _openExtendReservationFlow(
+        context: context,
+        booking: list[index],
+        setState: setState,
+      );
+    } else if (btnText == "Cancel") {
       showLoading();
       dynamic response;
       try {
@@ -2172,30 +2497,16 @@ myBookingListWidget(
                                       return;
                                     }
 
-                                    final String conversationId =
-                                        "${userId}_${list[index].id}_$finalHostId";
                                     final Bookings bookingRow = list[index];
-                                    final String mongoChat =
-                                        mongoChatIdFromBooking(bookingRow);
                                     final String bookingIdStr =
                                         '${bookingRow.id}'.trim();
 
-                                    // Comme inbox_screen : mongoId + historyId = Mongo conversation uniquement.
-                                    // Ne pas passer bookingId dans historyId (évite GET chat/history sur l’ID réservation).
                                     Get.to(() => ConversationScreen(
                                           booking: bookingRow,
                                           bookingStatus: bookingRow.status,
                                           bookingId: bookingIdStr,
                                           image: image,
                                           title: bookingRow.propTitle!,
-                                          conversationId: conversationId,
-                                          mongoId: mongoChat.isNotEmpty
-                                              ? mongoChat
-                                              : null,
-                                          historyId: mongoChat.isNotEmpty
-                                              ? mongoChat
-                                              : null,
-                                          socketRoomId: conversationId,
                                           buyerId: '$userId',
                                           sellerId: finalHostId,
                                           from: "${bookingRow.hostName}",
@@ -2822,6 +3133,9 @@ myBookingListWidget(
                                                       : btnText == "Cancel"
                                                           ? notifires
                                                               .getBoxColor
+                                                      : btnText ==
+                                                              "Extend duration"
+                                                          ? getColorBasedOnActiveModuleid()
                                                           : list[index].reviewStatus !=
                                                                       null &&
                                                                   list[index]
@@ -2861,10 +3175,20 @@ myBookingListWidget(
                                             ? const SizedBox()
                                             : list[index].isItemReceived == 1
                                                 ? const SizedBox()
+                                            : btnText == 'Extend duration' &&
+                                                    !_bookingAllowsExtension(
+                                                        list[index].status)
+                                                ? const SizedBox()
                                                 : Expanded(
                                                     flex: 1,
                                                     child: InkWell(
                                                       onTap: () async {
+                                                        if (btnText ==
+                                                            'Extend duration') {
+                                                          await innerMethod(
+                                                              context, index);
+                                                          return;
+                                                        }
                                                         if (list[index]
                                                                 .hostName ==
                                                             null) {
@@ -2951,7 +3275,9 @@ myBookingListWidget(
                                                                     bottom: 0),
                                                             decoration:
                                                                 BoxDecoration(
-                                                              color: redColor,
+                                                              color:
+                                                                  _bookingListPrimaryActionColor(
+                                                                      btnText),
                                                               borderRadius:
                                                                   BorderRadius
                                                                       .circular(
@@ -2959,7 +3285,7 @@ myBookingListWidget(
                                                             ),
                                                             child: Center(
                                                                 child: Text(
-                                                              "Cancel".tr,
+                                                              "$btnText".tr,
                                                               style: boldstyle(
                                                                       context)
                                                                   .copyWith(

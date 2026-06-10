@@ -92,6 +92,10 @@ class Config {
   static const String getCancelReasons = 'get-cancel-reasons';
   static const String cancelBookingByUser = 'cancel-booking-by-user';
   static const String cancelBookingByHost = 'cancel-booking-by-host';
+  static String reservationExtendPreview(String bookingId) =>
+      'reservations/$bookingId/extend-preview';
+  static String reservationExtendConfirm(String bookingId) =>
+      'reservations/$bookingId/extend-confirm';
   static const String confirmBookingByHost = 'confirm-booking-by-host';
   static const String contactUs = 'contactUs';
   static const String getUserThreads = 'getUserThreads';
@@ -174,6 +178,9 @@ class Config {
   /// Si l’endpoint n’existe pas encore, l’appel échoue silencieusement et on garde le fallback booking.
   static String chatConversationForBookingPath(String bookingId) =>
       'chat/conversation-for-booking/${Uri.encodeComponent(bookingId)}';
+
+  /// Crée ou récupère une conversation Mongo à partir d’un `bookingId`.
+  static const String getOrCreateChat = 'chat/get-or-create';
 
   /// POST multipart champ `file` — URL : [baseUrlWithoutV1] + [uploadApi].
   static const String uploadApi = 'upload';

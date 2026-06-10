@@ -41,7 +41,10 @@ import 'package:carvy/services/auth_service.dart';
 import 'package:carvy/service/onesignal_service.dart';
 import '../helper/http_service.dart';
 import '../view/auth/register/email_otp_screen.dart';
+import '../view/auth/register/register_wizard_screen.dart';
 import '../view/auth/reset_password_screen.dart';
+
+enum _LoginBlockReason { phoneNotVerified, cguNotAccepted, unknown }
 
 class AuthController extends GetxController implements GetxService {
   // Variable pour gérer le mode host (vendor) ou user
@@ -287,6 +290,10 @@ class AuthController extends GetxController implements GetxService {
   final RxBool registerWizardSubmitting = false.obs;
   /// `true` tant que l’utilisateur est sur [RegisterWizardScreen] (OTP → [NavPageView]).
   final RxBool registerWizardEmbarked = false.obs;
+  /// Reprise d'inscription après login 403 — étape téléphone du wizard.
+  bool isIncompleteVerificationResume = false;
+  /// Reprise après login 403 — CGU non acceptées, étape contrat uniquement.
+  bool isCguResumeFromLogin = false;
   Timer? _registerWizardResendTimer;
   final RxInt emailOtpResendSeconds = 0.obs;
   final RxBool emailOtpVerifying = false.obs;
@@ -1299,12 +1306,12 @@ class AuthController extends GetxController implements GetxService {
       }
 
       await _persistLoginFromResponse(loginModel);
-      registerWizardEmbarked.value = false;
       showToastMessage(loginModel.message ?? 'Registration successful'.tr);
 
       if (onSuccess != null) {
         onSuccess();
       } else {
+        registerWizardEmbarked.value = false;
         await _navigateToHomeAfterAuth();
       }
     } catch (e) {
@@ -1347,26 +1354,39 @@ class AuthController extends GetxController implements GetxService {
 
     registerWizardSubmitting.value = true;
     try {
-      final vendorFlow = registerWizardIsAgency.value;
-      isHostMode.value = vendorFlow;
-      GetStorage().write('isHostMode', vendorFlow);
+      if (isCguResumeFromLogin) {
+        _showRegisterLoadingOverlay(context);
+        final response = await _postWithRegisterBearer(
+          Config.editProfile,
+          {'termsAccepted': true},
+        );
+        _dismissRegisterLoadingOverlay(context);
+        if (response == null) return;
+
+        final accepted = response['success'] == true ||
+            response['status'] == 200 ||
+            response['status'] == '200' ||
+            response['statusCode'] == 200;
+        if (!accepted) {
+          showErrorToastMessage(
+            response['error']?.toString() ??
+                response['message']?.toString() ??
+                'Error'.tr,
+          );
+          return;
+        }
+        _updateLocalSessionAfterTermsAccepted(response);
+        isCguResumeFromLogin = false;
+      }
 
       showToastMessage('Registration successful'.tr);
       await Future.delayed(const Duration(milliseconds: 150));
 
+      isIncompleteVerificationResume = false;
       registerWizardEmbarked.value = false;
+      registerWizardTermsAccepted.value = false;
 
-      if (webPlateForm) {
-        Get.offAllNamed(
-          vendorFlow ? WebRoutes.buttomHost : WebRoutes.homeMain,
-        );
-      } else {
-        if (vendorFlow) {
-          Get.offAll(() => const BottomHost(initialIndex: 0));
-        } else {
-          Get.offAll(() => const NavPageView());
-        }
-      }
+      await _navigateToHomeAfterAuth();
     } catch (e, st) {
       debugPrint('registerWizardCompleteToHome error: $e\n$st');
       showErrorToastMessage('Something went wrong'.tr);
@@ -1486,6 +1506,249 @@ class AuthController extends GetxController implements GetxService {
 
   bool load = false;
 
+  static const String _kPhoneNotVerifiedCode = 'PHONE_NOT_VERIFIED';
+  static const String _kCguNotAcceptedCode = 'CGU_NOT_ACCEPTED';
+  static const String _kIncompleteVerificationMessage =
+      'Please Complete the Verification process';
+  static const String _kTermsNotAcceptedMessage =
+      'Please accept Terms and Conditions';
+
+  bool _isLogin403Response(Map<String, dynamic> json) {
+    final status = json['status'];
+    return status == 403 || status == '403';
+  }
+
+  String _loginBlockMessage(Map<String, dynamic> json) {
+    return json['message']?.toString().trim() ?? '';
+  }
+
+  _LoginBlockReason? _parseLoginBlockReason(Map<String, dynamic> json) {
+    if (!_isLogin403Response(json)) return null;
+    final message = _loginBlockMessage(json);
+    if (message == _kPhoneNotVerifiedCode ||
+        message == _kIncompleteVerificationMessage ||
+        message == _kIncompleteVerificationMessage.tr) {
+      return _LoginBlockReason.phoneNotVerified;
+    }
+    if (message == _kCguNotAcceptedCode ||
+        message == _kTermsNotAcceptedMessage ||
+        message == _kTermsNotAcceptedMessage.tr) {
+      return _LoginBlockReason.cguNotAccepted;
+    }
+    return _LoginBlockReason.unknown;
+  }
+
+  Future<bool> _routeLoginBlockedResponse(
+    BuildContext context,
+    Map<String, dynamic> json,
+  ) async {
+    final reason = _parseLoginBlockReason(json);
+    if (reason == null) return false;
+
+    switch (reason) {
+      case _LoginBlockReason.phoneNotVerified:
+        await _navigateToIncompleteVerification(context, json);
+        return true;
+      case _LoginBlockReason.cguNotAccepted:
+        await _navigateToCguResume(context, json);
+        return true;
+      case _LoginBlockReason.unknown:
+        showErrorToastMessage(_loginBlockMessage(json).isNotEmpty
+            ? _loginBlockMessage(json)
+            : 'Error'.tr);
+        return true;
+    }
+  }
+
+  void _updateLocalSessionAfterTermsAccepted(
+    Map<String, dynamic> editProfileResponse,
+  ) {
+    final responseData = editProfileResponse['data'];
+    Map<String, dynamic> profileUser = {};
+    if (responseData is Map) {
+      final nested = responseData['user'];
+      if (nested is Map) {
+        profileUser = Map<String, dynamic>.from(nested);
+      } else {
+        profileUser = Map<String, dynamic>.from(responseData);
+      }
+    }
+
+    final base = Map<String, dynamic>.from(loginModel?.toJson() ?? {});
+    base['status'] = 200;
+    final rawData = base['data'];
+    final data = rawData is Map
+        ? Map<String, dynamic>.from(rawData)
+        : <String, dynamic>{};
+
+    data['termsAccepted'] = true;
+    data['terms_accepted'] = true;
+
+    for (final key in [
+      'phone',
+      'phone_country',
+      'default_country',
+      'email',
+      'first_name',
+      'last_name',
+      'verified',
+      'phone_verify',
+      'email_verify',
+      'token',
+      'role',
+    ]) {
+      final value = profileUser[key] ?? data[key];
+      if (value != null) {
+        data[key] = value;
+      }
+    }
+
+    if ((data['phone'] == null ||
+            data['phone'].toString().trim().isEmpty) &&
+        textEditingSingUpControllerPhoneNumber.text.trim().isNotEmpty) {
+      data['phone'] = textEditingSingUpControllerPhoneNumber.text.trim();
+    }
+    if ((data['phone_country'] == null ||
+            data['phone_country'].toString().trim().isEmpty) &&
+        profileController.selectedCountry.value.trim().isNotEmpty) {
+      data['phone_country'] = profileController.selectedCountry.value.trim();
+    }
+
+    data['phone_verify'] ??= '1';
+    data['verified'] ??= '1';
+    data['token'] ??= token;
+
+    base['data'] = data;
+    base['message'] = editProfileResponse['message'] ?? base['message'];
+
+    final updated = LoginModel.fromJson(base);
+    setLoginModel(updated);
+    refreshUserRole();
+
+    final encoded = jsonEncode(updated.toJson());
+    GetStorage().write('user_data', encoded);
+    UserData().saveLoginData('UserData', encoded);
+    if (updated.data?.token != null && updated.data!.token!.isNotEmpty) {
+      token = updated.data!.token!;
+      GetStorage().write('token', token);
+      GetStorage().write('raw_user_token', token);
+    }
+    if (updated.data?.id != null && updated.data!.id!.isNotEmpty) {
+      userId = updated.data!.id!;
+      GetStorage().write('userIdGlobal', userId.toString());
+    }
+    update();
+  }
+
+  bool _persistLogin403Session(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    if (rawData is! Map) return false;
+
+    final data = Map<String, dynamic>.from(rawData);
+    final loginModel = LoginModel.fromJson(json);
+    final authToken = loginModel.data?.token?.trim() ?? '';
+    if (authToken.isEmpty) return false;
+
+    shouldLogout = false;
+    generalController.currentIndex.value = 0;
+    GetStorage().write('Remember', true);
+    GetStorage().write('Firstuser', true);
+    GetStorage().write('user_data', jsonEncode(json));
+    UserData().saveLoginData('UserData', jsonEncode(json));
+    token = authToken;
+    GetStorage().remove('bearerToken');
+    bearerToken = '';
+    userId = loginModel.data?.id?.toString() ?? data['id']?.toString() ?? '';
+    GetStorage().write('token', token);
+    GetStorage().write('raw_user_token', token);
+    GetStorage().write('userIdGlobal', userId.toString());
+    setLoginModel(loginModel);
+    unawaited(_runPostRegistrationPushSync());
+    update();
+    return true;
+  }
+
+  Future<void> _navigateToCguResume(
+    BuildContext context,
+    Map<String, dynamic> json,
+  ) async {
+    if (!_persistLogin403Session(json)) {
+      showErrorToastMessage(
+          json['message']?.toString() ?? _kTermsNotAcceptedMessage.tr);
+      return;
+    }
+
+    isCguResumeFromLogin = true;
+    registerWizardTermsAccepted.value = false;
+    final blockMsg = _loginBlockMessage(json);
+    showErrorToastMessage(blockMsg.isNotEmpty
+        ? blockMsg
+        : _kTermsNotAcceptedMessage.tr);
+
+    if (webPlateForm) {
+      Get.offNamed(WebRoutes.registerWizardScreen, arguments: {
+        'resumeCguOnly': true,
+      });
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const RegisterWizardScreen(resumeCguOnly: true),
+        ),
+      );
+    }
+  }
+
+  Future<void> _navigateToIncompleteVerification(
+    BuildContext context,
+    Map<String, dynamic> json,
+  ) async {
+    if (!_persistLogin403Session(json)) {
+      showErrorToastMessage(
+          json['message']?.toString() ?? _kIncompleteVerificationMessage.tr);
+      return;
+    }
+
+    final data = Map<String, dynamic>.from(json['data'] as Map);
+    final phone = data['phone']?.toString();
+    final phoneCountry = data['phone_country']?.toString();
+
+    isIncompleteVerificationResume = true;
+
+    textEditingSingUpControllerPhoneNumber.clear();
+    textEditingOtpController.clear();
+    registerWizardPhoneCodeSent.value = false;
+
+    if (phone != null && phone.trim().isNotEmpty) {
+      textEditingSingUpControllerPhoneNumber.text = phone.trim();
+    }
+    if (phoneCountry != null && phoneCountry.trim().isNotEmpty) {
+      final dial = phoneCountry.trim().startsWith('+')
+          ? phoneCountry.trim()
+          : '+${phoneCountry.trim()}';
+      profileController.selectedCountry.value = dial;
+    }
+
+    final blockMsg = _loginBlockMessage(json);
+    showErrorToastMessage(blockMsg.isNotEmpty
+        ? blockMsg
+        : _kIncompleteVerificationMessage.tr);
+    update();
+
+    if (webPlateForm) {
+      Get.offNamed(WebRoutes.registerWizardScreen, arguments: {
+        'resumePhoneOnly': true,
+      });
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const RegisterWizardScreen(resumePhoneOnly: true),
+        ),
+      );
+    }
+  }
+
   Future<void> loginMethod(
       BuildContext context, GlobalKey<FormState> formKey) async {
     try {
@@ -1561,22 +1824,18 @@ class AuthController extends GetxController implements GetxService {
                   builder: (context) => const HomeMain(initialIndex: 0)),
             );
           }
-        } else if (json["status"] == 403) {
-          showErrorToastMessage("Please Complete the Verification process".tr);
-          Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (builder) => OtpScreen(
-                        number: loginModel.data!.phone!,
-                        countryCode: loginModel.data!.phoneCountry!,
-                        otpValue: loginModel.data!.resetToken!,
-                        email: "",
-                      )));
-        } else {
-          showErrorToastMessage(json["message"]);
+        } else if (!await _routeLoginBlockedResponse(
+            context, Map<String, dynamic>.from(json))) {
+          showErrorToastMessage(json["message"]?.toString() ?? 'Error'.tr);
         }
       }
-    } catch (e) {}
+    } catch (e, st) {
+      debugPrint('loginMethod error: $e\n$st');
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+      showErrorToastMessage('Something went wrong'.tr);
+    }
   }
 
   Future<void> signUp(
@@ -1775,7 +2034,7 @@ class AuthController extends GetxController implements GetxService {
           }
         }
         return;
-      } else if (changeMobile != null) {
+      } else if (changeMobile != null && !isIncompleteVerificationResume) {
         Map map = {
           "phone": number,
           "phone_country": cuntryCode,
@@ -1835,10 +2094,13 @@ class AuthController extends GetxController implements GetxService {
         }
 
         return;
-      } else if (email.isEmpty) {
+      } else if (email == null || email.isEmpty) {
         showLoading();
-        var result = await verifyOtp(
-            {"phone": number, "otp_value": otp, "phone_country": cuntryCode});
+        var result = await verifyOtp({
+          "phone": number,
+          "otp_value": otp,
+          "phone_country": cuntryCode,
+        });
         closeLoading();
         update();
         if (result != null) {
@@ -1870,7 +2132,7 @@ class AuthController extends GetxController implements GetxService {
             await _runPostOtpVerifiedHeavyWork();
 
             if (webPlateForm) {
-              Get.toNamed(WebRoutes.homeMain);
+              Get.offAllNamed(WebRoutes.homeMain);
             } else {
               Get.offAll(() => const HomeMain(initialIndex: 0));
             }

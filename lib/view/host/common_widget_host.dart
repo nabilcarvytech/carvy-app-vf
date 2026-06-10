@@ -46,6 +46,111 @@ bool isValueZero(dynamic value) {
   return false;
 }
 
+bool isHostBookingReviewed(Bookings booking) {
+  return booking.reviewStatus.toString() == '1';
+}
+
+/// Bouton avis vendeur : visible dès que la commande est terminée (onglet Previous).
+bool shouldShowHostAddReviewButton(Bookings booking, String listType) {
+  if (listType != 'Previous') return false;
+  return booking.status?.toStandardStatus() == 'COMPLETED';
+}
+
+bool isHostAddReviewButton(String btnText) {
+  return btnText == 'Add Review' || btnText == 'Add Review'.tr;
+}
+
+Map<String, dynamic>? _extractHostReviewBookingPayload(dynamic response) {
+  if (response is! Map) return null;
+  final data = response['data'];
+  if (data is! Map) return null;
+  final flat = Map<String, dynamic>.from(data);
+  if (flat.containsKey('review_status') ||
+      flat.containsKey('review_rating') ||
+      flat.containsKey('review')) {
+    return flat;
+  }
+  final nested = data['booking'];
+  if (nested is Map) {
+    return Map<String, dynamic>.from(nested);
+  }
+  return null;
+}
+
+bool applyHostReviewFromServerResponse(Bookings booking, dynamic response) {
+  final bookingData = _extractHostReviewBookingPayload(response);
+  if (bookingData == null) {
+    print(
+      'DEBUG_REVIEW: Champs review absents — data=${response is Map ? response['data'] : response}',
+    );
+    return false;
+  }
+  if (!bookingData.containsKey('review_status') ||
+      !bookingData.containsKey('review_rating') ||
+      !bookingData.containsKey('review')) {
+    print('DEBUG_REVIEW: Payload booking incomplet : $bookingData');
+    return false;
+  }
+  booking.reviewStatusSetter = bookingData['review_status'].toString();
+  booking.reviewRatingSetter = bookingData['review_rating'].toString();
+  booking.reviewSetter = bookingData['review']?.toString() ?? '';
+  return true;
+}
+
+/// Mise à jour immédiate en mémoire pour forcer le redraw du bouton.
+void applyHostReviewLocally(
+  Bookings booking, {
+  required int rating,
+  required String message,
+}) {
+  booking.reviewStatusSetter = '1';
+  booking.reviewRatingSetter = rating.toString();
+  booking.reviewSetter = message;
+  print(
+    'DEBUG_REVIEW: État local mis à jour — review_status=1, rating=$rating',
+  );
+}
+
+Color hostReviewButtonColor(Bookings booking, Color activeColor) {
+  if (isHostBookingReviewed(booking)) {
+    return Colors.blue.shade300;
+  }
+  return activeColor;
+}
+
+String hostReviewButtonLabel(Bookings booking, String btnText) {
+  if (isHostBookingReviewed(booking)) {
+    return 'Avis envoyé'.tr;
+  }
+  return btnText.tr;
+}
+
+Future<Map<String, dynamic>?> submitHostReviewApi({
+  required String bookingId,
+  required int rating,
+  required String message,
+}) async {
+  final payload = <String, dynamic>{
+    'booking_id': bookingId,
+    'rating': rating.toString(),
+    'message': message,
+  };
+  print('DEBUG_REVIEW: Payload envoyé : $payload');
+
+  final response = await httpPost(Config.giveReviewByHost, payload);
+  final statusCode = response is Map
+      ? (response['statusCode'] ?? response['status'])
+      : null;
+  print('DEBUG_REVIEW: Statut réponse : $statusCode');
+  print('DEBUG_REVIEW: Body réponse : ${jsonEncode(response)}');
+
+  if (response is Map) {
+    return Map<String, dynamic>.from(response);
+  }
+  print('DEBUG_REVIEW: Réponse non-Map (JSON mal formé ?) : $response');
+  return null;
+}
+
 bool isValueOne(dynamic value) {
   if (value == null) return false;
   if (value == 1 || value == 1.0) return true;
@@ -2661,8 +2766,8 @@ myBookingHostListWidget(
         closeLoading();
         showErrorToastMessage('Erreur de connexion: ${error.toString()}'.tr);
       }
-    } else if (btnText == "Add Review".tr) {
-      if (list[index].reviewStatus != null && list[index].reviewStatus != "0") {
+    } else if (isHostAddReviewButton(btnText)) {
+      if (isHostBookingReviewed(list[index])) {
         await showModalBottomSheet(
           isDismissible: true,
           showDragHandle: true,
@@ -2682,8 +2787,15 @@ myBookingHostListWidget(
           enableDrag: true,
           context: context,
           builder: (context) {
-            return bottomSheetHostReview(list[index].id, count, fromPropBooking,
-                list[index], setState, context);
+            return bottomSheetHostReview(
+              list[index].id,
+              count,
+              fromPropBooking,
+              list[index],
+              setState,
+              context,
+              onReviewSubmitted: refreshData,
+            );
           },
         );
       }
@@ -2764,8 +2876,8 @@ class VendorOrderListView extends StatelessWidget {
                 bookingId: '${list[index].id}',
                 image: image,
                 title: propTitle,
-                conversationId:
-                    "${list[index].userid}_${list[index].id}_${list[index].hostId}",
+                buyerId: '${list[index].userid}',
+                sellerId: '${list[index].hostId}',
                 from: "${list[index].userName}",
                 senderId: "$userId",
                 reciverId: "${list[index].userid}",
@@ -4029,47 +4141,13 @@ class VendorOrderListView extends StatelessWidget {
                                             ? SizedBox()
                                             : listType == 'Cancelled'
                                                 ? SizedBox()
-                                                : isValueOne(list[index].isItemReturned)
-                                                        ? Expanded(
+                                                : shouldShowHostAddReviewButton(
+                                                        list[index], listType)
+                                                    ? Expanded(
                                                             child: InkWell(
-                                                              onTap: () async {
-                                                                if (list[index].userName == null) {
-                                                                  showErrorToastMessage("host not found");
-                                                                  return;
-                                                                }
-
-                                                                try {
-                                                                  showLoading();
-                                                                  await Future.delayed(Duration(seconds: 1));
-                                                                  var responce = {
-                                                                    "status": 200,
-                                                                    "message": "Item details retrieved successfully",
-                                                                    "error": "",
-                                                                    "data": {
-                                                                      "ItemDetails": {
-                                                                        "item_id": int.tryParse("${list[index].itemid}") ?? 101,
-                                                                        "title": "Toyota Camry 2023 - Premium Sedan",
-                                                                        "price": "50.00",
-                                                                        "description": "Experience luxury and comfort in this premium Toyota Camry 2023.",
-                                                                        "item_rating": "4.5",
-                                                                        "status": "1",
-                                                                        "host_id": "1001"
-                                                                      }
-                                                                    }
-                                                                  };
-                                                                  
-                                                                  if (responce != null && responce["status"] == 500) {
-                                                                    closeLoading();
-                                                                    showErrorToastMessage(responce["message"]);
-                                                                    return;
-                                                                  } else {
-                                                                    closeLoading();
-                                                                  }
-                                                                } catch (e) {
-                                                                  closeLoading();
-                                                                }
-
-                                                                innerMethod(context, index);
+                                                              onTap: () {
+                                                                innerMethod(
+                                                                    context, index);
                                                               },
                                                               child: Padding(
                                                                 padding: const EdgeInsets.only(right: 10),
@@ -4081,16 +4159,18 @@ class VendorOrderListView extends StatelessWidget {
                                                                         ? const Color.fromARGB(128, 128, 128, 128)
                                                                         : btnText == "Cancel"
                                                                             ? Colors.red
-                                                                            : list[index].reviewStatus != null && list[index].reviewStatus != "0"
-                                                                                ? Colors.blue
-                                                                                : themeColor,
+                                                                            : hostReviewButtonColor(
+                                                                                list[index],
+                                                                                themeColor,
+                                                                              ),
                                                                     borderRadius: BorderRadius.circular(10),
                                                                   ),
                                                                   child: Center(
                                                                     child: Text(
-                                                                      list[index].reviewStatus != null && list[index].reviewStatus == "1"
-                                                                          ? "View Review".tr
-                                                                          : "$btnText".tr,
+                                                                      hostReviewButtonLabel(
+                                                                        list[index],
+                                                                        btnText,
+                                                                      ),
                                                                       style: boldstyle(context).copyWith(
                                                                         color: Colors.white,
                                                                         fontWeight: FontWeight.bold,
@@ -4524,8 +4604,15 @@ bottomSheetHostReviewed(rating, text) {
 }
 
 TextEditingController textEditingControllerReview = TextEditingController();
-bottomSheetHostReview(id, count, bool fromPropBooking, Bookings bookings,
-    StateSetter setState, context) {
+bottomSheetHostReview(
+  id,
+  count,
+  bool fromPropBooking,
+  Bookings bookings,
+  StateSetter setState,
+  context, {
+  VoidCallback? onReviewSubmitted,
+}) {
   return Container(
     padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
     // height: 600,
@@ -4671,47 +4758,89 @@ bottomSheetHostReview(id, count, bool fromPropBooking, Bookings bookings,
                     return;
                   }
 
-                  showLoading();
-                  // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-                  // var response = await httpPost(Config.giveReviewByHost, {
-                  //   "rating":
-                  //       "${generalScopeController.selectedRatingValue.value.toInt()}",
-                  //   "message": textEditingControllerReview.text,
-                  //   "booking_id": '$id'
-                  // });
-                  
-                  // MOCK: Simulate network delay
-                  await Future.delayed(Duration(seconds: 1));
-                  
-                  // MOCK: Static success response for submitting a review
-                  Map<String, dynamic> response = {
-                    "status": 200,
-                    "message": "Review submitted successfully",
-                    "error": "",
-                    "data": {
-                      "review_id": DateTime.now().millisecondsSinceEpoch,
-                      "booking_id": '$id',
-                      "rating": "${generalScopeController.selectedRatingValue.value.toInt()}",
-                      "message": textEditingControllerReview.text
-                    }
-                  };
-                  // ========== END MOCK DATA ==========
+                  final bookingId = Bookings.normalizeEntityId(id) ??
+                      Bookings.normalizeEntityId(bookings.id);
+                  if (bookingId == null || bookingId.isEmpty) {
+                    showErrorToastMessage('Booking not found'.tr);
+                    return;
+                  }
 
-                  closeLoading();
-                  if (response != null) {
-                    if (response['status'] == 200) {
-                      showToastMessage(response['message']);
-                      bookings.reviewStatusSetter = "1";
-                      bookings.reviewRatingSetter =
-                          "${generalScopeController.selectedRatingValue.value.toInt()}";
-                      bookings.reviewSetter = textEditingControllerReview.text;
-                      textEditingControllerReview.text = "";
-                      generalScopeController.selectedRatingValue.value = 0.0;
-                      setState(() {});
-                      Navigator.of(context).pop("popped");
-                    } else {
-                      showErrorToastMessage(response['error']);
+                  final rating =
+                      generalScopeController.selectedRatingValue.value.toInt();
+                  final message = textEditingControllerReview.text.trim();
+
+                  showLoading();
+                  try {
+                    final response = await submitHostReviewApi(
+                      bookingId: bookingId,
+                      rating: rating,
+                      message: message,
+                    );
+                    closeLoading();
+
+                    if (response == null) {
+                      print(
+                        'DEBUG_REVIEW: Erreur serveur : réponse nulle ou JSON mal formé',
+                      );
+                      showErrorToastMessage('Erreur de connexion'.tr);
+                      return;
                     }
+
+                    final httpStatus = response['statusCode'];
+                    final apiStatus = response['status'];
+                    if (httpStatus != null && httpStatus != 200) {
+                      final serverError = response['message']?.toString() ??
+                          response['error']?.toString() ??
+                          'HTTP $httpStatus';
+                      print('DEBUG_REVIEW: Erreur serveur : $serverError');
+                      showErrorToastMessage(serverError);
+                      return;
+                    }
+
+                    if (apiStatus != 200) {
+                      final serverError = response['message']?.toString() ??
+                          response['error']?.toString() ??
+                          'Une erreur est survenue'.tr;
+                      print(
+                        'DEBUG_REVIEW: Erreur API (status=$apiStatus) : $serverError',
+                      );
+                      showErrorToastMessage(serverError);
+                      return;
+                    }
+
+                    final appliedFromServer =
+                        applyHostReviewFromServerResponse(bookings, response);
+                    if (!appliedFromServer) {
+                      applyHostReviewLocally(
+                        bookings,
+                        rating: rating,
+                        message: message,
+                      );
+                    }
+
+                    textEditingControllerReview.text = '';
+                    generalScopeController.selectedRatingValue.value = 0.0;
+                    setState(() {});
+                    Navigator.of(context).pop('popped');
+                    onReviewSubmitted?.call();
+                    Get.snackbar(
+                      'Success'.tr,
+                      'Avis publié avec succès'.tr,
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: Colors.green.shade600,
+                      colorText: Colors.white,
+                      margin: const EdgeInsets.all(16),
+                      duration: const Duration(seconds: 3),
+                      icon: const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.white,
+                      ),
+                    );
+                  } catch (e, st) {
+                    closeLoading();
+                    print('DEBUG_REVIEW: Exception : $e');
+                    print('DEBUG_REVIEW: Stack : $st');
+                    showErrorToastMessage('Erreur de connexion'.tr);
                   }
                 },
                 child: Container(

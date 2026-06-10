@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
 import '../api/config.dart';
+import '../customwidget/miscellaneous_project_elements.dart';
 import '../model/booking_model.dart';
+import '../model/extension_payment_context.dart';
 import '../work_space.dart';
 
 /// Controller pour gérer les enregistrements de réservations (booking records)
@@ -624,6 +626,165 @@ class BookingRecordController extends GetxController implements GetxService {
       bookingsList.removeAt(index);
       update();
     }
+  }
+
+  String? _userAuthToken() {
+    String? authToken = GetStorage().read('token')?.toString();
+    if (authToken != null && authToken.isNotEmpty) {
+      return authToken;
+    }
+    if (token.isNotEmpty) {
+      return token;
+    }
+    try {
+      final userData = GetStorage().read('UserData');
+      if (userData != null) {
+        final userDataMap = jsonDecode(userData);
+        final nested = userDataMap['data']?['token']?.toString();
+        if (nested != null && nested.isNotEmpty) {
+          return nested;
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [BookingRecord] _userAuthToken: $e');
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> _postReservationAuthed(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final authToken = _userAuthToken();
+    if (authToken == null || authToken.isEmpty) {
+      showErrorToastMessage('Something went wrong'.tr);
+      return null;
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${Config.baseurl}$path'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $authToken',
+              'x-auth-token': authToken,
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      Map<String, dynamic> decoded;
+      try {
+        decoded = Map<String, dynamic>.from(jsonDecode(response.body));
+      } catch (e) {
+        debugPrint('❌ [BookingRecord] extend JSON parse: $e');
+        showErrorToastMessage('Something went wrong'.tr);
+        return null;
+      }
+      decoded['statusCode'] = response.statusCode;
+      return decoded;
+    } catch (e) {
+      debugPrint('❌ [BookingRecord] _postReservationAuthed: $e');
+      showErrorToastMessage(e.toString());
+      return null;
+    }
+  }
+
+  /// POST /api/v1/reservations/:id/extend-preview
+  Future<Map<String, dynamic>?> extendReservationPreview({
+    required String bookingId,
+    required String newEndDate,
+  }) async {
+    final response = await _postReservationAuthed(
+      Config.reservationExtendPreview(bookingId),
+      {'new_end_date': newEndDate},
+    );
+    if (response == null) return null;
+
+    final ok = response['statusCode'] == 200 ||
+        response['status'] == 200 ||
+        response['status'] == '200' ||
+        response['success'] == true;
+    if (!ok) {
+      showErrorToastMessage(
+        response['error']?.toString() ??
+            response['message']?.toString() ??
+            'Error'.tr,
+      );
+      return null;
+    }
+
+    final data = response['data'];
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+    showErrorToastMessage('Something went wrong'.tr);
+    return null;
+  }
+
+  /// POST /api/v1/reservations/:id/extend-confirm
+  Future<bool> extendReservationConfirm({
+    required String bookingId,
+    required String newEndDate,
+    String? paymentMethodId,
+  }) async {
+    final result = await extendReservationConfirmWithDetails(
+      bookingId: bookingId,
+      newEndDate: newEndDate,
+      paymentMethodId: paymentMethodId,
+    );
+    return result?.success == true;
+  }
+
+  /// Même route que [extendReservationConfirm], avec détails (ex. payment_url).
+  Future<ReservationExtendConfirmResult?> extendReservationConfirmWithDetails({
+    required String bookingId,
+    required String newEndDate,
+    String? paymentMethodId,
+  }) async {
+    final body = <String, dynamic>{'new_end_date': newEndDate};
+    if (paymentMethodId != null && paymentMethodId.trim().isNotEmpty) {
+      body['payment_method_id'] = paymentMethodId.trim();
+    }
+
+    final response = await _postReservationAuthed(
+      Config.reservationExtendConfirm(bookingId),
+      body,
+    );
+    if (response == null) return null;
+
+    final ok = response['statusCode'] == 200 ||
+        response['status'] == 200 ||
+        response['status'] == '200' ||
+        response['success'] == true;
+
+    String? paymentUrl;
+    final data = response['data'];
+    if (data is Map) {
+      paymentUrl = data['payment_url']?.toString() ??
+          data['paymentUrl']?.toString();
+    }
+    paymentUrl ??= response['payment_url']?.toString();
+
+    if (ok) {
+      return ReservationExtendConfirmResult(
+        success: true,
+        paymentUrl: paymentUrl,
+        message: response['message']?.toString(),
+      );
+    }
+
+    showErrorToastMessage(
+      response['error']?.toString() ??
+          response['message']?.toString() ??
+          'Error'.tr,
+    );
+    return ReservationExtendConfirmResult(
+      success: false,
+      paymentUrl: paymentUrl,
+      message: response['message']?.toString(),
+    );
   }
 }
 

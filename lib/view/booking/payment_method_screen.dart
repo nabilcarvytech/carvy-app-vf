@@ -13,10 +13,12 @@ import 'package:carvy/api/config.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
   final String vehicleId;
-  
+  final bool isExtension;
+
   const PaymentMethodScreen({
     super.key,
     required this.vehicleId,
+    this.isExtension = false,
   });
 
   @override
@@ -29,8 +31,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   @override
   void initState() {
     super.initState();
-    // Charger les méthodes de paiement au démarrage
     bookingController.fetchPaymentMethods();
+    if (!widget.isExtension && bookingController.extensionPaymentContext != null) {
+      bookingController.setExtensionPaymentContext(null);
+    }
   }
 
   // Fonction pour nettoyer les URLs (utilise Config.baseurl au lieu d'URLs en dur)
@@ -56,14 +60,25 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   }
 
   // Calculer le montant final avec les frais de gestion
-  double calculateFinalAmount(PaymentMethod method) {
+  double _checkoutBaseAmount() {
+    if (widget.isExtension) {
+      return bookingController.extensionCheckoutBaseAmount();
+    }
     if (bookingController.getItemPrices?.data?.grossPrice == null) {
       return 0.0;
     }
-
     try {
-      double basePrice = double.parse(
+      return double.parse(
           bookingController.getItemPrices!.data!.grossPrice.toString());
+    } catch (e) {
+      return 0.0;
+    }
+  }
+
+  double calculateFinalAmount(PaymentMethod method) {
+    final basePrice = _checkoutBaseAmount();
+    if (basePrice <= 0) return 0.0;
+    try {
       double feePercentage = method.feePercentage ?? 0.0;
       double feeAmount = basePrice * (feePercentage / 100);
       return basePrice + feeAmount;
@@ -97,13 +112,59 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
   // Formater le montant avec la devise
   String formatAmount(double amount) {
+    final currencySymbol = widget.isExtension
+        ? (bookingController.extensionPaymentContext?.currency ??
+            bookingController.currency)
+        : bookingController.currency;
     final formatter = NumberFormat.currency(
-      symbol: bookingController.currency.isNotEmpty
-          ? bookingController.currency
-          : '\$',
+      symbol: currencySymbol.isNotEmpty ? currencySymbol : '\$',
       decimalDigits: 2,
     );
     return formatter.format(amount);
+  }
+
+  Widget _buildExtensionSummary(BuildContext context) {
+    final ctx = bookingController.extensionPaymentContext;
+    if (ctx == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: notifires.getBoxColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: notifires.getGrey6Whitecolor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Extension of @days days'.trParams({'days': '${ctx.extraDays}'}),
+            style: boldstyle(context).copyWith(fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'extension_added_period'.trParams({
+              'from': ctx.oldEndLabel,
+              'to': ctx.newEndLabel,
+            }),
+            style: regular2(context),
+          ),
+          if (ctx.startLabel != null && ctx.startLabel!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'extension_total_rental_period'.trParams({
+                'from': ctx.startLabel!,
+                'to': ctx.newEndLabel,
+              }),
+              style: regular3(context).copyWith(
+                color: notifires.getGrey2Whitecolor,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   @override
@@ -150,7 +211,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           ),
         ),
         title: Text(
-          'select_payment_method'.tr,
+          widget.isExtension
+              ? 'extension_checkout_title'.tr
+              : 'select_payment_method'.tr,
           style: heading2Grey1(context),
         ),
       ),
@@ -237,9 +300,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: methodsToDisplay.length,
+                  itemCount: methodsToDisplay.length +
+                      (widget.isExtension ? 1 : 0),
                   itemBuilder: (context, index) {
-                    final method = methodsToDisplay[index];
+                    if (widget.isExtension && index == 0) {
+                      return _buildExtensionSummary(context);
+                    }
+                    final methodIndex =
+                        widget.isExtension ? index - 1 : index;
+                    final method = methodsToDisplay[methodIndex];
                 
                     // Log pour diagnostic
                     print('Affichage de la méthode: ${method.name}');
@@ -440,7 +509,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       ],
                     ),
                   )
-                else if (index < methodsToDisplay.length - 1)
+                else if (methodIndex < methodsToDisplay.length - 1)
                   const SizedBox(height: 16),
               ],
             );
@@ -474,11 +543,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         isLoading)
                     ? null
                     : () {
-                        // Appeler processBooking avec la méthode sélectionnée
-                        bookingController.processBooking(
-                          vehicleId: widget.vehicleId,
-                          widgetVehicleId: widget.vehicleId,
-                        );
+                        if (widget.isExtension) {
+                          bookingController.processExtensionPayment();
+                        } else {
+                          bookingController.processBooking(
+                            vehicleId: widget.vehicleId,
+                            widgetVehicleId: widget.vehicleId,
+                          );
+                        }
                       },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: getColorBasedOnActiveModuleid(),

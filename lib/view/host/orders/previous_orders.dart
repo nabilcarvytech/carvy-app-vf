@@ -187,7 +187,9 @@ class _PreviousOrdersState extends State<PreviousOrders> {
                       stateSetter,
                       widget.fromPropBooking,
                       "Previous",
-                      onItemCancelled),
+                      onItemCancelled,
+                      refreshData: onRefresh,
+                    ),
         ));
   }
 }
