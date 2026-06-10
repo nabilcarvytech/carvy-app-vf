@@ -3,6 +3,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/helper/web_router.dart';
+import 'package:carvy/utils/safe_navigation.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/work_space.dart';
@@ -64,7 +65,7 @@ Widget connectionError(BuildContext context, String? name,
               ),
               InkWell(
                   onTap: () {
-                    Get.back();
+                    safeGetBack(context: context);
                   },
                   child: Text(
                     "Back",
@@ -123,7 +124,7 @@ Widget buildNoDataWidgetforDetail(BuildContext context, String? name,
                         );
                       }
                     } else {
-                      Get.back();
+                      safeGetBack(context: context);
                     }
                   },
                   child: Text(

@@ -153,6 +153,91 @@ Widget buildAgencyReviewListTile(
   );
 }
 
+/// Avis laissé par un vendeur sur un client (profil client).
+Widget buildVendorToClientReviewListTile(
+  BuildContext context,
+  Map<String, dynamic> review,
+) {
+  final rating = ReviewRatings.parseNumeric(
+    review['rating'] ??
+        review['vendor_rating'] ??
+        review['average_rating'],
+  );
+  final vendorName = review['vendor_name']?.toString() ??
+      review['vendorName']?.toString() ??
+      review['host_name']?.toString() ??
+      review['hostName']?.toString() ??
+      'Vendor'.tr;
+  final comment = review['comment']?.toString() ??
+      review['message']?.toString() ??
+      review['review']?.toString() ??
+      '';
+  final createdAt = review['created_at']?.toString() ??
+      review['updated_at']?.toString() ??
+      review['date']?.toString() ??
+      '';
+
+  String formattedDate = createdAt;
+  try {
+    if (createdAt.isNotEmpty) {
+      final date = DateTime.parse(createdAt).toLocal();
+      formattedDate = '${date.day}/${date.month}/${date.year}';
+    }
+  } catch (_) {}
+
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: notifires.getBoxColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: notifires.getGrey3Whitecolor,
+                child: Icon(
+                  Icons.storefront_outlined,
+                  color: notifires.getwhiteblackcolor,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(vendorName, style: boldstyle(context)),
+                    if (formattedDate.isNotEmpty)
+                      Text(
+                        formattedDate,
+                        style: regular2(context).copyWith(
+                          color: notifires.getGrey3Whitecolor,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              _readOnlyStars(rating, itemSize: 18),
+            ],
+          ),
+          if (comment.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(comment, style: regular2(context)),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
 Widget _readOnlyStars(double rating, {double itemSize = 20}) {
   return RatingBar.builder(
     initialRating: rating,

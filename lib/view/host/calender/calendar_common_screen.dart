@@ -15,6 +15,7 @@ import 'package:carvy/model/my_items_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
+import 'package:carvy/utils/safe_navigation.dart';
 import 'package:carvy/view/host/calender/add_price_on_common_calander.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/host/initial_host_common_screen.dart';
@@ -708,6 +709,11 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
     return false;
   }
 
+  /// Fermeture sécurisée (Snackbar GetX + pop) pour éviter LateInitializationError.
+  void handleBackNavigation({VoidCallback? then}) {
+    safeGetBack(context: context, then: then);
+  }
+
   @override
   Widget build(BuildContext context) {
     return showerrorWhenloginwithOtherDevice == "token not match"
@@ -1315,7 +1321,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
               const Spacer(),
               InkWell(
                   onTap: () {
-                    Get.back();
+                    handleBackNavigation();
                   },
                   child: Card(
                     elevation: 5,
@@ -1342,16 +1348,14 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
               itemBuilder: (context, index) {
                 return InkWell(
                   onTap: () {
-                    // 1. Fermer le modal de sélection
-                    Get.back();
-                    
-                    // 2. Mettre à jour le véhicule sélectionné
-                    setState(() {
-                      initialitems = list[index];
+                    final selected = list[index];
+                    handleBackNavigation(then: () {
+                      if (!mounted) return;
+                      setState(() {
+                        initialitems = selected;
+                      });
+                      fetchDataCalendar();
                     });
-                    
-                    // 3. Recharger les données du calendrier pour ce nouveau véhicule
-                    fetchDataCalendar();
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),

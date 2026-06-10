@@ -31,6 +31,7 @@ import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/utils/vehicle_common_widgets.dart';
 import 'package:carvy/view/chat/conversation_screen.dart';
 import 'package:carvy/view/digitalsignatuecommon/digital_singnature.dart';
+import 'package:carvy/view/host/client_profile_screen.dart';
 import 'package:carvy/view/host/host_e_receipt.dart';
 import 'package:carvy/view/host/hostsearch/host_search_screen.dart';
 import 'package:carvy/view/itemdetail/vehicle/vehicle_detail_screen.dart';
@@ -3245,6 +3246,44 @@ class VendorOrderListView extends StatelessWidget {
                                     : const SizedBox(),
                               ],
                             ),
+                            if (Bookings.normalizeEntityId(
+                                    list[index].userid) !=
+                                null) ...[
+                              const SizedBox(height: 10),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton.icon(
+                                  onPressed: () {
+                                    final clientId = Bookings.normalizeEntityId(
+                                      list[index].userid,
+                                    );
+                                    if (clientId == null || clientId.isEmpty) {
+                                      showErrorToastMessage(
+                                        'Client not found'.tr,
+                                      );
+                                      return;
+                                    }
+                                    Get.to(
+                                      () => ClientProfileScreen(
+                                        clientId: clientId,
+                                      ),
+                                    );
+                                  },
+                                  icon: Icon(
+                                    Icons.person_outline,
+                                    size: 18,
+                                    color: getColorBasedOnActiveModuleid(),
+                                  ),
+                                  label: Text(
+                                    'View client profile'.tr,
+                                    style: regular2(context).copyWith(
+                                      color: getColorBasedOnActiveModuleid(),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(
                               height: 10,
                             ),

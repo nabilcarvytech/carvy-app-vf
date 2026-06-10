@@ -151,6 +151,11 @@ class Config {
       'mark-booking-returned-direct';
   static const String submitReview = 'submit-review';
   static const String vendorReviews = 'vendor-reviews';
+
+  /// GET `/api/v1/client-profile/:clientId` — profil client (vue vendeur).
+  static String clientProfilePath(String clientId) =>
+      'client-profile/${Uri.encodeComponent(clientId)}';
+
   static const String fuelType = 'get-vehicle-fuel-types';
   static const String saveDoorStepAddress = 'save-door-step-address';
   static const String getDoorStepAddress = 'get-door-step-address';

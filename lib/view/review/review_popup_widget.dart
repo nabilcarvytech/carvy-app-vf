@@ -3,6 +3,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:get/get.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/controller/booking_controller.dart';
+import 'package:carvy/controller/booking_record_controller.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/http_service.dart';
@@ -129,23 +130,46 @@ void showReviewRequestNotificationBottomSheet(
                             }
                             showLoading();
                             try {
+                              final bookingId = Bookings.normalizeEntityId(
+                                      data['booking_id']) ??
+                                  '';
+                              final vendorId = Bookings.normalizeEntityId(
+                                      data['vendor_id']) ??
+                                  '';
+                              Bookings? bookingFromList;
+                              if (Get.isRegistered<BookingRecordController>()) {
+                                final brc = Get.find<BookingRecordController>();
+                                for (final b in brc.bookingsList) {
+                                  if (Bookings.normalizeEntityId(b.id) ==
+                                      bookingId) {
+                                    bookingFromList = b;
+                                    break;
+                                  }
+                                }
+                              }
+                              final vehicleId =
+                                  Bookings.resolveVehicleIdForReviewPayload(
+                                data,
+                                booking: bookingFromList,
+                              );
+                              if (vehicleId == null || vehicleId.isEmpty) {
+                                closeLoading();
+                                showErrorToastMessage(
+                                  'Vehicle not found'.tr,
+                                );
+                                return;
+                              }
                               final response = await httpPost(
                                 Config.submitReview,
                                 {
-                                  "booking_id": Bookings.normalizeEntityId(
-                                          data['booking_id']) ??
-                                      "",
-                                  "vendor_id": Bookings.normalizeEntityId(
-                                          data['vendor_id']) ??
-                                      "",
-                                  "vehicle_id": Bookings.normalizeEntityId(
-                                          data['vehicle_id']) ??
-                                      "",
-                                  "vehicle_rating":
+                                  'booking_id': bookingId,
+                                  'vendor_id': vendorId,
+                                  'vehicle_id': vehicleId,
+                                  'vehicle_rating':
                                       vehicleConditionRating.round(),
-                                  "agency_rating":
+                                  'agency_rating':
                                       communicationRating.round(),
-                                  "comment": commentController.text.trim(),
+                                  'comment': commentController.text.trim(),
                                 },
                               );
                               closeLoading();

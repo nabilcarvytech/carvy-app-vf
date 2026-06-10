@@ -163,18 +163,6 @@ class BookingController extends GetxController implements GetxService {
     isSubmittingReview.value = false;
   }
 
-  String? _pickBestVehicleIdForReview(List<String?> candidates) {
-    final cleaned = candidates
-        .map((c) => c?.trim())
-        .whereType<String>()
-        .where((s) => s.isNotEmpty && s.toLowerCase() != 'null')
-        .toList();
-    for (final id in cleaned) {
-      if (Bookings.isLikelyMongoObjectId(id)) return id;
-    }
-    return cleaned.isNotEmpty ? cleaned.first : null;
-  }
-
   void _logReviewIdDebug(Bookings booking, String? resolvedVehicleId) {
     debugPrint('🚨 [DEBUG REVIEW] ========== IDs réservation ==========');
     debugPrint('🚨 [DEBUG REVIEW] Booking ID (brut): ${booking.id}');
@@ -192,105 +180,6 @@ class BookingController extends GetxController implements GetxService {
       '🚨 [DEBUG REVIEW] Format MongoDB 24 hex: ${Bookings.isLikelyMongoObjectId(resolvedVehicleId)}',
     );
     debugPrint('🚨 [DEBUG REVIEW] =====================================');
-  }
-
-  /// ID direct utilisable (non null, non vide, non "null").
-  String? _directReviewId(String? raw) {
-    final normalized = Bookings.normalizeEntityId(raw);
-    if (normalized == null || normalized.isEmpty) return null;
-    if (normalized.toLowerCase() == 'null') return null;
-    return normalized;
-  }
-
-  /// Fouille [item_data] : List, Map ou String JSON.
-  String? _extractVehicleIdFromItemDataDeep(dynamic itemData) {
-    if (itemData == null) return null;
-
-    final isEmpty = itemData is List
-        ? itemData.isEmpty
-        : itemData is String
-            ? itemData.trim().isEmpty
-            : itemData is Map
-                ? itemData.isEmpty
-                : itemData.toString().trim().isEmpty;
-    if (isEmpty) return null;
-
-    try {
-      dynamic working = itemData;
-
-      if (itemData is String && itemData.trim().isNotEmpty) {
-        final t = itemData.trim();
-        if (t.startsWith('[') || t.startsWith('{')) {
-          working = jsonDecode(t);
-        }
-      }
-
-      dynamic firstItem;
-      if (working is List && working.isNotEmpty) {
-        firstItem = working[0];
-      } else if (working is Map) {
-        firstItem = working;
-      } else {
-        return null;
-      }
-
-      if (firstItem is! Map) return null;
-      final map = Map<String, dynamic>.from(firstItem);
-
-      final fromMap = Bookings.normalizeEntityId(map['_id']) ??
-          Bookings.normalizeEntityId(map['id']) ??
-          Bookings.normalizeEntityId(map['item_id']) ??
-          Bookings.normalizeEntityId(map['itemid']) ??
-          Bookings.normalizeEntityId(map['vehicle_id']) ??
-          Bookings.normalizeEntityId(map['vehicleId']);
-
-      if (fromMap != null) {
-        debugPrint('🚨 [DEBUG REVIEW] item_data[0] clés: ${map.keys.toList()}');
-        debugPrint('🚨 [DEBUG REVIEW] item_data → id extrait: $fromMap');
-      }
-      return fromMap;
-    } catch (e, st) {
-      debugPrint('🚨 Erreur lors de l\'extraction dans item_data: $e');
-      debugPrint('$st');
-    }
-    return null;
-  }
-
-  String? _resolveVehicleIdForReview(Bookings booking) {
-    // 1. Essais directs
-    final directVehicle = _directReviewId(booking.vehicleId);
-    if (directVehicle != null) {
-      debugPrint(
-          '🚨 [DEBUG REVIEW] _resolveVehicleIdForReview ← vehicleId: $directVehicle');
-      return directVehicle;
-    }
-
-    final directItem = _directReviewId(booking.itemid);
-    if (directItem != null) {
-      debugPrint(
-          '🚨 [DEBUG REVIEW] _resolveVehicleIdForReview ← itemid: $directItem');
-      return directItem;
-    }
-
-    // 2. Fallback : recherche en profondeur dans item_data
-    final fromItemData = _extractVehicleIdFromItemDataDeep(booking.itemData);
-    if (fromItemData != null) {
-      final best = _pickBestVehicleIdForReview([fromItemData]) ?? fromItemData;
-      debugPrint(
-          '🚨 [DEBUG REVIEW] _resolveVehicleIdForReview ← item_data: $best');
-      return best;
-    }
-
-    // 3. Dernier recours via helper du modèle
-    final fallback = Bookings.extractVehicleIdFromItemData(booking.itemData);
-    if (fallback != null) {
-      debugPrint(
-          '🚨 [DEBUG REVIEW] _resolveVehicleIdForReview ← extractVehicleIdFromItemData: $fallback');
-      return fallback;
-    }
-
-    debugPrint('🚨 [DEBUG REVIEW] _resolveVehicleIdForReview → null');
-    return null;
   }
 
   void _markBookingReviewedLocally(Bookings booking) {
@@ -314,7 +203,7 @@ class BookingController extends GetxController implements GetxService {
   }) async {
     final bookingId = Bookings.normalizeEntityId(booking.id);
     final vendorId = Bookings.normalizeEntityId(booking.hostId);
-    final vehicleId = _resolveVehicleIdForReview(booking);
+    final vehicleId = Bookings.resolveVehicleIdForReview(booking);
 
     _logReviewIdDebug(booking, vehicleId);
 

@@ -355,14 +355,72 @@ class Bookings {
       }
       if (decoded is! Map) return null;
       final map = Map<String, dynamic>.from(decoded);
-      return normalizeEntityId(map['_id']) ??
+      final fromMap = normalizeEntityId(map['_id']) ??
           normalizeEntityId(map['vehicle_id']) ??
           normalizeEntityId(map['vehicleId']) ??
           normalizeEntityId(map['item_id']) ??
+          normalizeEntityId(map['itemid']) ??
           normalizeEntityId(map['id']);
-    } catch (_) {
-      return null;
+      if (fromMap != null) return fromMap;
+
+      if (map.containsKey('item_info')) {
+        try {
+          dynamic rawInfo = map['item_info'];
+          Map<String, dynamic>? infoMap;
+          if (rawInfo is String && rawInfo.trim().isNotEmpty) {
+            infoMap = Map<String, dynamic>.from(jsonDecode(rawInfo));
+          } else if (rawInfo is Map) {
+            infoMap = Map<String, dynamic>.from(rawInfo);
+          }
+          if (infoMap != null) {
+            return normalizeEntityId(infoMap['vehicle_id']) ??
+                normalizeEntityId(infoMap['vehicleId']) ??
+                normalizeEntityId(infoMap['item_id']) ??
+                normalizeEntityId(infoMap['itemid']) ??
+                normalizeEntityId(infoMap['_id']) ??
+                normalizeEntityId(infoMap['id']);
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// ID véhicule pour [submit-review] — champs directs puis [item_data].
+  static String? resolveVehicleIdForReview(Bookings booking) {
+    booking.enrichVehicleFieldsLikeVendor();
+
+    final candidates = <String?>[
+      normalizeEntityId(booking.vehicleId),
+      normalizeEntityId(booking.itemid),
+      extractVehicleIdFromItemData(booking.itemData),
+    ];
+
+    for (final id in candidates) {
+      if (id != null && isLikelyMongoObjectId(id)) return id;
     }
+    for (final id in candidates) {
+      if (id != null && id.isNotEmpty) return id;
+    }
+    return null;
+  }
+
+  /// Résout vehicle_id depuis une map notification / payload API.
+  static String? resolveVehicleIdForReviewPayload(
+    Map<String, dynamic> data, {
+    Bookings? booking,
+  }) {
+    if (booking != null) {
+      final fromBooking = resolveVehicleIdForReview(booking);
+      if (fromBooking != null && fromBooking.isNotEmpty) {
+        return fromBooking;
+      }
+    }
+    return normalizeEntityId(data['vehicle_id']) ??
+        normalizeEntityId(data['vehicleId']) ??
+        normalizeEntityId(data['item_id']) ??
+        normalizeEntityId(data['itemid']) ??
+        extractVehicleIdFromItemData(data['item_data']);
   }
 
   static bool _isWeakVehicleTitle(String? title) {
