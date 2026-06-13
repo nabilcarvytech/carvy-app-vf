@@ -43,37 +43,47 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
     await _setCustomMarkerIcon();
     if (!mounted) return;
 
-    if (addAddressController.hasValidDoorstepCoordinates) {
+    final hasSavedCoords = addAddressController.hasValidDoorstepCoordinates;
+    final hasSavedAddress = addAddressController.addressText.value
+            .trim()
+            .isNotEmpty ||
+        addAddressController.fullAddressController.text.trim().isNotEmpty;
+
+    if (hasSavedCoords && hasSavedAddress) {
       final lat = double.parse(addAddressController.doorSteplatitude.value);
       final lng = double.parse(addAddressController.doorSteplongitude.value);
       final target = LatLng(lat, lng);
       _updateMarkerPosition(target);
       _pendingCameraTarget = target;
       _applyPendingCamera();
-      final needsResolve = addAddressController.addressText.value.trim().isEmpty &&
-          addAddressController.fullAddressController.text.trim().isEmpty;
-      if (needsResolve) {
-        await addAddressController.resolveAddressFromLatLng(lat, lng);
-      }
-    } else {
-      await addAddressController.getUserLocationForBetterSearch(context);
+      return;
+    }
+
+    if (hasSavedCoords && !hasSavedAddress) {
+      final lat = double.parse(addAddressController.doorSteplatitude.value);
+      final lng = double.parse(addAddressController.doorSteplongitude.value);
+      await addAddressController.resolveAddressFromLatLng(lat, lng);
       if (!mounted) return;
-      if (addAddressController.hasValidDoorstepCoordinates) {
-        final lat = double.parse(addAddressController.doorSteplatitude.value);
-        final lng = double.parse(addAddressController.doorSteplongitude.value);
+      if (addAddressController.fullAddressController.text.trim().isNotEmpty) {
         final target = LatLng(lat, lng);
         _updateMarkerPosition(target);
         _pendingCameraTarget = target;
         _applyPendingCamera();
-      } else {
-        final fallback = LatLng(
-          AddAddressController.fallbackMapLat,
-          AddAddressController.fallbackMapLng,
-        );
-        _updateMarkerPosition(fallback);
-        _pendingCameraTarget = fallback;
-        _applyPendingCamera();
+        setState(() {});
+        return;
       }
+    }
+
+    await _moveToCurrentLocation();
+    if (!mounted) return;
+    if (!addAddressController.hasValidDoorstepCoordinates) {
+      final fallback = LatLng(
+        AddAddressController.fallbackMapLat,
+        AddAddressController.fallbackMapLng,
+      );
+      _updateMarkerPosition(fallback);
+      _pendingCameraTarget = fallback;
+      _applyPendingCamera();
     }
     if (mounted) setState(() {});
   }
@@ -191,6 +201,23 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
     mapController.animateCamera(
       CameraUpdate.zoomOut(),
     );
+  }
+
+  /// GPS → reverse geocoding → centrage carte + marqueur.
+  Future<void> _moveToCurrentLocation() async {
+    final coords = await addAddressController.fetchCurrentLocation(context);
+    if (!mounted || coords == null) return;
+
+    final target = LatLng(coords.lat, coords.lng);
+    _updateMarkerPosition(target);
+    if (_mapControllerReady) {
+      await mapController.animateCamera(
+        CameraUpdate.newLatLngZoom(target, 16),
+      );
+    } else {
+      _pendingCameraTarget = target;
+    }
+    setState(() {});
   }
 
   final FocusNode _focusNode = FocusNode();
@@ -563,35 +590,7 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
                                 elevation: 2,
                                 borderRadius: BorderRadius.circular(8),
                                 child: InkWell(
-                                    onTap: () {
-                                      addAddressController
-                                          .getUserLocationForBetterSearch(
-                                              context)
-                                          .then((_) {
-                                        if (!mounted) return;
-                                        setState(() {});
-                                        if (!addAddressController
-                                            .hasValidDoorstepCoordinates) {
-                                          return;
-                                        }
-                                        final t = LatLng(
-                                          double.parse(addAddressController
-                                              .doorSteplatitude.value),
-                                          double.parse(addAddressController
-                                              .doorSteplongitude.value),
-                                        );
-                                        _updateMarkerPosition(t);
-                                        if (_mapControllerReady) {
-                                          mapController.animateCamera(
-                                            CameraUpdate.newLatLng(t),
-                                          );
-                                        } else {
-                                          _pendingCameraTarget = t;
-                                        }
-                                      }).catchError((e) {
-                                        print("Error: $e");
-                                      });
-                                    },
+                                    onTap: _moveToCurrentLocation,
                                     child: Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 7, vertical: 4),
@@ -599,8 +598,16 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
                                             color: Colors.white,
                                             borderRadius:
                                                 BorderRadius.circular(8)),
-                                        child:
-                                            const Icon(Icons.location_on))))),
+                                        child: Tooltip(
+                                          message: 'Current location'.tr,
+                                          child: const Icon(
+                                            Icons.my_location,
+                                          ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
                       ],
                     ),
             ),

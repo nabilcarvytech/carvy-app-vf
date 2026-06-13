@@ -1171,6 +1171,12 @@ const Map<String, String> frFR = {
   "Please select the address from the map.":
       "Veuillez sélectionner l'adresse sur la carte.",
   "Retrieving your location...": "Récupération de votre position...",
+  "location_required_for_address":
+      "La localisation est nécessaire pour définir votre adresse. Veuillez activer le GPS.",
+  "open_location_settings": "Ouvrir les paramètres",
+  "Current location": "Localisation actuelle",
+  "The selected date range must be within the current month and the next two months.":
+      "La plage de dates doit être comprise entre le mois en cours et les deux mois suivants.",
   "Select a location on the map or use the search field.":
       "Sélectionnez un lieu sur la carte ou utilisez la recherche.",
   "Error: Invalid Google API key. Please check your configuration.":
@@ -1401,6 +1407,11 @@ const Map<String, String> frFR = {
   "Register step terms subtitle":
       "Lisez les points suivants avant de continuer.",
   "register_wizard_resend_in_seconds": "Renvoyer le code dans @n s",
+  "otp_channel_modal_title": "Comment souhaitez-vous recevoir votre code ?",
+  "otp_channel_modal_subtitle":
+      "Choisissez SMS ou WhatsApp pour recevoir votre code de vérification.",
+  "otp_whatsapp_fallback_sms":
+      "WhatsApp n'est pas disponible, envoi par SMS en cours...",
   "terms_general_subtitle_read_all":
       "Veuillez lire toutes les règles jusqu’en bas avant de continuer.",
   "terms_general_scroll_to_enable":

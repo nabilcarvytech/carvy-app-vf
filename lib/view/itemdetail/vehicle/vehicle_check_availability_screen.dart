@@ -7,6 +7,7 @@ import 'package:carvy/controller/add_address_controller.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:get/get.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/rolling_calendar_bounds.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/myaccount/addaddress/pick_address_with_map.dart';
@@ -289,7 +290,15 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     borderRadius: BorderRadius.circular(0),
                                   ),
                                   child: SfDateRangePicker(
-                                minDate: DateTime.now(),
+                                minDate: RollingCalendarBounds.firstDate(),
+                                maxDate: RollingCalendarBounds.lastDate(),
+                                enablePastDates: false,
+                                onViewChanged: (args) {
+                                  RollingCalendarBounds.clampPickerView(
+                                    args,
+                                    bookingController.dateRangePickerController,
+                                  );
+                                },
                                 headerHeight: 0,
                                 headerStyle: DateRangePickerHeaderStyle(
                                   backgroundColor: whiteColor,
@@ -301,7 +310,6 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                 ),
                                 backgroundColor: whiteColor,
                                 allowViewNavigation: false,
-                                enablePastDates: true,
                                 controller:
                                     bookingController.dateRangePickerController,
                                 selectionMode:
@@ -387,6 +395,14 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                   }
                                   DateTime today =
                                       DateTime(now.year, now.month, now.day);
+                                  final bool outsideWindow =
+                                      !RollingCalendarBounds.isWithinWindow(
+                                          cellDate);
+                                  final bool isPastOrUnavailable =
+                                      (cellDate.isBefore(today) &&
+                                              cellDate != today) ||
+                                          outsideWindow ||
+                                          !isDateAvailable;
 
                                   return Container(
                                     margin: const EdgeInsets.all(1),
@@ -394,9 +410,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(color: grey5),
-                                      color: (cellDate.isBefore(today) &&
-                                                  cellDate != today) ||
-                                              !isDateAvailable
+                                      color: isPastOrUnavailable
                                           ? Colors.grey.withOpacity(0.2)
                                           : isInAlreadySelectedList
                                               ? pc1.withOpacity(.4)
@@ -438,9 +452,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                             style: TextStyle(
                                               fontSize: 15,
                                               fontFamily: "InterMedium",
-                                              color: (cellDate
-                                                          .isBefore(today) &&
-                                                      cellDate != today)
+                                              color: isPastOrUnavailable
                                                   ? Colors.grey.shade600
                                                   : isInAlreadySelectedList
                                                       ? Colors.white
@@ -448,10 +460,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                           ? Colors.black
                                                           : Colors
                                                               .grey.shade600,
-                                              decoration: (cellDate.isBefore(
-                                                              today) &&
-                                                          cellDate != today) ||
-                                                      !isDateAvailable
+                                              decoration: isPastOrUnavailable
                                                   ? TextDecoration.lineThrough
                                                   : TextDecoration.none,
                                             ),
@@ -462,13 +471,9 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                   priceText.toString()),
                                               style: regular(context).copyWith(
                                                 fontSize: 9,
-                                                color:
-                                                    (cellDate.isBefore(today) &&
-                                                                cellDate !=
-                                                                    today) ||
-                                                            !isDateAvailable
-                                                        ? Colors.grey.shade500
-                                                        : grey2,
+                                                color: isPastOrUnavailable
+                                                    ? Colors.grey.shade500
+                                                    : grey2,
                                               ),
                                             ),
                                         ],

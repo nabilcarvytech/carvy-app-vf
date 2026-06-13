@@ -8,7 +8,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
-import 'package:location/location.dart';
+import 'package:carvy/services/location_service.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -42,6 +42,7 @@ import 'package:carvy/service/onesignal_service.dart';
 import '../helper/http_service.dart';
 import '../view/auth/register/email_otp_screen.dart';
 import '../view/auth/register/register_wizard_screen.dart';
+import '../view/auth/register/widgets/verification_channel_modal.dart';
 import '../view/auth/reset_password_screen.dart';
 
 enum _LoginBlockReason { phoneNotVerified, cguNotAccepted, unknown }
@@ -598,6 +599,18 @@ class AuthController extends GetxController implements GetxService {
     return m;
   }
 
+  /// Complète birthdate depuis le formulaire d'inscription si l'API ne la renvoie pas.
+  void _mergeLocalBirthdateIfMissing(LoginModel model) {
+    final data = model.data;
+    if (data == null) return;
+    final existing = data.birthdate?.trim() ?? '';
+    if (existing.isNotEmpty) return;
+    final local = signUpBirthdateForApi.trim();
+    if (local.isEmpty) return;
+    data.birthdateSetter = local;
+    debugPrint('🎂 [AUTH] birthdate fusionnée depuis inscription: $local');
+  }
+
   /// Enregistre le JWT / profil. [deferPushSync] : OneSignal + FCM en arrière-plan
   /// (inscription avant OTP téléphone — évite le blocage sur update-onesignal-id 403).
   Future<void> _persistLoginFromResponse(
@@ -607,6 +620,7 @@ class AuthController extends GetxController implements GetxService {
     if (loginModel.data?.token == null || loginModel.data!.token!.isEmpty) {
       return;
     }
+    _mergeLocalBirthdateIfMissing(loginModel);
     GetStorage().write('Remember', true);
     GetStorage().write('Firstuser', true);
     token = loginModel.data!.token!;
@@ -1194,37 +1208,122 @@ class AuthController extends GetxController implements GetxService {
     }
   }
 
-  Future<void> requestPhoneOtp(
+  void _showOtpRequestLoading(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: CircularProgressIndicator(color: acentColor),
+      ),
+    );
+  }
+
+  void _dismissOtpRequestLoading(BuildContext context) {
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
+
+  bool _phoneOtpShouldFallbackToSms(Map<String, dynamic> response) {
+    final statusCode = response['statusCode'];
+    if (statusCode != 400) return false;
+    final fallback = response['fallback']?.toString().toLowerCase();
+    return fallback == 'sms';
+  }
+
+  bool _phoneOtpResponseIsSuccess(Map<String, dynamic> response) {
+    return response['success'] == true ||
+        response['status'] == 200 ||
+        response['status'] == '200' ||
+        response['statusCode'] == 200;
+  }
+
+  void _applyPhoneOtpSuccess(Map<String, dynamic> response) {
+    registerWizardPhoneCodeSent.value = true;
+    final autoOtp = _otpValueFromRegisterResponse(response);
+    if (autoOtp != null && autoOtp.isNotEmpty && autoOtp != '0') {
+      textEditingOtpController.text = autoOtp;
+    }
+    startRegisterWizardResendCountdown(60);
+    showToastMessage(response['message']?.toString() ?? 'Code sent'.tr);
+    update();
+  }
+
+  Future<Map<String, dynamic>?> _postPhoneOtpRequest({
+    required String phoneNumber,
+    required String dial,
+    required String isoCode,
+    required String channel,
+  }) {
+    return _postWithRegisterBearer(
+      Config.requestPhoneOtp,
+      {
+        'phone': phoneNumber,
+        'phone_country': dial,
+        'default_country': isoCode,
+        'channel': channel,
+      },
+    );
+  }
+
+  /// Affiche le choix SMS/WhatsApp puis envoie la requête OTP (avec fallback SMS).
+  Future<void> handleRequestOTP(
     BuildContext context,
-    String dialCode,
-    String isoCode,
-  ) async {
+    String phoneNumber,
+    String countryCode, {
+    String defaultCountry = '',
+  }) async {
     phoneError.value = '';
-    if (textEditingSingUpControllerPhoneNumber.text.isEmpty) {
+    if (phoneNumber.isEmpty) {
       showErrorToastMessage('Fill valid mobile number'.tr);
       return;
     }
 
-    final dial = dialCode.startsWith('+') ? dialCode : '+$dialCode';
+    String? selectedChannel;
+    await showVerificationChannelModal(
+      (channel) => selectedChannel = channel,
+      context: context,
+    );
+    if (selectedChannel == null || selectedChannel!.isEmpty) return;
+
+    final dial =
+        countryCode.startsWith('+') ? countryCode : '+$countryCode';
     registerWizardSubmitting.value = true;
+
     try {
-      _showRegisterLoadingOverlay(context);
-      final response = await _postWithRegisterBearer(
-        Config.requestPhoneOtp,
-        {
-          'phone': textEditingSingUpControllerPhoneNumber.text,
-          'phone_country': dial,
-          'default_country': isoCode,
-        },
+      _showOtpRequestLoading(context);
+      var response = await _postPhoneOtpRequest(
+        phoneNumber: phoneNumber,
+        dial: dial,
+        isoCode: defaultCountry,
+        channel: selectedChannel!,
       );
-      _dismissRegisterLoadingOverlay(context);
+      _dismissOtpRequestLoading(context);
+
       if (response == null) return;
 
-      final success = response['success'] == true ||
-          response['status'] == 200 ||
-          response['status'] == '200' ||
-          response['statusCode'] == 200;
-      if (!success) {
+      if (_phoneOtpShouldFallbackToSms(response) &&
+          selectedChannel!.toLowerCase() != 'sms') {
+        Get.snackbar(
+          'Info'.tr,
+          'otp_whatsapp_fallback_sms'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
+        );
+
+        _showOtpRequestLoading(context);
+        response = await _postPhoneOtpRequest(
+          phoneNumber: phoneNumber,
+          dial: dial,
+          isoCode: defaultCountry,
+          channel: 'sms',
+        );
+        _dismissOtpRequestLoading(context);
+        if (response == null) return;
+      }
+
+      if (!_phoneOtpResponseIsSuccess(response)) {
         phoneError.value = (response['error'] ?? '').toString();
         showErrorToastMessage(
           response['error']?.toString() ??
@@ -1234,20 +1333,26 @@ class AuthController extends GetxController implements GetxService {
         return;
       }
 
-      registerWizardPhoneCodeSent.value = true;
-      final autoOtp = _otpValueFromRegisterResponse(response);
-      if (autoOtp != null && autoOtp.isNotEmpty && autoOtp != '0') {
-        textEditingOtpController.text = autoOtp;
-      }
-      startRegisterWizardResendCountdown(60);
-      showToastMessage(response['message']?.toString() ?? 'Code sent'.tr);
-      update();
+      _applyPhoneOtpSuccess(response);
     } catch (e) {
-      _dismissRegisterLoadingOverlay(context);
+      _dismissOtpRequestLoading(context);
       showErrorToastMessage(e.toString());
     } finally {
       registerWizardSubmitting.value = false;
     }
+  }
+
+  Future<void> requestPhoneOtp(
+    BuildContext context,
+    String dialCode,
+    String isoCode,
+  ) async {
+    await handleRequestOTP(
+      context,
+      textEditingSingUpControllerPhoneNumber.text,
+      dialCode,
+      defaultCountry: isoCode,
+    );
   }
 
   Future<void> verifyPhoneOtp(
@@ -2847,41 +2952,20 @@ class AuthController extends GetxController implements GetxService {
     }
   }
 
-  Location location = Location();
   getUserLocation() async {
     try {
-      await Future.delayed(const Duration(seconds: 3));
-      bool serviceEnabled;
-      PermissionStatus permissionGranted;
-      LocationData locationData;
-      serviceEnabled = await location.serviceEnabled();
-      if (!serviceEnabled) {
-        serviceEnabled = await location.requestService();
-        if (!serviceEnabled) {
-          return;
-        }
-      }
-      permissionGranted = await location.hasPermission();
-      if (permissionGranted == PermissionStatus.denied) {
-        permissionGranted = await location.requestPermission();
-        if (permissionGranted != PermissionStatus.granted) {
-          return;
-        }
-      }
+      final position = await LocationService.getCurrentPositionSilent(
+        timeLimit: LocationService.defaultTimeLimit,
+      );
+      if (position == null) return;
 
-      locationData = await location.getLocation();
-      if (locationData.latitude != null && locationData.longitude != null) {
-        GetStorage().write('latitudeGlobal', locationData.latitude.toString());
-        GetStorage()
-            .write('longitudeGlobal', locationData.longitude.toString());
-        latitudeGlobal = locationData.latitude.toString();
-        longitudeGlobal = locationData.longitude.toString();
-        update();
-      } else {
-        return;
-      }
+      GetStorage().write('latitudeGlobal', position.latitude.toString());
+      GetStorage().write('longitudeGlobal', position.longitude.toString());
+      latitudeGlobal = position.latitude.toString();
+      longitudeGlobal = position.longitude.toString();
+      update();
     } catch (e) {
-      //
+      debugPrint('getUserLocation: $e');
     }
   }
 

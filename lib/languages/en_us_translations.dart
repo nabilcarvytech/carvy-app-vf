@@ -1073,6 +1073,12 @@ const Map<String, String> enUs = {
   "Please enable location services to show the nearest vehicles around you.":
       "Please enable location services to show the nearest vehicles around you.",
   "Retrieving your location...": "Retrieving your location...",
+  "location_required_for_address":
+      "Location is required to set your address. Please enable GPS.",
+  "open_location_settings": "Open settings",
+  "Current location": "Current location",
+  "The selected date range must be within the current month and the next two months.":
+      "The selected date range must be within the current month and the next two months.",
   "Select a location on the map or use the search field.":
       "Select a location on the map or use the search field.",
   "Odometers": "Odometers",
@@ -1308,4 +1314,8 @@ const Map<String, String> enUs = {
   "Small": "Compact",
   "Petite": "Compact",
   "Cet e-mail est déjà utilisé.": "This email is already in use.",
+  "otp_channel_modal_title": "How would you like to receive your code?",
+  "otp_channel_modal_subtitle": "Choose SMS or WhatsApp to receive your verification code.",
+  "otp_whatsapp_fallback_sms":
+      "WhatsApp is not available. Sending via SMS...",
 };

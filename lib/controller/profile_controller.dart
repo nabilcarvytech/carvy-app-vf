@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:carvy/api/config.dart';
@@ -40,8 +41,6 @@ class ProfileController extends GetxController implements GetxService {
     'English',
     'العربية',
     'Español',
-    'Русский',
-    'ภาษาไทย',
   ];
 
   final RxString selectedLanguage = 'Français'.obs;
@@ -51,8 +50,6 @@ class ProfileController extends GetxController implements GetxService {
     'English': 'en',
     'العربية': 'ar',
     'Español': 'es',
-    'Русский': 'ru',
-    'ภาษาไทย': 'th',
   };
 
   bool loading = false;
@@ -71,7 +68,6 @@ class ProfileController extends GetxController implements GetxService {
   late TextEditingController textEditingProfileControllerEmail;
   late TextEditingController textEditingProfileControllerDOB;
   late TextEditingController textEditingProfileControllerLangauge;
-  late TextEditingController textEditingProfileControllerDescription;
   late TextEditingController textEditingProfileControllerPassword;
   late TextEditingController textEditingProfileControllerPhoneCountry;
   late TextEditingController textEditingProfileControllerCheckEmail;
@@ -84,8 +80,6 @@ class ProfileController extends GetxController implements GetxService {
     textEditingProfileControllerEmail = TextEditingController();
     textEditingProfileControllerDOB = TextEditingController();
     textEditingProfileControllerLangauge = TextEditingController();
-    textEditingProfileControllerPhoneCountry = TextEditingController();
-    textEditingProfileControllerDescription = TextEditingController();
     textEditingProfileControllerPhoneCountry = TextEditingController();
     textEditingProfileControllerPassword = TextEditingController();
     textEditingProfileControllerCheckEmail = TextEditingController();
@@ -118,10 +112,6 @@ class ProfileController extends GetxController implements GetxService {
       'es': 'Español',
       'spanish': 'Español',
       'español': 'Español',
-      'ru': 'Русский',
-      'russian': 'Русский',
-      'th': 'ภาษาไทย',
-      'thai': 'ภาษาไทย',
     };
 
     return aliases[lower] ?? availableLanguages.first;
@@ -132,6 +122,117 @@ class ProfileController extends GetxController implements GetxService {
     selectedLanguage.value = languageNameFromCodeOrName(raw);
     textEditingProfileControllerLangauge.text =
         getLanguageCode(selectedLanguage.value);
+  }
+
+  Map<String, dynamic>? _userMapFromProfileResponse(
+    Map<String, dynamic> response,
+  ) {
+    final data = response['data'];
+    if (data is! Map) return null;
+    final m = Map<String, dynamic>.from(data);
+    if (m['user'] is Map) {
+      return Map<String, dynamic>.from(m['user'] as Map);
+    }
+    if (m.containsKey('birthdate') ||
+        m.containsKey('first_name') ||
+        m.containsKey('email')) {
+      return m;
+    }
+    return null;
+  }
+
+  void _persistLoginModelToStorage() {
+    if (loginModel == null) return;
+    final encoded = jsonEncode(loginModel!.toJson());
+    GetStorage().write('user_data', encoded);
+    UserData().saveLoginData('UserData', encoded);
+  }
+
+  /// Charge le profil depuis get-user-profile (incl. birthdate) et met à jour l'UI.
+  Future<void> refreshProfileFromServer() async {
+    try {
+      if (loginModel?.data?.id == null) return;
+      final response = await httpGet(Config.getUserProfile, {
+        'userid': loginModel!.data!.id,
+      });
+      if (response is! Map<String, dynamic>) return;
+      final st = response['status'];
+      if (st != 200 && st != '200') return;
+
+      final userMap = _userMapFromProfileResponse(response);
+      if (userMap == null) return;
+
+      debugPrint(
+          '🎂 [GET_USER_PROFILE] birthdate reçue: ${userMap['birthdate']}');
+
+      final base = Map<String, dynamic>.from(loginModel!.toJson());
+      final rawData = base['data'];
+      final data = rawData is Map
+          ? Map<String, dynamic>.from(rawData)
+          : <String, dynamic>{};
+
+      for (final key in [
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'phone_country',
+        'default_country',
+        'birthdate',
+        'langauge',
+        'country',
+        'intro',
+        'profile_image',
+        'identity_image',
+        'role',
+      ]) {
+        final value = userMap[key];
+        if (value != null &&
+            value.toString().trim().isNotEmpty &&
+            value.toString().toLowerCase() != 'null') {
+          data[key] = value;
+        }
+      }
+      data['token'] ??= token;
+
+      base['data'] = data;
+      loginModel = LoginModel.fromJson(base);
+      authController.setLoginModel(loginModel!);
+      _persistLoginModelToStorage();
+      await setFirstNameFromLoginModel();
+      update();
+    } catch (e) {
+      debugPrint('⚠️ [GET_USER_PROFILE] refreshProfileFromServer: $e');
+    }
+  }
+
+  LoginModel? _loginModelFromEditProfileResponse(Map<String, dynamic> response) {
+    final userMap = _userMapFromProfileResponse(response);
+    if (userMap == null) {
+      final updateProfile = UpdateProfile.fromJson(response);
+      final user = updateProfile.data?.user;
+      if (user == null) return null;
+      return LoginModel(
+        data: logmod.Data.fromJson(user.toJson()),
+      );
+    }
+
+    final base = Map<String, dynamic>.from(loginModel?.toJson() ?? {});
+    final rawData = base['data'];
+    final data = rawData is Map
+        ? Map<String, dynamic>.from(rawData)
+        : <String, dynamic>{};
+
+    for (final entry in userMap.entries) {
+      if (entry.value != null) {
+        data[entry.key] = entry.value;
+      }
+    }
+    data['token'] ??= token;
+    base['status'] = response['status'] ?? 200;
+    base['message'] = response['message'] ?? base['message'];
+    base['data'] = data;
+    return LoginModel.fromJson(base);
   }
 
   Future<void> setFirstNameFromLoginModel() async {
@@ -157,9 +258,6 @@ class ProfileController extends GetxController implements GetxService {
         print('📸 [DEBUG] URL Image Agence : $resolvedAvatar');
         myImage.value = resolvedAvatar;
       }
-      if (loginModel!.data!.intro != null) {
-        textEditingProfileControllerDescription.text = loginModel!.data!.intro;
-      }
       if (loginModel!.data!.langauge != null) {
         applyLanguageFromStored(loginModel!.data!.langauge);
       }
@@ -174,9 +272,6 @@ class ProfileController extends GetxController implements GetxService {
         print(loginModel!.data!.birthdate!);
 
         textEditingProfileControllerDOB.text = loginModel!.data!.birthdate!;
-      }
-      if (loginModel!.data!.intro != null) {
-        textEditingProfileControllerDescription.text = loginModel!.data!.intro!;
       }
     }
   }
@@ -208,78 +303,44 @@ class ProfileController extends GetxController implements GetxService {
         "phone_country": selectedCountry.value,
         "phone": textEditingPhoneUpdateController.text,
         "birthdate": textEditingProfileControllerDOB.text,
-        "intro": textEditingProfileControllerDescription.text,
+        "intro": loginModel?.data?.intro ?? "",
         "langauge": getLanguageCode(selectedLanguage.value),
         "country": selectedCountryDrop ?? "",
         "identity_image": identityBase64 ?? ""
       };
 
-      // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-      // var response = await httpPost(Config.editProfile, postData);
-
-      // MOCK: Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // MOCK: Static success response for editing profile
-      var response = {
-        "status": 200,
-        "message": "Profile updated successfully",
-        "error": "",
-        "data": {
-          "user": {
-            "id": loginModel?.data?.id ?? 1,
-            "first_name": postData["first_name"],
-            "middle": null,
-            "last_name": postData["last_name"],
-            "email": postData["email"],
-            "phone": postData["phone"],
-            "phone_country": postData["phone_country"],
-            "default_country": postData["default_country"],
-            "intro": postData["intro"],
-            "langauge": postData["langauge"],
-            "country": postData["country"],
-            "wallet": null,
-            "otp_value": "0",
-            "token": token,
-            "reset_token": null,
-            "verified": "1",
-            "phone_verify": "1",
-            "email_verify": "1",
-            "login_type": "email",
-            "birthdate": postData["birthdate"],
-            "social_id": null,
-            "status": "1",
-            "created_at": DateTime.now().toIso8601String(),
-            "updated_at": DateTime.now().toIso8601String(),
-            "deleted_at": null,
-            "package_id": null,
-            "fcm": null,
-            "device_id": null,
-            "identity_image": postData["identity_image"] != null &&
-                    postData["identity_image"]!.isNotEmpty
-                ? {"url": postData["identity_image"]}
-                : null,
-            "profile_image": null,
-            "media": []
-          }
-        }
-      };
-      // ========== END MOCK DATA ==========
+      var response = await httpPost(Config.editProfile, postData);
       closeLoading();
       if (response != null) {
-        if (response['status'] == 200) {
-          UpdateProfile updateProfile = UpdateProfile.fromJson(response);
-          loginModel = LoginModel(
-              data: logmod.Data.fromJson(updateProfile.data!.user!.toJson()));
-          authController.setLoginModel(loginModel!);
-          UserData userObj = UserData();
-          userObj.saveLoginData("UserData", jsonEncode(loginModel!.toJson()));
+        final success = response['status'] == 200 ||
+            response['status'] == '200' ||
+            response['success'] == true;
+        if (success) {
+          debugPrint(
+              '🎂 [EDIT_PROFILE] birthdate envoyée: ${postData["birthdate"]}');
+          final responseMap = response is Map<String, dynamic>
+              ? response
+              : Map<String, dynamic>.from(response as Map);
+          final userMap = _userMapFromProfileResponse(responseMap);
+          debugPrint(
+              '🎂 [EDIT_PROFILE] birthdate confirmée par le serveur: ${userMap?['birthdate']}');
+
+          final updated = _loginModelFromEditProfileResponse(responseMap);
+          if (updated != null) {
+            loginModel = updated;
+            authController.setLoginModel(loginModel!);
+            _persistLoginModelToStorage();
+          }
           showToastMessage(response['message'].toString().tr);
           if (handleBackonBooking == true) {
             Get.back();
           }
         } else {
-          showErrorToastMessage(response['error'].toString().tr);
+          showErrorToastMessage(
+            (response['error'] ?? response['message'] ?? 'Error'.tr)
+                .toString()
+                .tr,
+          );
         }
       } else {
         showErrorToastMessage(

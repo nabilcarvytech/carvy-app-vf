@@ -9,6 +9,7 @@ import 'package:carvy/utils/rental_billing_days.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/helper/city_name_helper.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/rolling_calendar_bounds.dart';
 import 'package:carvy/work_space.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:intl/intl.dart';
@@ -704,8 +705,8 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
           Expanded(
             child: SfDateRangePicker(
               selectionMode: DateRangePickerSelectionMode.range,
-              minDate: DateTime.now(),
-              maxDate: DateTime.now().add(const Duration(days: 365)),
+              minDate: RollingCalendarBounds.firstDate(),
+              maxDate: RollingCalendarBounds.lastDate(),
               enablePastDates: false,
               navigationDirection: DateRangePickerNavigationDirection.vertical,
               navigationMode: DateRangePickerNavigationMode.scroll,
@@ -745,10 +746,8 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
-                disabledDatesTextStyle: regular2(context).copyWith(
-                  color: Colors.grey.withOpacity(0.4),
-                  fontSize: 16,
-                ),
+                disabledDatesTextStyle:
+                    RollingCalendarBounds.disabledDateTextStyle(fontSize: 16),
               ),
               monthViewSettings: DateRangePickerMonthViewSettings(
                 viewHeaderHeight: 50,

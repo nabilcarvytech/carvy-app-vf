@@ -84,6 +84,7 @@ dependencies:
   socket_io_client: ^3.0.2
   audioplayers: ^6.6.0
   flutter_typeahead: ^6.0.0
+  geocoding: ^4.0.0
 
 dev_dependencies:
   flutter_test:

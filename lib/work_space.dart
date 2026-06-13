@@ -181,10 +181,6 @@ getUserDataLocallyToHandleTheState() async {
             profileController.textEditingProfileControllerDOB.text =
                 loginModel!.data!.birthdate!;
           }
-          if (loginModel!.data!.intro != null) {
-            profileController.textEditingProfileControllerDescription.text =
-                loginModel!.data!.intro!;
-          }
           if (loginModel!.data!.langauge != null) {
             profileController.applyLanguageFromStored(
                 loginModel!.data!.langauge);
@@ -280,7 +276,6 @@ Future clearAllController() async {
   profileController.textEditingProfileControllerEmail.clear();
   profileController.textEditingProfileControllerDOB.clear();
   profileController.textEditingProfileControllerLangauge.clear();
-  profileController.textEditingProfileControllerDescription.clear();
   profileController.textEditingProfileControllerPassword.clear();
   profileController.textEditingProfileControllerPhoneCountry.clear();
   profileController.textEditingProfileControllerCheckEmail.clear();

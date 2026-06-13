@@ -7,7 +7,8 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_places_flutter/model/prediction.dart';
 import 'package:intl/intl.dart';
-import 'package:location/location.dart';
+import 'package:carvy/services/geocoding_service.dart';
+import 'package:carvy/services/location_service.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/odometer_model.dart';
 import 'package:carvy/model/items_model.dart';
@@ -1359,7 +1360,6 @@ class SearchControllerHome extends GetxController implements GetxService {
     }
   }
 
-  Location location = Location();
   String aroundCurrentLocation = "Around Current Location".tr;
   var setBoolForCurrentLocation = false.obs;
   bool showselectedColorofRegion = false;
@@ -1374,101 +1374,45 @@ class SearchControllerHome extends GetxController implements GetxService {
     centralLng = "";
     placeRadius = "";
     generalScopeController.textEditingControllerCity.clear();
-    var uuid = const Uuid();
-    String sessionId = uuid.v4();
-    print("Session ID: $sessionId");
+
     try {
       showLoading();
-      bool serviceEnabled = await location.serviceEnabled();
-      if (!serviceEnabled) {
-        serviceEnabled = await location.requestService();
-        if (!serviceEnabled) {
-          closeLoading();
-          showOpenAppSettingsDialog(
-              context,
-              "Please enable location services to show the nearest vehicles around you.."
-                  .tr);
-          return;
-        }
-      }
-
-      PermissionStatus permissionGranted = await location.hasPermission();
-      if (permissionGranted == PermissionStatus.denied) {
-        permissionGranted = await location.requestPermission();
-        if (permissionGranted != PermissionStatus.granted) {
-          closeLoading();
-          showOpenAppSettingsDialog(
-              context,
-              "Location permission denied. Please go to settings and allow the location"
-                  .tr);
-          return;
-        }
-      }
-
-      LocationData locationData = await location
-          .getLocation()
-          .timeout(const Duration(seconds: 10), onTimeout: () {
-        closeLoading();
-        showErrorToastMessage(
-            "Failed to get current location within the timeout please search manually"
-                .tr);
-        throw TimeoutException("Fetching location timed out.");
-      });
-
+      final position = await LocationService.getCurrentPositionWithChecks(
+        context,
+        timeLimit: LocationService.defaultTimeLimit,
+      );
       closeLoading();
-      if (locationData.latitude != null && locationData.longitude != null) {
-        slatsearch = locationData.latitude.toString();
-        sLongSearch = locationData.longitude.toString();
-        String placeId =
-            await getPlaceId(locationData.latitude!, locationData.longitude!);
-        String fullAddress = await getAddressFromPlaceId(placeId);
-        generalScopeController.homeSearchLocation.value = fullAddress;
-        generalScopeController.textEditingControllerCity.text = fullAddress;
-        update();
-        if (filterController.hitApiOnMap == true) {
-          Navigator.pop(context);
-        }
-      } else {
-        showErrorToastMessage("Failed to get current location.");
+
+      if (position == null) {
+        return;
+      }
+
+      slatsearch = position.latitude.toString();
+      sLongSearch = position.longitude.toString();
+      latitudeGlobal = position.latitude.toString();
+      longitudeGlobal = position.longitude.toString();
+      GetStorage().write('latitudeGlobal', slatsearch);
+      GetStorage().write('longitudeGlobal', sLongSearch);
+
+      final resolved = await GeocodingService.reverseGeocode(
+        position.latitude,
+        position.longitude,
+      );
+      final fullAddress = resolved?.fullAddress ?? '';
+      if (fullAddress.isEmpty) {
+        showErrorToastMessage("Failed to get current location.".tr);
+        return;
+      }
+
+      generalScopeController.homeSearchLocation.value = fullAddress;
+      generalScopeController.textEditingControllerCity.text = fullAddress;
+      update();
+      if (filterController.hitApiOnMap == true) {
+        Navigator.pop(context);
       }
     } catch (e) {
       closeLoading();
-    }
-  }
-
-  Future<String> getPlaceId(double latitude, double longitude) async {
-    final response = await http.get(
-      Uri.parse(
-        'https://maps.googleapis.com/maps/api/geocode/json?latlng=$latitude,$longitude&key=${Config.googleKey}',
-      ),
-    );
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['results'] != null && data['results'].length > 0) {
-        return data['results'][0]['place_id'];
-      } else {
-        throw Exception('No results found for the given location.');
-      }
-    } else {
-      throw Exception('Failed to fetch place ID.');
-    }
-  }
-
-  Future<String> getAddressFromPlaceId(String placeId) async {
-    final response = await http.get(
-      Uri.parse(
-        'https://maps.googleapis.com/maps/api/geocode/json?place_id=$placeId&key=${Config.googleKey}',
-      ),
-    );
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['results'] != null && data['results'].length > 0) {
-        return data['results'][0]['formatted_address'];
-      } else {
-        throw Exception('No address found for the given place ID.');
-      }
-    } else {
-      throw Exception('Failed to fetch address.');
+      debugPrint('getUserLocationForBetterSearch: $e');
     }
   }
 

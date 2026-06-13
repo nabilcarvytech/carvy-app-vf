@@ -15,7 +15,6 @@ import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/work_space.dart';
-import 'package:carvy/service/onesignal_service.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -83,7 +82,6 @@ class _MyProfileState extends State<MyProfile> {
   void initState() {
     super.initState();
     notifires = ColorNotifires();
-    profileController.textEditingProfileControllerDescription.clear();
     getUserDataLocallyToHandleTheState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       DefaultAssetBundle.of(context)
@@ -93,6 +91,7 @@ class _MyProfileState extends State<MyProfile> {
         setState(() {});
       });
       profileController.setFirstNameFromLoginModel();
+      profileController.refreshProfileFromServer();
 
       // Initialiser le code pays par défaut à MA (Maroc) si vide
       if (profileController.defaultCountry.value.isEmpty) {
@@ -619,58 +618,6 @@ class _MyProfileState extends State<MyProfile> {
                                 height: spacingBeteenFeilds,
                               ),
                               Text(
-                                "About".tr,
-                                style: heading3(context).copyWith(
-                                    color: notifires.getGrey3Whitecolor),
-                              ),
-                              SizedBox(
-                                height: spacingBeteenFeilds,
-                              ),
-                              TextFormField(
-                                textInputAction: TextInputAction.done,
-                                minLines: 5,
-                                controller: profileController
-                                    .textEditingProfileControllerDescription,
-                                keyboardType: TextInputType.multiline,
-                                maxLines: null,
-                                cursorColor: notifires.getwhiteblackcolor,
-                                decoration: InputDecoration(
-                                  contentPadding: const EdgeInsets.all(10),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(
-                                        Dimensions.radiusDefault),
-                                    borderSide: BorderSide(
-                                        color: notifires.getBoxColor),
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(
-                                        Dimensions.radiusDefault),
-                                    borderSide: BorderSide(
-                                        color: notifires.getBoxColor),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(
-                                        Dimensions.radiusDefault),
-                                    borderSide: BorderSide(
-                                        color: notifires.getBoxColor),
-                                  ),
-                                  disabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(
-                                        Dimensions.radiusDefault),
-                                    borderSide: BorderSide(
-                                        color: notifires.getBoxColor),
-                                  ),
-                                  filled: true,
-                                  fillColor: notifires.getBoxColor,
-                                  hintText: "Description".tr,
-                                  hintStyle: regular2(context),
-                                ),
-                                style: regular2(context),
-                              ),
-                              const SizedBox(
-                                height: 16,
-                              ),
-                              Text(
                                 "Live Country".tr,
                                 style: heading3(context).copyWith(
                                     color: notifires.getGrey3Whitecolor),
@@ -759,28 +706,7 @@ class _MyProfileState extends State<MyProfile> {
                                     )),
                               ),
                               SizedBox(
-                                height: spacingBeteenFeilds,
-                              ),
-                              const SizedBox(
-                                height: 48,
-                              ),
-                              CustomsButtons(
-                                onPressed: () async {
-                                  await OneSignalService.forceUpdatePlayerId();
-                                  Get.snackbar(
-                                    "OneSignal".tr,
-                                    "OneSignal sync triggered".tr,
-                                    snackPosition: SnackPosition.BOTTOM,
-                                    duration: const Duration(seconds: 2),
-                                  );
-                                },
-                                text: "Sync OneSignal ID (Temp)".tr,
-                                backgroundColor: notifires.getboxcolor,
-                                textColor: getColorBasedOnActiveModuleid(),
-                                icon: Icons.notifications_active_outlined,
-                              ),
-                              const SizedBox(
-                                height: 12,
+                                height: spacingBeteenFeilds + 8,
                               ),
                               CustomsButtons(
                                 onPressed: () {
@@ -793,6 +719,9 @@ class _MyProfileState extends State<MyProfile> {
                                 backgroundColor:
                                     getColorBasedOnActiveModuleid(),
                                 icon: Icons.update,
+                              ),
+                              const SizedBox(
+                                height: 24,
                               ),
                             ],
                           ),

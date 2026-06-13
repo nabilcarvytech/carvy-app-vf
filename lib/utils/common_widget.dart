@@ -24,6 +24,7 @@ import 'package:carvy/customwidget/form_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/helper/web_router.dart';
+import 'package:carvy/utils/rolling_calendar_bounds.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/utils/vehicle_common_widgets.dart';
 import 'package:carvy/model/extension_payment_context.dart';
@@ -1707,12 +1708,20 @@ Future<void> _openExtendReservationFlow({
   }
 
   final firstDate = _bookingEndDateOnly(currentEnd).add(const Duration(days: 1));
+  final windowLast = RollingCalendarBounds.lastDate();
+  if (firstDate.isAfter(windowLast)) {
+    showErrorToastMessage(
+      'The selected date range must be within the current month and the next two months.'
+          .tr,
+    );
+    return;
+  }
 
   final pickedDate = await showDatePicker(
     context: context,
     initialDate: firstDate,
     firstDate: firstDate,
-    lastDate: firstDate.add(const Duration(days: 365)),
+    lastDate: windowLast,
   );
   if (pickedDate == null || !context.mounted) return;
 

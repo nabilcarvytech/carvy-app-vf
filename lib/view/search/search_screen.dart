@@ -14,6 +14,7 @@ import 'package:carvy/model/items_model.dart';
 import 'package:carvy/helper/city_name_helper.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/rental_billing_days.dart';
+import 'package:carvy/utils/rolling_calendar_bounds.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:get/get.dart';
 import 'package:carvy/view/itemdetail/vehicle/view_on_map_screen.dart';
@@ -1013,6 +1014,8 @@ class _SearchScreenState extends State<SearchScreen> {
                                     color: Colors.black87,
                                     fontSize: 16,
                                   ),
+                                  disabledDatesTextStyle:
+                                      RollingCalendarBounds.disabledDateTextStyle(),
                                 ),
                                 monthViewSettings:
                                     DateRangePickerMonthViewSettings(
@@ -1028,9 +1031,16 @@ class _SearchScreenState extends State<SearchScreen> {
                                     ),
                                   ),
                                 ),
-                                minDate: DateTime.now(),
-                                maxDate: DateTime.now()
-                                    .add(const Duration(days: 180)),
+                                minDate: RollingCalendarBounds.firstDate(),
+                                maxDate: RollingCalendarBounds.lastDate(),
+                                enablePastDates: false,
+                                onViewChanged: (args) {
+                                  RollingCalendarBounds.clampPickerView(
+                                    args,
+                                    _searchController
+                                        .dateRangePickerControllerCustom,
+                                  );
+                                },
                                 controller: _searchController
                                     .dateRangePickerControllerCustom,
                                 selectionMode:
@@ -1043,13 +1053,9 @@ class _SearchScreenState extends State<SearchScreen> {
                                       args.value.endDate != null) {}
                                 },
                                 cellBuilder: (context, details) {
-                                  final now = DateTime.now();
-                                  final isToday =
-                                      details.date.year == now.year &&
-                                          details.date.month == now.month &&
-                                          details.date.day == now.day;
-                                  bool isDisabled =
-                                      details.date.isBefore(now) && !isToday;
+                                  final isDisabled =
+                                      !RollingCalendarBounds.isSelectable(
+                                          details.date);
                                   final range = _searchController
                                       .dateRangePickerControllerCustom
                                       .selectedRange;

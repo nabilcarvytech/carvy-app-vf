@@ -15,6 +15,7 @@ import 'package:carvy/model/my_items_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
+import 'package:carvy/utils/rolling_calendar_bounds.dart';
 import 'package:carvy/utils/safe_navigation.dart';
 import 'package:carvy/view/host/calender/add_price_on_common_calander.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
@@ -499,8 +500,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
       showErrorToastMessage("Please Select the checkBox");
       return;
     }
-    DateTime now = DateTime.now();
-    DateTime maxDate = now.add(const Duration(days: 120));
+    DateTime maxDate = RollingCalendarBounds.lastDate();
     if (addItemsHostController.isChecked1.value) {
       if (addItemsHostController.textEditingControllerFuturePrice.text == "" ||
           addItemsHostController.textEditingControllerFuturePrice.text == "0") {
@@ -514,7 +514,8 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
 
         if (endDate.isAfter(maxDate)) {
           showErrorToastMessage(
-              "The selected date range must be within the current date to the next 120 days.");
+              "The selected date range must be within the current month and the next two months."
+                  .tr);
           return;
         }
 
@@ -565,7 +566,8 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
 
         if (endDate.isAfter(maxDate)) {
           showErrorToastMessage(
-              "The selected date range must be within the current date to the next 120 days.");
+              "The selected date range must be within the current month and the next two months."
+                  .tr);
           return;
         }
 
@@ -942,7 +944,15 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                               navigationMode:
                                   DateRangePickerNavigationMode.scroll,
                               enableMultiView: true,
-                              minDate: DateTime.now(),
+                              minDate: RollingCalendarBounds.firstDate(),
+                              maxDate: RollingCalendarBounds.lastDate(),
+                              enablePastDates: false,
+                              onViewChanged: (args) {
+                                RollingCalendarBounds.clampPickerView(
+                                  args,
+                                  dateRangePickerControllers,
+                                );
+                              },
                               view: DateRangePickerView.month,
                               selectionMode: DateRangePickerSelectionMode.range,
                               onSelectionChanged:

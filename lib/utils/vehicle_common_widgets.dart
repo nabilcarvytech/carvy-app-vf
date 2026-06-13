@@ -13,6 +13,7 @@ import 'package:carvy/model/item_type_model.dart';
 import 'package:carvy/model/make_type_model.dart';
 import 'package:carvy/model/items_model.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
+import 'package:carvy/utils/rolling_calendar_bounds.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/itemdetail/vehicle/view_on_map_screen.dart';
 import 'package:carvy/view/search/after_search.dart';
@@ -1495,6 +1496,10 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
                           weekendTextStyle: TextStyle(
                             color: themeColor,
                           ),
+                          disabledDatesTextStyle:
+                              RollingCalendarBounds.disabledDateTextStyle(
+                            fontSize: 14,
+                          ),
                         ),
                         monthViewSettings: DateRangePickerMonthViewSettings(
                             dayFormat: 'EEE',
@@ -1503,8 +1508,15 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
                               color: notifires.getwhiteblackcolor,
                             ))),
                         backgroundColor: notifires.getboxcolor,
-                        minDate: DateTime.now(),
-                        maxDate: DateTime.now().add(const Duration(days: 160)),
+                        minDate: RollingCalendarBounds.firstDate(),
+                        maxDate: RollingCalendarBounds.lastDate(),
+                        enablePastDates: false,
+                        onViewChanged: (args) {
+                          RollingCalendarBounds.clampPickerView(
+                            args,
+                            searchController.dateRangePickerControllerCustom,
+                          );
+                        },
                         controller:
                             searchController.dateRangePickerControllerCustom,
                         selectionMode: DateRangePickerSelectionMode.range,
@@ -1518,13 +1530,8 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
                           setState(() {}); // ✅ refresh after selection
                         },
                         cellBuilder: (context, details) {
-                          final now = DateTime.now();
-                          final isToday = details.date.year == now.year &&
-                              details.date.month == now.month &&
-                              details.date.day == now.day;
-
-                          bool isDisabled =
-                              details.date.isBefore(now) && !isToday;
+                          final isDisabled =
+                              !RollingCalendarBounds.isSelectable(details.date);
 
                           final range = searchController
                               .dateRangePickerControllerCustom.selectedRange;
