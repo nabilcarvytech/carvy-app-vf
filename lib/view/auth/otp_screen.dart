@@ -89,6 +89,53 @@ class _OtpScreenState extends State<OtpScreen> {
     return widget.email?.trim() ?? '';
   }
 
+  bool get _isPhoneOtpResend =>
+      widget.changeMobile != true &&
+      widget.changeEmail != true &&
+      widget.changeMobiles == null &&
+      (widget.number?.trim().isNotEmpty ?? false) &&
+      (widget.email?.trim().isEmpty ?? true);
+
+  Future<void> _handleResendCode() async {
+    if (_isPhoneOtpResend) {
+      controller.isResendLoading.value = true;
+      try {
+        final success = await controller.initiateOtpFlow(
+          context,
+          widget.number!.trim(),
+          widget.countryCode?.trim() ?? '',
+          defaultCountry: widget.defaultCountry ?? '',
+        );
+        if (success && mounted) {
+          _remainingTime = 60;
+          startResendTimer();
+        }
+      } finally {
+        controller.isResendLoading.value = false;
+      }
+      return;
+    }
+
+    await controller.resendNewCodeFunction(
+      context,
+      _formKey,
+      otp: controller.textEditingOtpController.text,
+      changeEmail: widget.changeEmail,
+      changeMobile: widget.changeMobile,
+      email: widget.email,
+      number: widget.number,
+      cuntryCode: widget.countryCode,
+      changeMobiles: widget.changeMobiles,
+    );
+    if (mounted) {
+      startResendTimer();
+      setState(() {
+        _remainingTime = 60;
+        _isResendEnabled = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Align(
@@ -157,28 +204,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                                 child:
                                                     CircularProgressIndicator())
                                             : InkWell(
-                                                onTap: () async {
-                                                  controller.resendNewCodeFunction(
-                                                      context, _formKey,
-                                                      otp: controller
-                                                          .textEditingOtpController
-                                                          .text,
-                                                      changeEmail:
-                                                          widget.changeEmail,
-                                                      changeMobile:
-                                                          widget.changeMobile,
-                                                      email: widget.email,
-                                                      number: widget.number,
-                                                      cuntryCode:
-                                                          widget.countryCode,
-                                                      changeMobiles:
-                                                          widget.changeMobiles);
-                                                  startResendTimer();
-                                                  setState(() {
-                                                    _remainingTime = 60;
-                                                    _isResendEnabled = false;
-                                                  });
-                                                },
+                                                onTap: _handleResendCode,
                                                 child: Text(
                                                     "Resend New Code".tr,
                                                     style: regular2(context)

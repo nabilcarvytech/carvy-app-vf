@@ -768,28 +768,13 @@ class AuthController extends GetxController implements GetxService {
     String dialCode,
     String isoCode,
   ) async {
-    final dial = dialCode.startsWith('+') ? dialCode : '+$dialCode';
-    try {
-      final result = await resendOtp({
-        'phone': textEditingSingUpControllerPhoneNumber.text,
-        'phone_country': dial,
-      });
-      if (result != null && result['status'] == 200) {
-        registerWizardPhoneCodeSent.value = true;
-        if (result['data'] != null && result['data']['otp_value'] != null) {
-          textEditingOtpController.text = '${result['data']['otp_value']}';
-        }
-        startRegisterWizardResendCountdown(60);
-        showToastMessage(result['message']?.toString() ?? 'Code sent'.tr);
-      } else if (result != null) {
-        showErrorToastMessage(
-            result['error']?.toString() ??
-                result['message']?.toString() ??
-                'Error'.tr);
-      }
-    } catch (e) {
-      showErrorToastMessage(e.toString());
-    }
+    await initiateOtpFlow(
+      context,
+      textEditingSingUpControllerPhoneNumber.text,
+      dialCode,
+      defaultCountry: isoCode,
+      updateRegisterWizardState: true,
+    );
   }
 
   /// Vérifie l’OTP e-mail (wizard) — utilise l’e-mail du formulaire d’inscription.
@@ -1226,9 +1211,23 @@ class AuthController extends GetxController implements GetxService {
 
   bool _phoneOtpShouldFallbackToSms(Map<String, dynamic> response) {
     final statusCode = response['statusCode'];
-    if (statusCode != 400) return false;
+    final status = response['status'];
+    final is400 = statusCode == 400 ||
+        status == 400 ||
+        status == '400';
+    if (!is400) return false;
     final fallback = response['fallback']?.toString().toLowerCase();
     return fallback == 'sms';
+  }
+
+  void _notifyWhatsappFallbackToSms() {
+    Get.snackbar(
+      'Info'.tr,
+      'otp_whatsapp_fallback_sms'.tr,
+      snackPosition: SnackPosition.BOTTOM,
+      margin: const EdgeInsets.all(16),
+      duration: const Duration(seconds: 4),
+    );
   }
 
   bool _phoneOtpResponseIsSuccess(Map<String, dynamic> response) {
@@ -1254,29 +1253,51 @@ class AuthController extends GetxController implements GetxService {
     required String dial,
     required String isoCode,
     required String channel,
-  }) {
-    return _postWithRegisterBearer(
-      Config.requestPhoneOtp,
-      {
-        'phone': phoneNumber,
-        'phone_country': dial,
-        'default_country': isoCode,
-        'channel': channel,
-      },
-    );
+  }) async {
+    final payload = {
+      'phone': phoneNumber,
+      'phone_country': dial,
+      'default_country': isoCode,
+      'channel': channel,
+    };
+
+    final registerToken = _currentRegisterBearerToken();
+    if (registerToken != null && registerToken.isNotEmpty) {
+      return _postWithRegisterBearer(Config.requestPhoneOtp, payload);
+    }
+
+    final result = await httpPost(Config.requestPhoneOtp, payload);
+    if (result is! Map) return null;
+    final map = Map<String, dynamic>.from(result);
+    if (!map.containsKey('statusCode')) {
+      final st = map['status'];
+      map['statusCode'] =
+          (st == 200 || st == '200' || map['success'] == true) ? 200 : 400;
+    }
+    return map;
   }
 
-  /// Affiche le choix SMS/WhatsApp puis envoie la requête OTP (avec fallback SMS).
-  Future<void> handleRequestOTP(
+  void _applyGenericPhoneOtpSuccess(Map<String, dynamic> response) {
+    final autoOtp = _otpValueFromRegisterResponse(response);
+    if (autoOtp != null && autoOtp.isNotEmpty && autoOtp != '0') {
+      textEditingOtpController.text = autoOtp;
+    }
+    showToastMessage(response['message']?.toString() ?? 'Code sent'.tr);
+    update();
+  }
+
+  /// Point d'entrée unifié : modal SMS/WhatsApp → POST request-phone-otp → fallback SMS.
+  Future<bool> initiateOtpFlow(
     BuildContext context,
-    String phoneNumber,
-    String countryCode, {
+    String phone,
+    String phoneCountry, {
     String defaultCountry = '',
+    bool updateRegisterWizardState = false,
   }) async {
-    phoneError.value = '';
-    if (phoneNumber.isEmpty) {
+    final trimmedPhone = phone.trim();
+    if (trimmedPhone.isEmpty) {
       showErrorToastMessage('Fill valid mobile number'.tr);
-      return;
+      return false;
     }
 
     String? selectedChannel;
@@ -1284,61 +1305,59 @@ class AuthController extends GetxController implements GetxService {
       (channel) => selectedChannel = channel,
       context: context,
     );
-    if (selectedChannel == null || selectedChannel!.isEmpty) return;
+    if (selectedChannel == null || selectedChannel!.isEmpty) return false;
 
     final dial =
-        countryCode.startsWith('+') ? countryCode : '+$countryCode';
-    registerWizardSubmitting.value = true;
+        phoneCountry.startsWith('+') ? phoneCountry : '+$phoneCountry';
 
     try {
       _showOtpRequestLoading(context);
       var response = await _postPhoneOtpRequest(
-        phoneNumber: phoneNumber,
+        phoneNumber: trimmedPhone,
         dial: dial,
         isoCode: defaultCountry,
         channel: selectedChannel!,
       );
       _dismissOtpRequestLoading(context);
-
-      if (response == null) return;
+      if (response == null) return false;
 
       if (_phoneOtpShouldFallbackToSms(response) &&
           selectedChannel!.toLowerCase() != 'sms') {
-        Get.snackbar(
-          'Info'.tr,
-          'otp_whatsapp_fallback_sms'.tr,
-          snackPosition: SnackPosition.BOTTOM,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 4),
-        );
+        _notifyWhatsappFallbackToSms();
 
         _showOtpRequestLoading(context);
         response = await _postPhoneOtpRequest(
-          phoneNumber: phoneNumber,
+          phoneNumber: trimmedPhone,
           dial: dial,
           isoCode: defaultCountry,
           channel: 'sms',
         );
         _dismissOtpRequestLoading(context);
-        if (response == null) return;
+        if (response == null) return false;
       }
 
       if (!_phoneOtpResponseIsSuccess(response)) {
-        phoneError.value = (response['error'] ?? '').toString();
+        if (updateRegisterWizardState) {
+          phoneError.value = (response['error'] ?? '').toString();
+        }
         showErrorToastMessage(
           response['error']?.toString() ??
               response['message']?.toString() ??
               'Error'.tr,
         );
-        return;
+        return false;
       }
 
-      _applyPhoneOtpSuccess(response);
+      if (updateRegisterWizardState) {
+        _applyPhoneOtpSuccess(response);
+      } else {
+        _applyGenericPhoneOtpSuccess(response);
+      }
+      return true;
     } catch (e) {
       _dismissOtpRequestLoading(context);
       showErrorToastMessage(e.toString());
-    } finally {
-      registerWizardSubmitting.value = false;
+      return false;
     }
   }
 
@@ -1347,12 +1366,19 @@ class AuthController extends GetxController implements GetxService {
     String dialCode,
     String isoCode,
   ) async {
-    await handleRequestOTP(
-      context,
-      textEditingSingUpControllerPhoneNumber.text,
-      dialCode,
-      defaultCountry: isoCode,
-    );
+    phoneError.value = '';
+    registerWizardSubmitting.value = true;
+    try {
+      await initiateOtpFlow(
+        context,
+        textEditingSingUpControllerPhoneNumber.text,
+        dialCode,
+        defaultCountry: isoCode,
+        updateRegisterWizardState: true,
+      );
+    } finally {
+      registerWizardSubmitting.value = false;
+    }
   }
 
   Future<void> verifyPhoneOtp(
@@ -1424,31 +1450,6 @@ class AuthController extends GetxController implements GetxService {
       showErrorToastMessage(e.toString());
     } finally {
       registerWizardSubmitting.value = false;
-    }
-  }
-
-  Future<void> registerWizardResendOtp(
-    BuildContext context,
-    String cuntryCode,
-  ) async {
-    isResendLoading.value = true;
-    try {
-      final result = await resendOtp({
-        'phone': textEditingSingUpControllerPhoneNumber.text,
-        'phone_country': cuntryCode,
-      });
-      if (result != null && result['status'] == 200) {
-        showToastMessage('${result['message']}');
-        if (result['data'] != null && result['data']['otp_value'] != null) {
-          textEditingOtpController.text =
-              '${result['data']['otp_value']}';
-        }
-        startRegisterWizardResendCountdown(60);
-      } else if (result != null) {
-        showErrorToastMessage(result['error'] ?? 'Error'.tr);
-      }
-    } finally {
-      isResendLoading.value = false;
     }
   }
 
@@ -1548,6 +1549,8 @@ class AuthController extends GetxController implements GetxService {
     return await httpPost(Config.otpVerification, map);
   }
 
+  /// @deprecated Remplacé par [initiateOtpFlow] → POST auth/request-phone-otp avec `channel`.
+  @Deprecated('Use initiateOtpFlow instead of resend-otp')
   resendOtp(map) async {
     return await httpPost(Config.resendOtp, map);
   }
@@ -2350,19 +2353,12 @@ class AuthController extends GetxController implements GetxService {
           }
         }
       } else if (email.isEmpty) {
-        var result =
-            await resendOtp({"phone": number, "phone_country": cuntryCode});
-        if (result != null) {
-          closeLoading();
-          if (result['status'] == 200) {
-            showToastMessage("${result['message']}");
-            if (result['data'] != null) {
-              textEditingOtpController.text = result['data']['otp_value'];
-            }
-          } else {
-            showToastMessage(result['error']);
-          }
-        }
+        closeLoading();
+        await initiateOtpFlow(
+          context,
+          number?.toString() ?? '',
+          cuntryCode?.toString() ?? '',
+        );
       } else {
         var resultToken = await resendToken({"email": email});
         if (resultToken != null) {
