@@ -31,3 +31,25 @@ void safeGetBack({BuildContext? context, VoidCallback? then}) {
     pop();
   }
 }
+
+/// Ferme la route courante puis exécute [action] à la frame suivante.
+///
+/// Ce pattern évite de muter l'état ou de relancer une navigation pendant
+/// la transition de fermeture d'une modal/bottom sheet, ce qui peut corrompre
+/// l'arbre de rendu/semantics sur iOS et macOS.
+void safePopAndAction(BuildContext context, VoidCallback action) {
+  final navigator = Navigator.of(context);
+  if (navigator.canPop()) {
+    navigator.pop();
+  } else if (Get.isDialogOpen == true || Get.isBottomSheetOpen == true) {
+    try {
+      Get.back(closeOverlays: false);
+    } catch (_) {
+      // Repli silencieux si GetX n'est pas prêt.
+    }
+  }
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    action();
+  });
+}

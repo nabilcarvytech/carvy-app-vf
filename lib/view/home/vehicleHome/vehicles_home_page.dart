@@ -23,6 +23,7 @@ import '../../../customwidget/custom_active_module_id_widget.dart';
 import '../../../customwidget/project_bar.dart';
 import '../../../customwidget/project_color.dart';
 import '../../../utils/common_widget.dart';
+import '../../../utils/safe_navigation.dart';
 import '../../../utils/theme_style.dart';
 import '../../../utils/vehicle_common_widgets.dart';
 import '../../../work_space.dart';
@@ -46,35 +47,45 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   void initState() {
     super.initState();
     handleBoackfromPayment = false;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      generalController.myBookingTabIndex.value = 0;
-      homeController.getDataItemType();
-      final storedType = GetStorage().read("selectedVehicleType");
-      filterController.globalItemType.value =
-          storedType != null ? storedType.toString() : '0';
-      filterController.globalItemTypNamee.value =
-          GetStorage().read("selectedVehicleTypeName") ?? "";
-      fetchData();
-    });
-    scrollController.addListener(() {
-      final double newOpacity =
-          (scrollController.offset / 160).clamp(0.0, 1.0);
-      if (newOpacity != _headerOpacity) {
-        setState(() => _headerOpacity = newOpacity);
-      }
-    });
+    SchedulerBinding.instance.addPostFrameCallback((_) => _bootstrapHomePage());
+    scrollController.addListener(_handleScroll);
   }
 
   @override
   void dispose() {
     refreshController.dispose();
+    scrollController.removeListener(_handleScroll);
     scrollController.dispose();
     homeController.disposeFunctionVehicle();
     super.dispose();
   }
 
+  Future<void> _bootstrapHomePage() async {
+    if (!mounted) return;
+
+    generalController.myBookingTabIndex.value = 0;
+    final storedType = GetStorage().read("selectedVehicleType");
+    filterController.globalItemType.value =
+        storedType != null ? storedType.toString() : '0';
+    filterController.globalItemTypNamee.value =
+        GetStorage().read("selectedVehicleTypeName") ?? "";
+
+    await homeController.getDataItemType();
+    if (!mounted) return;
+    await fetchData();
+  }
+
+  void _handleScroll() {
+    if (!mounted) return;
+    final double newOpacity = (scrollController.offset / 160).clamp(0.0, 1.0);
+    if (newOpacity != _headerOpacity) {
+      setState(() => _headerOpacity = newOpacity);
+    }
+  }
+
   stateSetter(fn) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       setState(() {});
     });
   }
@@ -202,14 +213,13 @@ class _VehicleHomePageState extends State<VehicleHomePage>
         await filterController.getUserLocationForBetterSearch(context);
       }
     }
-
-    Navigator.of(context).pop();
-
     print('🚩 [BOUTON_TRI] Appel de fetchData()...');
-    fetchData();
+    safePopAndAction(context, () {
+      fetchData();
+    });
   }
 
-  void fetchData() async {
+  Future<void> fetchData() async {
     try {
       handleSearchFordetail = false;
       handleDirectBooking = false;
@@ -1274,8 +1284,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                               filteredVehicleTypes[index].name);
                           homeController.homeDataModel = null;
                           GetStorage().remove("homeData");
-                          homeController.onVehicleHomeScreenRefresh();
-                          Navigator.pop(context);
+                          safePopAndAction(context, () {
+                            homeController.onVehicleHomeScreenRefresh();
+                          });
                         },
                       );
                     },
@@ -1420,9 +1431,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
 
                             // Mettre à jour setCity dans le SearchController
                             filterController.setCity = cityName;
-
-                            Navigator.pop(context);
-                            filterController.submitMethod(context);
+                            safePopAndAction(context, () {
+                              filterController.submitMethod(context);
+                            });
                           },
                         ),
                       );

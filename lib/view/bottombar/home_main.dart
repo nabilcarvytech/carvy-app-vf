@@ -39,7 +39,7 @@ class _HomeMainScreenState extends State<HomeMain>
   GlobalScopeController globalScopeController =
       Get.put(GlobalScopeController());
   AuthController authController = Get.find();
-  List<Widget> vehicleList = [
+  late final List<Widget> vehicleList = [
     const VehicleHomePage(),
     const WishListScreen(),
     MyBooking(
@@ -50,10 +50,12 @@ class _HomeMainScreenState extends State<HomeMain>
     const InboxScreen(),
     const AccountScreen(),
   ];
+  late final VoidCallback _tabListener;
 
   @override
   void initState() {
     super.initState();
+    _configureSystemUi();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showNotification();
       generalController.fetchTotalUnreadCount();
@@ -74,30 +76,51 @@ class _HomeMainScreenState extends State<HomeMain>
       vsync: this,
       initialIndex: widget.initialIndex!,
     );
-    generalController.tabController.addListener(() {
+    generalController.currentIndex.value = widget.initialIndex ?? 0;
+    _tabListener = () {
       final newIndex = generalController.tabController.index;
+      if (generalController.tabController.indexIsChanging == false &&
+          generalController.currentIndex.value == newIndex) {
+        return;
+      }
       generalController.currentIndex.value = newIndex;
-      
-      // ========== UX IMPROVEMENT: Refresh Wishlist when switching to Favorites tab ==========
-      if (newIndex == 1) { // Index 1 is the Wishlist/Favorites tab
-        // Find the controller and force fetch
+
+      if (newIndex == 1) {
         if (Get.isRegistered<WishListController>()) {
           Get.find<WishListController>().getWishlistData();
           print("🔄 [Tab Switch] Refreshing Wishlist Data...");
         }
       }
-      // ========== END UX IMPROVEMENT ==========
-    });
+    };
+    generalController.tabController.addListener(_tabListener);
   }
 
   bool darkMode = GetStorage().read("getDarkValue") ?? false;
 
-  @override
-  Widget build(BuildContext context) {
+  void _configureSystemUi() {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.black,
       statusBarIconBrightness: Brightness.dark,
     ));
+  }
+
+  void _selectTab(int index) {
+    if (!mounted || generalController.currentIndex.value == index) {
+      return;
+    }
+    generalController.currentIndex.value = index;
+    generalController.tabController.animateTo(index);
+  }
+
+  @override
+  void dispose() {
+    generalController.tabController.removeListener(_tabListener);
+    generalController.tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     return Obx(() => generalController.failed.value == true
         ? Scaffold(
@@ -167,8 +190,7 @@ class _HomeMainScreenState extends State<HomeMain>
                   
                   // Si on n'est pas sur l'onglet principal (index 0), on y retourne
                   if (generalController.currentIndex.value != 0) {
-                    generalController.tabController.animateTo(0);
-                    generalController.currentIndex.value = 0;
+                    _selectTab(0);
                     return; // Empêche de fermer l'application
                   } else {
                     // Si on est déjà sur l'accueil (index 0), on affiche le popup "Souhaitez-vous quitter ?"
@@ -181,23 +203,14 @@ class _HomeMainScreenState extends State<HomeMain>
                   resizeToAvoidBottomInset: false,
                   backgroundColor: notifires.getbgcolor,
                   body: ConnectivityWrapper(
-                    child: TabBarView(
-                      physics: const NeverScrollableScrollPhysics(),
-                      controller: generalController.tabController,
+                    child: IndexedStack(
+                      index: generalController.currentIndex.value,
                       children: vehicleList,
                     ),
                   ),
                 floatingActionButton: InkWell(
                   onTap: () {
-                    if (generalController.currentIndex.value != 0) {
-                      generalController.currentIndex.value = 0;
-                      Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const HomeMain(
-                                    initialIndex: 0,
-                                  )));
-                    }
+                    _selectTab(0);
                   },
                   child: Container(
                     height: 55,
@@ -234,6 +247,7 @@ class _HomeMainScreenState extends State<HomeMain>
                     surfaceTintColor: whiteColor,
                     color: whiteColor,
                     child: TabBar(
+                      onTap: _selectTab,
                       labelPadding: EdgeInsets.zero,
                       controller: generalController.tabController,
                       indicator: UnderlineTabIndicator(

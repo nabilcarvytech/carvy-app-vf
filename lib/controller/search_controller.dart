@@ -18,6 +18,7 @@ import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/search/vehicle/vehicle_filter.dart';
 import '../api/config.dart';
+import '../utils/safe_navigation.dart';
 import '../customwidget/custom_active_module_id_widget.dart';
 import '../customwidget/miscellaneous_project_elements.dart';
 import '../helper/http_service.dart';
@@ -1223,8 +1224,6 @@ class SearchControllerHome extends GetxController implements GetxService {
       lockPriceRangeForNextSearch(built == '0-0' ? '' : built);
     }
 
-    dismissFilterBottomSheet(sheetContext);
-
     void runAfterSheetClosed() {
       final ctx = Get.context;
       if (ctx == null) return;
@@ -1240,7 +1239,7 @@ class SearchControllerHome extends GetxController implements GetxService {
       refreshResults?.call();
     }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => runAfterSheetClosed());
+    safePopAndAction(sheetContext, runAfterSheetClosed);
   }
 
   /// Ferme la feuille de filtres (useRootNavigator: true dans [showPopUpScreen]).
