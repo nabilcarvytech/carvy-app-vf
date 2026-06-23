@@ -420,6 +420,21 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     );
   }
 
+  SliverToBoxAdapter _buildSectionSliver({
+    required String sectionName,
+    required Widget child,
+  }) {
+    return SliverToBoxAdapter(
+      child: Visibility(
+        visible: _isSectionActive(sectionName),
+        maintainState: true,
+        maintainAnimation: true,
+        maintainSize: false,
+        child: child,
+      ),
+    );
+  }
+
   @override
   bool get wantKeepAlive => true;
 
@@ -462,14 +477,66 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                     enablePullUp: false,
                     header: _homePullToRefreshHeader(context),
                     onRefresh: onRefresh,
-                    child: ListView.builder(
+                    child: ListView(
                       controller: scrollController,
                       physics: const ClampingScrollPhysics(),
-                      itemCount: _calculateItemCount(),
-                      itemBuilder: (context, index) {
-                        return _buildSection(
-                            index, notifires, stateSetter, context);
-                      },
+                      children: [
+                        Visibility(
+                          visible: _isSectionActive('VehicleType'),
+                          maintainState: true,
+                          maintainAnimation: true,
+                          maintainSize: false,
+                          child: _buildVehicleTypeSection(
+                            context,
+                            notifires,
+                            stateSetter,
+                          ),
+                        ),
+                        Visibility(
+                          visible: _isSectionActive('PopularRegion'),
+                          maintainState: true,
+                          maintainAnimation: true,
+                          maintainSize: false,
+                          child: _buildPopularRegionSection(context, notifires),
+                        ),
+                        Visibility(
+                          visible: _isSectionActive('VehiclesNearYou'),
+                          maintainState: true,
+                          maintainAnimation: true,
+                          maintainSize: false,
+                          child: _buildVehiclesNearYouSection(
+                            context,
+                            notifires,
+                            stateSetter,
+                          ),
+                        ),
+                        Visibility(
+                          visible: _isSectionActive('Make'),
+                          maintainState: true,
+                          maintainAnimation: true,
+                          maintainSize: false,
+                          child: _buildMakeSection(context, notifires),
+                        ),
+                        Visibility(
+                          visible: _isSectionActive('BecomeHost'),
+                          maintainState: true,
+                          maintainAnimation: true,
+                          maintainSize: false,
+                          child: _buildBecomeHostSection(context, notifires),
+                        ),
+                        Visibility(
+                          visible: _isSectionActive('MostViewed'),
+                          maintainState: true,
+                          maintainAnimation: true,
+                          maintainSize: false,
+                          child: _buildMostViewedSection(
+                            context,
+                            notifires,
+                            stateSetter,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
                     ),
                   ),
                 ),
@@ -580,16 +647,44 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                     ),
                   ),
                 ),
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, index) => _buildSection(
-                      index,
-                      notifires,
-                      stateSetter,
-                      ctx,
-                    ),
-                    childCount: _calculateItemCount(),
+                _buildSectionSliver(
+                  sectionName: 'VehicleType',
+                  child: _buildVehicleTypeSection(
+                    context,
+                    notifires,
+                    stateSetter,
                   ),
+                ),
+                _buildSectionSliver(
+                  sectionName: 'PopularRegion',
+                  child: _buildPopularRegionSection(context, notifires),
+                ),
+                _buildSectionSliver(
+                  sectionName: 'VehiclesNearYou',
+                  child: _buildVehiclesNearYouSection(
+                    context,
+                    notifires,
+                    stateSetter,
+                  ),
+                ),
+                _buildSectionSliver(
+                  sectionName: 'Make',
+                  child: _buildMakeSection(context, notifires),
+                ),
+                _buildSectionSliver(
+                  sectionName: 'BecomeHost',
+                  child: _buildBecomeHostSection(context, notifires),
+                ),
+                _buildSectionSliver(
+                  sectionName: 'MostViewed',
+                  child: _buildMostViewedSection(
+                    context,
+                    notifires,
+                    stateSetter,
+                  ),
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 20),
                 ),
               ],
             ),
@@ -597,19 +692,6 @@ class _VehicleHomePageState extends State<VehicleHomePage>
         },
       ),
     );
-  }
-
-  int _calculateItemCount() {
-    int count = 0;
-    if (_isSectionActive('VehicleType')) count += 2;
-    if (_isSectionActive('PopularRegion')) count += 2;
-    if (_isSectionActive('VehiclesNearYou')) count += 2;
-    if (_isSectionActive('Make')) count += 2;
-    if (_isSectionActive('BecomeHost')) count += 2;
-    if (_isSectionActive('MostViewed')) count += 2;
-    count += 1;
-
-    return count;
   }
 
   bool _isSectionActive(String section) {
@@ -642,88 +724,6 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     }
 
     return isActive;
-  }
-
-  Widget dynamicSpacer(String currentSection, String nextSection) {
-    bool isCurrentActive = _isSectionActive(currentSection);
-    bool isNextActive = _isSectionActive(nextSection);
-    if (isCurrentActive && isNextActive) {
-      return const SizedBox(height: 13.0);
-    }
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildSection(int index, ColorNotifires notifires,
-      StateSetter stateSetter, BuildContext context) {
-    int currentIndex = 0;
-
-    if (_isSectionActive('VehicleType')) {
-      if (index == currentIndex) {
-        return _buildVehicleTypeSection(context, notifires, stateSetter);
-      }
-      currentIndex++;
-      if (index == currentIndex) {
-        return dynamicSpacer('VehicleType', 'PopularRegion');
-      }
-      currentIndex++;
-    }
-
-    if (_isSectionActive('PopularRegion')) {
-      if (index == currentIndex) {
-        return _buildPopularRegionSection(context, notifires);
-      }
-      currentIndex++;
-      if (index == currentIndex) {
-        return dynamicSpacer('PopularRegion', 'VehiclesNearYou');
-      }
-      currentIndex++;
-    }
-
-    if (_isSectionActive('VehiclesNearYou')) {
-      if (index == currentIndex) {
-        return _buildVehiclesNearYouSection(context, notifires, stateSetter);
-      }
-      currentIndex++;
-      if (index == currentIndex) {
-        return dynamicSpacer('VehiclesNearYou', 'Make');
-      }
-      currentIndex++;
-    }
-
-    if (_isSectionActive('Make')) {
-      if (index == currentIndex) {
-        return _buildMakeSection(context, notifires);
-      }
-      currentIndex++;
-      if (index == currentIndex) {
-        return dynamicSpacer('Make', 'BecomeHost');
-      }
-      currentIndex++;
-    }
-
-    if (_isSectionActive('BecomeHost')) {
-      if (index == currentIndex) {
-        return _buildBecomeHostSection(context, notifires);
-      }
-      currentIndex++;
-      if (index == currentIndex) {
-        return dynamicSpacer('BecomeHost', 'MostViewed');
-      }
-      currentIndex++;
-    }
-
-    if (_isSectionActive('MostViewed')) {
-      if (index == currentIndex) {
-        return _buildMostViewedSection(context, notifires, stateSetter);
-      }
-      currentIndex++;
-      if (index == currentIndex) {
-        return dynamicSpacer('MostViewed', '');
-      }
-      currentIndex++;
-    }
-
-    return const SizedBox(height: 20);
   }
 
   Widget _buildVehicleTypeSection(
@@ -759,6 +759,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             }
           }
         }),
+        const SizedBox(height: 13),
       ],
     );
   }
@@ -896,6 +897,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             const Spacer(),
             InkWell(
               onTap: () {
+                final homeData = homeController.homeDataModel?.data;
+                final locations = homeData?.locations;
+                if (locations == null || locations.isEmpty) return;
                 filterController.clearFilter();
                 filterController.setDefaultDates(
                   startDateCustomDate:
@@ -905,8 +909,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                   endDates: filterController.endDates,
                 );
                 Get.to(
-                  () => LocationScreen(
-                      list: homeController.homeDataModel!.data!.locations),
+                  () => LocationScreen(list: locations),
                   transition: Transition.fadeIn,
                 );
               },
@@ -923,8 +926,11 @@ class _VehicleHomePageState extends State<VehicleHomePage>
           if (homeController.homeDataLoading.value == true) {
             return rectangleLocation();
           } else {
-            final locations =
-                homeController.homeDataModel?.data!.locations ?? [];
+            final homeData = homeController.homeDataModel?.data;
+            if (homeData == null) {
+              return const SizedBox.shrink();
+            }
+            final locations = homeData.locations ?? [];
 
             if (locations.isNotEmpty) {
               return homeLocations(locations, notifires);
@@ -933,6 +939,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             }
           }
         }),
+        const SizedBox(height: 13),
       ],
     );
   }
@@ -957,6 +964,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             const Spacer(),
             InkWell(
               onTap: () async {
+                final homeData = homeController.homeDataModel?.data;
+                final nearbyItems = homeData?.nearbyItems;
+                if (nearbyItems == null || nearbyItems.isEmpty) return;
                 filterController.clearFilter();
                 filterController.setDefaultDates(
                   startDateCustomDate:
@@ -968,9 +978,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                 filterController.selectredeShortByvalue.value =
                     "Nearest Location";
                 Get.to(
-                  () => AfterSearch(
-                      itemList:
-                          homeController.homeDataModel!.data!.nearbyItems),
+                  () => AfterSearch(itemList: nearbyItems),
                   transition: Transition.fadeIn,
                 );
               },
@@ -988,7 +996,11 @@ class _VehicleHomePageState extends State<VehicleHomePage>
           if (homeController.homeDataLoading.value == true) {
             return sliderShimmer();
           } else {
-            final items = homeController.homeDataModel?.data?.nearbyItems ?? [];
+            final homeData = homeController.homeDataModel?.data;
+            if (homeData == null) {
+              return const SizedBox.shrink();
+            }
+            final items = homeData.nearbyItems ?? [];
 
             if (items.isNotEmpty) {
               return Padding(
@@ -1006,6 +1018,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             }
           }
         }),
+        const SizedBox(height: 13),
       ],
     );
   }
@@ -1065,6 +1078,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             }
           }),
         ),
+        const SizedBox(height: 13),
       ],
     );
   }
@@ -1156,8 +1170,11 @@ class _VehicleHomePageState extends State<VehicleHomePage>
           if (homeController.homeDataLoading.value == true) {
             return verticleShimmerWidgetBookable();
           } else {
-            final items =
-                homeController.homeDataModel?.data!.mostViewedItems ?? [];
+            final homeData = homeController.homeDataModel?.data;
+            if (homeData == null) {
+              return const SizedBox.shrink();
+            }
+            final items = homeData.mostViewedItems ?? [];
             return Padding(
               padding: const EdgeInsets.all(12),
               child: LayoutBuilder(
@@ -1168,6 +1185,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             );
           }
         }),
+        const SizedBox(height: 13),
       ],
     );
   }
@@ -1302,8 +1320,11 @@ class _VehicleHomePageState extends State<VehicleHomePage>
 
   void _openBottomSheet(BuildContext context) {
     final TextEditingController searchController = TextEditingController();
-    // Garder la liste complète des objets Location pour accéder aux coordonnées
-    final allLocations = homeController.homeDataModel!.data!.locations!;
+    final homeData = homeController.homeDataModel?.data;
+    final allLocations = homeData?.locations;
+    if (allLocations == null || allLocations.isEmpty) {
+      return;
+    }
     final RxList<Location> filteredLocations = RxList<Location>(allLocations);
 
     showModalBottomSheet(

@@ -54,6 +54,7 @@ Widget vehicleTypeWidget(
           final dynamic city = list[index].name!;
           final typeLabel = (list[index].name ?? '').toString().trim().tr;
           return Padding(
+            key: ValueKey('vehicle-type-$id'),
             padding:
                 const EdgeInsets.only(right: 10, top: 5, bottom: 5, left: 2),
             child: InkWell(
@@ -140,6 +141,7 @@ vehicalCategory(List<Makes> list, notifire) {
           // ===================================================================
           
           return Padding(
+            key: ValueKey('make-${list.elementAt(index).id ?? index}'),
             padding:
                 const EdgeInsets.only(right: 14, top: 5, bottom: 5, left: 8),
             child: InkWell(
@@ -271,6 +273,7 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
         final double parsedRating =
             VehicleCardHelper.resolveItemRating(list[index]);
         return Padding(
+          key: ValueKey('most-viewed-${item.id ?? index}'),
           padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
           child: GestureDetector(
             onTap: () {
@@ -2006,6 +2009,7 @@ Widget vehicalHorizontalViewNearYou(
               VehicleCardHelper.resolveItemRating(list[index]);
 
           return Padding(
+            key: ValueKey('nearby-${list[index].id ?? index}'),
             padding:
                 const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
             child: GestureDetector(
