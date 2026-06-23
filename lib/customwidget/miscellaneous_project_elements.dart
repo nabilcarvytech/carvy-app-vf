@@ -18,6 +18,7 @@ import 'package:carvy/helper/http_service.dart';
 import 'package:awesome_snackbar_content/awesome_snackbar_content.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/snackbar_service.dart';
 import '../utils/theme_style.dart';
 import 'package:carvy/work_space.dart';
 import '../controller/booking_controller.dart';
@@ -1770,7 +1771,7 @@ void showCustomSnackbar({
   required Color color,
   required ContentType contentType,
 }) {
-  Get.snackbar(
+  Get.safeSnackbar(
     title,
     message,
     snackStyle: SnackStyle.FLOATING,
@@ -1778,8 +1779,6 @@ void showCustomSnackbar({
     margin: const EdgeInsets.all(10),
     borderRadius: 10,
     snackPosition: SnackPosition.TOP,
-    barBlur: 0,
-    animationDuration: const Duration(milliseconds: 300),
     duration: const Duration(seconds: 3),
     colorText: Colors.white,
   );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:carvy/utils/snackbar_service.dart';
 import 'package:get/get.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/helper/http_service.dart';
@@ -25,7 +26,7 @@ class ApiService {
         response['statusCode'] == 403;
 
     if (is403) {
-      Get.snackbar(
+      Get.safeSnackbar(
         'Error'.tr,
         'Access denied'.tr,
         snackPosition: SnackPosition.BOTTOM,

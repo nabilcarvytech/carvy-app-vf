@@ -9,6 +9,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:carvy/services/location_service.dart';
+import 'package:carvy/utils/snackbar_service.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -936,7 +937,7 @@ class AuthController extends GetxController implements GetxService {
         ? message.trim()
         : 'Cet e-mail est déjà utilisé.'.tr;
     registerWizardEmailError.value = text;
-    Get.snackbar(
+    Get.safeSnackbar(
       'Erreur'.tr,
       text,
       backgroundColor: Colors.redAccent,
@@ -1221,7 +1222,7 @@ class AuthController extends GetxController implements GetxService {
   }
 
   void _notifyWhatsappFallbackToSms() {
-    Get.snackbar(
+    Get.safeSnackbar(
       'Info'.tr,
       'otp_whatsapp_fallback_sms'.tr,
       snackPosition: SnackPosition.BOTTOM,

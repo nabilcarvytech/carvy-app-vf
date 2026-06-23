@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:carvy/api/config.dart';
+import 'package:carvy/utils/snackbar_service.dart';
 import 'package:carvy/helper/http_service.dart';
 import 'dart:convert';
 import 'dart:developer' as developer;
@@ -106,7 +107,7 @@ class CleanEditVehicleController extends GetxController {
     isLoading = true;
     update();
     await Future.delayed(const Duration(seconds: 1)); // Simule l'API
-    Get.snackbar("Succès", "Modifications simulées avec succès");
+    Get.safeSnackbar("Succès", "Modifications simulées avec succès");
     isLoading = false;
     update();
   }

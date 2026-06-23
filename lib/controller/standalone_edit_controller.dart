@@ -12,6 +12,7 @@ import 'package:carvy/model/make_model_vehicle.dart';
 import 'package:carvy/model/make_type_model.dart';
 import 'package:carvy/model/odometer_model.dart';
 import 'package:carvy/model/transmission_model.dart';
+import 'package:carvy/utils/snackbar_service.dart';
 import 'package:carvy/work_space.dart';
 
 /// Contrôleur autonome pour l'édition de véhicule
@@ -480,7 +481,7 @@ class StandaloneEditController extends GetxController {
       }
     } catch (e) {
       debugPrint('❌ [STANDALONE] Erreur initEdit: $e');
-      Get.snackbar('Erreur', 'Impossible de charger les données du véhicule');
+      Get.safeSnackbar('Erreur', 'Impossible de charger les données du véhicule');
     } finally {
       isLoading.value = false;
       update();
@@ -492,7 +493,7 @@ class StandaloneEditController extends GetxController {
   /// Met à jour le véhicule via PUT
   Future<bool> updateVehicle() async {
     if (vehicleId == null) {
-      Get.snackbar('Erreur', 'ID du véhicule manquant');
+      Get.safeSnackbar('Erreur', 'ID du véhicule manquant');
       return false;
     }
 
@@ -547,16 +548,16 @@ class StandaloneEditController extends GetxController {
       if (response != null &&
           response is Map<String, dynamic> &&
           (response['status'] == 200 || response['success'] == true)) {
-        Get.snackbar('Succès', 'Véhicule mis à jour avec succès');
+        Get.safeSnackbar('Succès', 'Véhicule mis à jour avec succès');
         debugPrint('✅ [STANDALONE] Véhicule mis à jour avec succès');
         return true;
       } else {
-        Get.snackbar('Erreur', 'Échec de la mise à jour');
+        Get.safeSnackbar('Erreur', 'Échec de la mise à jour');
         debugPrint('❌ [STANDALONE] Échec de la mise à jour: $response');
         return false;
       }
     } catch (e) {
-      Get.snackbar('Erreur', 'Erreur lors de la mise à jour: $e');
+      Get.safeSnackbar('Erreur', 'Erreur lors de la mise à jour: $e');
       debugPrint('❌ [STANDALONE] Erreur updateVehicle: $e');
       return false;
     } finally {

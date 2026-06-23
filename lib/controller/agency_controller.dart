@@ -11,6 +11,7 @@ import 'package:carvy/api/config.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/snackbar_service.dart';
 import 'package:carvy/view/auth/agency_registration_pending_screen.dart';
 import 'package:carvy/work_space.dart';
 
@@ -387,7 +388,7 @@ class AgencyController extends GetxController implements GetxService {
           debugPrint('📢 [AGENCY_REGISTER] Status 400 - Affichage du snackbar avec: $specificError');
           
           // Utiliser Get.snackbar ET showErrorToastMessage pour garantir l'affichage
-          Get.snackbar(
+          Get.safeSnackbar(
             'Erreur d\'inscription',
             specificError, // Affichera 'This email is already in use'
             snackPosition: SnackPosition.BOTTOM,
@@ -396,8 +397,6 @@ class AgencyController extends GetxController implements GetxService {
             duration: const Duration(seconds: 4),
             margin: const EdgeInsets.all(16),
             borderRadius: 8,
-            isDismissible: true,
-            dismissDirection: DismissDirection.horizontal,
           );
           
           // Fallback avec toast pour garantir l'affichage
@@ -455,7 +454,7 @@ class AgencyController extends GetxController implements GetxService {
           debugPrint('📢 [AGENCY_REGISTER] Affichage du snackbar avec: $specificError');
           
           // Utiliser Get.snackbar ET showErrorToastMessage pour garantir l'affichage
-          Get.snackbar(
+          Get.safeSnackbar(
             'Erreur d\'inscription',
             specificError, // Affichera 'This email is already in use'
             snackPosition: SnackPosition.BOTTOM,
@@ -464,8 +463,6 @@ class AgencyController extends GetxController implements GetxService {
             duration: const Duration(seconds: 4),
             margin: const EdgeInsets.all(16),
             borderRadius: 8,
-            isDismissible: true,
-            dismissDirection: DismissDirection.horizontal,
           );
           
           // Fallback avec toast pour garantir l'affichage

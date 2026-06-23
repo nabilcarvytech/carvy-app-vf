@@ -10,6 +10,7 @@ import 'package:carvy/api/config.dart';
 import 'package:carvy/customwidget/form_validation.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/helper/http_service.dart';
+import 'package:carvy/utils/snackbar_service.dart';
   import 'package:flutter/material.dart';
 import 'package:carvy/model/amenities_model.dart';
 import 'package:carvy/model/cancellation_policies_model.dart';
@@ -3499,7 +3500,7 @@ class AddItemsHostController extends GetxController implements GetxService {
         // Vérifier si re-validation est requise
         if (responseData['requiresRevalidation'] == true) {
           // Afficher un Snackbar spécifique pour la re-validation
-          Get.snackbar(
+          Get.safeSnackbar(
             'Modifications enregistrées',
             'Votre véhicule est en cours de re-validation par l\'admin.',
             snackPosition: SnackPosition.BOTTOM,
@@ -3547,7 +3548,7 @@ class AddItemsHostController extends GetxController implements GetxService {
     if (frontImageBase64fordoec == null || frontImageBase64fordoec!.isEmpty) {
       debugPrint("❌ [UPLOAD_IMAGE] Échec : Documents manquants (frontImageBase64fordoec est null ou vide)");
       closeLoading();
-      Get.snackbar(
+      Get.safeSnackbar(
         "Erreur",
         "Les documents du véhicule sont obligatoires. Merci.",
         snackPosition: SnackPosition.BOTTOM,
@@ -4044,7 +4045,7 @@ class AddItemsHostController extends GetxController implements GetxService {
         if (response['status'] == 200 || response['success'] == true) {
           final successMessage = response['message'] ?? 'Votre demande de suppression a été envoyée à l\'administrateur.'.tr;
           
-          Get.snackbar(
+          Get.safeSnackbar(
             'Succès'.tr,
             successMessage,
             snackPosition: SnackPosition.TOP,
@@ -4064,7 +4065,7 @@ class AddItemsHostController extends GetxController implements GetxService {
           }
         } else {
           // Afficher un message d'erreur
-          Get.snackbar(
+          Get.safeSnackbar(
             'Erreur'.tr,
             response['error'] ?? response['message'] ?? 'Erreur lors de la demande de suppression'.tr,
             snackPosition: SnackPosition.TOP,
@@ -4079,7 +4080,7 @@ class AddItemsHostController extends GetxController implements GetxService {
       debugPrint('❌ [DELETE] Erreur lors de la demande de suppression: $e');
       debugPrint('❌ [DELETE] StackTrace: $stackTrace');
       
-      Get.snackbar(
+      Get.safeSnackbar(
         'Erreur'.tr,
         'Erreur lors de la demande de suppression: $e'.tr,
         snackPosition: SnackPosition.TOP,
@@ -4164,7 +4165,7 @@ class AddItemsHostController extends GetxController implements GetxService {
         if (response['success'] == true) {
           // Désactive les Snackbars : Commente temporairement tous les Get.snackbar
           // Future.delayed(const Duration(milliseconds: 500), () {
-          //   Get.snackbar(
+          //   Get.safeSnackbar(
           //     'Succès'.tr,
           //     'Demande envoyée ! Le véhicule sera supprimé après validation de l\'admin.'.tr,
           //     snackPosition: SnackPosition.TOP,
@@ -4193,7 +4194,7 @@ class AddItemsHostController extends GetxController implements GetxService {
           debugPrint('❌ [ERROR] Message d\'erreur: $errorMessage');
           
           // Future.delayed(const Duration(milliseconds: 500), () {
-          //   Get.snackbar(
+          //   Get.safeSnackbar(
           //     'Erreur'.tr,
           //     errorMessage,
           //     snackPosition: SnackPosition.TOP,
@@ -4229,7 +4230,7 @@ class AddItemsHostController extends GetxController implements GetxService {
       debugPrint('❌ [EXCEPTION] Erreur capturée: $errorMessage');
       
       // Future.delayed(const Duration(milliseconds: 500), () {
-      //   Get.snackbar(
+      //   Get.safeSnackbar(
       //     'Erreur'.tr,
       //     errorMessage,
       //     snackPosition: SnackPosition.TOP,

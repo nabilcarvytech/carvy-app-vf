@@ -23,6 +23,7 @@ import 'package:carvy/model/digital_singnature_model.dart';
 import 'package:carvy/model/item_details_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
+import 'package:carvy/utils/snackbar_service.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import '../api/config.dart';
 import '../customwidget/miscellaneous_project_elements.dart';
@@ -1569,7 +1570,7 @@ class BookingController extends GetxController implements GetxService {
 
       if (authToken == null || authToken.isEmpty) {
         debugPrint('❌ [processBooking] Token d\'authentification manquant');
-        Get.snackbar(
+        Get.safeSnackbar(
           'Erreur d\'authentification'.tr,
           'Veuillez vous reconnecter'.tr,
           snackPosition: SnackPosition.TOP,
@@ -1590,7 +1591,7 @@ class BookingController extends GetxController implements GetxService {
       dynamic finalVehicleId = vehicleId ?? idFeatured ?? widgetVehicleId;
 
       if (finalVehicleId == null || finalVehicleId.toString().isEmpty) {
-        Get.snackbar(
+        Get.safeSnackbar(
           'Erreur'.tr,
           'ID du véhicule manquant'.tr,
           snackPosition: SnackPosition.TOP,
@@ -1604,7 +1605,7 @@ class BookingController extends GetxController implements GetxService {
 
       // ========== 3. VALIDATION DES DATES ==========
       if (startDate.value.isEmpty || endDate.value.isEmpty) {
-        Get.snackbar(
+        Get.safeSnackbar(
           'Erreur'.tr,
           'Veuillez sélectionner les dates de réservation'.tr,
           snackPosition: SnackPosition.TOP,
@@ -1624,7 +1625,7 @@ class BookingController extends GetxController implements GetxService {
         checkOutDate = DateTime.parse(endDate.value);
       } catch (e) {
         debugPrint('❌ [processBooking] Erreur de parsing des dates: $e');
-        Get.snackbar(
+        Get.safeSnackbar(
           'Erreur'.tr,
           'Format de date invalide'.tr,
           snackPosition: SnackPosition.TOP,
@@ -1802,7 +1803,7 @@ class BookingController extends GetxController implements GetxService {
         debugPrint('❌ [processBooking] StackTrace: $stackTrace');
         debugPrint('❌ [processBooking] Response body qui a causé l\'erreur:');
         debugPrint(response.body);
-        Get.snackbar(
+        Get.safeSnackbar(
           'Erreur de format'.tr,
           'Le serveur a renvoyé une réponse invalide. Veuillez réessayer.'.tr,
           snackPosition: SnackPosition.TOP,
@@ -1858,7 +1859,7 @@ class BookingController extends GetxController implements GetxService {
               '❌ [processBooking] ERREUR: responseData ne contient pas la clé "data"');
           debugPrint(
               '❌ [processBooking] Clés disponibles: ${responseData.keys.toList()}');
-          Get.snackbar(
+          Get.safeSnackbar(
             'Erreur de réponse'.tr,
             'La réponse du serveur est incomplète.'.tr,
             snackPosition: SnackPosition.TOP,
@@ -1876,7 +1877,7 @@ class BookingController extends GetxController implements GetxService {
               '❌ [processBooking] ERREUR: responseData["data"] n\'est pas un Map');
           debugPrint(
               '❌ [processBooking] Type de data: ${responseData["data"].runtimeType}');
-          Get.snackbar(
+          Get.safeSnackbar(
             'Erreur de format'.tr,
             'Format de réponse invalide.'.tr,
             snackPosition: SnackPosition.TOP,
@@ -2026,7 +2027,7 @@ class BookingController extends GetxController implements GetxService {
                               fromPropBooking: false,
                               initialTabIndex: 0,
                             ));
-                        Get.snackbar(
+                        Get.safeSnackbar(
                           'Succes'.tr,
                           'Votre reservation est confirmee !'.tr,
                           snackPosition: SnackPosition.TOP,
@@ -2072,7 +2073,7 @@ class BookingController extends GetxController implements GetxService {
 
         debugPrint(
             '❌ [processBooking] Erreur ${response.statusCode}: $errorMessage');
-        Get.snackbar(
+        Get.safeSnackbar(
           'Erreur de réservation'.tr,
           errorMessage,
           snackPosition: SnackPosition.TOP,
@@ -2089,7 +2090,7 @@ class BookingController extends GetxController implements GetxService {
             'Une erreur est survenue lors de la réservation'.tr;
         debugPrint(
             '❌ [processBooking] Erreur ${response.statusCode}: $errorMessage');
-        Get.snackbar(
+        Get.safeSnackbar(
           'Erreur'.tr,
           errorMessage,
           snackPosition: SnackPosition.TOP,
@@ -2103,7 +2104,7 @@ class BookingController extends GetxController implements GetxService {
     } catch (e, stackTrace) {
       debugPrint('❌ [processBooking] Erreur: $e');
       debugPrint('❌ [processBooking] StackTrace: $stackTrace');
-      Get.snackbar(
+      Get.safeSnackbar(
         'Erreur de connexion'.tr,
         'Impossible de se connecter au serveur. Veuillez réessayer.'.tr,
         snackPosition: SnackPosition.TOP,
@@ -2169,7 +2170,7 @@ class BookingController extends GetxController implements GetxService {
       Get.back();
     }
 
-    Get.snackbar(
+    Get.safeSnackbar(
       'Succes'.tr,
       'Reservation extended successfully'.tr,
       snackPosition: SnackPosition.TOP,
@@ -2219,7 +2220,7 @@ class BookingController extends GetxController implements GetxService {
               if (Get.key.currentState?.canPop() == true) {
                 Get.back();
               }
-              Get.snackbar(
+              Get.safeSnackbar(
                 'Succes'.tr,
                 'Reservation extended successfully'.tr,
                 snackPosition: SnackPosition.TOP,
@@ -3278,7 +3279,7 @@ class BookingController extends GetxController implements GetxService {
             ? (response['message']?.toString() ??
                 'Véhicule retourné avec succès !')
             : 'Véhicule retourné avec succès !';
-        Get.snackbar(
+        Get.safeSnackbar(
           'Succès'.tr,
           message,
           snackStyle: SnackStyle.FLOATING,
@@ -3299,7 +3300,7 @@ class BookingController extends GetxController implements GetxService {
               response['message']?.toString() ??
               'Failed to mark vehicle as returned'.tr)
           : 'Failed to mark vehicle as returned'.tr;
-      Get.snackbar(
+      Get.safeSnackbar(
         'Erreur'.tr,
         errorMsg,
         snackStyle: SnackStyle.FLOATING,
@@ -3312,7 +3313,7 @@ class BookingController extends GetxController implements GetxService {
       );
       return false;
     } catch (e) {
-      Get.snackbar(
+      Get.safeSnackbar(
         'Erreur'.tr,
         e.toString(),
         snackStyle: SnackStyle.FLOATING,
