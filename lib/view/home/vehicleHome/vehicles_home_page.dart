@@ -1472,6 +1472,10 @@ class _VehicleHomePageState extends State<VehicleHomePage>
 }
 
 /// Garde la barre [Map / Tri / Filtre] collée en dessous de la zone bleue quand le header défile.
+///
+/// Hauteur fixe avec marge iOS/macOS : le contenu réel (padding + boutons + ombre)
+/// peut dépasser ~90 px sur Apple à cause du text scaling et des métriques de police.
+/// Sans contrainte explicite, layoutExtent > paintExtent et le viewport plante.
 class _HomeFilterBarPinnedDelegate extends SliverPersistentHeaderDelegate {
   _HomeFilterBarPinnedDelegate({
     required this.backgroundColor,
@@ -1481,13 +1485,23 @@ class _HomeFilterBarPinnedDelegate extends SliverPersistentHeaderDelegate {
   final Color backgroundColor;
   final Widget child;
 
+  /// Padding vertical du [SliverPersistentHeader] (top 10 + bottom 8).
+  static const double _kOuterPaddingVertical = 18.0;
+
+  /// Hauteur estimée de [HomeFilterBar] (boutons + marges internes).
+  static const double _kFilterBarContentHeight = 72.0;
+
+  /// Marge de sécurité pour variations de pixels iOS/macOS (DPR, police, ombre).
+  static const double _kIosSafetyMargin = 20.0;
+
+  static const double _kPinnedHeight =
+      _kOuterPaddingVertical + _kFilterBarContentHeight + _kIosSafetyMargin;
+
   @override
   double get minExtent => _kPinnedHeight;
 
   @override
   double get maxExtent => _kPinnedHeight;
-
-  static const double _kPinnedHeight = 90;
 
   @override
   Widget build(
@@ -1495,16 +1509,24 @@ class _HomeFilterBarPinnedDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return Material(
-      color: backgroundColor,
-      elevation: overlapsContent ? 1.5 : 0,
-      shadowColor: Colors.black26,
-      child: child,
+    return SizedBox(
+      height: _kPinnedHeight,
+      child: Material(
+        color: backgroundColor,
+        elevation: overlapsContent ? 1.5 : 0,
+        shadowColor: Colors.black26,
+        clipBehavior: Clip.hardEdge,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: child,
+        ),
+      ),
     );
   }
 
   @override
   bool shouldRebuild(covariant _HomeFilterBarPinnedDelegate oldDelegate) {
-    return oldDelegate.backgroundColor != backgroundColor;
+    return oldDelegate.backgroundColor != backgroundColor ||
+        oldDelegate.child != child;
   }
 }
