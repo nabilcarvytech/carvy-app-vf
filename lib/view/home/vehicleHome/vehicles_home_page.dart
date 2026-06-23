@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -44,7 +43,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   void initState() {
     super.initState();
     handleBoackfromPayment = false;
-    SchedulerBinding.instance.addPostFrameCallback((_) => _bootstrapHomePage());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrapHomePage());
   }
 
   @override
@@ -270,15 +269,19 @@ class _VehicleHomePageState extends State<VehicleHomePage>
       handleDirectBooking = false;
       getUserDataLocallyToHandleTheState();
       homeController.homeDataModel = null;
-      if (mounted) setState(() {});
+      homeController.update();
       filterController.hitApiOnMap = false;
       await generalController.fetchGeneralSettings();
       await homeController.apibasedonModuleid();
       if (scrollController.hasClients) {
-        scrollController.jumpTo(0);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (scrollController.hasClients) {
+            scrollController.jumpTo(0);
+          }
+        });
       }
     } catch (e) {
-      print("Fetch data error: $e");
+      debugPrint("Fetch data error: $e");
     }
   }
 
