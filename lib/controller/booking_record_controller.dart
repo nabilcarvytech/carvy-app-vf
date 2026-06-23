@@ -8,6 +8,7 @@ import '../customwidget/miscellaneous_project_elements.dart';
 import '../model/booking_model.dart';
 import '../model/extension_payment_context.dart';
 import '../work_space.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 
 /// Controller pour gérer les enregistrements de réservations (booking records)
 /// Connecté à l'API Node.js locale via POST /api/v1/booking-record
@@ -27,6 +28,12 @@ class BookingRecordController extends GetxController implements GetxService {
   
   // Garder une trace du type actuel pour éviter les mélanges
   String? currentType;
+
+  @override
+  void onClose() {
+    isLoading.value = false;
+    super.onClose();
+  }
 
   // ========== FONCTION PRINCIPALE : getBookingRecord() ==========
   /// Récupère les réservations depuis l'API Node.js
@@ -104,7 +111,7 @@ class BookingRecordController extends GetxController implements GetxService {
           hasError.value = true;
           errorMessage = 'Token d\'authentification manquant';
           isLoading.value = false;
-          update();
+          safeUpdate();
           return;
         }
 
@@ -158,7 +165,7 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = 'Format de réponse invalide';
         isLoading.value = false;
-        update();
+        safeUpdate();
         return;
       }
 
@@ -170,7 +177,7 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = errorMsg;
         isLoading.value = false;
-        update();
+        safeUpdate();
         return;
       }
 
@@ -182,7 +189,7 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = 'Réponse incomplète du serveur';
         isLoading.value = false;
-        update();
+        safeUpdate();
         return;
       }
 
@@ -192,7 +199,7 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = 'Format de réponse invalide: clé Bookings manquante';
         isLoading.value = false;
-        update();
+        safeUpdate();
         return;
       }
 
@@ -466,7 +473,7 @@ class BookingRecordController extends GetxController implements GetxService {
           
           // ========== 3. RAFRAÎCHISSEMENT DE L'UI ==========
           // RxList notifie automatiquement GetX, mais on appelle update() pour être sûr
-          update();
+          safeUpdate();
         } else {
           debugPrint('⚠️ [BookingRecord] bookingModel.data.bookings est null ou vide');
         }
@@ -602,7 +609,7 @@ class BookingRecordController extends GetxController implements GetxService {
       errorMessage = 'Erreur de connexion: ${e.toString()}';
     } finally {
       isLoading.value = false;
-      update();
+      safeUpdate();
     }
   }
 
@@ -616,7 +623,7 @@ class BookingRecordController extends GetxController implements GetxService {
     isSuccess.value = false;
     hasError.value = false;
     errorMessage = null;
-    update(); // Notifier GetX du changement
+        safeUpdate(); // Notifier GetX du changement
   }
 
   // ========== FONCTION POUR SUPPRIMER UNE RÉSERVATION DE LA LISTE ==========
@@ -624,7 +631,7 @@ class BookingRecordController extends GetxController implements GetxService {
   void removeBooking(int index) {
     if (index >= 0 && index < bookingsList.length) {
       bookingsList.removeAt(index);
-      update();
+      safeUpdate();
     }
   }
 

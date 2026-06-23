@@ -28,11 +28,19 @@ class PaymentMethodScreen extends StatefulWidget {
 
 class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   BookingController bookingController = Get.find();
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
     runAfterFirstFrame(() {
+      if (_disposed || !mounted) return;
       bookingController.fetchPaymentMethods();
       if (!widget.isExtension &&
           bookingController.extensionPaymentContext != null) {

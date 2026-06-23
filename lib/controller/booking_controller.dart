@@ -141,6 +141,8 @@ class BookingController extends GetxController implements GetxService {
   @override
   void onClose() {
     reviewCommentController.dispose();
+    isProcessingBooking.value = false;
+    isLoadingPaymentMethods.value = false;
     super.onClose();
     // Réinitialiser hasSkippedInSession pour que le rappel s'affiche à nouveau pour la prochaine réservation
     try {
@@ -150,6 +152,83 @@ class BookingController extends GetxController implements GetxService {
     } catch (e) {
       // Si le controller n'est pas disponible, ignorer l'erreur
     }
+  }
+
+  static const Duration _postNavigationSettleDelay =
+      Duration(milliseconds: 350);
+
+  /// Notifie les GetBuilder sans toucher l'UI si le contrôleur est fermé.
+  void notifyUi([List<Object>? ids, bool condition = true]) {
+    safeUpdate(ids, condition);
+  }
+
+  /// Navigation post-paiement : d'abord la nouvelle page, puis fetch, puis snackbar.
+  Future<void> _navigateToBookingsAfterPayment({
+    required int tabIndex,
+    required String bookingRecordType,
+    required String snackTitle,
+    required String snackMessage,
+  }) async {
+    isProcessingBooking.value = false;
+    selectedPaymentMethod = null;
+    extensionPaymentContext = null;
+
+    generalController.myBookingTabIndex.value = tabIndex;
+    generalController.currentIndex.value = 2;
+
+    await Get.offAll(() => MyBooking(
+          fromPropBooking: false,
+          initialTabIndex: tabIndex,
+        ));
+    await Future.delayed(_postNavigationSettleDelay);
+
+    if (Get.isRegistered<BookingRecordController>()) {
+      await Get.find<BookingRecordController>().getBookingRecord(
+        type: bookingRecordType,
+        offset: 0,
+      );
+    }
+
+    Get.safeSnackbar(
+      snackTitle,
+      snackMessage,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+    );
+  }
+
+  /// Retour arrière puis refresh (extension de réservation, etc.).
+  Future<void> _popThenRefreshBookings({
+    required String bookingRecordType,
+    required String snackTitle,
+    required String snackMessage,
+  }) async {
+    isProcessingBooking.value = false;
+    extensionPaymentContext = null;
+    selectedPaymentMethod = null;
+
+    if (Get.key.currentState?.canPop() == true) {
+      Get.back();
+    }
+    await Future.delayed(_postNavigationSettleDelay);
+
+    if (Get.isRegistered<BookingRecordController>()) {
+      await Get.find<BookingRecordController>().getBookingRecord(
+        type: bookingRecordType,
+        offset: 0,
+      );
+    }
+
+    Get.safeSnackbar(
+      snackTitle,
+      snackMessage,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 3),
+    );
   }
 
   // ========== Formulaire d'avis client (véhicule + agence) ==========
@@ -193,7 +272,9 @@ class BookingController extends GetxController implements GetxService {
       if (i >= 0) {
         brc.bookingsList[i].isReviewedSetter = '1';
         brc.bookingsList[i].reviewStatusSetter = '1';
-        brc.bookingsList.refresh();
+        if (!brc.isClosed) {
+          brc.bookingsList.refresh();
+        }
       }
     } catch (_) {}
   }
@@ -464,11 +545,11 @@ class BookingController extends GetxController implements GetxService {
         showErrorToastMessage(result["error"] as String? ?? "");
       }
 
-      update();
+      safeUpdate();
       return result;
     } finally {
       isDateChecking.value = false;
-      update();
+      safeUpdate();
     }
   }
 
@@ -505,7 +586,7 @@ class BookingController extends GetxController implements GetxService {
       return result;
     } finally {
       isLoading.value = false;
-      update();
+      safeUpdate();
     }
   }
 
@@ -538,9 +619,9 @@ class BookingController extends GetxController implements GetxService {
   onWillPop() {
     if (isPaymentSuccess.value == false) {
       Get.back();
-      update();
+      safeUpdate();
     } else {
-      update();
+      safeUpdate();
     }
   }
 
@@ -977,7 +1058,7 @@ class BookingController extends GetxController implements GetxService {
       // ========== LOG AVANT UPDATE FINAL ==========
       print('🔄 [getDataBookingSummery] Appel de update() final');
       debugPrint('🔄 [getDataBookingSummery] Appel de update() final');
-      update();
+      safeUpdate();
       print('✅ [getDataBookingSummery] update() final effectué');
       debugPrint('✅ [getDataBookingSummery] update() final effectué');
 
@@ -992,7 +1073,7 @@ class BookingController extends GetxController implements GetxService {
 
   getWalletData() async {
     error.value = false;
-    update();
+    safeUpdate();
 
     // ========== MOCK DATA - OLD API CALL COMMENTED ==========
     // var resp = await httpPost(Config.getUserWallet, {});
@@ -1001,7 +1082,7 @@ class BookingController extends GetxController implements GetxService {
     //   if (walletModel!.status == 200) {
     //   } else {
     //     error.value = true;
-    //     update();
+    //     safeUpdate();
     //     showErrorToastMessage(walletModel!.error);
     //   }
     // }
@@ -1030,7 +1111,7 @@ class BookingController extends GetxController implements GetxService {
       error.value = true;
       showErrorToastMessage("Failed to load wallet data");
     } finally {
-      update();
+      safeUpdate();
     }
   }
 
@@ -1283,7 +1364,7 @@ class BookingController extends GetxController implements GetxService {
 
         // Rafraîchissement UI après parsing réussi - IMPORTANT pour GetBuilder
         debugPrint('🔄 Appel de update() pour rafraîchir l\'UI');
-        update();
+        safeUpdate();
       } else {
         error.value = true;
         debugPrint(
@@ -1300,7 +1381,7 @@ class BookingController extends GetxController implements GetxService {
           'Erreur lors du chargement des méthodes de paiement'.tr);
     } finally {
       isLoadingPaymentMethods.value = false;
-      update(); // Rafraîchissement UI final
+      safeUpdate(); // Rafraîchissement UI final
     }
   }
 
@@ -1372,10 +1453,10 @@ class BookingController extends GetxController implements GetxService {
               "bookingId": bookingId.toString(),
             })?.then((value) {
               if (value != null && value == "Paid") {
-                update();
+                safeUpdate();
                 isPaymentSuccess.value = true;
               } else {
-                update();
+                safeUpdate();
                 isPaymentSuccess.value = false;
               }
             });
@@ -1413,10 +1494,10 @@ class BookingController extends GetxController implements GetxService {
                 return;
               }
               if (value == "Paid") {
-                update();
+                safeUpdate();
                 isPaymentSuccess.value = true;
               } else {
-                update();
+                safeUpdate();
                 isPaymentSuccess.value = false;
               }
             });
@@ -2016,24 +2097,12 @@ class BookingController extends GetxController implements GetxService {
                     child: ElevatedButton(
                       onPressed: () async {
                         Get.back(); // Fermer le dialogue
-                        final bookingRecordController =
-                            Get.find<BookingRecordController>();
-                        await bookingRecordController.getBookingRecord(
-                          type: 'upcoming',
-                          offset: 0,
-                        );
-                        generalController.currentIndex.value = 2;
-                        Get.offAll(() => MyBooking(
-                              fromPropBooking: false,
-                              initialTabIndex: 0,
-                            ));
-                        Get.safeSnackbar(
-                          'Succes'.tr,
-                          'Votre reservation est confirmee !'.tr,
-                          snackPosition: SnackPosition.TOP,
-                          backgroundColor: Colors.green,
-                          colorText: Colors.white,
-                          duration: const Duration(seconds: 2),
+                        await _navigateToBookingsAfterPayment(
+                          tabIndex: 0,
+                          bookingRecordType: 'upcoming',
+                          snackTitle: 'Succes'.tr,
+                          snackMessage:
+                              'Votre reservation est confirmee !'.tr,
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -2162,21 +2231,10 @@ class BookingController extends GetxController implements GetxService {
     isProcessingBooking.value = false;
     if (!ok) return;
 
-    extensionPaymentContext = null;
-    selectedPaymentMethod = null;
-    await recordController.getBookingRecord(type: 'ongoing', offset: 0);
-
-    if (Get.key.currentState?.canPop() == true) {
-      Get.back();
-    }
-
-    Get.safeSnackbar(
-      'Succes'.tr,
-      'Reservation extended successfully'.tr,
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Colors.green,
-      colorText: Colors.white,
-      duration: const Duration(seconds: 3),
+    await _popThenRefreshBookings(
+      bookingRecordType: 'ongoing',
+      snackTitle: 'Succes'.tr,
+      snackMessage: 'Reservation extended successfully'.tr,
     );
   }
 
@@ -2211,21 +2269,10 @@ class BookingController extends GetxController implements GetxService {
           if (paymentUrl.isEmpty) {
             isProcessingBooking.value = false;
             if (session?.success == true) {
-              extensionPaymentContext = null;
-              selectedPaymentMethod = null;
-              await recordController.getBookingRecord(
-                type: 'ongoing',
-                offset: 0,
-              );
-              if (Get.key.currentState?.canPop() == true) {
-                Get.back();
-              }
-              Get.safeSnackbar(
-                'Succes'.tr,
-                'Reservation extended successfully'.tr,
-                snackPosition: SnackPosition.TOP,
-                backgroundColor: Colors.green,
-                colorText: Colors.white,
+              await _popThenRefreshBookings(
+                bookingRecordType: 'ongoing',
+                snackTitle: 'Succes'.tr,
+                snackMessage: 'Reservation extended successfully'.tr,
               );
               return;
             }
@@ -2609,7 +2656,7 @@ class BookingController extends GetxController implements GetxService {
           }
           currenttimeSlots.clear();
           avalibleSlots.clear();
-          update();
+          safeUpdate();
           return;
         }
       }
@@ -2656,7 +2703,7 @@ class BookingController extends GetxController implements GetxService {
               curreentStatus.value = "otherDates";
             }
           }
-          update();
+          safeUpdate();
         } else {
           print("7");
           showErrorToastMessage(
@@ -2669,9 +2716,9 @@ class BookingController extends GetxController implements GetxService {
             "An error occurred while checking availability.".tr);
         nextStartTime.value = "09:00";
         nextEndTime.value = "22:00";
-        update();
+        safeUpdate();
       });
-      update();
+      safeUpdate();
     }
   }
 
@@ -2703,7 +2750,7 @@ class BookingController extends GetxController implements GetxService {
       curreentStatus.value = "CurrentDate";
       filterTimeSlotsfunctionSameDate(nextStartTime, nextEndTime);
     }
-    update();
+    safeUpdate();
   }
 
   void _showUnavailableDateError(DateTime now) {
@@ -2722,7 +2769,7 @@ class BookingController extends GetxController implements GetxService {
   List<String> filterTimeSlotsfunctionSameDate(
       String startTimeString, String endTimeString) {
     filteredTimeSlotsEndTime.clear();
-    update();
+    safeUpdate();
     List<String> manualTimeSlots = getManualTimeSlots24();
 
     DateTime startTime = convertToDateTime(startTimeString);
@@ -2745,7 +2792,7 @@ class BookingController extends GetxController implements GetxService {
 
     filteredTimeSlotsEndTime.value = manualTimeSlots.sublist(
         max(0, startIndex), min(manualTimeSlots.length, endIndex + 1));
-    update();
+    safeUpdate();
     return filteredTimeSlotsEndTime;
   }
 
@@ -2762,7 +2809,7 @@ class BookingController extends GetxController implements GetxService {
     isenqablestarttime.value = false;
     isenableendTime.value = false;
     vehicleNoController.clear();
-    update();
+    safeUpdate();
   }
 
   String commonMetaData() {
@@ -3236,7 +3283,7 @@ class BookingController extends GetxController implements GetxService {
       isLoading.value = false;
       debugPrint(
           '🔄 [fetchDataCalendar] isLoading mis à false, appel de update()');
-      update();
+      safeUpdate();
       debugPrint(
           '✅ [fetchDataCalendar] update() appelé - UI devrait se rafraîchir');
     }
@@ -3291,7 +3338,7 @@ class BookingController extends GetxController implements GetxService {
           duration: const Duration(seconds: 3),
         );
         onSuccess?.call();
-        update();
+        safeUpdate();
         return true;
       }
 
@@ -3356,7 +3403,7 @@ class BookingController extends GetxController implements GetxService {
           showhideisReturn.value = true;
           result = "yes";
           showToastMessage(response["message"]);
-          update();
+          safeUpdate();
         }
       } else {
         print('❌ [OTP_ERROR] Erreur API : ${response != null ? response['error'] : 'Réponse nulle'}');
@@ -3367,7 +3414,7 @@ class BookingController extends GetxController implements GetxService {
       print("Error in OTP verification: $e");
       showErrorToastMessage("Something went wrong, please try again.");
     }
-    update();
+    safeUpdate();
     return result;
   }
 
@@ -3396,7 +3443,7 @@ class BookingController extends GetxController implements GetxService {
         showToastMessage(response["message"]);
         result = isItemDelivered == "1" ? "no" : "yes";
         dropoffshowHise.value = true;
-        update();
+        safeUpdate();
       } else {
         print('❌ [OTP_ERROR] Erreur API : ${response != null ? response['error'] : 'Réponse nulle'}');
         showErrorToastMessage(response != null ? response['error'] : "Erreur de connexion");
@@ -3415,7 +3462,7 @@ class BookingController extends GetxController implements GetxService {
       dropoffshowHise.value = false;
       otpController.clear();
       dropOtpController.clear();
-      update();
+      safeUpdate();
     });
   }
 
