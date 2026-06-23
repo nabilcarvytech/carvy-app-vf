@@ -8,6 +8,7 @@ import '../../customwidget/data_not_found.dart';
 import '../../customwidget/project_color.dart';
 import '../../utils/extension.dart';
 import '../../utils/common_widget.dart';
+import '../../utils/safe_rebuild.dart';
 
 class MyUpCommingTrip extends StatefulWidget {
   final bool fromPropBooking;
@@ -28,7 +29,7 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
   @override
   void initState() {
     super.initState();
-    getData();
+    runAfterFirstFrame(() => getData());
   }
 
   getData() async {

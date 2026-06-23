@@ -17,6 +17,7 @@ import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/utils/rolling_calendar_bounds.dart';
 import 'package:carvy/utils/safe_navigation.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/view/host/calender/add_price_on_common_calander.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/host/initial_host_common_screen.dart';
@@ -92,8 +93,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
   @override
   initState() {
     super.initState();
-
-    fetchDataCalendar();
+    runAfterFirstFrame(fetchDataCalendar);
   }
 
   MyItemsModel? myItemsModelHost;

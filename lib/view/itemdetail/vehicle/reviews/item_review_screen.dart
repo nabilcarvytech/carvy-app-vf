@@ -9,6 +9,7 @@ import '../../../../api/config.dart';
 import '../../../../helper/http_service.dart';
 import '../../../../model/item_reviews_model.dart';
 import '../../../../utils/common_widget.dart';
+import '../../../../utils/safe_rebuild.dart';
 
 class YourReview extends StatefulWidget {
   final String? id;
@@ -26,8 +27,7 @@ class _YourReviewState extends State<YourReview> {
   @override
   void initState() {
     super.initState();
-
-    getData();
+    runAfterFirstFrame(getData);
   }
 
   getData() async {

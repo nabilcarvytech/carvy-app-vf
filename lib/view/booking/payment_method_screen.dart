@@ -7,6 +7,7 @@ import 'package:carvy/model/booking_payment_method_model.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/work_space.dart';
 import 'package:carvy/api/config.dart';
@@ -31,10 +32,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   @override
   void initState() {
     super.initState();
-    bookingController.fetchPaymentMethods();
-    if (!widget.isExtension && bookingController.extensionPaymentContext != null) {
-      bookingController.setExtensionPaymentContext(null);
-    }
+    runAfterFirstFrame(() {
+      bookingController.fetchPaymentMethods();
+      if (!widget.isExtension &&
+          bookingController.extensionPaymentContext != null) {
+        bookingController.setExtensionPaymentContext(null);
+      }
+    });
   }
 
   // Fonction pour nettoyer les URLs (utilise Config.baseurl au lieu d'URLs en dur)

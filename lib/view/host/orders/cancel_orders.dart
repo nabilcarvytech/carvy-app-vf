@@ -12,6 +12,7 @@ import 'package:carvy/view/host/orders/_mock_booking_helper.dart';
 import '../../../customwidget/data_not_found.dart';
 import '../../../helper/http_service.dart';
 import '../../../model/booking_model.dart';
+import '../../../utils/safe_rebuild.dart';
 
 class CancelOrders extends StatefulWidget {
   final bool fromPropBooking;
@@ -36,7 +37,7 @@ class _CancelOrdersState extends State<CancelOrders> {
   @override
   void initState() {
     super.initState();
-    getData(isLoadMore: false);
+    runAfterFirstFrame(() => getData(isLoadMore: false));
   }
 
   getData({bool isLoadMore = false}) async {

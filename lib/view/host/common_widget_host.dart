@@ -836,11 +836,13 @@ class CustomDropdownHostLocationState
   @override
   void initState() {
     super.initState();
-    setState(() {});
-    getValue();
-    getCode();
-    addItemsHostController.selectedCityShortName = getCode();
-    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      getValue();
+      getCode();
+      addItemsHostController.selectedCityShortName = getCode();
+      setState(() {});
+    });
   }
 
   AddItemsHostController addItemsHostController = Get.find();

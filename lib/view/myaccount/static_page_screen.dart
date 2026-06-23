@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:carvy/controller/static_controller.dart';
 import 'package:carvy/customwidget/project_color.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:flutter_html/flutter_html.dart' as flutter_html;
 
@@ -17,8 +18,10 @@ class _StaticPageState extends State<StaticPage> {
   @override
   void initState() {
     super.initState();
-    staticController.string.value = "";
-    staticController.fetchData(widget.data);
+    runAfterFirstFrame(() {
+      staticController.string.value = "";
+      staticController.fetchData(widget.data);
+    });
   }
 
   @override

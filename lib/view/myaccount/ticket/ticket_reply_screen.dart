@@ -12,6 +12,7 @@ import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/reply_thred_model.dart';
 import 'package:carvy/model/user_thread_model.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/myaccount/ticket/ticket_first_screen.dart';
 
@@ -38,7 +39,7 @@ class _TicketReplyScreenState extends State<TicketReplyScreen> {
   @override
   void initState() {
     super.initState();
-    getdata();
+    runAfterFirstFrame(getdata);
   }
 
   getdata() async {

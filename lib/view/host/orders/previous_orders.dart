@@ -10,6 +10,7 @@ import '../../../customwidget/data_not_found.dart';
 import '../../../customwidget/project_color.dart';
 import '../../../helper/http_service.dart';
 import '../../../model/booking_model.dart';
+import '../../../utils/safe_rebuild.dart';
 
 class PreviousOrders extends StatefulWidget {
   final bool fromPropBooking;
@@ -41,7 +42,7 @@ class _PreviousOrdersState extends State<PreviousOrders> {
   @override
   void initState() {
     super.initState();
-    getData(isLoadMore: false);
+    runAfterFirstFrame(() => getData(isLoadMore: false));
   }
 
   getData({bool isLoadMore = false}) async {

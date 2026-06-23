@@ -11,6 +11,7 @@ import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/payout_model.dart';
 import 'package:carvy/model/payout_transaction.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/host/wallet/payment_method_screen.dart';
 import 'package:carvy/work_space.dart';
@@ -33,10 +34,14 @@ class _PayoutScreenState extends State<PayoutScreen> {
   @override
   void initState() {
     super.initState();
+    runAfterFirstFrame(_loadPayoutScreen);
+  }
 
+  void _loadPayoutScreen() {
+    if (!mounted) return;
     addbankAccountController.fetchPaymentMethod();
-
     addbankAccountController.fetchPaymentType().then((_) {
+      if (!mounted) return;
       final payoutTypes =
           addbankAccountController.getPaymentTypeModel?.data?.payoutMethods;
 

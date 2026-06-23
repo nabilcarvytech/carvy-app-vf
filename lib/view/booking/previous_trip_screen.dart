@@ -6,6 +6,7 @@ import '../../controller/booking_record_controller.dart';
 import '../../customwidget/data_not_found.dart';
 import '../../customwidget/project_color.dart';
 import '../../utils/common_widget.dart';
+import '../../utils/safe_rebuild.dart';
 
 class PreviousTrip extends StatefulWidget {
   final bool fromPropBooking;
@@ -27,7 +28,7 @@ class _PreviousTripState extends State<PreviousTrip> {
   @override
   void initState() {
     super.initState();
-    getData();
+    runAfterFirstFrame(() => getData());
   }
 
   getData() async {

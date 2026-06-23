@@ -6,6 +6,7 @@ import 'package:carvy/customwidget/shimmer_widgets.dart';
 import '../../controller/booking_record_controller.dart';
 import '../../customwidget/data_not_found.dart';
 import '../../utils/common_widget.dart';
+import '../../utils/safe_rebuild.dart';
 
 class CancelledTrip extends StatefulWidget {
   final bool fromPropBooking;
@@ -21,7 +22,7 @@ class _CancelledTripState extends State<CancelledTrip> {
   @override
   void initState() {
     super.initState();
-    getData();
+    runAfterFirstFrame(() => getData());
   }
 
   getData() async {

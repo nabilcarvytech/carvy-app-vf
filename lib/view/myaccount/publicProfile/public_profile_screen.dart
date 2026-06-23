@@ -11,6 +11,7 @@ import 'package:carvy/work_space.dart';
 import '../../../controller/publix_profile_controller.dart';
 import '../../../../customwidget/see_image_full_screen.dart';
 import '../../../../utils/common_widget.dart';
+import '../../../../utils/safe_rebuild.dart';
 import '../../../customwidget/shimmer_widgets.dart';
 import '../../home/recommendation_screen.dart';
 
@@ -38,10 +39,11 @@ class _PublicProfileState extends State<PublicProfile> {
   @override
   void initState() {
     super.initState();
-    // Charger les données du profil au démarrage
-    if (widget.userid != null && widget.userid!.isNotEmpty) {
-      publicProfileController.getDataPublicProfile(widget.userid);
-    }
+    runAfterFirstFrame(() {
+      if (widget.userid != null && widget.userid!.isNotEmpty) {
+        publicProfileController.getDataPublicProfile(widget.userid);
+      }
+    });
   }
 
   stateSetter(fn) => setState(() {});

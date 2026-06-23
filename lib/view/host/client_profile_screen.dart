@@ -4,6 +4,7 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/services/api_service.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/safe_navigation.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/review/review_display_widgets.dart';
 import 'package:carvy/work_space.dart';
@@ -31,7 +32,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    runAfterFirstFrame(_loadProfile);
   }
 
   Future<void> _loadProfile() async {

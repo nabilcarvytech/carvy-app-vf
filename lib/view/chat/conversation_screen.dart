@@ -18,6 +18,7 @@ import 'package:carvy/customwidget/project_bar.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/chat_message_payload.dart';
@@ -503,7 +504,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   void initState() {
     super.initState();
     isChatOpen = true;
-    _fetchBookingContext();
+    runAfterFirstFrame(_fetchBookingContext);
 
     _socketSubscription = SocketService.instance.onNewMessage((data) {
       // ignore: avoid_print

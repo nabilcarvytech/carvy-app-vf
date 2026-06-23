@@ -14,6 +14,7 @@ import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/get_payment_details_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/view/host/wallet/add_payment_detials.dart';
 import 'package:carvy/view/host/wallet/bank_account_host.dart';
 
@@ -31,11 +32,18 @@ class _PaymentMethodState extends State<PaymentMethod> {
   @override
   void initState() {
     super.initState();
+    runAfterFirstFrame(_loadPaymentMethods);
+  }
+
+  void _loadPaymentMethods() {
+    if (!mounted) return;
     addbankAccountController.clearAccountPreviousData();
     addbankAccountController.getPaymentTypeModel = null;
     addbankAccountController.paymentMethodModel = null;
     addbankAccountController.fetchPaymentMethod().then((_) {
+      if (!mounted) return;
       addbankAccountController.fetchPaymentType().then((_) {
+        if (!mounted) return;
         final payoutMethods =
             addbankAccountController.getPaymentTypeModel?.data?.payoutMethods;
         final payoutTypes =

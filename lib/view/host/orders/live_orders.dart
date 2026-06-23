@@ -11,6 +11,7 @@ import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/booking_model.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/host/orders/_mock_booking_helper.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 
 class LiveOrderds extends StatefulWidget {
   final bool fromPropBooking;
@@ -36,7 +37,7 @@ class _LiveOrderdsState extends State<LiveOrderds> {
   @override
   void initState() {
     super.initState();
-    getData(isLoadMore: false);
+    runAfterFirstFrame(() => getData(isLoadMore: false));
   }
 
   getData({bool isLoadMore = false}) async {

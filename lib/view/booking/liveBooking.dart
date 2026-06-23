@@ -7,6 +7,7 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/controller/booking_record_controller.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 
 class LiveBooking extends StatefulWidget {
   final bool fromPropBooking;
@@ -27,7 +28,7 @@ class _LiveBookingState extends State<LiveBooking> {
   @override
   void initState() {
     super.initState();
-    getData();
+    runAfterFirstFrame(() => getData());
   }
 
   getData() async {

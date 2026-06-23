@@ -22,6 +22,7 @@ import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/digital_singnature_model.dart';
 import 'package:carvy/model/item_details_model.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import '../api/config.dart';
 import '../customwidget/miscellaneous_project_elements.dart';
@@ -626,7 +627,7 @@ class BookingController extends GetxController implements GetxService {
     isLoading.value = true;
     print('🔄 [getDataBookingSummery] isLoading mis à true');
     debugPrint('🔄 [getDataBookingSummery] isLoading mis à true');
-    update();
+    safeUpdate();
     print('🔄 [getDataBookingSummery] Premier appel update() effectué');
     debugPrint('🔄 [getDataBookingSummery] Premier appel update() effectué');
 
@@ -1037,7 +1038,7 @@ class BookingController extends GetxController implements GetxService {
     paymentMethodModel = null;
     paymentMethodsList.clear(); // Vider la liste au début
     error.value = false;
-    update();
+    safeUpdate();
 
     try {
       // Appel API GET /api/v1/payment-methods

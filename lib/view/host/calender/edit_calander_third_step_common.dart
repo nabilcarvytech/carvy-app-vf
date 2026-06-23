@@ -12,6 +12,7 @@ import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/calendar_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/rolling_calendar_bounds.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
@@ -63,7 +64,7 @@ class _EditCalenderOnThirdStepCommonState
   @override
   initState() {
     super.initState();
-    fetchDataCalendar();
+    runAfterFirstFrame(fetchDataCalendar);
   }
 
   void submitMethod() async {

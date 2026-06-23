@@ -11,6 +11,7 @@ import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/get_user_wallet_transactions.dart';
 import 'package:carvy/model/wallet_model.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/view/payments/wallet_recharge_screen.dart';
@@ -121,7 +122,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    getData();
+    runAfterFirstFrame(getData);
   }
 
   onLoading() {

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
 import '../../../controller/publix_profile_controller.dart';
 
@@ -34,7 +35,7 @@ class _PublicProfileReviewScreenState extends State<PublicProfileReviewScreen> {
   @override
   void initState() {
     super.initState();
-    fetchData();
+    runAfterFirstFrame(fetchData);
   }
 
   void onRefresh() async {
