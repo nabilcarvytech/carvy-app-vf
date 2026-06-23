@@ -5,7 +5,6 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:provider/provider.dart';
-import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/helper/city_name_helper.dart';
@@ -39,7 +38,6 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     with AutomaticKeepAliveClientMixin {
   HomeController homeController = Get.find();
   SearchControllerHome filterController = Get.find();
-  final RefreshController refreshController = RefreshController();
   final ScrollController scrollController = ScrollController();
   final ValueNotifier<double> _headerOpacity = ValueNotifier(0.0);
 
@@ -53,7 +51,6 @@ class _VehicleHomePageState extends State<VehicleHomePage>
 
   @override
   void dispose() {
-    refreshController.dispose();
     scrollController.removeListener(_handleScroll);
     scrollController.dispose();
     _headerOpacity.dispose();
@@ -236,41 +233,15 @@ class _VehicleHomePageState extends State<VehicleHomePage>
       }
     } catch (e) {
       print("Fetch data error: $e");
-    } finally {
-      refreshController.refreshCompleted(); // Ensure completion
     }
   }
-
-  void onLoading() {
-    fetchData();
-  }
-
-  bool handlescroll = false;
 
   Future<void> onRefresh() async {
-    if (handlescroll) return;
-    setState(() => handlescroll = true);
-    try {
-      GetStorage().remove("homeData");
-      GetStorage().remove("vehicleTypeHome");
-      GetStorage().remove("vehiclemake");
-      GetStorage().remove("generalSettings");
-      await generalController.fetchGeneralSettings();
-      await homeController.getDataItemType();
-      await homeController.getHomeData();
-    } catch (e) {
-      print("Refresh error: $e");
-      refreshController.refreshFailed();
-      return;
-    } finally {
-      if (mounted) {
-        setState(() => handlescroll = false);
-        refreshController.refreshCompleted();
-        if (scrollController.hasClients) {
-          scrollController.jumpTo(0);
-        }
-      }
-    }
+    GetStorage().remove("homeData");
+    GetStorage().remove("vehicleTypeHome");
+    GetStorage().remove("vehiclemake");
+    GetStorage().remove("generalSettings");
+    await fetchData();
   }
 
   /// Hauteur du header bleu mobile (bloc large).
@@ -392,33 +363,6 @@ class _VehicleHomePageState extends State<VehicleHomePage>
         const Spacer(),
         profilePhotoOnHomeScreen(context),
       ],
-    );
-  }
-
-  Widget _homePullToRefreshHeader(BuildContext context) {
-    return ClassicHeader(
-      height: 100.0,
-      completeDuration: const Duration(milliseconds: 500),
-      releaseText: 'Release to refresh',
-      refreshingText: 'Refreshing...',
-      idleText: 'Pull down to refresh',
-      failedText: 'Refresh failed',
-      completeText: 'Refresh completed',
-      refreshingIcon: Container(
-        width: 24.0,
-        height: 24.0,
-        padding: const EdgeInsets.all(2.0),
-        decoration: BoxDecoration(
-          color: getColorBasedOnActiveModuleid(),
-          shape: BoxShape.circle,
-        ),
-        child: CircularProgressIndicator(
-          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-          strokeWidth: 2.0,
-          backgroundColor: Colors.transparent,
-        ),
-      ),
-      textStyle: regular2(context),
     );
   }
 
@@ -578,15 +522,14 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                 HomeFilterBar(),
                 const SizedBox(height: 10),
                 Expanded(
-                  child: SmartRefresher(
-                    controller: refreshController,
-                    enablePullDown: true,
-                    enablePullUp: false,
-                    header: _homePullToRefreshHeader(context),
+                  child: RefreshIndicator(
+                    color: getColorBasedOnActiveModuleid(),
                     onRefresh: onRefresh,
                     child: ListView(
                       controller: scrollController,
-                      physics: const ClampingScrollPhysics(),
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: ClampingScrollPhysics(),
+                      ),
                       children: [
                         _buildOffstageSection(
                           sectionName: 'VehicleType',
@@ -633,15 +576,14 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             );
           }
 
-          return SmartRefresher(
-            controller: refreshController,
-            enablePullDown: true,
-            enablePullUp: false,
-            header: _homePullToRefreshHeader(context),
+          return RefreshIndicator(
+            color: getColorBasedOnActiveModuleid(),
             onRefresh: onRefresh,
             child: CustomScrollView(
                 controller: scrollController,
-                physics: const ClampingScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
+                ),
                 slivers: [
                   _buildHomeSliverAppBar(context),
                 SliverPersistentHeader(
