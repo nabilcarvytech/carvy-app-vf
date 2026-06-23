@@ -39,21 +39,17 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   HomeController homeController = Get.find();
   SearchControllerHome filterController = Get.find();
   final ScrollController scrollController = ScrollController();
-  final ValueNotifier<double> _headerOpacity = ValueNotifier(0.0);
 
   @override
   void initState() {
     super.initState();
     handleBoackfromPayment = false;
     SchedulerBinding.instance.addPostFrameCallback((_) => _bootstrapHomePage());
-    scrollController.addListener(_handleScroll);
   }
 
   @override
   void dispose() {
-    scrollController.removeListener(_handleScroll);
     scrollController.dispose();
-    _headerOpacity.dispose();
     homeController.disposeFunctionVehicle();
     super.dispose();
   }
@@ -73,13 +69,63 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     await fetchData();
   }
 
-  void _handleScroll() {
-    if (!scrollController.hasClients) return;
-    final double newOpacity =
-        (scrollController.offset / 160).clamp(0.0, 1.0);
-    if (newOpacity != _headerOpacity.value) {
-      _headerOpacity.value = newOpacity;
-    }
+  /// Progression du collapse du header : 0 = déployé, 1 = replié.
+  /// Calculé depuis les contraintes du [LayoutBuilder] — pas de notifier externe.
+  double _headerCollapseProgress(
+    BuildContext context,
+    BoxConstraints constraints,
+  ) {
+    final double topPadding = MediaQuery.paddingOf(context).top;
+    final double expandedHeight = _expandedHomeHeaderExtent(context);
+    final double collapsedHeight = topPadding + kToolbarHeight;
+    final double range = expandedHeight - collapsedHeight;
+    if (range <= 0) return 1.0;
+    return ((expandedHeight - constraints.biggest.height) / range)
+        .clamp(0.0, 1.0);
+  }
+
+  Widget _buildExpandedHeaderContent(BuildContext context, double opacity) {
+    return Opacity(
+      opacity: opacity,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color.lerp(themeColor, const Color(0xFF0D1B4A), 0.28) ?? themeColor,
+              themeColor,
+              Color.lerp(themeColor, Colors.white, 0.14) ?? themeColor,
+            ],
+            stops: const [0.0, 0.42, 1.0],
+          ),
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(35),
+            bottomRight: Radius.circular(35),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(height: MediaQuery.paddingOf(context).top),
+            SizedBox(
+              height: kToolbarHeight,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: _buildHomeToolbarRow(context),
+                ),
+              ),
+            ),
+            customSearchContainer(context, () {
+              filterController.submitMethod(context);
+            }, false),
+          ],
+        ),
+      ),
+    );
   }
 
   stateSetter(fn) {
@@ -370,13 +416,12 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     required String sectionName,
     required Widget child,
   }) {
-    final bool isActive = _isSectionActive(sectionName);
+    if (!_isSectionActive(sectionName)) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
     return SliverToBoxAdapter(
       key: ValueKey<String>('home-sliver-$sectionName'),
-      child: Offstage(
-        offstage: !isActive,
-        child: isActive ? child : const SizedBox.shrink(),
-      ),
+      child: child,
     );
   }
 
@@ -384,11 +429,10 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     required String sectionName,
     required Widget child,
   }) {
-    final bool isActive = _isSectionActive(sectionName);
-    return Offstage(
-      offstage: !isActive,
-      child: isActive ? child : const SizedBox.shrink(),
-    );
+    if (!_isSectionActive(sectionName)) {
+      return const SizedBox.shrink();
+    }
+    return child;
   }
 
   SliverAppBar _buildHomeSliverAppBar(BuildContext context) {
@@ -400,88 +444,49 @@ class _VehicleHomePageState extends State<VehicleHomePage>
       elevation: 0,
       forceElevated: true,
       scrolledUnderElevation: 0,
-      clipBehavior: Clip.none,
+      clipBehavior: Clip.hardEdge,
       backgroundColor: const Color(0xFF1A3A8A),
       surfaceTintColor: Colors.transparent,
       automaticallyImplyLeading: false,
       toolbarHeight: kToolbarHeight,
       titleSpacing: 0,
       centerTitle: true,
-      title: ValueListenableBuilder<double>(
-        valueListenable: _headerOpacity,
-        builder: (context, opacity, _) {
-          return IgnorePointer(
-            ignoring: opacity < 0.05,
-            child: AnimatedOpacity(
-              opacity: opacity,
-              duration: const Duration(milliseconds: 120),
-              curve: Curves.easeOut,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildCompactStickySearchBar(context),
-                    ),
-                    profilePhotoOnHomeScreen(context),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        collapseMode: CollapseMode.pin,
-        background: ValueListenableBuilder<double>(
-          valueListenable: _headerOpacity,
-          builder: (context, opacity, _) {
-            return Opacity(
-              opacity: 1.0 - opacity,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color.lerp(
-                              themeColor, const Color(0xFF0D1B4A), 0.28) ??
-                          themeColor,
-                      themeColor,
-                      Color.lerp(themeColor, Colors.white, 0.14) ??
-                          themeColor,
-                    ],
-                    stops: const [0.0, 0.42, 1.0],
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(35),
-                    bottomRight: Radius.circular(35),
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(height: MediaQuery.paddingOf(context).top),
-                    SizedBox(
-                      height: kToolbarHeight,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: _buildHomeToolbarRow(context),
-                        ),
+      title: const SizedBox.shrink(),
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          final double collapse = _headerCollapseProgress(context, constraints);
+          final double topPadding = MediaQuery.paddingOf(context).top;
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildExpandedHeaderContent(context, 1.0 - collapse),
+              Positioned(
+                top: topPadding,
+                left: 0,
+                right: 0,
+                height: kToolbarHeight,
+                child: Opacity(
+                  opacity: collapse,
+                  child: IgnorePointer(
+                    ignoring: collapse < 0.05,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildCompactStickySearchBar(context),
+                          ),
+                          profilePhotoOnHomeScreen(context),
+                        ],
                       ),
                     ),
-                    customSearchContainer(context, () {
-                      filterController.submitMethod(context);
-                    }, false),
-                  ],
+                  ),
                 ),
               ),
-            );
-          },
-        ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -955,12 +960,8 @@ class _VehicleHomePageState extends State<VehicleHomePage>
               return Padding(
                 padding:
                     const EdgeInsets.only(left: Dimensions.paddingSizeLarge),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return vehicalHorizontalViewNearYou(
-                        items, stateSetter, notifires);
-                  },
-                ),
+                child: vehicalHorizontalViewNearYou(
+                    items, stateSetter, notifires),
               );
             } else {
               return const SizedBox();
@@ -1126,11 +1127,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             final items = homeData.mostViewedItems ?? [];
             return Padding(
               padding: const EdgeInsets.all(12),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return vehicalVerticalView(items, true, false, stateSetter);
-                },
-              ),
+              child: vehicalVerticalView(items, true, false, stateSetter),
             );
           }
         }),
@@ -1462,14 +1459,11 @@ class _HomeFilterBarPinnedDelegate extends SliverPersistentHeaderDelegate {
       height: _kPinnedHeight,
       child: Material(
         color: backgroundColor,
-        elevation: overlapsContent ? 1.5 : 0,
-        shadowColor: Colors.black26,
+        elevation: 0,
         clipBehavior: Clip.hardEdge,
         child: Align(
           alignment: Alignment.topCenter,
-          child: RepaintBoundary(
-            child: child,
-          ),
+          child: child,
         ),
       ),
     );

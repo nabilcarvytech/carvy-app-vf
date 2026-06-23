@@ -240,6 +240,7 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
     return Container();
   }
   return GridView.builder(
+    primary: false,
     shrinkWrap: shrink,
     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: 1,
