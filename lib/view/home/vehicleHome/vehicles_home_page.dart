@@ -41,7 +41,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   SearchControllerHome filterController = Get.find();
   final RefreshController refreshController = RefreshController();
   final ScrollController scrollController = ScrollController();
-  double _headerOpacity = 0.0;
+  final ValueNotifier<double> _headerOpacity = ValueNotifier(0.0);
 
   @override
   void initState() {
@@ -56,6 +56,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     refreshController.dispose();
     scrollController.removeListener(_handleScroll);
     scrollController.dispose();
+    _headerOpacity.dispose();
     homeController.disposeFunctionVehicle();
     super.dispose();
   }
@@ -76,10 +77,11 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   }
 
   void _handleScroll() {
-    if (!mounted) return;
-    final double newOpacity = (scrollController.offset / 160).clamp(0.0, 1.0);
-    if (newOpacity != _headerOpacity) {
-      setState(() => _headerOpacity = newOpacity);
+    if (!scrollController.hasClients) return;
+    final double newOpacity =
+        (scrollController.offset / 160).clamp(0.0, 1.0);
+    if (newOpacity != _headerOpacity.value) {
+      _headerOpacity.value = newOpacity;
     }
   }
 
@@ -424,13 +426,118 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     required String sectionName,
     required Widget child,
   }) {
+    final bool isActive = _isSectionActive(sectionName);
     return SliverToBoxAdapter(
-      child: Visibility(
-        visible: _isSectionActive(sectionName),
-        maintainState: true,
-        maintainAnimation: true,
-        maintainSize: false,
-        child: child,
+      key: ValueKey<String>('home-sliver-$sectionName'),
+      child: Offstage(
+        offstage: !isActive,
+        child: isActive ? child : const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  Widget _buildOffstageSection({
+    required String sectionName,
+    required Widget child,
+  }) {
+    final bool isActive = _isSectionActive(sectionName);
+    return Offstage(
+      offstage: !isActive,
+      child: isActive ? child : const SizedBox.shrink(),
+    );
+  }
+
+  SliverAppBar _buildHomeSliverAppBar(BuildContext context) {
+    return SliverAppBar(
+      expandedHeight: _expandedHomeHeaderExtent(context),
+      floating: false,
+      snap: false,
+      pinned: true,
+      elevation: 0,
+      forceElevated: true,
+      scrolledUnderElevation: 0,
+      clipBehavior: Clip.none,
+      backgroundColor: const Color(0xFF1A3A8A),
+      surfaceTintColor: Colors.transparent,
+      automaticallyImplyLeading: false,
+      toolbarHeight: kToolbarHeight,
+      titleSpacing: 0,
+      centerTitle: true,
+      title: ValueListenableBuilder<double>(
+        valueListenable: _headerOpacity,
+        builder: (context, opacity, _) {
+          return IgnorePointer(
+            ignoring: opacity < 0.05,
+            child: AnimatedOpacity(
+              opacity: opacity,
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOut,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildCompactStickySearchBar(context),
+                    ),
+                    profilePhotoOnHomeScreen(context),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+      flexibleSpace: FlexibleSpaceBar(
+        collapseMode: CollapseMode.pin,
+        background: ValueListenableBuilder<double>(
+          valueListenable: _headerOpacity,
+          builder: (context, opacity, _) {
+            return Opacity(
+              opacity: 1.0 - opacity,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color.lerp(
+                              themeColor, const Color(0xFF0D1B4A), 0.28) ??
+                          themeColor,
+                      themeColor,
+                      Color.lerp(themeColor, Colors.white, 0.14) ??
+                          themeColor,
+                    ],
+                    stops: const [0.0, 0.42, 1.0],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(35),
+                    bottomRight: Radius.circular(35),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(height: MediaQuery.paddingOf(context).top),
+                    SizedBox(
+                      height: kToolbarHeight,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: _buildHomeToolbarRow(context),
+                        ),
+                      ),
+                    ),
+                    customSearchContainer(context, () {
+                      filterController.submitMethod(context);
+                    }, false),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -481,54 +588,36 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                       controller: scrollController,
                       physics: const ClampingScrollPhysics(),
                       children: [
-                        Visibility(
-                          visible: _isSectionActive('VehicleType'),
-                          maintainState: true,
-                          maintainAnimation: true,
-                          maintainSize: false,
+                        _buildOffstageSection(
+                          sectionName: 'VehicleType',
                           child: _buildVehicleTypeSection(
                             context,
                             notifires,
                             stateSetter,
                           ),
                         ),
-                        Visibility(
-                          visible: _isSectionActive('PopularRegion'),
-                          maintainState: true,
-                          maintainAnimation: true,
-                          maintainSize: false,
+                        _buildOffstageSection(
+                          sectionName: 'PopularRegion',
                           child: _buildPopularRegionSection(context, notifires),
                         ),
-                        Visibility(
-                          visible: _isSectionActive('VehiclesNearYou'),
-                          maintainState: true,
-                          maintainAnimation: true,
-                          maintainSize: false,
+                        _buildOffstageSection(
+                          sectionName: 'VehiclesNearYou',
                           child: _buildVehiclesNearYouSection(
                             context,
                             notifires,
                             stateSetter,
                           ),
                         ),
-                        Visibility(
-                          visible: _isSectionActive('Make'),
-                          maintainState: true,
-                          maintainAnimation: true,
-                          maintainSize: false,
+                        _buildOffstageSection(
+                          sectionName: 'Make',
                           child: _buildMakeSection(context, notifires),
                         ),
-                        Visibility(
-                          visible: _isSectionActive('BecomeHost'),
-                          maintainState: true,
-                          maintainAnimation: true,
-                          maintainSize: false,
+                        _buildOffstageSection(
+                          sectionName: 'BecomeHost',
                           child: _buildBecomeHostSection(context, notifires),
                         ),
-                        Visibility(
-                          visible: _isSectionActive('MostViewed'),
-                          maintainState: true,
-                          maintainAnimation: true,
-                          maintainSize: false,
+                        _buildOffstageSection(
+                          sectionName: 'MostViewed',
                           child: _buildMostViewedSection(
                             context,
                             notifires,
@@ -554,89 +643,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                 controller: scrollController,
                 physics: const ClampingScrollPhysics(),
                 slivers: [
-                  SliverAppBar(
-                  expandedHeight: _expandedHomeHeaderExtent(context),
-                  floating: false,
-                  snap: false,
-                  pinned: true,
-                  elevation: 0,
-                  forceElevated: true,
-                  scrolledUnderElevation: 0,
-                  clipBehavior: Clip.none,
-                  backgroundColor: const Color(0xFF1A3A8A),
-                  surfaceTintColor: Colors.transparent,
-                  automaticallyImplyLeading: false,
-                  toolbarHeight: kToolbarHeight,
-                  titleSpacing: 0,
-                  centerTitle: true,
-                  title: IgnorePointer(
-                    ignoring: _headerOpacity < 0.05,
-                    child: AnimatedOpacity(
-                      opacity: _headerOpacity,
-                      duration: const Duration(milliseconds: 120),
-                      curve: Curves.easeOut,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _buildCompactStickySearchBar(context),
-                            ),
-                            profilePhotoOnHomeScreen(context),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  flexibleSpace: FlexibleSpaceBar(
-                    collapseMode: CollapseMode.pin,
-                    background: Opacity(
-                      opacity: 1.0 - _headerOpacity,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color.lerp(
-                                      themeColor, const Color(0xFF0D1B4A), 0.28) ??
-                                  themeColor,
-                              themeColor,
-                              Color.lerp(themeColor, Colors.white, 0.14) ??
-                                  themeColor,
-                            ],
-                            stops: const [0.0, 0.42, 1.0],
-                          ),
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(35),
-                            bottomRight: Radius.circular(35),
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(height: MediaQuery.paddingOf(context).top),
-                            SizedBox(
-                              height: kToolbarHeight,
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 4),
-                                  child: _buildHomeToolbarRow(context),
-                                ),
-                              ),
-                            ),
-                            customSearchContainer(context, () {
-                              filterController.submitMethod(context);
-                            }, false),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                  _buildHomeSliverAppBar(context),
                 SliverPersistentHeader(
                   pinned: true,
                   delegate: _HomeFilterBarPinnedDelegate(
@@ -1518,7 +1525,9 @@ class _HomeFilterBarPinnedDelegate extends SliverPersistentHeaderDelegate {
         clipBehavior: Clip.hardEdge,
         child: Align(
           alignment: Alignment.topCenter,
-          child: child,
+          child: RepaintBoundary(
+            child: child,
+          ),
         ),
       ),
     );
@@ -1526,7 +1535,6 @@ class _HomeFilterBarPinnedDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _HomeFilterBarPinnedDelegate oldDelegate) {
-    return oldDelegate.backgroundColor != backgroundColor ||
-        oldDelegate.child != child;
+    return oldDelegate.backgroundColor != backgroundColor;
   }
 }

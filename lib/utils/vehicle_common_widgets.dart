@@ -47,7 +47,9 @@ Widget vehicleTypeWidget(
     child: Padding(
       padding: const EdgeInsets.only(left: Dimensions.paddingSizeSmall),
       child: ListView.builder(
+        primary: false,
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         itemCount: list.length,
         itemBuilder: (context, index) {
           final dynamic id = list[index].id!;
@@ -126,7 +128,9 @@ vehicalCategory(List<Makes> list, notifire) {
     child: Padding(
       padding: const EdgeInsets.only(left: 0),
       child: ListView.builder(
+        primary: false,
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         // itemCount: (list?.length ?? 0) > 5 ? 5 : (list?.length ?? 0),
         itemCount: list.length,
         itemBuilder: (context, index) {
@@ -1986,6 +1990,7 @@ Widget vehicalHorizontalViewNearYou(
     width: double.infinity,
     height: 230,
     child: ListView.builder(
+      primary: false,
       physics: const BouncingScrollPhysics(),
       itemCount: (list?.length ?? 0) > 5 ? 5 : (list?.length ?? 0),
       scrollDirection: Axis.horizontal,

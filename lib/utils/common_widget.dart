@@ -570,7 +570,9 @@ homeLocations(List<Location> list, notifire) {
     child: Padding(
       padding: const EdgeInsets.only(left: Dimensions.paddingSizeLarge),
       child: ListView.builder(
+        primary: false,
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         itemCount: (list.length) > 5 ? 5 : (list.length),
         itemBuilder: (context, index) {
           return list.isEmpty
