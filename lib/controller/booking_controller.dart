@@ -23,6 +23,7 @@ import 'package:carvy/model/digital_singnature_model.dart';
 import 'package:carvy/model/item_details_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
+import 'package:carvy/utils/payment_flow_debug.dart';
 import 'package:carvy/utils/snackbar_service.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import '../api/config.dart';
@@ -173,6 +174,11 @@ class BookingController extends GetxController implements GetxService {
     isLoadingPaymentMethods.value = false;
     selectedPaymentMethod = null;
     extensionPaymentContext = null;
+    prepareForRoutePop();
+  }
+
+  /// Annule les [update] différés avant un retour arrière.
+  void prepareForRoutePop() {
     _safeUpdateDebounce?.cancel();
     _safeUpdateDebounce = null;
   }
@@ -209,22 +215,33 @@ class BookingController extends GetxController implements GetxService {
     required String snackTitle,
     required String snackMessage,
   }) async {
+    paymentFlowLog('STEP 8 — _navigateToBookingsAfterPayment START',
+        'tabIndex=$tabIndex');
     isProcessingBooking.value = false;
+    paymentFlowLog('STEP 8a — isProcessingBooking=false');
     clearListeners();
+    paymentFlowLog('STEP 8b — clearListeners() done');
 
     if (Get.isRegistered<BookingRecordController>()) {
       Get.find<BookingRecordController>().armPostNavigationFetchDelay();
+      paymentFlowLog('STEP 8c — armPostNavigationFetchDelay() (500ms)');
     }
 
     generalController.myBookingTabIndex.value = tabIndex;
     generalController.currentIndex.value = 2;
+    paymentFlowLog('STEP 8d — generalController tabs set',
+        'myBookingTabIndex=$tabIndex, currentIndex=2');
 
+    paymentFlowLog('STEP 9 — Get.offAll(MyBooking)…');
     await Get.offAll(() => MyBooking(
           fromPropBooking: false,
           initialTabIndex: tabIndex,
         ));
+    paymentFlowLog('STEP 10 — Get.offAll(MyBooking) completed');
 
+    paymentFlowLog('STEP 11 — waiting ${_postNavigationSettleDelay.inMilliseconds}ms');
     await Future.delayed(_postNavigationSettleDelay);
+    paymentFlowLog('STEP 12 — settle delay done, showing snackbar');
 
     Get.safeSnackbar(
       snackTitle,
@@ -234,6 +251,7 @@ class BookingController extends GetxController implements GetxService {
       colorText: Colors.white,
       duration: const Duration(seconds: 2),
     );
+    paymentFlowLog('STEP 13 — _navigateToBookingsAfterPayment END');
   }
 
   /// Retour arrière puis refresh (extension de réservation, etc.).
@@ -1654,7 +1672,8 @@ class BookingController extends GetxController implements GetxService {
   /// [widgetVehicleId] : L'ID du véhicule depuis widget.idFeatured (fallback final)
   Future<void> processBooking(
       {dynamic vehicleId, dynamic widgetVehicleId}) async {
-    // 👇 AJOUT CRITIQUE : Synchronisation forcée du Player ID avant la réservation 👇
+    paymentFlowLog('STEP 1 — processBooking START',
+        'vehicleId=$vehicleId, method=${selectedPaymentMethod?.name}');
     // On s'assure que le serveur connait l'appareil avant de continuer
     try {
       await ensurePlayerIdIsSynced();
@@ -1666,11 +1685,13 @@ class BookingController extends GetxController implements GetxService {
     
     // Prévenir les appels multiples
     if (isProcessingBooking.value) {
+      paymentFlowLog('STEP 1 — ABORT already processing');
       debugPrint('⚠️ [processBooking] Déjà en cours, ignore l\'appel');
       return;
     }
 
     isProcessingBooking.value = true;
+    paymentFlowLog('STEP 2 — isProcessingBooking=true, building request');
 
     try {
       // ========== 1. RÉCUPÉRATION DU TOKEN D'AUTHENTIFICATION ==========
@@ -1893,6 +1914,7 @@ class BookingController extends GetxController implements GetxService {
       debugPrint('═══════════════════════════════════════════════════════');
 
       // ========== 11. ENVOI DE LA REQUÊTE POST ==========
+      paymentFlowLog('STEP 3 — POST book-item API…', url);
       final response = await http
           .post(
         Uri.parse(url),
@@ -1915,7 +1937,10 @@ class BookingController extends GetxController implements GetxService {
       debugPrint('📥 Réponse brute du serveur: ${response.body}');
       debugPrint(
           '📥 [processBooking] Response Body Length: ${response.body.length}');
-      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('═══════════════════════════════════════════════════════'      );
+
+      paymentFlowLog('STEP 4 — API response',
+          'statusCode=${response.statusCode}, bodyLength=${response.body.length}');
 
       // ========== 12. PARSING JSON AVEC TRY-CATCH SPÉCIFIQUE ==========
       Map<String, dynamic> responseData;
@@ -2080,6 +2105,8 @@ class BookingController extends GetxController implements GetxService {
         }
 
         // Afficher une boîte de dialogue de succès stylisée
+        paymentFlowLog('STEP 5 — API 200 OK, opening success dialog',
+            'bookingId=$bookingId');
         Get.dialog(
           barrierDismissible: false,
           Dialog(
@@ -2139,13 +2166,20 @@ class BookingController extends GetxController implements GetxService {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () async {
+                        paymentFlowLog(
+                            'STEP 6 — « Voir mes réservations » button TAP');
+                        paymentFlowLog('STEP 6a — closing success dialog');
                         Get.back(); // Fermer le dialogue
+                        paymentFlowLog(
+                            'STEP 7 — dialog closed, calling _navigateToBookingsAfterPayment');
                         await _navigateToBookingsAfterPayment(
                           tabIndex: 0,
                           snackTitle: 'Succes'.tr,
                           snackMessage:
                               'Votre reservation est confirmee !'.tr,
                         );
+                        paymentFlowLog(
+                            'STEP 7b — returned from _navigateToBookingsAfterPayment');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: themeColor,
@@ -2213,6 +2247,7 @@ class BookingController extends GetxController implements GetxService {
         isProcessingBooking.value = false;
       }
     } catch (e, stackTrace) {
+      paymentFlowLog('STEP ERR — processBooking exception', e);
       debugPrint('❌ [processBooking] Erreur: $e');
       debugPrint('❌ [processBooking] StackTrace: $stackTrace');
       Get.safeSnackbar(

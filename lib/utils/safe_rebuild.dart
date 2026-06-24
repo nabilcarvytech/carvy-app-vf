@@ -20,6 +20,31 @@ bool _isDuringBuildPhase() {
       phase == SchedulerPhase.persistentCallbacks;
 }
 
+/// Obx protégé : vérifie [isActive] à chaque rebuild.
+class SafeObx extends StatelessWidget {
+  final bool Function() isActive;
+  final Widget Function() builder;
+
+  const SafeObx({
+    super.key,
+    required this.isActive,
+    required this.builder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isActive()) {
+      return const SizedBox.shrink();
+    }
+    return Obx(() {
+      if (!isActive()) {
+        return const SizedBox.shrink();
+      }
+      return builder();
+    });
+  }
+}
+
 /// Extensions GetX : évite `markNeedsBuild() called during build`.
 extension SafeGetxUpdate on GetxController {
   void safeUpdate([List<Object>? ids, bool condition = true]) {

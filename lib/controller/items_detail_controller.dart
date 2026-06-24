@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:carvy/controller/booking_controller.dart';
 import 'package:carvy/constants/app_constants.dart';
 import 'package:carvy/controller/kyc_controller.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/work_space.dart';
 import '../api/config.dart';
 import '../helper/http_service.dart';
@@ -25,7 +27,16 @@ class ItemDetailsController extends GetxController implements GetxService {
   var isLoadingVehicleNotFound = true.obs;
   List vehicleimageList = [];
   ItemInfo? itemInfo;
-  
+  int _vehicleFetchGeneration = 0;
+
+  /// Invalide les callbacks async de [getdataVehicle] sans rebuild.
+  void prepareForRoutePop() {
+    _vehicleFetchGeneration++;
+  }
+
+  bool _fetchStillRelevant(int fetchId) =>
+      !isClosed && fetchId == _vehicleFetchGeneration;
+
   @override
   void onReady() {
     super.onReady();
@@ -35,13 +46,15 @@ class ItemDetailsController extends GetxController implements GetxService {
     }
   }
   Future getdataVehicle(id) async {
+    final int fetchId = ++_vehicleFetchGeneration;
     // ========== INITIALIZATION ==========
     debugPrint("🔍 getdataVehicle() - Called with id: $id");
     itemInfoDetails.clear();
     vehicleimageList.clear();
+    if (!_fetchStillRelevant(fetchId)) return;
     isLoadingVehicle.value = true;
     isLoadingVehicleNotFound.value = false;
-    update();
+    safeUpdate();
 
     try {
       // ========== API CALL ==========
@@ -58,6 +71,8 @@ class ItemDetailsController extends GetxController implements GetxService {
       
       // 3. Appel API réel (PAS de données mockées, PAS de données de secours)
       var response = await httpPost(Config.getItemDetails, {"item_id": "$id"});
+
+      if (!_fetchStillRelevant(fetchId)) return;
       
       // 3. Log réponse brute complète (JSON Body)
       debugPrint("📦 [DEBUG] JSON Body: ${json.encode(response)}");
@@ -236,7 +251,9 @@ class ItemDetailsController extends GetxController implements GetxService {
 
           isLoadingVehicle.value = false;
           isLoadingVehicleNotFound.value = false;
-          update();
+          if (_fetchStillRelevant(fetchId)) {
+            safeUpdate();
+          }
           debugPrint("✅ getdataVehicle() - Successfully loaded vehicle details from API");
           
         } catch (e, stackTrace) {
@@ -244,9 +261,11 @@ class ItemDetailsController extends GetxController implements GetxService {
           debugPrint("❌ getdataVehicle() - ERROR parsing ItemDetailsModel: $e");
           debugPrint("❌ getdataVehicle() - Stack trace: $stackTrace");
           debugPrint("❌ ERREUR PARSING : $e");
-          isLoadingVehicleNotFound.value = true;
-          isLoadingVehicle.value = false;
-          update();
+          if (_fetchStillRelevant(fetchId)) {
+            isLoadingVehicleNotFound.value = true;
+            isLoadingVehicle.value = false;
+            safeUpdate();
+          }
           // Get.snackbar remplacé par log console pour éviter "No Overlay widget found"
           // Get.snackbar(
           //   "Erreur".tr,
@@ -261,9 +280,11 @@ class ItemDetailsController extends GetxController implements GetxService {
         debugPrint("❌ getdataVehicle() - Response status is not 200: ${response['status']}");
         debugPrint("❌ getdataVehicle() - Error message: ${response['message'] ?? 'Unknown error'}");
         debugPrint("❌ ERREUR API - Status: ${response['status']}, Message: ${response['message'] ?? 'Unknown error'}");
-        isLoadingVehicleNotFound.value = true;
-        isLoadingVehicle.value = false;
-        update();
+        if (_fetchStillRelevant(fetchId)) {
+          isLoadingVehicleNotFound.value = true;
+          isLoadingVehicle.value = false;
+          safeUpdate();
+        }
         // Get.snackbar remplacé par log console pour éviter "No Overlay widget found"
         // Get.snackbar(
         //   "Erreur".tr,
@@ -278,9 +299,11 @@ class ItemDetailsController extends GetxController implements GetxService {
       debugPrint("❌ getdataVehicle() - Exception during API call: $e");
       debugPrint("❌ getdataVehicle() - Stack trace: $stackTrace");
       debugPrint("❌ [FLUTTER] URL tentée : ${Config.baseurl}${Config.getItemDetails}");
-      isLoadingVehicleNotFound.value = true;
-      isLoadingVehicle.value = false;
-      update();
+      if (_fetchStillRelevant(fetchId)) {
+        isLoadingVehicleNotFound.value = true;
+        isLoadingVehicle.value = false;
+        safeUpdate();
+      }
       // Get.snackbar remplacé par log console pour éviter "No Overlay widget found"
       // Get.snackbar(
       //   "Erreur".tr,
@@ -315,4 +338,30 @@ class ItemDetailsController extends GetxController implements GetxService {
   }
 
   bool isDescriptionExpandedVehicle = false;
+}
+
+bool itemDetailsControllerIsActive() =>
+    Get.isRegistered<ItemDetailsController>() &&
+    !Get.find<ItemDetailsController>().isClosed;
+
+/// GetBuilder protégé pour les écrans détail véhicule.
+class SafeItemDetailsGetBuilder extends StatelessWidget {
+  final Widget Function(ItemDetailsController controller) builder;
+
+  const SafeItemDetailsGetBuilder({super.key, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!itemDetailsControllerIsActive()) {
+      return const SizedBox.shrink();
+    }
+    return GetBuilder<ItemDetailsController>(
+      builder: (controller) {
+        if (controller.isClosed) {
+          return const SizedBox.shrink();
+        }
+        return builder(controller);
+      },
+    );
+  }
 }

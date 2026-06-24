@@ -1,5 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
+import 'package:carvy/controller/booking_controller.dart';
+import 'package:carvy/controller/items_detail_controller.dart';
+
+/// Annule les timers / requêtes en cours sans appeler [update] (safe avant pop).
+void invalidateControllersBeforePop() {
+  if (Get.isRegistered<BookingController>()) {
+    final c = Get.find<BookingController>();
+    if (!c.isClosed) {
+      c.prepareForRoutePop();
+    }
+  }
+  if (Get.isRegistered<ItemDetailsController>()) {
+    final c = Get.find<ItemDetailsController>();
+    if (!c.isClosed) {
+      c.prepareForRoutePop();
+    }
+  }
+}
 
 /// Retour arrière sans déclencher le bug GetX Snackbar (LateInitializationError).
 void safeGetBack({BuildContext? context, VoidCallback? then}) {
@@ -30,6 +49,26 @@ void safeGetBack({BuildContext? context, VoidCallback? then}) {
   } else {
     pop();
   }
+}
+
+/// Pop sécurisé : invalide les callbacks async, ferme la route, puis nettoie.
+void safePopRoute(BuildContext context, {VoidCallback? afterPop}) {
+  invalidateControllersBeforePop();
+  safeGetBack(context: context, then: () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      afterPop?.call();
+    });
+  });
+}
+
+/// Variante sans [BuildContext] (AppBar globale, etc.).
+void safePopRouteGlobal({VoidCallback? afterPop}) {
+  invalidateControllersBeforePop();
+  safeGetBack(then: () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      afterPop?.call();
+    });
+  });
 }
 
 /// Ferme la route courante puis exécute [action] à la frame suivante.

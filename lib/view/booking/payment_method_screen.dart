@@ -7,6 +7,8 @@ import 'package:carvy/model/booking_payment_method_model.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/payment_flow_debug.dart';
+import 'package:carvy/utils/safe_navigation.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/work_space.dart';
@@ -186,7 +188,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       canPop: false,
       onPopInvoked: (bool didPop) {
         if (didPop) return;
-        Get.back();
+        safePopRoute(context);
       },
       child: Scaffold(
       backgroundColor: notifires.getbgcolor,
@@ -197,7 +199,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         scrolledUnderElevation: 0,
         leadingWidth: 80,
         leading: GestureDetector(
-          onTap: () => Get.back(),
+          onTap: () => safePopRoute(context),
           child: Padding(
             padding:
                 const EdgeInsets.only(left: 20, top: 8, bottom: 8, right: 20),
@@ -501,9 +503,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         isLoading)
                     ? null
                     : () {
+                        paymentFlowLog('STEP 0 — Confirm payment button TAP',
+                            'extension=${widget.isExtension}, method=${bookingController.selectedPaymentMethod?.name}');
                         if (widget.isExtension) {
+                          paymentFlowLog(
+                              'STEP 0 — calling processExtensionPayment');
                           bookingController.processExtensionPayment();
                         } else {
+                          paymentFlowLog('STEP 0 — calling processBooking',
+                              'vehicleId=${widget.vehicleId}');
                           bookingController.processBooking(
                             vehicleId: widget.vehicleId,
                             widgetVehicleId: widget.vehicleId,

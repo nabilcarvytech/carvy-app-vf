@@ -25,6 +25,7 @@ import 'package:carvy/helper/vehicle_card_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:get/get.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/model/review_model.dart';
@@ -229,7 +230,11 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                         ),
                         const SizedBox(width: 6),
                         Expanded(
-                          child: Obx(() => Column(
+                          child: SafeObx(
+                            isActive: () =>
+                                Get.isRegistered<SearchControllerHome>() &&
+                                !Get.find<SearchControllerHome>().isClosed,
+                            builder: () => Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
@@ -296,7 +301,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                   right: 0,
                   bottom: 0,
                   top: 100,
-                  child: GetBuilder<ItemDetailsController>(
+                  child: SafeItemDetailsGetBuilder(
                     builder: (controller) {
                       // Utiliser les données du controller en priorité, avec fallback sur widget
                       final itemDetails = controller.vehicleDetailModel?.data?.itemDetails;
@@ -708,7 +713,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                             const SizedBox(height: 16),
 
                             // Large Caution Card - Separate from grid
-                            GetBuilder<ItemDetailsController>(
+                            SafeItemDetailsGetBuilder(
                               builder: (controller) {
                                 final depositValue = controller.vehicleDetailModel
                                         ?.data?.itemDetails?.depositValue ??
@@ -980,7 +985,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                         // Vehicle Rules Section - Matching Cancellation Policy style
                         Padding(
                           padding: const EdgeInsets.only(left: 12, right: 12),
-                          child: GetBuilder<ItemDetailsController>(
+                          child: SafeItemDetailsGetBuilder(
                             builder: (controller) {
                               // Get vehicle_rules from the controller
                               final vehicleRules = controller.vehicleDetailModel
@@ -1055,7 +1060,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                         ),
                         Padding(
                           padding: const EdgeInsets.only(left: 12, right: 12),
-                          child: GetBuilder<ItemDetailsController>(
+                          child: SafeItemDetailsGetBuilder(
                             builder: (controller) {
                               // Get cancellation_rules from the controller (List<String> directement depuis le backend)
                               final cancellationRules = controller
@@ -1304,7 +1309,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                   child: Row(
                     children: [
                       // Prix uniquement (sans le texte qui cause l'overflow)
-                      GetBuilder<ItemDetailsController>(
+                      SafeItemDetailsGetBuilder(
                         builder: (controller) {
                           final displayPrice = controller.vehicleDetailModel?.data?.itemDetails?.price ?? widget.price ?? "0";
                           return Directionality(
@@ -1319,7 +1324,7 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                         },
                       ),
                       const Spacer(),
-                      GetBuilder<ItemDetailsController>(
+                      SafeItemDetailsGetBuilder(
                         builder: (controller) {
                           final currentItemInfo = controller.itemInfo ?? widget.itemInfo;
                           final itemDetails = controller.vehicleDetailModel?.data?.itemDetails;

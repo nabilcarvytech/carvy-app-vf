@@ -10,6 +10,7 @@ import '../model/booking_model.dart';
 import '../model/extension_payment_context.dart';
 import '../work_space.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
+import 'package:carvy/utils/payment_flow_debug.dart';
 
 /// Controller pour gérer les enregistrements de réservations (booking records)
 /// Connecté à l'API Node.js locale via POST /api/v1/booking-record
@@ -45,6 +46,8 @@ class BookingRecordController extends GetxController implements GetxService {
   void armPostNavigationFetchDelay() {
     _fetchBlockedUntil =
         DateTime.now().add(postNavigationFetchDelay);
+    paymentFlowLog('STEP 8c-detail — fetch blocked until',
+        _fetchBlockedUntil?.toIso8601String());
   }
 
   Future<void> _awaitFetchWindowIfNeeded() async {
@@ -168,8 +171,12 @@ class BookingRecordController extends GetxController implements GetxService {
 
       if (isNewSearch) {
         _beginOffsetZeroFetch(normalizedType);
+        paymentFlowLog('STEP 15-detail — getBookingRecord await fetch window',
+            'type=$normalizedType');
         await _awaitFetchWindowIfNeeded();
         if (!_isControllerActive()) return;
+        paymentFlowLog('STEP 15b — fetch window elapsed, proceeding',
+            'type=$normalizedType');
       }
 
       final int requestId = ++_activeRequestId;
@@ -741,6 +748,10 @@ class BookingRecordController extends GetxController implements GetxService {
         isLoading.value = false;
         Bookings.suppressParseDebugLogs = false;
         _protectedSafeUpdate();
+        if (isNewSearch && normalizedType == 'upcoming') {
+          paymentFlowLog('STEP 16-detail — getBookingRecord finally',
+              'listLen=${bookingsList.length}, hasError=$hasError');
+        }
       }
     }
   }

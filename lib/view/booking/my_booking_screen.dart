@@ -12,6 +12,7 @@ import 'package:carvy/view/bottombar/home_main.dart';
 import '../../controller/booking_controller.dart';
 import '../../controller/booking_record_controller.dart';
 import '../../utils/common_widget.dart';
+import '../../utils/payment_flow_debug.dart';
 import '../../work_space.dart';
 
 class MyBooking extends StatefulWidget {
@@ -38,6 +39,8 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     handleBoackfromPayment = false;
     bookingController = Get.find();
     _initialTab = widget.initialTabIndex ?? 0;
+    paymentFlowLog('STEP 10a — MyBooking initState',
+        'initialTab=$_initialTab, fromPropBooking=${widget.fromPropBooking}');
 
     tabController = TabController(
       initialIndex: _initialTab,

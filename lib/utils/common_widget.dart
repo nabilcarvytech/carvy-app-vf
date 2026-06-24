@@ -25,6 +25,7 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/rolling_calendar_bounds.dart';
+import 'package:carvy/utils/safe_navigation.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/utils/vehicle_common_widgets.dart';
 import 'package:carvy/model/extension_payment_context.dart';
@@ -6036,9 +6037,7 @@ void searchPlaces(
 
 Widget backButton() {
   return GestureDetector(
-      onTap: () {
-        Get.back();
-      },
+      onTap: () => safePopRouteGlobal(),
       child: Padding(
         padding: const EdgeInsets.only(left: 20, top: 8, bottom: 8, right: 20),
         child: PhysicalModel(
@@ -6103,12 +6102,15 @@ Widget backButtonfordetailPage(BuildContext context) {
 Widget backButtonfordetailPageForVehicle(BuildContext context, bool check) {
   return InkWell(
       onTap: () {
-        handleSearchFordetail = false;
         if (check == true) {
-          Navigator.pop(context);
+          safePopRoute(context, afterPop: () {
+            handleSearchFordetail = false;
+          });
           return;
-        } else {
-          if (webPlateForm) {
+        }
+        invalidateControllersBeforePop();
+        handleSearchFordetail = false;
+        if (webPlateForm) {
             if (isHostMode.value == true) {
               generalController.currentIndexHost.value = 0;
               Get.toNamed(
@@ -6137,7 +6139,6 @@ Widget backButtonfordetailPageForVehicle(BuildContext context, bool check) {
               );
             }
           }
-        }
       },
       child: Padding(
         padding: const EdgeInsets.only(left: 20, top: 8, bottom: 8, right: 20),

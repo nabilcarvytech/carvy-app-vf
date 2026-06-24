@@ -8,6 +8,7 @@ import '../../customwidget/data_not_found.dart';
 import '../../customwidget/project_color.dart';
 import '../../utils/extension.dart';
 import '../../utils/common_widget.dart';
+import '../../utils/payment_flow_debug.dart';
 import '../../utils/safe_rebuild.dart';
 
 class MyUpCommingTrip extends StatefulWidget {
@@ -35,21 +36,25 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
     super.initState();
     runAfterFirstFrame(() {
       if (!mounted) return;
-      if (bookingRecordController.shouldSkipInitialFetch(
-            'upcoming',
-            isActiveTab: widget.tabIndex == widget.initialTabIndex,
-          )) {
-        return;
-      }
+      final skip = bookingRecordController.shouldSkipInitialFetch(
+        'upcoming',
+        isActiveTab: widget.tabIndex == widget.initialTabIndex,
+      );
+      paymentFlowLog('STEP 14 — MyUpCommingTrip postFrame',
+          'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}, skipFetch=$skip, listLen=${bookingRecordController.bookingsList.length}, isLoading=${bookingRecordController.isLoading.value}');
+      if (skip) return;
       getData();
     });
   }
 
   getData() async {
+    paymentFlowLog('STEP 15 — getBookingRecord(upcoming) START');
     await bookingRecordController.getBookingRecord(
       type: "upcoming",
       offset: 0,
     );
+    paymentFlowLog('STEP 16 — getBookingRecord(upcoming) END',
+        'count=${bookingRecordController.bookingsList.length}');
 
     refreshController.loadComplete();
     refreshController.refreshCompleted();
