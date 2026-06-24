@@ -22,25 +22,23 @@ class _PreviousTripState extends State<PreviousTrip> {
 
   void onItemCancelled(int index) {
     bookingRecordController.removeBooking(index);
-    setState(() {});
   }
 
   @override
   void initState() {
     super.initState();
-    runAfterFirstFrame(() => getData());
+    runAfterFirstFrame(() {
+      if (bookingRecordController.hasDataForType('previous')) return;
+      getData();
+    });
   }
 
   getData() async {
-    // Lors du premier chargement, passer explicitement offset: 0 pour réinitialiser la liste
     await bookingRecordController.getBookingRecord(
       type: "previous",
-      offset: 0, // Toujours commencer à 0 pour éviter les doublons
+      offset: 0,
     );
-    
-    if (mounted) {
-      setState(() {});
-    }
+
     refreshController.loadComplete();
     refreshController.refreshCompleted();
   }

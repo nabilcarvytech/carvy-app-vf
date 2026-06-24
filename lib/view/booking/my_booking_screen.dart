@@ -28,6 +28,7 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   final BookingRecordController bookingRecordController = Get.find();
 
   TabController? tabController;
+  late VoidCallback _tabListener;
   int index = 0;
   @override
   void initState() {
@@ -42,15 +43,13 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
       length: 4,
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      tabController!.animateTo(widget.initialTabIndex ?? 0);
-    });
+    index = tabController!.index;
 
-    tabController!.addListener(() {
+    _tabListener = () {
+      if (!mounted || tabController == null) return;
       if (index != tabController!.index) {
         index = tabController!.index;
-        
-        // Appeler getBookingRecord explicitement selon l'onglet sélectionné
+
         String type;
         switch (index) {
           case 0:
@@ -68,11 +67,18 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
           default:
             type = 'upcoming';
         }
-        
-        // Appeler l'API explicitement lors du changement d'onglet
+
         bookingRecordController.getBookingRecord(type: type, offset: 0);
-        
-        setState(() {});
+      }
+    };
+
+    tabController!.addListener(_tabListener);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || tabController == null) return;
+      final target = widget.initialTabIndex ?? 0;
+      if (tabController!.index != target) {
+        tabController!.animateTo(target);
       }
     });
   }
@@ -88,7 +94,7 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    tabController?.removeListener(() {});
+    tabController?.removeListener(_tabListener);
     tabController?.dispose();
     super.dispose();
   }

@@ -28,19 +28,18 @@ class _LiveBookingState extends State<LiveBooking> {
   @override
   void initState() {
     super.initState();
-    runAfterFirstFrame(() => getData());
+    runAfterFirstFrame(() {
+      if (bookingRecordController.hasDataForType('ongoing')) return;
+      getData();
+    });
   }
 
   getData() async {
-    // Lors du premier chargement, passer explicitement offset: 0 pour réinitialiser la liste
     await bookingRecordController.getBookingRecord(
       type: "ongoing",
-      offset: 0, // Toujours commencer à 0 pour éviter les doublons
+      offset: 0,
     );
-    
-    if (mounted) {
-      setState(() {});
-    }
+
     refreshController.loadComplete();
     refreshController.refreshCompleted();
   }
@@ -63,7 +62,6 @@ class _LiveBookingState extends State<LiveBooking> {
 
   void onItemCancelled(int index) {
     bookingRecordController.removeBooking(index);
-    setState(() {});
   }
 
   @override

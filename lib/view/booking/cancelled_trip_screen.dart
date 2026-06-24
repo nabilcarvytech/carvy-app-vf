@@ -22,19 +22,18 @@ class _CancelledTripState extends State<CancelledTrip> {
   @override
   void initState() {
     super.initState();
-    runAfterFirstFrame(() => getData());
+    runAfterFirstFrame(() {
+      if (bookingRecordController.hasDataForType('cancelled')) return;
+      getData();
+    });
   }
 
   getData() async {
-    // Lors du premier chargement, passer explicitement offset: 0 pour réinitialiser la liste
     await bookingRecordController.getBookingRecord(
       type: "Cancelled",
-      offset: 0, // Toujours commencer à 0 pour éviter les doublons
+      offset: 0,
     );
-    
-    if (mounted) {
-      setState(() {});
-    }
+
     refreshController.loadComplete();
     refreshController.refreshCompleted();
   }
@@ -55,7 +54,6 @@ class _CancelledTripState extends State<CancelledTrip> {
 
   void onItemCancelled(int index) {
     bookingRecordController.removeBooking(index);
-    setState(() {});
   }
 
   @override

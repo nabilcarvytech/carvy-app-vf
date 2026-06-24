@@ -162,10 +162,9 @@ class BookingController extends GetxController implements GetxService {
     safeUpdate(ids, condition);
   }
 
-  /// Navigation post-paiement : d'abord la nouvelle page, puis fetch, puis snackbar.
+  /// Navigation post-paiement : route atomique, fetch délégué aux onglets.
   Future<void> _navigateToBookingsAfterPayment({
     required int tabIndex,
-    required String bookingRecordType,
     required String snackTitle,
     required String snackMessage,
   }) async {
@@ -180,14 +179,8 @@ class BookingController extends GetxController implements GetxService {
           fromPropBooking: false,
           initialTabIndex: tabIndex,
         ));
-    await Future.delayed(_postNavigationSettleDelay);
 
-    if (Get.isRegistered<BookingRecordController>()) {
-      await Get.find<BookingRecordController>().getBookingRecord(
-        type: bookingRecordType,
-        offset: 0,
-      );
-    }
+    await Future.delayed(_postNavigationSettleDelay);
 
     Get.safeSnackbar(
       snackTitle,
@@ -2099,7 +2092,6 @@ class BookingController extends GetxController implements GetxService {
                         Get.back(); // Fermer le dialogue
                         await _navigateToBookingsAfterPayment(
                           tabIndex: 0,
-                          bookingRecordType: 'upcoming',
                           snackTitle: 'Succes'.tr,
                           snackMessage:
                               'Votre reservation est confirmee !'.tr,

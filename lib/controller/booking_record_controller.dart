@@ -29,9 +29,59 @@ class BookingRecordController extends GetxController implements GetxService {
   // Garder une trace du type actuel pour éviter les mélanges
   String? currentType;
 
+  // Verrouillage anti-fetch concurrent (offset: 0)
+  bool _isFetchingOffsetZero = false;
+  DateTime? _lastOffsetZeroFetchAt;
+  String? _lastOffsetZeroFetchType;
+  int _activeRequestId = 0;
+  static const Duration _fetchDedupeWindow = Duration(seconds: 2);
+
+  bool _isControllerActive() =>
+      !isClosed && Get.isRegistered<BookingRecordController>();
+
+  void _protectedSafeUpdate([List<Object>? ids, bool condition = true]) {
+    if (!_isControllerActive()) return;
+    safeUpdate(ids, condition);
+  }
+
+  void _protectedRefresh() {
+    if (!_isControllerActive()) return;
+    bookingsList.refresh();
+  }
+
+  /// Données déjà chargées pour cet onglet — évite un fetch initial redondant.
+  bool hasDataForType(String type) {
+    final normalized = type.toLowerCase();
+    return bookingsList.isNotEmpty && currentType == normalized;
+  }
+
+  bool _shouldIgnoreDuplicateFetch(String normalizedType) {
+    if (!_isFetchingOffsetZero) return false;
+    if (_lastOffsetZeroFetchType != normalizedType) return false;
+    final startedAt = _lastOffsetZeroFetchAt;
+    if (startedAt == null) return false;
+    return DateTime.now().difference(startedAt) < _fetchDedupeWindow;
+  }
+
+  void _beginOffsetZeroFetch(String normalizedType) {
+    _isFetchingOffsetZero = true;
+    _lastOffsetZeroFetchType = normalizedType;
+    _lastOffsetZeroFetchAt = DateTime.now();
+  }
+
+  void _endOffsetZeroFetch() {
+    _isFetchingOffsetZero = false;
+  }
+
   @override
   void onClose() {
-    isLoading.value = false;
+    _activeRequestId++;
+    _isFetchingOffsetZero = false;
+    _lastOffsetZeroFetchAt = null;
+    _lastOffsetZeroFetchType = null;
+    if (_isControllerActive()) {
+      isLoading.value = false;
+    }
     super.onClose();
   }
 
@@ -43,6 +93,8 @@ class BookingRecordController extends GetxController implements GetxService {
     required String type,
     num? offset,
   }) async {
+      if (!_isControllerActive()) return;
+
       // Réinitialiser l'état d'erreur
       hasError.value = false;
       errorMessage = null;
@@ -61,6 +113,19 @@ class BookingRecordController extends GetxController implements GetxService {
       // Si offset est null, c'est une pagination, sinon c'est une nouvelle recherche si offset == 0
       bool isNewSearch = offset != null && offset == 0;
       bool isTypeChanged = currentType != normalizedType;
+
+      if (isNewSearch && _shouldIgnoreDuplicateFetch(normalizedType)) {
+        debugPrint(
+          '⏭️ [BookingRecord] Fetch ignoré — doublon offset:0 (type: $normalizedType)',
+        );
+        return;
+      }
+
+      if (isNewSearch) {
+        _beginOffsetZeroFetch(normalizedType);
+      }
+
+      final int requestId = ++_activeRequestId;
       
       // ========== 1. RÉINITIALISATION DE LA LISTE ==========
       // Si offset est explicitement 0 (nouvelle recherche) ou si le type a changé, vider la liste
@@ -111,7 +176,7 @@ class BookingRecordController extends GetxController implements GetxService {
           hasError.value = true;
           errorMessage = 'Token d\'authentification manquant';
           isLoading.value = false;
-          safeUpdate();
+          _protectedSafeUpdate();
           return;
         }
 
@@ -149,6 +214,8 @@ class BookingRecordController extends GetxController implements GetxService {
         },
       );
 
+      if (requestId != _activeRequestId || !_isControllerActive()) return;
+
       // ========== 6. DEBUG: PRINT RÉPONSE BRUTE ==========
       print('📥 [BookingRecord] Réponse brute du serveur: ${response.body}');
       debugPrint('📥 [BookingRecord] Status Code: ${response.statusCode}');
@@ -165,7 +232,7 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = 'Format de réponse invalide';
         isLoading.value = false;
-        safeUpdate();
+        _protectedSafeUpdate();
         return;
       }
 
@@ -177,7 +244,7 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = errorMsg;
         isLoading.value = false;
-        safeUpdate();
+        _protectedSafeUpdate();
         return;
       }
 
@@ -189,7 +256,7 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = 'Réponse incomplète du serveur';
         isLoading.value = false;
-        safeUpdate();
+        _protectedSafeUpdate();
         return;
       }
 
@@ -199,9 +266,11 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = 'Format de réponse invalide: clé Bookings manquante';
         isLoading.value = false;
-        safeUpdate();
+        _protectedSafeUpdate();
         return;
       }
+
+      if (requestId != _activeRequestId || !_isControllerActive()) return;
 
       // ========== 10. PRINT DES ATTENTES DU MODÈLE ==========
       debugPrint('═══════════════════════════════════════════════════════');
@@ -473,7 +542,7 @@ class BookingRecordController extends GetxController implements GetxService {
           
           // ========== 3. RAFRAÎCHISSEMENT DE L'UI ==========
           // RxList notifie automatiquement GetX, mais on appelle update() pour être sûr
-          safeUpdate();
+          _protectedSafeUpdate();
         } else {
           debugPrint('⚠️ [BookingRecord] bookingModel.data.bookings est null ou vide');
         }
@@ -608,14 +677,20 @@ class BookingRecordController extends GetxController implements GetxService {
       hasError.value = true;
       errorMessage = 'Erreur de connexion: ${e.toString()}';
     } finally {
-      isLoading.value = false;
-      safeUpdate();
+      if (isNewSearch) {
+        _endOffsetZeroFetch();
+      }
+      if (requestId == _activeRequestId && _isControllerActive()) {
+        isLoading.value = false;
+        _protectedSafeUpdate();
+      }
     }
   }
 
   // ========== FONCTION POUR RÉINITIALISER LA LISTE ==========
   /// Réinitialise la liste et l'offset (utilisé pour le refresh)
   void resetList() {
+    if (!_isControllerActive()) return;
     bookingsList.clear();
     offset = 0;
     bookingModel = null;
@@ -623,15 +698,16 @@ class BookingRecordController extends GetxController implements GetxService {
     isSuccess.value = false;
     hasError.value = false;
     errorMessage = null;
-        safeUpdate(); // Notifier GetX du changement
+    _protectedSafeUpdate();
   }
 
   // ========== FONCTION POUR SUPPRIMER UNE RÉSERVATION DE LA LISTE ==========
   /// Supprime une réservation de la liste (utilisé après annulation)
   void removeBooking(int index) {
+    if (!_isControllerActive()) return;
     if (index >= 0 && index < bookingsList.length) {
       bookingsList.removeAt(index);
-      safeUpdate();
+      _protectedRefresh();
     }
   }
 

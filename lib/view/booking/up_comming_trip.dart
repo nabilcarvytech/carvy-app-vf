@@ -29,19 +29,18 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
   @override
   void initState() {
     super.initState();
-    runAfterFirstFrame(() => getData());
+    runAfterFirstFrame(() {
+      if (bookingRecordController.hasDataForType('upcoming')) return;
+      getData();
+    });
   }
 
   getData() async {
-    // Lors du premier chargement, passer explicitement offset: 0 pour réinitialiser la liste
     await bookingRecordController.getBookingRecord(
       type: "upcoming",
-      offset: 0, // Toujours commencer à 0 pour éviter les doublons
+      offset: 0,
     );
-    
-    if (mounted) {
-      setState(() {});
-    }
+
     refreshController.loadComplete();
     refreshController.refreshCompleted();
   }
@@ -64,7 +63,6 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
 
   void onItemCancelled(int index) {
     bookingRecordController.removeBooking(index);
-    setState(() {});
   }
 
   @override
