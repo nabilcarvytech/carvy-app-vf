@@ -10,7 +10,15 @@ import '../../utils/safe_rebuild.dart';
 
 class CancelledTrip extends StatefulWidget {
   final bool fromPropBooking;
-  const CancelledTrip({super.key, required this.fromPropBooking});
+  final int tabIndex;
+  final int initialTabIndex;
+
+  const CancelledTrip({
+    super.key,
+    required this.fromPropBooking,
+    this.tabIndex = 3,
+    this.initialTabIndex = 0,
+  });
   @override
   State<CancelledTrip> createState() => _CancelledTripState();
 }
@@ -24,7 +32,12 @@ class _CancelledTripState extends State<CancelledTrip> {
     super.initState();
     runAfterFirstFrame(() {
       if (!mounted) return;
-      if (bookingRecordController.shouldSkipInitialFetch('cancelled')) return;
+      if (bookingRecordController.shouldSkipInitialFetch(
+            'cancelled',
+            isActiveTab: widget.tabIndex == widget.initialTabIndex,
+          )) {
+        return;
+      }
       getData();
     });
   }

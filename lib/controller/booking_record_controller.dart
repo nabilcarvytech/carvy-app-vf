@@ -36,6 +36,39 @@ class BookingRecordController extends GetxController implements GetxService {
   String? _lastOffsetZeroFetchType;
   int _activeRequestId = 0;
   static const Duration _fetchDedupeWindow = Duration(seconds: 2);
+  static const Duration postNavigationFetchDelay =
+      Duration(milliseconds: 500);
+
+  DateTime? _fetchBlockedUntil;
+
+  /// Bloque les fetchs initiaux le temps que [Get.offAll] termine le montage.
+  void armPostNavigationFetchDelay() {
+    _fetchBlockedUntil =
+        DateTime.now().add(postNavigationFetchDelay);
+  }
+
+  Future<void> _awaitFetchWindowIfNeeded() async {
+    final until = _fetchBlockedUntil;
+    if (until == null) return;
+    final wait = until.difference(DateTime.now());
+    if (wait > Duration.zero) {
+      await Future.delayed(wait);
+    }
+    _fetchBlockedUntil = null;
+  }
+
+  static String typeForTabIndex(int index) {
+    switch (index) {
+      case 1:
+        return 'ongoing';
+      case 2:
+        return 'previous';
+      case 3:
+        return 'cancelled';
+      default:
+        return 'upcoming';
+    }
+  }
 
   bool _isControllerActive() =>
       !isClosed && Get.isRegistered<BookingRecordController>();
@@ -57,7 +90,8 @@ class BookingRecordController extends GetxController implements GetxService {
   }
 
   /// Évite un fetch initial pendant une transition ou si les données sont déjà là.
-  bool shouldSkipInitialFetch(String type) {
+  bool shouldSkipInitialFetch(String type, {required bool isActiveTab}) {
+    if (!isActiveTab) return true;
     if (!_isControllerActive()) return true;
     if (isLoading.value) return true;
     if (bookingsList.isNotEmpty && hasDataForType(type)) return true;
@@ -89,6 +123,7 @@ class BookingRecordController extends GetxController implements GetxService {
     _lastOffsetZeroFetchAt = null;
     _lastOffsetZeroFetchType = null;
     Bookings.suppressParseDebugLogs = false;
+    _fetchBlockedUntil = null;
     if (_isControllerActive()) {
       isLoading.value = false;
     }
@@ -133,6 +168,8 @@ class BookingRecordController extends GetxController implements GetxService {
 
       if (isNewSearch) {
         _beginOffsetZeroFetch(normalizedType);
+        await _awaitFetchWindowIfNeeded();
+        if (!_isControllerActive()) return;
       }
 
       final int requestId = ++_activeRequestId;
@@ -908,7 +945,12 @@ class SafeBookingRecordObx extends StatelessWidget {
     if (!bookingRecordControllerIsActive()) {
       return const SizedBox.shrink();
     }
-    return Obx(builder);
+    return Obx(() {
+      if (!bookingRecordControllerIsActive()) {
+        return const SizedBox.shrink();
+      }
+      return builder();
+    });
   }
 }
 

@@ -58,37 +58,39 @@ class Data {
   Data.fromJson(dynamic json) {
     if (json['Bookings'] != null) {
       _bookings = [];
-      debugPrint('📦 [Data.fromJson] Début parsing de ${json['Bookings'].length} réservations');
-      
+      final bookingsJson = json['Bookings'] as List;
+      final logParse = kDebugMode && !Bookings.suppressParseDebugLogs;
+
+      if (logParse) {
+        debugPrint(
+            '📦 [Data.fromJson] Début parsing de ${bookingsJson.length} réservations');
+      }
+
       int index = 0;
-      json['Bookings'].forEach((v) {
-        debugPrint('═══════════════════════════════════════════════════════');
-        debugPrint('🔄 [Data.fromJson] Parsing Booking #$index');
-        debugPrint('🔄 [Data.fromJson] JSON brut: ${v.toString().substring(0, v.toString().length > 200 ? 200 : v.toString().length)}...');
-        
-        // Log des clés importantes avant parsing
-        if (v is Map) {
-          debugPrint('🔄 [Data.fromJson] Clés disponibles: ${v.keys.toList()}');
-          debugPrint('🔄 [Data.fromJson] _id présent: ${v.containsKey('_id')}, valeur: ${v['_id']}');
-          debugPrint('🔄 [Data.fromJson] id présent: ${v.containsKey('id')}, valeur: ${v['id']}');
-          debugPrint('🔄 [Data.fromJson] item_data présent: ${v.containsKey('item_data')}, type: ${v['item_data']?.runtimeType}');
+      for (final v in bookingsJson) {
+        if (logParse) {
+          debugPrint('🔄 [Data.fromJson] Parsing Booking #$index');
         }
-        
+
         try {
           var booking = Bookings.fromJson(v);
           _bookings?.add(booking);
-          debugPrint('✅ [Data.fromJson] Booking #$index parsé avec succès - ID: ${booking.id}');
         } catch (e, stackTrace) {
-          debugPrint('❌ [Data.fromJson] ERREUR lors du parsing du Booking #$index: $e');
-          debugPrint('❌ [Data.fromJson] StackTrace: $stackTrace');
-          // Continuer même si un booking échoue
+          if (logParse) {
+            debugPrint(
+                '❌ [Data.fromJson] ERREUR lors du parsing du Booking #$index: $e');
+            debugPrint('❌ [Data.fromJson] StackTrace: $stackTrace');
+          }
         }
-        
+
         index++;
-      });
-      
-      debugPrint('✅ [Data.fromJson] ${_bookings?.length ?? 0} réservations parsées avec succès');
-    } else {
+      }
+
+      if (logParse) {
+        debugPrint(
+            '✅ [Data.fromJson] ${_bookings?.length ?? 0} réservations parsées avec succès');
+      }
+    } else if (kDebugMode && !Bookings.suppressParseDebugLogs) {
       debugPrint('⚠️ [Data.fromJson] json["Bookings"] est null');
     }
     

@@ -2016,8 +2016,6 @@ myBookingListWidget(
       shrinkWrap: true,
       itemCount: list.length,
       itemBuilder: (context, index) {
-        print(list[index].status);
-
         final itemData = Bookings.decodeItemDataList(list[index].itemData);
         if (itemData == null || itemData.isEmpty) {
           return const SizedBox.shrink();
@@ -2039,16 +2037,10 @@ myBookingListWidget(
         String? image;
         if (list[index].propImg != null && list[index].propImg!.isNotEmpty && list[index].propImg != 'N/A') {
           image = list[index].propImg;
-          // ========== LOG CRITIQUE POUR DÉBOGUER L'URL DANS LE WIDGET ==========
-          print('🖼️ [DEBUG IMAGE] [WIDGET] Image depuis propImg: $image');
         } else {
           dynamic itemDataImage = firstItem['image'] ?? firstItem['front_image_url'];
           if (itemDataImage != null && itemDataImage.toString().isNotEmpty && itemDataImage.toString() != 'N/A') {
             image = itemDataImage.toString();
-            // ========== LOG CRITIQUE POUR DÉBOGUER L'URL DANS LE WIDGET ==========
-            print('🖼️ [DEBUG IMAGE] [WIDGET] Image depuis itemData: $image');
-          } else {
-            print('🖼️ [DEBUG IMAGE] [WIDGET] Aucune image trouvée (propImg et itemData sont null/vides)');
           }
         }
         final totalNights = formatBookingCardPriceLine(
@@ -2083,12 +2075,14 @@ myBookingListWidget(
         final String dropOtpValue = (list[index].dropOtp ?? '').trim();
         final bool hasDropOtp = dropOtpValue.isNotEmpty;
 
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (!bookingAgrinmentUser2 &&
-              bookingAgrinmentuser == true &&
-              listType == "UpComing") {
-            bookingAgrinmentUser2 = true;
-            showModalBottomSheet<String>(
+        if (index == 0) {
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            if (!bookingAgrinmentUser2 &&
+                bookingAgrinmentuser == true &&
+                listType == "UpComing") {
+              bookingAgrinmentUser2 = true;
+              showModalBottomSheet<String>(
               context: context,
               isScrollControlled: true,
               shape: const RoundedRectangleBorder(
@@ -2182,6 +2176,7 @@ myBookingListWidget(
             );
           }
         });
+        }
 
         void showOtpBottomSheet(BuildContext context, int index) {
           print('📌 [UI] Tentative d\'affichage de la modale OTP maintenant');

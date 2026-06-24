@@ -11,10 +11,14 @@ import 'package:carvy/utils/safe_rebuild.dart';
 
 class LiveBooking extends StatefulWidget {
   final bool fromPropBooking;
+  final int tabIndex;
+  final int initialTabIndex;
 
   const LiveBooking({
     super.key,
     required this.fromPropBooking,
+    this.tabIndex = 1,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -30,7 +34,12 @@ class _LiveBookingState extends State<LiveBooking> {
     super.initState();
     runAfterFirstFrame(() {
       if (!mounted) return;
-      if (bookingRecordController.shouldSkipInitialFetch('ongoing')) return;
+      if (bookingRecordController.shouldSkipInitialFetch(
+            'ongoing',
+            isActiveTab: widget.tabIndex == widget.initialTabIndex,
+          )) {
+        return;
+      }
       getData();
     });
   }

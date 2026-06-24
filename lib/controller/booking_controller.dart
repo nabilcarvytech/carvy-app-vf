@@ -212,6 +212,10 @@ class BookingController extends GetxController implements GetxService {
     isProcessingBooking.value = false;
     clearListeners();
 
+    if (Get.isRegistered<BookingRecordController>()) {
+      Get.find<BookingRecordController>().armPostNavigationFetchDelay();
+    }
+
     generalController.myBookingTabIndex.value = tabIndex;
     generalController.currentIndex.value = 2;
 
@@ -240,6 +244,10 @@ class BookingController extends GetxController implements GetxService {
   }) async {
     isProcessingBooking.value = false;
     clearListeners();
+
+    if (Get.isRegistered<BookingRecordController>()) {
+      Get.find<BookingRecordController>().armPostNavigationFetchDelay();
+    }
 
     if (Get.key.currentState?.canPop() == true) {
       Get.back();

@@ -12,10 +12,14 @@ import '../../utils/safe_rebuild.dart';
 
 class MyUpCommingTrip extends StatefulWidget {
   final bool fromPropBooking;
+  final int tabIndex;
+  final int initialTabIndex;
 
   const MyUpCommingTrip({
     super.key,
     required this.fromPropBooking,
+    this.tabIndex = 0,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -31,7 +35,12 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
     super.initState();
     runAfterFirstFrame(() {
       if (!mounted) return;
-      if (bookingRecordController.shouldSkipInitialFetch('upcoming')) return;
+      if (bookingRecordController.shouldSkipInitialFetch(
+            'upcoming',
+            isActiveTab: widget.tabIndex == widget.initialTabIndex,
+          )) {
+        return;
+      }
       getData();
     });
   }
@@ -122,10 +131,14 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
               final canOpenOtp =
                   (matchedBooking?.status as String?)?.isConfirmed == true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
                 if (canOpenOtp) {
                   CommonWidgets.showOtpBottomSheet(context, bookingId);
                 }
-                bookingController.openOtpAfterImageSubmit.value = false;
+                if (Get.isRegistered<BookingController>() &&
+                    !Get.find<BookingController>().isClosed) {
+                  bookingController.openOtpAfterImageSubmit.value = false;
+                }
               });
             }
             return SizedBox.shrink();

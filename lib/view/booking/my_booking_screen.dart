@@ -30,15 +30,17 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   TabController? tabController;
   late VoidCallback _tabListener;
   int index = 0;
+  late final int _initialTab;
+
   @override
   void initState() {
     super.initState();
     handleBoackfromPayment = false;
     bookingController = Get.find();
-    print(widget.initialTabIndex);
+    _initialTab = widget.initialTabIndex ?? 0;
 
     tabController = TabController(
-      initialIndex: widget.initialTabIndex ?? 0,
+      initialIndex: _initialTab,
       vsync: this,
       length: 4,
     );
@@ -78,23 +80,6 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     };
 
     tabController!.addListener(_tabListener);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || tabController == null) return;
-      final target = widget.initialTabIndex ?? 0;
-      if (tabController!.index != target) {
-        tabController!.animateTo(target);
-      }
-    });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    if (widget.initialTabIndex != null) {
-      tabController!.animateTo(widget.initialTabIndex!);
-    }
   }
 
   @override
@@ -202,16 +187,24 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
                             children: [
                               MyUpCommingTrip(
                                   fromPropBooking:
-                                      widget.fromPropBooking ?? false),
+                                      widget.fromPropBooking ?? false,
+                                  tabIndex: 0,
+                                  initialTabIndex: _initialTab),
                               LiveBooking(
                                   fromPropBooking:
-                                      widget.fromPropBooking ?? false),
+                                      widget.fromPropBooking ?? false,
+                                  tabIndex: 1,
+                                  initialTabIndex: _initialTab),
                               PreviousTrip(
                                   fromPropBooking:
-                                      widget.fromPropBooking ?? false),
+                                      widget.fromPropBooking ?? false,
+                                  tabIndex: 2,
+                                  initialTabIndex: _initialTab),
                               CancelledTrip(
                                   fromPropBooking:
-                                      widget.fromPropBooking ?? false),
+                                      widget.fromPropBooking ?? false,
+                                  tabIndex: 3,
+                                  initialTabIndex: _initialTab),
                             ],
                           ),
                         ),
