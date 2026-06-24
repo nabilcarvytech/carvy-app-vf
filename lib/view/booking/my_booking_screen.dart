@@ -68,6 +68,11 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
             type = 'upcoming';
         }
 
+        if (!Get.isRegistered<BookingRecordController>()) return;
+        if (bookingRecordController.isClosed) return;
+        if (bookingRecordController.isLoading.value) return;
+        if (bookingRecordController.hasDataForType(type)) return;
+
         bookingRecordController.getBookingRecord(type: type, offset: 0);
       }
     };

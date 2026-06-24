@@ -30,7 +30,8 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
   void initState() {
     super.initState();
     runAfterFirstFrame(() {
-      if (bookingRecordController.hasDataForType('upcoming')) return;
+      if (!mounted) return;
+      if (bookingRecordController.shouldSkipInitialFetch('upcoming')) return;
       getData();
     });
   }
@@ -73,16 +74,17 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
 
   @override
   Widget build(BuildContext context) {
-    final bookingController = Get.find<BookingController>();
     return Scaffold(
       backgroundColor: notifires.getbgcolor,
       body: Stack(
         children: [
-          Obx(() => SmartRefresher(
+          SafeBookingRecordObx(
+            builder: () => SmartRefresher(
                 controller: refreshController,
                 onRefresh: onRefresh,
                 onLoading: onLoading,
-                enablePullUp: bookingRecordController.offset == -1 ? false : true,
+                enablePullUp:
+                    bookingRecordController.offset == -1 ? false : true,
                 child: bookingRecordController.isLoading.value
                     ? myBookingScreenShimmer()
                     : bookingRecordController.bookingsList.isEmpty
@@ -100,8 +102,14 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
                             "UpComing",
                             onItemCancelled,
                           ),
-              )),
-          Obx(() {
+              ),
+          ),
+          SafeBookingRecordObx(builder: () {
+            if (!Get.isRegistered<BookingController>() ||
+                Get.find<BookingController>().isClosed) {
+              return const SizedBox.shrink();
+            }
+            final bookingController = Get.find<BookingController>();
             if (bookingController.openOtpAfterImageSubmit.value) {
               final bookingId = bookingController.currentBookingIdForOtp.value;
               dynamic matchedBooking;

@@ -28,7 +28,8 @@ class _PreviousTripState extends State<PreviousTrip> {
   void initState() {
     super.initState();
     runAfterFirstFrame(() {
-      if (bookingRecordController.hasDataForType('previous')) return;
+      if (!mounted) return;
+      if (bookingRecordController.shouldSkipInitialFetch('previous')) return;
       getData();
     });
   }
@@ -69,7 +70,8 @@ class _PreviousTripState extends State<PreviousTrip> {
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: notifires.getbgcolor,
-        body: Obx(() => SmartRefresher(
+        body: SafeBookingRecordObx(
+          builder: () => SmartRefresher(
           controller: refreshController,
           onRefresh: onRefresh,
           onLoading: onLoading,
@@ -91,6 +93,8 @@ class _PreviousTripState extends State<PreviousTrip> {
                       "Previous",
                       onItemCancelled,
                     ),
-        )));
+        ),
+        ),
+    );
   }
 }

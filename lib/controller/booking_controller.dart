@@ -196,7 +196,7 @@ class BookingController extends GetxController implements GetxService {
   }
 
   static const Duration _postNavigationSettleDelay =
-      Duration(milliseconds: 350);
+      Duration(milliseconds: 500);
 
   /// Notifie les GetBuilder sans toucher l'UI si le contrôleur est fermé.
   void notifyUi([List<Object>? ids, bool condition = true]) {
@@ -247,10 +247,13 @@ class BookingController extends GetxController implements GetxService {
     await Future.delayed(_postNavigationSettleDelay);
 
     if (Get.isRegistered<BookingRecordController>()) {
-      await Get.find<BookingRecordController>().getBookingRecord(
-        type: bookingRecordType,
-        offset: 0,
-      );
+      final recordController = Get.find<BookingRecordController>();
+      if (!recordController.isClosed && !recordController.isLoading.value) {
+        await recordController.getBookingRecord(
+          type: bookingRecordType,
+          offset: 0,
+        );
+      }
     }
 
     Get.safeSnackbar(

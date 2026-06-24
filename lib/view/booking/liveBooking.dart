@@ -29,7 +29,8 @@ class _LiveBookingState extends State<LiveBooking> {
   void initState() {
     super.initState();
     runAfterFirstFrame(() {
-      if (bookingRecordController.hasDataForType('ongoing')) return;
+      if (!mounted) return;
+      if (bookingRecordController.shouldSkipInitialFetch('ongoing')) return;
       getData();
     });
   }
@@ -74,7 +75,8 @@ class _LiveBookingState extends State<LiveBooking> {
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: notifires.getbgcolor,
-        body: Obx(() => SmartRefresher(
+        body: SafeBookingRecordObx(
+          builder: () => SmartRefresher(
           controller: refreshController,
           onRefresh: onRefresh,
           onLoading: onLoading,
@@ -96,6 +98,8 @@ class _LiveBookingState extends State<LiveBooking> {
                       "ongoing",
                       onItemCancelled,
                     ),
-        )));
+        ),
+        ),
+    );
   }
 }

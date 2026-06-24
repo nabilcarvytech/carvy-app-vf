@@ -116,6 +116,9 @@ class Data {
 }
 
 class Bookings {
+  /// Bloque les logs de parsing répétitifs pendant un fetch actif.
+  static bool suppressParseDebugLogs = false;
+
   Bookings({
     String? id,
     String? itemid,
@@ -622,12 +625,10 @@ class Bookings {
       _paymentMethod = safeToString(json['payment_method']);
       _paymentStatus = safeToString(json['payment_status']);
       _propImg = safeToString(json['image']);
-      // ========== LOG CRITIQUE POUR DÉBOGUER L'URL D'IMAGE ==========
-      if (_propImg != null && _propImg!.isNotEmpty) {
-        print('🖼️ [DEBUG IMAGE] Raw URL: $_propImg');
-        print('🖼️ [DEBUG IMAGE] URL Type: ${_propImg!.startsWith('http') ? "URL complète" : _propImg!.startsWith('/') ? "Chemin relatif (commence par /)" : "Chemin relatif ou nom de fichier"}');
-      } else {
-        print('🖼️ [DEBUG IMAGE] Raw URL: null ou vide');
+      if (kDebugMode && !Bookings.suppressParseDebugLogs) {
+        if (_propImg != null && _propImg!.isNotEmpty) {
+          debugPrint('🖼️ [DEBUG IMAGE] Raw URL: $_propImg');
+        }
       }
       _propTitle = safeToString(json['item_title'] ?? json['title']);
       if (_isWeakVehicleTitle(_propTitle)) {

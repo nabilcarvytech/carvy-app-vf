@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -55,6 +56,14 @@ class BookingRecordController extends GetxController implements GetxService {
     return bookingsList.isNotEmpty && currentType == normalized;
   }
 
+  /// Évite un fetch initial pendant une transition ou si les données sont déjà là.
+  bool shouldSkipInitialFetch(String type) {
+    if (!_isControllerActive()) return true;
+    if (isLoading.value) return true;
+    if (bookingsList.isNotEmpty && hasDataForType(type)) return true;
+    return false;
+  }
+
   bool _shouldIgnoreDuplicateFetch(String normalizedType) {
     if (!_isFetchingOffsetZero) return false;
     if (_lastOffsetZeroFetchType != normalizedType) return false;
@@ -79,6 +88,7 @@ class BookingRecordController extends GetxController implements GetxService {
     _isFetchingOffsetZero = false;
     _lastOffsetZeroFetchAt = null;
     _lastOffsetZeroFetchType = null;
+    Bookings.suppressParseDebugLogs = false;
     if (_isControllerActive()) {
       isLoading.value = false;
     }
@@ -153,6 +163,7 @@ class BookingRecordController extends GetxController implements GetxService {
 
       isLoading.value = true;
       isSuccess.value = false;
+      Bookings.suppressParseDebugLogs = true;
 
       try {
         // ========== 1. RÉCUPÉRATION DU TOKEN ==========
@@ -217,9 +228,11 @@ class BookingRecordController extends GetxController implements GetxService {
       if (requestId != _activeRequestId || !_isControllerActive()) return;
 
       // ========== 6. DEBUG: PRINT RÉPONSE BRUTE ==========
-      print('📥 [BookingRecord] Réponse brute du serveur: ${response.body}');
-      debugPrint('📥 [BookingRecord] Status Code: ${response.statusCode}');
-      debugPrint('📥 [BookingRecord] Response Body Length: ${response.body.length}');
+      if (kDebugMode && !Bookings.suppressParseDebugLogs) {
+        debugPrint('📥 [BookingRecord] Status Code: ${response.statusCode}');
+        debugPrint(
+            '📥 [BookingRecord] Response Body Length: ${response.body.length}');
+      }
 
       // ========== 7. PARSING JSON ==========
       Map<String, dynamic> responseData;
@@ -317,7 +330,10 @@ class BookingRecordController extends GetxController implements GetxService {
       debugPrint('🔍 [BookingRecord] Nombre de Bookings dans responseData: ${responseData['data']['Bookings']?.length ?? 0}');
       
       // ========== DEBUG DES CLÉS MANQUANTES POUR CHAQUE RÉSERVATION ==========
-      if (responseData['data']['Bookings'] != null && responseData['data']['Bookings'] is List) {
+      if (kDebugMode &&
+          !Bookings.suppressParseDebugLogs &&
+          responseData['data']['Bookings'] != null &&
+          responseData['data']['Bookings'] is List) {
         List bookingsList = responseData['data']['Bookings'];
         debugPrint('🔍 [BookingRecord] Vérification des clés pour ${bookingsList.length} réservations...');
         
@@ -563,13 +579,14 @@ class BookingRecordController extends GetxController implements GetxService {
         debugPrint('   • Nombre de réservations: ${bookingsList.length}');
         
         // ========== 🧪 TEST FINAL - Vérification après parsing ==========
-        if (bookingsList.isNotEmpty) {
+        if (kDebugMode &&
+            !Bookings.suppressParseDebugLogs &&
+            bookingsList.isNotEmpty) {
           var firstBooking = bookingsList[0];
-          print('═══════════════════════════════════════════════════════');
-          print('🧪 TEST FINAL - Booking ID: ${firstBooking.id}');
-          print('🧪 TEST FINAL - pickOtp: ${firstBooking.pickOtp}'); // Si c'est null ici, le modèle est le coupable
-          print('🧪 TEST FINAL - dropOtp: ${firstBooking.dropOtp}');
-          print('🧪 TEST FINAL - itemid: ${firstBooking.itemid}');
+          debugPrint('🧪 TEST FINAL - Booking ID: ${firstBooking.id}');
+          debugPrint('🧪 TEST FINAL - pickOtp: ${firstBooking.pickOtp}');
+          debugPrint('🧪 TEST FINAL - dropOtp: ${firstBooking.dropOtp}');
+          debugPrint('🧪 TEST FINAL - itemid: ${firstBooking.itemid}');
           
           // Extraction de number_of_seats pour le test
           if (firstBooking.itemData != null) {
@@ -596,19 +613,19 @@ class BookingRecordController extends GetxController implements GetxService {
                   
                   if (itemInfoMap != null) {
                     dynamic seats = itemInfoMap['number_of_seats'];
-                    print('🧪 TEST FINAL - Seats (number_of_seats): ${seats ?? "null"}');
-                    print('🧪 TEST FINAL - item_type: ${firstItem['item_type'] ?? "null"}');
+                    debugPrint(
+                        '🧪 TEST FINAL - Seats: ${seats ?? "null"}');
                   }
                 }
               }
             } catch (e) {
-              print('🧪 TEST FINAL - Erreur extraction sièges: $e');
+              debugPrint('🧪 TEST FINAL - Erreur extraction sièges: $e');
             }
           }
-          print('═══════════════════════════════════════════════════════');
         }
-        
-        for (int i = 0; i < bookingsList.length; i++) {
+
+        if (kDebugMode && !Bookings.suppressParseDebugLogs) {
+          for (int i = 0; i < bookingsList.length; i++) {
           var b = bookingsList[i];
           debugPrint('   • Booking[$i]:');
           debugPrint('     - ID: ${b.id}');
@@ -660,7 +677,10 @@ class BookingRecordController extends GetxController implements GetxService {
             }
           }
         }
-        debugPrint('═══════════════════════════════════════════════════════');
+        }
+        if (kDebugMode && !Bookings.suppressParseDebugLogs) {
+          debugPrint('═══════════════════════════════════════════════════════');
+        }
 
         isSuccess.value = true;
         hasError.value = false;
@@ -682,6 +702,7 @@ class BookingRecordController extends GetxController implements GetxService {
       }
       if (requestId == _activeRequestId && _isControllerActive()) {
         isLoading.value = false;
+        Bookings.suppressParseDebugLogs = false;
         _protectedSafeUpdate();
       }
     }
@@ -868,6 +889,26 @@ class BookingRecordController extends GetxController implements GetxService {
       paymentUrl: paymentUrl,
       message: response['message']?.toString(),
     );
+  }
+}
+
+/// Contrôleur actif et non fermé — évite les rebuilds Obx orphelins.
+bool bookingRecordControllerIsActive() =>
+    Get.isRegistered<BookingRecordController>() &&
+    !Get.find<BookingRecordController>().isClosed;
+
+/// Obx protégé : retourne [SizedBox.shrink] si le contrôleur est démonté.
+class SafeBookingRecordObx extends StatelessWidget {
+  final Widget Function() builder;
+
+  const SafeBookingRecordObx({super.key, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!bookingRecordControllerIsActive()) {
+      return const SizedBox.shrink();
+    }
+    return Obx(builder);
   }
 }
 

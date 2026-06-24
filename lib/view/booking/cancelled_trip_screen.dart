@@ -23,7 +23,8 @@ class _CancelledTripState extends State<CancelledTrip> {
   void initState() {
     super.initState();
     runAfterFirstFrame(() {
-      if (bookingRecordController.hasDataForType('cancelled')) return;
+      if (!mounted) return;
+      if (bookingRecordController.shouldSkipInitialFetch('cancelled')) return;
       getData();
     });
   }
@@ -68,7 +69,8 @@ class _CancelledTripState extends State<CancelledTrip> {
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: notifires.getbgcolor,
-        body: Obx(() => SmartRefresher(
+        body: SafeBookingRecordObx(
+          builder: () => SmartRefresher(
           controller: refreshController,
           onRefresh: onRefresh,
           onLoading: onLoading,
@@ -90,6 +92,8 @@ class _CancelledTripState extends State<CancelledTrip> {
                       "Cancelled",
                       onItemCancelled,
                     ),
-        )));
+        ),
+        ),
+    );
   }
 }
