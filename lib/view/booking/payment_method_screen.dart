@@ -231,305 +231,251 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       ),
       body: GetBuilder<BookingController>(
         builder: (controller) {
-          // Vérification de l'UI - print au début du build
-          print('🖥️ UI BUILD: controller.paymentMethodsList.length = ${controller.paymentMethodsList.length}');
-          debugPrint('🖥️ UI BUILD: controller.paymentMethodsList.length = ${controller.paymentMethodsList.length}');
-          
-          // Utiliser Obx pour isLoadingPaymentMethods (observable)
-          return Obx(() {
-            if (controller.isLoadingPaymentMethods.value) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            }
+          if (controller.isLoadingPaymentMethods.value) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
 
-            // Diagnostic de visibilité - utiliser paymentMethodsList
-            final paymentMethodsCount = controller.paymentMethodsList.length;
-            // Validation UI : tester aussi avec le modèle directement
-            final paymentMethodsCountFromModel = controller.paymentMethodModel?.data?.paymentMethods?.length ?? 0;
-            debugPrint('🔍 COMPARAISON: paymentMethodsList.length = $paymentMethodsCount, paymentMethodModel.length = $paymentMethodsCountFromModel');
-            print('🔍 COMPARAISON: paymentMethodsList.length = $paymentMethodsCount, paymentMethodModel.length = $paymentMethodsCountFromModel');
-            
-            // Si paymentMethodsList est vide mais le modèle contient des données, utiliser le modèle
-            final finalPaymentMethods = paymentMethodsCount > 0 
-                ? controller.paymentMethodsList 
-                : (controller.paymentMethodModel?.data?.paymentMethods ?? []);
-            final finalCount = paymentMethodsCount > 0 ? paymentMethodsCount : paymentMethodsCountFromModel;
-            
-            if (finalPaymentMethods.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.payment_outlined,
-                      size: 64,
-                      color: notifires.getgreycolor,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'no_payment_methods_available'.tr,
-                      style: heading2Grey1(context),
-                    ),
-                    const SizedBox(height: 8),
-                    // Diagnostic de visibilité
-                    Text(
-                      'Nombre d\'éléments trouvés (List): $paymentMethodsCount',
-                      style: regular3(context).copyWith(
-                        color: notifires.getgreycolor,
-                        fontSize: 12,
-                      ),
-                    ),
-                    Text(
-                      'Nombre d\'éléments trouvés (Model): $paymentMethodsCountFromModel',
-                      style: regular3(context).copyWith(
-                        color: notifires.getgreycolor,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
+          final methodsToDisplay = controller.paymentMethodsList;
 
-            // Utiliser controller.paymentMethodsList (liste synchronisée) ou le modèle en fallback
-            debugPrint('📋 Nombre d\'éléments dans paymentMethodsList : ${controller.paymentMethodsList.length}');
-            print('📋 Nombre d\'éléments dans paymentMethodsList : ${controller.paymentMethodsList.length}');
-            debugPrint('📋 Nombre d\'éléments dans paymentMethodModel : ${controller.paymentMethodModel?.data?.paymentMethods?.length ?? 0}');
-            print('📋 Nombre d\'éléments dans paymentMethodModel : ${controller.paymentMethodModel?.data?.paymentMethods?.length ?? 0}');
-
-            // Forçage de reconstruction avec GetBuilder supplémentaire
-            return GetBuilder<BookingController>(
-              builder: (ctrl) {
-                // Utiliser paymentMethodsList en priorité, sinon paymentMethodModel
-                final methodsToDisplay = ctrl.paymentMethodsList.isNotEmpty 
-                    ? ctrl.paymentMethodsList 
-                    : (ctrl.paymentMethodModel?.data?.paymentMethods ?? []);
-                
-                // Vérification que le ListView.builder utilise bien la bonne source
-                print('📋 ListView.builder: methodsToDisplay.length = ${methodsToDisplay.length}');
-                debugPrint('📋 ListView.builder: methodsToDisplay.length = ${methodsToDisplay.length}');
-                
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: methodsToDisplay.length +
-                      (widget.isExtension ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (widget.isExtension && index == 0) {
-                      return _buildExtensionSummary(context);
-                    }
-                    final methodIndex =
-                        widget.isExtension ? index - 1 : index;
-                    final method = methodsToDisplay[methodIndex];
-                
-                    // Log pour diagnostic
-                    print('Affichage de la méthode: ${method.name}');
-                    debugPrint('📋 Affichage de la méthode: ${method.name} (index: $index)');
-                
-                final isSelected =
-                    bookingController.selectedPaymentMethod?.id == method.id;
-                final finalAmount = calculateFinalAmount(method);
-                final isDigitalWallet =
-                    method.type?.toLowerCase() == 'digital wallet';
-
-            return Column(
-              children: [
-                Card(
-                  elevation: isSelected ? 4 : 1,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: isSelected
-                          ? getColorBasedOnActiveModuleid()
-                          : Colors.transparent,
-                      width: isSelected ? 2 : 0,
-                    ),
+          if (methodsToDisplay.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.payment_outlined,
+                    size: 64,
+                    color: notifires.getgreycolor,
                   ),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        bookingController.selectedPaymentMethod = method;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          if (method.logoUrl != null &&
-                              method.logoUrl!.isNotEmpty)
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                cleanImageUrl(method.logoUrl),
+                  const SizedBox(height: 16),
+                  Text(
+                    'no_payment_methods_available'.tr,
+                    style: heading2Grey1(context),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount:
+                methodsToDisplay.length + (widget.isExtension ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (widget.isExtension && index == 0) {
+                return _buildExtensionSummary(context);
+              }
+              final methodIndex = widget.isExtension ? index - 1 : index;
+              final method = methodsToDisplay[methodIndex];
+
+              final isSelected =
+                  controller.selectedPaymentMethod?.id == method.id;
+              final finalAmount = calculateFinalAmount(method);
+              final isDigitalWallet =
+                  method.type?.toLowerCase() == 'digital wallet';
+
+              return Column(
+                children: [
+                  Card(
+                    elevation: isSelected ? 4 : 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: isSelected
+                            ? getColorBasedOnActiveModuleid()
+                            : Colors.transparent,
+                        width: isSelected ? 2 : 0,
+                      ),
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        controller.selectedPaymentMethod = method;
+                        controller.safeUpdate();
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (method.logoUrl != null &&
+                                method.logoUrl!.isNotEmpty)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  cleanImageUrl(method.logoUrl),
+                                  width: 52,
+                                  height: 52,
+                                  fit: BoxFit.contain,
+                                  loadingBuilder:
+                                      (context, child, loadingProgress) {
+                                    if (loadingProgress == null) {
+                                      return child;
+                                    }
+                                    return SizedBox(
+                                      width: 52,
+                                      height: 52,
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          value: loadingProgress
+                                                      .expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return SizedBox(
+                                      width: 52,
+                                      height: 52,
+                                      child: Icon(
+                                        Icons.payment,
+                                        color: notifires.getgreycolor,
+                                        size: 28,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              )
+                            else
+                              SizedBox(
                                 width: 52,
                                 height: 52,
-                                fit: BoxFit.contain,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) {
-                                    return child;
-                                  }
-                                  return SizedBox(
-                                    width: 52,
-                                    height: 52,
-                                    child: Center(
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        value: loadingProgress.expectedTotalBytes != null
-                                            ? loadingProgress.cumulativeBytesLoaded /
-                                                loadingProgress.expectedTotalBytes!
-                                            : null,
+                                child: Icon(
+                                  Icons.payment,
+                                  color: notifires.getgreycolor,
+                                  size: 28,
+                                ),
+                              ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      _localizedPaymentMethodName(method.name),
+                                      style: heading2(context).copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
                                       ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  return SizedBox(
-                                    width: 52,
-                                    height: 52,
-                                    child: Icon(
-                                      Icons.payment,
-                                      color: notifires.getgreycolor,
-                                      size: 28,
-                                    ),
-                                  );
-                                },
-                              ),
-                            )
-                          else
-                            SizedBox(
-                              width: 52,
-                              height: 52,
-                              child: Icon(
-                                Icons.payment,
-                                color: notifires.getgreycolor,
-                                size: 28,
-                              ),
-                            ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    _localizedPaymentMethodName(method.name),
-                                    style: heading2(context).copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                                if (method.instructions != null &&
-                                    method.instructions!.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    method.instructions!,
-                                    style: regular3(context).copyWith(
-                                      color: notifires.getgreycolor,
-                                      fontSize: 11,
+                                  if (method.instructions != null &&
+                                      method.instructions!.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      method.instructions!,
+                                      style: regular3(context).copyWith(
+                                        color: notifires.getgreycolor,
+                                        fontSize: 11,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                  ],
                                 ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                formatAmount(finalAmount),
-                                style: heading2(context).copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: getColorBasedOnActiveModuleid(),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                              if (method.feePercentage != null &&
-                                  method.feePercentage! > 0)
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
                                 Text(
-                                  '+${method.feePercentage}% ${'fees_label'.tr}',
-                                  style: regular3(context).copyWith(
-                                    color: notifires.getgreycolor,
-                                    fontSize: 10,
+                                  formatAmount(finalAmount),
+                                  style: heading2(context).copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: getColorBasedOnActiveModuleid(),
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                            ],
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(
-                            isSelected
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            size: 22,
-                            color: isSelected
-                                ? getColorBasedOnActiveModuleid()
-                                : notifires.getgreycolor,
-                          ),
-                        ],
+                                if (method.feePercentage != null &&
+                                    method.feePercentage! > 0)
+                                  Text(
+                                    '+${method.feePercentage}% ${'fees_label'.tr}',
+                                    style: regular3(context).copyWith(
+                                      color: notifires.getgreycolor,
+                                      fontSize: 10,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              size: 22,
+                              color: isSelected
+                                  ? getColorBasedOnActiveModuleid()
+                                  : notifires.getgreycolor,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                // Encadré d'information pour Digital Wallet
-                if (isSelected &&
-                    isDigitalWallet &&
-                    method.instructions != null &&
-                    method.instructions!.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(top: 8, bottom: 16),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: getColorBasedOnActiveModuleid().withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: getColorBasedOnActiveModuleid().withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: getColorBasedOnActiveModuleid(),
-                          size: 20,
+                  if (isSelected &&
+                      isDigitalWallet &&
+                      method.instructions != null &&
+                      method.instructions!.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8, bottom: 16),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color:
+                            getColorBasedOnActiveModuleid().withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: getColorBasedOnActiveModuleid()
+                              .withOpacity(0.3),
+                          width: 1,
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            method.instructions!,
-                            style: regular3(context).copyWith(
-                              fontSize: 12,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: getColorBasedOnActiveModuleid(),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              method.instructions!,
+                              style: regular3(context).copyWith(
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  )
-                else if (methodIndex < methodsToDisplay.length - 1)
-                  const SizedBox(height: 16),
-              ],
-            );
-                  },
-                );
-              },
-            );
-          });
+                        ],
+                      ),
+                    )
+                  else if (methodIndex < methodsToDisplay.length - 1)
+                    const SizedBox(height: 16),
+                ],
+              );
+            },
+          );
         },
       ),
       bottomNavigationBar: Obx(() {

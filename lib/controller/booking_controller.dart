@@ -138,8 +138,49 @@ class BookingController extends GetxController implements GetxService {
     avalibleSlots = <String>[];
   }
 
+  Timer? _safeUpdateDebounce;
+
+  /// Ne déclenche [update] que si le contrôleur est encore actif et enregistré.
+  /// Les appels rapprochés sont fusionnés (debounce) pour éviter les rebuilds doubles.
+  void safeUpdate([List<Object>? ids, bool condition = true]) {
+    if (!condition || isClosed) return;
+    if (!Get.isRegistered<BookingController>()) return;
+
+    void schedule() {
+      if (isClosed || !Get.isRegistered<BookingController>()) return;
+      _safeUpdateDebounce?.cancel();
+      _safeUpdateDebounce = Timer(const Duration(milliseconds: 16), () {
+        if (!isClosed && Get.isRegistered<BookingController>()) {
+          update(ids, condition);
+        }
+      });
+    }
+
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    final duringBuild = phase == SchedulerPhase.midFrameMicrotasks ||
+        phase == SchedulerPhase.persistentCallbacks;
+    if (duringBuild) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => schedule());
+      return;
+    }
+    schedule();
+  }
+
+  /// Vide les états temporaires de paiement avant navigation post-checkout.
+  void clearListeners() {
+    paymentMethodsList.clear();
+    paymentMethodModel = null;
+    isLoadingPaymentMethods.value = false;
+    selectedPaymentMethod = null;
+    extensionPaymentContext = null;
+    _safeUpdateDebounce?.cancel();
+    _safeUpdateDebounce = null;
+  }
+
   @override
   void onClose() {
+    _safeUpdateDebounce?.cancel();
+    _safeUpdateDebounce = null;
     reviewCommentController.dispose();
     isProcessingBooking.value = false;
     isLoadingPaymentMethods.value = false;
@@ -169,8 +210,7 @@ class BookingController extends GetxController implements GetxService {
     required String snackMessage,
   }) async {
     isProcessingBooking.value = false;
-    selectedPaymentMethod = null;
-    extensionPaymentContext = null;
+    clearListeners();
 
     generalController.myBookingTabIndex.value = tabIndex;
     generalController.currentIndex.value = 2;
@@ -199,8 +239,7 @@ class BookingController extends GetxController implements GetxService {
     required String snackMessage,
   }) async {
     isProcessingBooking.value = false;
-    extensionPaymentContext = null;
-    selectedPaymentMethod = null;
+    clearListeners();
 
     if (Get.key.currentState?.canPop() == true) {
       Get.back();
