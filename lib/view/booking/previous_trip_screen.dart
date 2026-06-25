@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import '../../controller/booking_record_controller.dart';
+import '../../model/booking_model.dart';
 import '../../customwidget/data_not_found.dart';
 import '../../customwidget/project_color.dart';
 import '../../utils/common_widget.dart';
@@ -83,30 +84,35 @@ class _PreviousTripState extends State<PreviousTrip> {
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: notifires.getbgcolor,
-        body: SafeBookingRecordObx(
-          builder: () => SmartRefresher(
+        body: SmartRefresher(
           controller: refreshController,
           onRefresh: onRefresh,
           onLoading: onLoading,
           enablePullUp: bookingRecordController.offset == -1 ? false : true,
-          child: bookingRecordController.isLoading.value
-              ? myBookingScreenShimmer()
-              : bookingRecordController.bookingsList.isEmpty
-                  ? Center(
-                      child: buildNoDataWidget(
-                        context,
-                        "No Previous Booking Available".tr,
-                      ),
-                    )
-                  : myBookingListWidget(
-                      bookingRecordController.bookingsList,
-                      "Add Review",
-                      stateSetter,
-                      widget.fromPropBooking,
-                      "Previous",
-                      onItemCancelled,
-                    ),
-        ),
+          child: SafeBookingRecordObx(
+            builder: () {
+              if (bookingRecordController.isLoading.value &&
+                  bookingRecordController.bookingsList.isEmpty) {
+                return myBookingScreenShimmer();
+              }
+              if (bookingRecordController.bookingsList.isEmpty) {
+                return Center(
+                  child: buildNoDataWidget(
+                    context,
+                    'No Previous Booking Available'.tr,
+                  ),
+                );
+              }
+              return myBookingListWidget(
+                List<Bookings>.from(bookingRecordController.bookingsList),
+                'Add Review',
+                stateSetter,
+                widget.fromPropBooking,
+                'Previous',
+                onItemCancelled,
+              );
+            },
+          ),
         ),
     );
   }

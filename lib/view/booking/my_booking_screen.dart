@@ -96,19 +96,25 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
 
     _tabListener = () {
       if (!mounted || _disposed || tabController == null) return;
-      if (index != tabController!.index) {
-        index = tabController!.index;
+      if (tabController!.indexIsChanging) return;
 
-        final type = _typeForIndex(index);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _disposed || tabController == null) return;
+        if (tabController!.indexIsChanging) return;
+        if (index != tabController!.index) {
+          index = tabController!.index;
 
-        if (!Get.isRegistered<BookingRecordController>()) return;
-        if (bookingRecordController.isClosed) return;
-        if (NavigationGuard.isNavigating) return;
-        if (bookingRecordController.isLoading.value) return;
-        if (bookingRecordController.hasDataForType(type)) return;
+          final type = _typeForIndex(index);
 
-        bookingRecordController.getBookingRecord(type: type, offset: 0);
-      }
+          if (!Get.isRegistered<BookingRecordController>()) return;
+          if (bookingRecordController.isClosed) return;
+          if (NavigationGuard.isNavigating) return;
+          if (bookingRecordController.isLoading.value) return;
+          if (bookingRecordController.hasDataForType(type)) return;
+
+          bookingRecordController.getBookingRecord(type: type, offset: 0);
+        }
+      });
     };
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -129,14 +135,8 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  bool get _tabControllerUsable {
-    if (_disposed || tabController == null) return false;
-    try {
-      return tabController!.hasListeners;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _tabControllerUsable =>
+      !_disposed && _routeReady && tabController != null;
 
   /// Retour AppBar / système : compatible Navigator.push, onglet principal et Get.offAll(MyBooking).
   void _onBackPressed(BuildContext context) {
@@ -273,7 +273,9 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
                           height: 8,
                         ),
                         Expanded(
-                          child: TabBarView(
+                          child: tabController!.indexIsChanging
+                              ? const SizedBox.shrink()
+                              : TabBarView(
                             controller: tabController,
                             children: [
                               MyUpCommingTrip(

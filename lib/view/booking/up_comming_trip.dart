@@ -7,6 +7,7 @@ import '../../controller/booking_record_controller.dart';
 import '../../customwidget/data_not_found.dart';
 import '../../customwidget/project_color.dart';
 import '../../utils/extension.dart';
+import '../../model/booking_model.dart';
 import '../../utils/common_widget.dart';
 import '../../utils/payment_flow_debug.dart';
 import '../../utils/safe_rebuild.dart';
@@ -92,31 +93,19 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
       backgroundColor: notifires.getbgcolor,
       body: Stack(
         children: [
-          SafeBookingRecordObx(
-            builder: () => SmartRefresher(
-                controller: refreshController,
-                onRefresh: onRefresh,
-                onLoading: onLoading,
-                enablePullUp:
-                    bookingRecordController.offset == -1 ? false : true,
-                child: bookingRecordController.isLoading.value
-                    ? myBookingScreenShimmer()
-                    : bookingRecordController.bookingsList.isEmpty
-                        ? Center(
-                            child: buildNoDataWidget(
-                              context,
-                              "No Upcoming Booking Available".tr,
-                            ),
-                          )
-                        : myBookingListWidget(
-                            bookingRecordController.bookingsList,
-                            "Cancel",
-                            stateSetter,
-                            widget.fromPropBooking,
-                            "UpComing",
-                            onItemCancelled,
-                          ),
-              ),
+          SmartRefresher(
+            controller: refreshController,
+            onRefresh: onRefresh,
+            onLoading: onLoading,
+            enablePullUp: bookingRecordController.offset == -1 ? false : true,
+            child: _BookingTabListBody(
+              bookingRecordController: bookingRecordController,
+              fromPropBooking: widget.fromPropBooking,
+              listType: 'UpComing',
+              btnText: 'Cancel',
+              stateSetter: stateSetter,
+              onItemCancelled: onItemCancelled,
+            ),
           ),
           SafeBookingRecordObx(builder: () {
             if (!Get.isRegistered<BookingController>() ||
@@ -124,32 +113,80 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
               return const SizedBox.shrink();
             }
             final bookingController = Get.find<BookingController>();
-            if (bookingController.openOtpAfterImageSubmit.value) {
-              final bookingId = bookingController.currentBookingIdForOtp.value;
-              dynamic matchedBooking;
-              for (final booking in bookingRecordController.bookingsList) {
-                if (booking.id?.toString() == bookingId) {
-                  matchedBooking = booking;
-                  break;
-                }
-              }
-              final canOpenOtp =
-                  (matchedBooking?.status as String?)?.isConfirmed == true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!context.mounted) return;
-                if (canOpenOtp) {
-                  CommonWidgets.showOtpBottomSheet(context, bookingId);
-                }
-                if (Get.isRegistered<BookingController>() &&
-                    !Get.find<BookingController>().isClosed) {
-                  bookingController.openOtpAfterImageSubmit.value = false;
-                }
-              });
+            if (!bookingController.openOtpAfterImageSubmit.value) {
+              return const SizedBox.shrink();
             }
-            return SizedBox.shrink();
+            final bookingId = bookingController.currentBookingIdForOtp.value;
+            dynamic matchedBooking;
+            for (final booking in bookingRecordController.bookingsList) {
+              if (booking.id?.toString() == bookingId) {
+                matchedBooking = booking;
+                break;
+              }
+            }
+            final canOpenOtp =
+                (matchedBooking?.status as String?)?.isConfirmed == true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!context.mounted) return;
+              if (canOpenOtp) {
+                CommonWidgets.showOtpBottomSheet(context, bookingId);
+              }
+              if (Get.isRegistered<BookingController>() &&
+                  !Get.find<BookingController>().isClosed) {
+                bookingController.openOtpAfterImageSubmit.value = false;
+              }
+            });
+            return const SizedBox.shrink();
           }),
         ],
       ),
+    );
+  }
+}
+
+/// Obx limité au bandeau loading/vide — la ListView reçoit une liste figée.
+class _BookingTabListBody extends StatelessWidget {
+  final BookingRecordController bookingRecordController;
+  final bool fromPropBooking;
+  final String listType;
+  final String btnText;
+  final StateSetter stateSetter;
+  final void Function(int index) onItemCancelled;
+
+  const _BookingTabListBody({
+    required this.bookingRecordController,
+    required this.fromPropBooking,
+    required this.listType,
+    required this.btnText,
+    required this.stateSetter,
+    required this.onItemCancelled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeBookingRecordObx(
+      builder: () {
+        if (bookingRecordController.isLoading.value &&
+            bookingRecordController.bookingsList.isEmpty) {
+          return myBookingScreenShimmer();
+        }
+        if (bookingRecordController.bookingsList.isEmpty) {
+          return Center(
+            child: buildNoDataWidget(
+              context,
+              'No Upcoming Booking Available'.tr,
+            ),
+          );
+        }
+        return myBookingListWidget(
+          List<Bookings>.from(bookingRecordController.bookingsList),
+          btnText,
+          stateSetter,
+          fromPropBooking,
+          listType,
+          onItemCancelled,
+        );
+      },
     );
   }
 }

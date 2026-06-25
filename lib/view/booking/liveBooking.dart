@@ -6,6 +6,7 @@ import 'package:carvy/customwidget/data_not_found.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/controller/booking_record_controller.dart';
+import 'package:carvy/model/booking_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
 
@@ -84,30 +85,35 @@ class _LiveBookingState extends State<LiveBooking> {
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: notifires.getbgcolor,
-        body: SafeBookingRecordObx(
-          builder: () => SmartRefresher(
+        body: SmartRefresher(
           controller: refreshController,
           onRefresh: onRefresh,
           onLoading: onLoading,
           enablePullUp: bookingRecordController.offset == -1 ? false : true,
-          child: bookingRecordController.isLoading.value
-              ? myBookingScreenShimmer()
-              : bookingRecordController.bookingsList.isEmpty
-                  ? Center(
-                      child: buildNoDataWidget(
-                        context,
-                        "No Ongoing Booking Available".tr,
-                      ),
-                    )
-                  : myBookingListWidget(
-                      bookingRecordController.bookingsList,
-                      "Extend duration",
-                      stateSetter,
-                      widget.fromPropBooking,
-                      "ongoing",
-                      onItemCancelled,
-                    ),
-        ),
+          child: SafeBookingRecordObx(
+            builder: () {
+              if (bookingRecordController.isLoading.value &&
+                  bookingRecordController.bookingsList.isEmpty) {
+                return myBookingScreenShimmer();
+              }
+              if (bookingRecordController.bookingsList.isEmpty) {
+                return Center(
+                  child: buildNoDataWidget(
+                    context,
+                    'No Ongoing Booking Available'.tr,
+                  ),
+                );
+              }
+              return myBookingListWidget(
+                List<Bookings>.from(bookingRecordController.bookingsList),
+                'Extend duration',
+                stateSetter,
+                widget.fromPropBooking,
+                'ongoing',
+                onItemCancelled,
+              );
+            },
+          ),
         ),
     );
   }

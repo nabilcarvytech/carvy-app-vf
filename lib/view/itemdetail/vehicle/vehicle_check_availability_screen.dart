@@ -220,15 +220,17 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                 style: heading2Grey1(context).copyWith(),
               ),
             ),
-            body: Obx(
-              () => bookingController.isLoading.value
-                  ? Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: LinearProgressIndicator(
-                        color: getColorBasedOnActiveModuleid(),
-                      ),
-                    )
-                  : Stack(
+            body: GetBuilder<BookingController>(
+              builder: (controller) {
+                if (controller.isLoading.value) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: LinearProgressIndicator(
+                      color: getColorBasedOnActiveModuleid(),
+                    ),
+                  );
+                }
+                return Stack(
                       children: [
                         SingleChildScrollView(
                             child: Padding(
@@ -321,164 +323,10 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                 rangeSelectionColor: Colors.transparent,
                                 selectionColor: Colors.transparent,
                                 cellBuilder: (context, cellDetails) {
-                                  DateTime now = DateTime.now();
-                                  // Extraire le jour, le mois et l'année de la cellule (insensible aux heures)
-                                  final cellDate = DateTime(
-                                      cellDetails.date.year,
-                                      cellDetails.date.month,
-                                      cellDetails.date.day);
-                                  
-                                  // Diagnostic pour le 1er du mois
-                                  if (cellDetails.date.day == 1) {
-                                    print('📅 Test Cellule 1er du mois: $cellDate | Liste dispo: ${bookingController.availableDates.take(3).map((d) => d.toString().split(' ')[0]).toList()}');
-                                    print('   - availableDates.length: ${bookingController.availableDates.length}');
-                                    print('   - alreadySelectedList.length: ${bookingController.alreadySelectedList.length}');
-                                  }
-                                  
-                                  // Recherche manuelle insensible aux heures pour availableDates
-                                  bool isDateAvailable = bookingController.availableDates.any((d) => 
-                                      d.year == cellDate.year && 
-                                      d.month == cellDate.month && 
-                                      d.day == cellDate.day);
-                                  
-                                  // Recherche manuelle insensible aux heures pour alreadySelectedList
-                                  bool isInAlreadySelectedList = bookingController.alreadySelectedList.any((d) => 
-                                      d.year == cellDate.year && 
-                                      d.month == cellDate.month && 
-                                      d.day == cellDate.day);
-                                  
-                                  // Diagnostic pour le 1er du mois
-                                  if (cellDetails.date.day == 1) {
-                                    print('   - isDateAvailable pour $cellDate: $isDateAvailable');
-                                    print('   - isInAlreadySelectedList: $isInAlreadySelectedList');
-                                  }
-                                  
-                                  String? priceText;
-                                  if (_hideDailyPriceForCell(cellDate)) {
-                                    priceText = null;
-                                  } else if (isDateAvailable) {
-                                    // Trouver l'index en utilisant la même logique de comparaison
-                                    int index = -1;
-                                    for (int i = 0; i < bookingController.availableDates.length; i++) {
-                                      final d = bookingController.availableDates[i];
-                                      if (d.year == cellDate.year && 
-                                          d.month == cellDate.month && 
-                                          d.day == cellDate.day) {
-                                        index = i;
-                                        break;
-                                      }
-                                    }
-
-                                    if (index != -1 &&
-                                        index <
-                                            bookingController
-                                                .availableDatesPrice.length) {
-                                      final priceValue = bookingController
-                                          .availableDatesPrice[index];
-                                      double? price;
-                                      if (priceValue is String) {
-                                        price = double.tryParse(
-                                            priceValue.replaceAll(',', ''));
-                                      } else if (priceValue is int ||
-                                          priceValue is double) {
-                                        price = priceValue.toDouble();
-                                      }
-                                      if (price != null) {
-                                        priceText =
-                                            "$currency ${price.toInt()}";
-                                        if (priceText.length > 8) {
-                                          priceText = priceText.substring(0, 8);
-                                        }
-                                      }
-                                    }
-                                    priceText ??= 'MAD 1000';
-                                  }
-                                  DateTime today =
-                                      DateTime(now.year, now.month, now.day);
-                                  final bool outsideWindow =
-                                      !RollingCalendarBounds.isWithinWindow(
-                                          cellDate);
-                                  final bool isPastOrUnavailable =
-                                      (cellDate.isBefore(today) &&
-                                              cellDate != today) ||
-                                          outsideWindow ||
-                                          !isDateAvailable;
-
-                                  return Container(
-                                    margin: const EdgeInsets.all(1),
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: grey5),
-                                      color: isPastOrUnavailable
-                                          ? Colors.grey.withOpacity(0.2)
-                                          : isInAlreadySelectedList
-                                              ? pc1.withOpacity(.4)
-                                              : bookingController.startDate
-                                                          .value.isNotEmpty &&
-                                                      DateTime.parse(bookingController.startDate.value).year == cellDate.year &&
-                                                      DateTime.parse(bookingController.startDate.value).month == cellDate.month &&
-                                                      DateTime.parse(bookingController.startDate.value).day == cellDate.day
-                                                  ? greenback
-                                                  : bookingController
-                                                              .endDate
-                                                              .value
-                                                              .isNotEmpty &&
-                                                          DateTime.parse(bookingController.endDate.value).year == cellDate.year &&
-                                                          DateTime.parse(bookingController.endDate.value).month == cellDate.month &&
-                                                          DateTime.parse(bookingController.endDate.value).day == cellDate.day
-                                                      ? greenback
-                                                      : bookingController
-                                                                  .startDate
-                                                                  .value
-                                                                  .isNotEmpty &&
-                                                              bookingController
-                                                                  .endDate
-                                                                  .value
-                                                                  .isNotEmpty &&
-                                                              DateTime.parse(bookingController.startDate.value).isBefore(cellDate) &&
-                                                              DateTime.parse(bookingController.endDate.value).isAfter(cellDate)
-                                                          ? greenback
-                                                          : Colors.transparent,
-                                    ),
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            convertToLocaleDigits(cellDetails
-                                                .date.day
-                                                .toString()),
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              fontFamily: "InterMedium",
-                                              color: isPastOrUnavailable
-                                                  ? Colors.grey.shade600
-                                                  : isInAlreadySelectedList
-                                                      ? Colors.white
-                                                      : isDateAvailable
-                                                          ? Colors.black
-                                                          : Colors
-                                                              .grey.shade600,
-                                              decoration: isPastOrUnavailable
-                                                  ? TextDecoration.lineThrough
-                                                  : TextDecoration.none,
-                                            ),
-                                          ),
-                                          if (priceText != null)
-                                            Text(
-                                              convertToLocaleDigits(
-                                                  priceText.toString()),
-                                              style: regular(context).copyWith(
-                                                fontSize: 9,
-                                                color: isPastOrUnavailable
-                                                    ? Colors.grey.shade500
-                                                    : grey2,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
+                                  return _DeferredCalendarDateCell(
+                                    cellDetails: cellDetails,
+                                    bookingController: bookingController,
+                                    hideDailyPriceForCell: _hideDailyPriceForCell,
                                   );
                                 },
                               ),
@@ -836,8 +684,200 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                               : const SizedBox(),
                         ),
                       ],
-                    ),
-            )),
+                    );
+              },
+            ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Cellule calendrier : les calculs de disponibilité s'exécutent après la 1re frame.
+class _DeferredCalendarDateCell extends StatefulWidget {
+  final DateRangePickerCellDetails cellDetails;
+  final BookingController bookingController;
+  final bool Function(DateTime) hideDailyPriceForCell;
+
+  const _DeferredCalendarDateCell({
+    required this.cellDetails,
+    required this.bookingController,
+    required this.hideDailyPriceForCell,
+  });
+
+  @override
+  State<_DeferredCalendarDateCell> createState() =>
+      _DeferredCalendarDateCellState();
+}
+
+class _DeferredCalendarDateCellState extends State<_DeferredCalendarDateCell> {
+  bool _frameReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _frameReady = true);
+    });
+  }
+
+  Widget _placeholderCell() {
+    final day = widget.cellDetails.date.day;
+    return Container(
+      margin: const EdgeInsets.all(1),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: grey5),
+        color: Colors.transparent,
+      ),
+      child: Text(
+        convertToLocaleDigits(day.toString()),
+        style: const TextStyle(fontSize: 15, fontFamily: 'InterMedium'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_frameReady) return _placeholderCell();
+    return _buildAvailabilityCell(context);
+  }
+
+  Widget _buildAvailabilityCell(BuildContext context) {
+    final bookingController = widget.bookingController;
+    final cellDetails = widget.cellDetails;
+    final now = DateTime.now();
+    final cellDate = DateTime(
+      cellDetails.date.year,
+      cellDetails.date.month,
+      cellDetails.date.day,
+    );
+
+    final isDateAvailable = bookingController.availableDates.any((d) =>
+        d.year == cellDate.year &&
+        d.month == cellDate.month &&
+        d.day == cellDate.day);
+
+    final isInAlreadySelectedList =
+        bookingController.alreadySelectedList.any((d) =>
+            d.year == cellDate.year &&
+            d.month == cellDate.month &&
+            d.day == cellDate.day);
+
+    String? priceText;
+    if (!widget.hideDailyPriceForCell(cellDate) && isDateAvailable) {
+      var index = -1;
+      for (var i = 0; i < bookingController.availableDates.length; i++) {
+        final d = bookingController.availableDates[i];
+        if (d.year == cellDate.year &&
+            d.month == cellDate.month &&
+            d.day == cellDate.day) {
+          index = i;
+          break;
+        }
+      }
+
+      if (index != -1 && index < bookingController.availableDatesPrice.length) {
+        final priceValue = bookingController.availableDatesPrice[index];
+        double? price;
+        if (priceValue is String) {
+          price = double.tryParse(priceValue.replaceAll(',', ''));
+        } else if (priceValue is int || priceValue is double) {
+          price = priceValue.toDouble();
+        }
+        if (price != null) {
+          priceText = '$currency ${price.toInt()}';
+          if (priceText.length > 8) {
+            priceText = priceText.substring(0, 8);
+          }
+        }
+      }
+      priceText ??= 'MAD 1000';
+    }
+
+    final today = DateTime(now.year, now.month, now.day);
+    final outsideWindow = !RollingCalendarBounds.isWithinWindow(cellDate);
+    final isPastOrUnavailable = (cellDate.isBefore(today) && cellDate != today) ||
+        outsideWindow ||
+        !isDateAvailable;
+
+    Color cellColor = Colors.transparent;
+    if (isPastOrUnavailable) {
+      cellColor = Colors.grey.withOpacity(0.2);
+    } else if (isInAlreadySelectedList) {
+      cellColor = pc1.withOpacity(.4);
+    } else if (bookingController.startDate.value.isNotEmpty) {
+      final start = DateTime.tryParse(bookingController.startDate.value);
+      if (start != null &&
+          start.year == cellDate.year &&
+          start.month == cellDate.month &&
+          start.day == cellDate.day) {
+        cellColor = greenback;
+      }
+    }
+    if (cellColor == Colors.transparent &&
+        bookingController.endDate.value.isNotEmpty) {
+      final end = DateTime.tryParse(bookingController.endDate.value);
+      if (end != null &&
+          end.year == cellDate.year &&
+          end.month == cellDate.month &&
+          end.day == cellDate.day) {
+        cellColor = greenback;
+      }
+    }
+    if (cellColor == Colors.transparent &&
+        bookingController.startDate.value.isNotEmpty &&
+        bookingController.endDate.value.isNotEmpty) {
+      final start = DateTime.tryParse(bookingController.startDate.value);
+      final end = DateTime.tryParse(bookingController.endDate.value);
+      if (start != null &&
+          end != null &&
+          start.isBefore(cellDate) &&
+          end.isAfter(cellDate)) {
+        cellColor = greenback;
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.all(1),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: grey5),
+        color: cellColor,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              convertToLocaleDigits(cellDetails.date.day.toString()),
+              style: TextStyle(
+                fontSize: 15,
+                fontFamily: 'InterMedium',
+                color: isPastOrUnavailable
+                    ? Colors.grey.shade600
+                    : isInAlreadySelectedList
+                        ? Colors.white
+                        : isDateAvailable
+                            ? Colors.black
+                            : Colors.grey.shade600,
+                decoration: isPastOrUnavailable
+                    ? TextDecoration.lineThrough
+                    : TextDecoration.none,
+              ),
+            ),
+            if (priceText != null)
+              Text(
+                convertToLocaleDigits(priceText),
+                style: regular(context).copyWith(
+                  fontSize: 9,
+                  color: isPastOrUnavailable ? Colors.grey.shade500 : grey2,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
