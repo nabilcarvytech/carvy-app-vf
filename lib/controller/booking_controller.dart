@@ -23,6 +23,7 @@ import 'package:carvy/model/digital_singnature_model.dart';
 import 'package:carvy/model/item_details_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
+import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/utils/payment_flow_debug.dart';
 import 'package:carvy/utils/snackbar_service.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
@@ -202,14 +203,14 @@ class BookingController extends GetxController implements GetxService {
   }
 
   static const Duration _postNavigationSettleDelay =
-      Duration(milliseconds: 500);
+      Duration(milliseconds: 600);
 
   /// Notifie les GetBuilder sans toucher l'UI si le contrôleur est fermé.
   void notifyUi([List<Object>? ids, bool condition = true]) {
     safeUpdate(ids, condition);
   }
 
-  /// Navigation post-paiement : route atomique, fetch délégué aux onglets.
+  /// Navigation post-paiement : route atomique — aucune mutation Rx avant [Get.offAll].
   Future<void> _navigateToBookingsAfterPayment({
     required int tabIndex,
     required String snackTitle,
@@ -217,22 +218,9 @@ class BookingController extends GetxController implements GetxService {
   }) async {
     paymentFlowLog('STEP 8 — _navigateToBookingsAfterPayment START',
         'tabIndex=$tabIndex');
-    isProcessingBooking.value = false;
-    paymentFlowLog('STEP 8a — isProcessingBooking=false');
-    clearListeners();
-    paymentFlowLog('STEP 8b — clearListeners() done');
 
-    if (Get.isRegistered<BookingRecordController>()) {
-      final brc = Get.find<BookingRecordController>();
-      brc.isNavigating = true;
-      brc.armPostNavigationFetchDelay();
-      paymentFlowLog('STEP 8c — isNavigating=true + armPostNavigationFetchDelay');
-    }
-
-    generalController.myBookingTabIndex.value = tabIndex;
-    generalController.currentIndex.value = 2;
-    paymentFlowLog('STEP 8d — generalController tabs set',
-        'myBookingTabIndex=$tabIndex, currentIndex=2');
+    NavigationGuard.begin();
+    paymentFlowLog('STEP 8a — NavigationGuard.isNavigating=true (no Rx yet)');
 
     paymentFlowLog('STEP 9 — Get.offAll(MyBooking)…');
     await Get.offAll(() => MyBooking(
@@ -241,9 +229,31 @@ class BookingController extends GetxController implements GetxService {
         ));
     paymentFlowLog('STEP 10 — Get.offAll(MyBooking) completed');
 
-    paymentFlowLog('STEP 11 — waiting ${_postNavigationSettleDelay.inMilliseconds}ms');
+    paymentFlowLog(
+        'STEP 11 — waiting ${_postNavigationSettleDelay.inMilliseconds}ms');
     await Future.delayed(_postNavigationSettleDelay);
-    paymentFlowLog('STEP 12 — settle delay done, showing snackbar');
+    paymentFlowLog('STEP 12 — settle delay done, applying post-nav mutations');
+
+    isProcessingBooking.value = false;
+    paymentFlowLog('STEP 12a — isProcessingBooking=false');
+    clearListeners();
+    paymentFlowLog('STEP 12b — clearListeners() done');
+
+    generalController.myBookingTabIndex.value = tabIndex;
+    generalController.currentIndex.value = 2;
+    paymentFlowLog('STEP 12c — generalController tabs set',
+        'myBookingTabIndex=$tabIndex, currentIndex=2');
+
+    if (Get.isRegistered<BookingRecordController>()) {
+      final type = BookingRecordController.typeForTabIndex(tabIndex);
+      paymentFlowLog('STEP 13 — getBookingRecord($type)');
+      await Get.find<BookingRecordController>().getBookingRecord(
+        type: type,
+        offset: 0,
+        bypassNavigationGuard: true,
+      );
+      paymentFlowLog('STEP 13b — getBookingRecord completed');
+    }
 
     Get.safeSnackbar(
       snackTitle,
@@ -253,7 +263,9 @@ class BookingController extends GetxController implements GetxService {
       colorText: Colors.white,
       duration: const Duration(seconds: 2),
     );
-    paymentFlowLog('STEP 13 — _navigateToBookingsAfterPayment END');
+
+    NavigationGuard.endAfterFrame();
+    paymentFlowLog('STEP 14 — _navigateToBookingsAfterPayment END');
   }
 
   /// Retour arrière puis refresh (extension de réservation, etc.).

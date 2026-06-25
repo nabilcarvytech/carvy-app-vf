@@ -9,6 +9,7 @@ import '../customwidget/miscellaneous_project_elements.dart';
 import '../model/booking_model.dart';
 import '../model/extension_payment_context.dart';
 import '../work_space.dart';
+import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/payment_flow_debug.dart';
 
@@ -31,8 +32,9 @@ class BookingRecordController extends GetxController implements GetxService {
   // Garder une trace du type actuel pour éviter les mélanges
   String? currentType;
 
-  /// Bloque les fetchs pendant [Get.offAll] (évite _dependents.isEmpty).
-  bool isNavigating = false;
+  /// Délègue au verrou global [NavigationGuard].
+  bool get isNavigating => NavigationGuard.isNavigating;
+  set isNavigating(bool value) => NavigationGuard.isNavigating = value;
 
   // Verrouillage anti-fetch concurrent (offset: 0)
   bool _isFetchingOffsetZero = false;
@@ -79,13 +81,17 @@ class BookingRecordController extends GetxController implements GetxService {
   bool _isControllerActive() =>
       !isClosed && Get.isRegistered<BookingRecordController>();
 
+  bool _canMutateRx({bool bypassNavigationGuard = false}) =>
+      _isControllerActive() &&
+      (bypassNavigationGuard || !NavigationGuard.isNavigating);
+
   void _protectedSafeUpdate([List<Object>? ids, bool condition = true]) {
-    if (!_isControllerActive()) return;
+    if (!_canMutateRx()) return;
     safeUpdate(ids, condition);
   }
 
   void _protectedRefresh() {
-    if (!_isControllerActive()) return;
+    if (!_canMutateRx()) return;
     bookingsList.refresh();
   }
 
@@ -131,8 +137,8 @@ class BookingRecordController extends GetxController implements GetxService {
     _lastOffsetZeroFetchType = null;
     Bookings.suppressParseDebugLogs = false;
     _fetchBlockedUntil = null;
-    isNavigating = false;
-    if (_isControllerActive()) {
+    NavigationGuard.endImmediately();
+    if (_isControllerActive() && !NavigationGuard.isNavigating) {
       isLoading.value = false;
     }
     super.onClose();
@@ -145,13 +151,16 @@ class BookingRecordController extends GetxController implements GetxService {
   Future<void> getBookingRecord({
     required String type,
     num? offset,
+    bool bypassNavigationGuard = false,
   }) async {
       if (!_isControllerActive()) return;
-      if (isNavigating) {
+      if (!bypassNavigationGuard && NavigationGuard.isNavigating) {
         paymentFlowLog('getBookingRecord BLOCKED — isNavigating=true',
             'type=$type');
         return;
       }
+
+      if (!_canMutateRx(bypassNavigationGuard: bypassNavigationGuard)) return;
 
       // Réinitialiser l'état d'erreur
       hasError.value = false;
@@ -279,7 +288,10 @@ class BookingRecordController extends GetxController implements GetxService {
         },
       );
 
-      if (requestId != _activeRequestId || !_isControllerActive()) return;
+      if (requestId != _activeRequestId ||
+          !_canMutateRx(bypassNavigationGuard: bypassNavigationGuard)) {
+        return;
+      }
 
       // ========== 6. DEBUG: PRINT RÉPONSE BRUTE ==========
       if (kDebugMode && !Bookings.suppressParseDebugLogs) {
@@ -337,7 +349,10 @@ class BookingRecordController extends GetxController implements GetxService {
         return;
       }
 
-      if (requestId != _activeRequestId || !_isControllerActive()) return;
+      if (requestId != _activeRequestId ||
+          !_canMutateRx(bypassNavigationGuard: bypassNavigationGuard)) {
+        return;
+      }
 
       // ========== 10. PRINT DES ATTENTES DU MODÈLE ==========
       debugPrint('═══════════════════════════════════════════════════════');
@@ -754,7 +769,8 @@ class BookingRecordController extends GetxController implements GetxService {
       if (isNewSearch) {
         _endOffsetZeroFetch();
       }
-      if (requestId == _activeRequestId && _isControllerActive()) {
+      if (requestId == _activeRequestId &&
+          _canMutateRx(bypassNavigationGuard: bypassNavigationGuard)) {
         isLoading.value = false;
         Bookings.suppressParseDebugLogs = false;
         _protectedSafeUpdate();
@@ -769,7 +785,7 @@ class BookingRecordController extends GetxController implements GetxService {
   // ========== FONCTION POUR RÉINITIALISER LA LISTE ==========
   /// Réinitialise la liste et l'offset (utilisé pour le refresh)
   void resetList() {
-    if (!_isControllerActive()) return;
+    if (!_isControllerActive() || NavigationGuard.isNavigating) return;
     bookingsList.clear();
     offset = 0;
     bookingModel = null;
@@ -783,7 +799,7 @@ class BookingRecordController extends GetxController implements GetxService {
   // ========== FONCTION POUR SUPPRIMER UNE RÉSERVATION DE LA LISTE ==========
   /// Supprime une réservation de la liste (utilisé après annulation)
   void removeBooking(int index) {
-    if (!_isControllerActive()) return;
+    if (!_isControllerActive() || NavigationGuard.isNavigating) return;
     if (index >= 0 && index < bookingsList.length) {
       bookingsList.removeAt(index);
       _protectedRefresh();
@@ -967,7 +983,7 @@ class SafeBookingRecordObx extends StatelessWidget {
       return const SizedBox.shrink();
     }
     return Obx(() {
-      if (!bookingRecordControllerIsActive()) {
+      if (!context.mounted || !bookingRecordControllerIsActive()) {
         return const SizedBox.shrink();
       }
       return builder();

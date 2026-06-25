@@ -480,7 +480,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           );
         },
       ),
-      bottomNavigationBar: Obx(() {
+      bottomNavigationBar: MountedSafeObx(
+        builder: () {
         final isLoading = bookingController.isProcessingBooking.value;
         return Container(
           padding: const EdgeInsets.all(16),
@@ -546,7 +547,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             ),
           ),
         );
-      }),
+      },
+      ),
     ),
     );
   }

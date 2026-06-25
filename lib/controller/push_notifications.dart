@@ -20,6 +20,7 @@ import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/view/chat/conversation_screen.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/view/review/review_popup_widget.dart';
+import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/work_space.dart';
 
 late AndroidNotificationChannel channel;
@@ -61,6 +62,7 @@ Future<void> setupFlutterNotifications() async {
 }
 
 void showFlutterNotificationfromFirebase(RemoteMessage message) async {
+  if (NavigationGuard.isNavigating) return;
   RemoteNotification? notification = message.notification;
   AndroidNotification? android = message.notification?.android;
   if (notification != null && android != null && !kIsWeb) {
@@ -463,6 +465,7 @@ Future<void> fetchPlayerId(fcmToken) async {
 
 Future<void> showNotification() async {
   FirebaseMessaging.onMessage.listen((RemoteMessage event) async {
+    if (NavigationGuard.isNavigating) return;
     generalController.msgUpdater.value = true;
     if (!isChatOpen) {
       showFlutterNotificationfromFirebase(event);
@@ -472,6 +475,7 @@ Future<void> showNotification() async {
   await setupFlutterNotifications();
   if (!isOneSignalListenerAdded) {
     OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+      if (NavigationGuard.isNavigating) return;
       print('📩 [ONESIGNAL_DEBUG] Notification reçue en premier plan : ${event.notification.body}');
       print('📩 [ONESIGNAL_DEBUG] Titre : ${event.notification.title}');
       print('📩 [ONESIGNAL_DEBUG] Données additionnelles : ${event.notification.additionalData}');
@@ -569,6 +573,7 @@ Future<void> showNotification() async {
     isOneSignalListenerAdded = true;
   }
   OneSignal.Notifications.addClickListener((event) {
+    if (NavigationGuard.isNavigating) return;
     if (markNotificationAsProcessed(event.notification.notificationId)) {
       // Extraire les données additionnelles de la notification
       final notification = event.notification;
@@ -649,6 +654,7 @@ Future<void> showNotification() async {
 
 BookingController bookingController = Get.find();
 void handleNotificationClick(String? route, var data) {
+  if (NavigationGuard.isNavigating) return;
   if (token.isEmpty) {
     showErrorToastMessage("Please Login first");
     return;
@@ -731,6 +737,7 @@ Future<void> initializeNotifications() async {
     initializationSettings,
     onDidReceiveNotificationResponse:
         (NotificationResponse notificationResponse) async {
+      if (NavigationGuard.isNavigating) return;
       if (notificationResponse.payload != null) {
         try {
           final Map<String, dynamic> data =

@@ -45,6 +45,21 @@ class SafeObx extends StatelessWidget {
   }
 }
 
+/// Obx protégé par [BuildContext.mounted] — évite les rebuilds sur routes en démontage.
+class MountedSafeObx extends StatelessWidget {
+  final Widget Function() builder;
+
+  const MountedSafeObx({super.key, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (!context.mounted) return const SizedBox.shrink();
+      return builder();
+    });
+  }
+}
+
 /// Extensions GetX : évite `markNeedsBuild() called during build`.
 extension SafeGetxUpdate on GetxController {
   void safeUpdate([List<Object>? ids, bool condition = true]) {
