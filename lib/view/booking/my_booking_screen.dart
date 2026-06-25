@@ -33,6 +33,57 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   late VoidCallback _tabListener;
   int index = 0;
   late final int _initialTab;
+  bool _routeReady = false;
+  bool _disposed = false;
+
+  String _typeForIndex(int tabIndex) {
+    switch (tabIndex) {
+      case 1:
+        return 'ongoing';
+      case 2:
+        return 'previous';
+      case 3:
+        return 'cancelled';
+      default:
+        return 'upcoming';
+    }
+  }
+
+  void _fetchActiveTabRecord() {
+    if (!mounted || _disposed || NavigationGuard.isNavigating) return;
+    if (!Get.isRegistered<BookingRecordController>()) return;
+    if (bookingRecordController.isClosed) return;
+
+    final type = _typeForIndex(_initialTab);
+    if (bookingRecordController.shouldSkipInitialFetch(
+      type,
+      isActiveTab: true,
+    )) {
+      return;
+    }
+
+    bookingRecordController.getBookingRecord(type: type, offset: 0);
+  }
+
+  void _initTabControllerAfterMount() {
+    if (!mounted || _disposed || tabController != null) return;
+
+    tabController = TabController(
+      initialIndex: _initialTab,
+      vsync: this,
+      length: 4,
+    );
+    index = tabController!.index;
+    tabController!.addListener(_tabListener);
+
+    if (!NavigationGuard.isNavigating) {
+      _fetchActiveTabRecord();
+    }
+
+    setState(() => _routeReady = true);
+    paymentFlowLog('STEP 10b — MyBooking tabController ready',
+        'initialTab=$_initialTab');
+  }
 
   @override
   void initState() {
@@ -43,36 +94,12 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     paymentFlowLog('STEP 10a — MyBooking initState',
         'initialTab=$_initialTab, fromPropBooking=${widget.fromPropBooking}');
 
-    tabController = TabController(
-      initialIndex: _initialTab,
-      vsync: this,
-      length: 4,
-    );
-
-    index = tabController!.index;
-
     _tabListener = () {
-      if (!mounted || tabController == null) return;
+      if (!mounted || _disposed || tabController == null) return;
       if (index != tabController!.index) {
         index = tabController!.index;
 
-        String type;
-        switch (index) {
-          case 0:
-            type = 'upcoming';
-            break;
-          case 1:
-            type = 'ongoing';
-            break;
-          case 2:
-            type = 'previous';
-            break;
-          case 3:
-            type = 'cancelled';
-            break;
-          default:
-            type = 'upcoming';
-        }
+        final type = _typeForIndex(index);
 
         if (!Get.isRegistered<BookingRecordController>()) return;
         if (bookingRecordController.isClosed) return;
@@ -84,14 +111,31 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
       }
     };
 
-    tabController!.addListener(_tabListener);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _disposed) return;
+      _initTabControllerAfterMount();
+    });
   }
 
   @override
   void dispose() {
-    tabController?.removeListener(_tabListener);
-    tabController?.dispose();
+    _disposed = true;
+    final controller = tabController;
+    if (controller != null) {
+      controller.removeListener(_tabListener);
+      controller.dispose();
+      tabController = null;
+    }
     super.dispose();
+  }
+
+  bool get _tabControllerUsable {
+    if (_disposed || tabController == null) return false;
+    try {
+      return tabController!.hasListeners;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Retour AppBar / système : compatible Navigator.push, onglet principal et Get.offAll(MyBooking).
@@ -125,6 +169,48 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
+
+    if (!_routeReady || !_tabControllerUsable) {
+      return PopScope(
+        canPop: false,
+        onPopInvoked: (bool didPop) {
+          if (didPop) return;
+          _onBackPressed(context);
+        },
+        child: Align(
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: Dimensions.containerWidth,
+            child: Scaffold(
+              backgroundColor: notifires.getbgcolor,
+              appBar: AppBar(
+                backgroundColor: vehicalThemColor,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                leadingWidth: 56,
+                centerTitle: true,
+                leading: IconButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: () => _onBackPressed(context),
+                  icon: Icon(
+                    Icons.arrow_back_ios_new,
+                    color: whiteColor,
+                    size: 20,
+                  ),
+                ),
+                title: Text(
+                  "My Booking".tr,
+                  style: heading2Grey1(context).copyWith(color: whiteColor),
+                ),
+              ),
+              body: const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+    }
+
     return PopScope(
       canPop: false,
       onPopInvoked: (bool didPop) {
@@ -181,7 +267,7 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
                             Tab(
                               text: "Cancelled".tr,
                             ),
-                          ], // list of tabs
+                          ],
                         ),
                         const SizedBox(
                           height: 8,
