@@ -76,13 +76,17 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     index = tabController!.index;
     tabController!.addListener(_tabListener);
 
-    if (!NavigationGuard.isNavigating) {
-      _fetchActiveTabRecord();
-    }
-
     setState(() => _routeReady = true);
     paymentFlowLog('STEP 10b — MyBooking tabController ready',
         'initialTab=$_initialTab');
+
+    // Fetch initial : 2e frame, après stabilisation TabBar / TabController.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _disposed || tabController == null) return;
+      if (tabController!.indexIsChanging) return;
+      if (NavigationGuard.isNavigating) return;
+      _fetchActiveTabRecord();
+    });
   }
 
   @override

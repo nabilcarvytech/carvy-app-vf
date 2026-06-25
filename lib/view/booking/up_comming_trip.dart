@@ -4,13 +4,14 @@ import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/controller/booking_controller.dart';
 import '../../controller/booking_record_controller.dart';
-import '../../customwidget/data_not_found.dart';
 import '../../customwidget/project_color.dart';
 import '../../utils/extension.dart';
-import '../../model/booking_model.dart';
 import '../../utils/common_widget.dart';
+import '../../utils/navigation_guard.dart';
 import '../../utils/payment_flow_debug.dart';
 import '../../utils/safe_rebuild.dart';
+import 'package:carvy/view/booking/widgets/booking_tab_list_body.dart';
+import 'package:carvy/view/booking/widgets/safe_booking_list_helpers.dart';
 
 class MyUpCommingTrip extends StatefulWidget {
   final bool fromPropBooking;
@@ -35,23 +36,26 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
   @override
   void initState() {
     super.initState();
-    runAfterFirstFrame(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final skip = bookingRecordController.shouldSkipInitialFetch(
-        'upcoming',
-        isActiveTab: widget.tabIndex == widget.initialTabIndex,
-      );
-      paymentFlowLog('STEP 14 — MyUpCommingTrip postFrame',
-          'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}, skipFetch=$skip, listLen=${bookingRecordController.bookingsList.length}, isLoading=${bookingRecordController.isLoading.value}');
-      if (skip) return;
-      getData();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || NavigationGuard.isNavigating) return;
+        final skip = bookingRecordController.shouldSkipInitialFetch(
+          'upcoming',
+          isActiveTab: widget.tabIndex == widget.initialTabIndex,
+        );
+        paymentFlowLog('STEP 14 — MyUpCommingTrip postFrame',
+            'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}, skipFetch=$skip, listLen=${bookingRecordController.bookingsList.length}, isLoading=${bookingRecordController.isLoading.value}');
+        if (skip) return;
+        getData();
+      });
     });
   }
 
   getData() async {
     paymentFlowLog('STEP 15 — getBookingRecord(upcoming) START');
     await bookingRecordController.getBookingRecord(
-      type: "upcoming",
+      type: 'upcoming',
       offset: 0,
     );
     paymentFlowLog('STEP 16 — getBookingRecord(upcoming) END',
@@ -62,10 +66,9 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
   }
 
   onLoading() async {
-    // Pour la pagination, utiliser l'offset actuel du controller
     await bookingRecordController.getBookingRecord(
-      type: "upcoming",
-      offset: bookingRecordController.offset, // Utiliser l'offset pour la pagination
+      type: 'upcoming',
+      offset: bookingRecordController.offset,
     );
     refreshController.loadComplete();
   }
@@ -83,7 +86,7 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
 
   @override
   void dispose() {
-    refreshController.dispose(); // Dispose the RefreshController
+    refreshController.dispose();
     super.dispose();
   }
 
@@ -98,95 +101,51 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
             onRefresh: onRefresh,
             onLoading: onLoading,
             enablePullUp: bookingRecordController.offset == -1 ? false : true,
-            child: _BookingTabListBody(
-              bookingRecordController: bookingRecordController,
+            child: BookingTabListBody(
+              controller: bookingRecordController,
               fromPropBooking: widget.fromPropBooking,
               listType: 'UpComing',
               btnText: 'Cancel',
+              emptyMessage: 'No Upcoming Booking Available'.tr,
               stateSetter: stateSetter,
               onItemCancelled: onItemCancelled,
             ),
           ),
-          SafeBookingRecordObx(builder: () {
-            if (!Get.isRegistered<BookingController>() ||
-                Get.find<BookingController>().isClosed) {
+          DeferredLocalObx(
+            builder: () {
+              if (!Get.isRegistered<BookingController>() ||
+                  Get.find<BookingController>().isClosed) {
+                return const SizedBox.shrink();
+              }
+              final bookingController = Get.find<BookingController>();
+              if (!bookingController.openOtpAfterImageSubmit.value) {
+                return const SizedBox.shrink();
+              }
+              final bookingId = bookingController.currentBookingIdForOtp.value;
+              dynamic matchedBooking;
+              for (final booking in bookingRecordController.bookingsList) {
+                if (booking.id?.toString() == bookingId) {
+                  matchedBooking = booking;
+                  break;
+                }
+              }
+              final canOpenOtp =
+                  (matchedBooking?.status as String?)?.isConfirmed == true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+                if (canOpenOtp) {
+                  CommonWidgets.showOtpBottomSheet(context, bookingId);
+                }
+                if (Get.isRegistered<BookingController>() &&
+                    !Get.find<BookingController>().isClosed) {
+                  bookingController.openOtpAfterImageSubmit.value = false;
+                }
+              });
               return const SizedBox.shrink();
-            }
-            final bookingController = Get.find<BookingController>();
-            if (!bookingController.openOtpAfterImageSubmit.value) {
-              return const SizedBox.shrink();
-            }
-            final bookingId = bookingController.currentBookingIdForOtp.value;
-            dynamic matchedBooking;
-            for (final booking in bookingRecordController.bookingsList) {
-              if (booking.id?.toString() == bookingId) {
-                matchedBooking = booking;
-                break;
-              }
-            }
-            final canOpenOtp =
-                (matchedBooking?.status as String?)?.isConfirmed == true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!context.mounted) return;
-              if (canOpenOtp) {
-                CommonWidgets.showOtpBottomSheet(context, bookingId);
-              }
-              if (Get.isRegistered<BookingController>() &&
-                  !Get.find<BookingController>().isClosed) {
-                bookingController.openOtpAfterImageSubmit.value = false;
-              }
-            });
-            return const SizedBox.shrink();
-          }),
+            },
+          ),
         ],
       ),
-    );
-  }
-}
-
-/// Obx limité au bandeau loading/vide — la ListView reçoit une liste figée.
-class _BookingTabListBody extends StatelessWidget {
-  final BookingRecordController bookingRecordController;
-  final bool fromPropBooking;
-  final String listType;
-  final String btnText;
-  final StateSetter stateSetter;
-  final void Function(int index) onItemCancelled;
-
-  const _BookingTabListBody({
-    required this.bookingRecordController,
-    required this.fromPropBooking,
-    required this.listType,
-    required this.btnText,
-    required this.stateSetter,
-    required this.onItemCancelled,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeBookingRecordObx(
-      builder: () {
-        if (bookingRecordController.isLoading.value &&
-            bookingRecordController.bookingsList.isEmpty) {
-          return myBookingScreenShimmer();
-        }
-        if (bookingRecordController.bookingsList.isEmpty) {
-          return Center(
-            child: buildNoDataWidget(
-              context,
-              'No Upcoming Booking Available'.tr,
-            ),
-          );
-        }
-        return myBookingListWidget(
-          List<Bookings>.from(bookingRecordController.bookingsList),
-          btnText,
-          stateSetter,
-          fromPropBooking,
-          listType,
-          onItemCancelled,
-        );
-      },
     );
   }
 }

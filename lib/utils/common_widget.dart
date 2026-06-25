@@ -2015,7 +2015,7 @@ myBookingListWidget(
 
   bookingController.clearBookingData();
 
-  Widget buildSafeItem(BuildContext context, int index) {
+  Widget _buildSafeItem(BuildContext context, int index) {
     if (!context.mounted) return const SizedBox.shrink();
         final itemData = Bookings.decodeItemDataList(list[index].itemData);
         if (itemData == null || itemData.isEmpty) {
@@ -4274,7 +4274,7 @@ myBookingListWidget(
   return ListView.builder(
     shrinkWrap: true,
     itemCount: list.length,
-    itemBuilder: (context, index) => buildSafeItem(context, index),
+    itemBuilder: (context, index) => _buildSafeItem(context, index),
   );
 }
 

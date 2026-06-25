@@ -4,11 +4,11 @@ import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/customwidget/data_not_found.dart';
 import 'package:carvy/customwidget/project_color.dart';
-import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/controller/booking_record_controller.dart';
-import 'package:carvy/model/booking_model.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
+import 'package:carvy/view/booking/widgets/booking_tab_list_body.dart';
 
 class LiveBooking extends StatefulWidget {
   final bool fromPropBooking;
@@ -33,33 +33,34 @@ class _LiveBookingState extends State<LiveBooking> {
   @override
   void initState() {
     super.initState();
-    runAfterFirstFrame(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (bookingRecordController.shouldSkipInitialFetch(
-            'ongoing',
-            isActiveTab: widget.tabIndex == widget.initialTabIndex,
-          )) {
-        return;
-      }
-      getData();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || NavigationGuard.isNavigating) return;
+        if (bookingRecordController.shouldSkipInitialFetch(
+              'ongoing',
+              isActiveTab: widget.tabIndex == widget.initialTabIndex,
+            )) {
+          return;
+        }
+        getData();
+      });
     });
   }
 
   getData() async {
     await bookingRecordController.getBookingRecord(
-      type: "ongoing",
+      type: 'ongoing',
       offset: 0,
     );
-
     refreshController.loadComplete();
     refreshController.refreshCompleted();
   }
 
   onLoading() async {
-    // Pour la pagination, utiliser l'offset actuel du controller
     await bookingRecordController.getBookingRecord(
-      type: "ongoing",
-      offset: bookingRecordController.offset, // Utiliser l'offset pour la pagination
+      type: 'ongoing',
+      offset: bookingRecordController.offset,
     );
     refreshController.loadComplete();
   }
@@ -84,37 +85,22 @@ class _LiveBookingState extends State<LiveBooking> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: notifires.getbgcolor,
-        body: SmartRefresher(
-          controller: refreshController,
-          onRefresh: onRefresh,
-          onLoading: onLoading,
-          enablePullUp: bookingRecordController.offset == -1 ? false : true,
-          child: SafeBookingRecordObx(
-            builder: () {
-              if (bookingRecordController.isLoading.value &&
-                  bookingRecordController.bookingsList.isEmpty) {
-                return myBookingScreenShimmer();
-              }
-              if (bookingRecordController.bookingsList.isEmpty) {
-                return Center(
-                  child: buildNoDataWidget(
-                    context,
-                    'No Ongoing Booking Available'.tr,
-                  ),
-                );
-              }
-              return myBookingListWidget(
-                List<Bookings>.from(bookingRecordController.bookingsList),
-                'Extend duration',
-                stateSetter,
-                widget.fromPropBooking,
-                'ongoing',
-                onItemCancelled,
-              );
-            },
-          ),
+      backgroundColor: notifires.getbgcolor,
+      body: SmartRefresher(
+        controller: refreshController,
+        onRefresh: onRefresh,
+        onLoading: onLoading,
+        enablePullUp: bookingRecordController.offset == -1 ? false : true,
+        child: BookingTabListBody(
+          controller: bookingRecordController,
+          fromPropBooking: widget.fromPropBooking,
+          listType: 'ongoing',
+          btnText: 'Extend duration',
+          emptyMessage: 'No Ongoing Booking Available'.tr,
+          stateSetter: stateSetter,
+          onItemCancelled: onItemCancelled,
         ),
+      ),
     );
   }
 }

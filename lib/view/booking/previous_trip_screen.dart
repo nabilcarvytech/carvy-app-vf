@@ -3,11 +3,11 @@ import 'package:get/get.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import '../../controller/booking_record_controller.dart';
-import '../../model/booking_model.dart';
-import '../../customwidget/data_not_found.dart';
 import '../../customwidget/project_color.dart';
 import '../../utils/common_widget.dart';
+import '../../utils/navigation_guard.dart';
 import '../../utils/safe_rebuild.dart';
+import 'package:carvy/view/booking/widgets/booking_tab_list_body.dart';
 
 class PreviousTrip extends StatefulWidget {
   final bool fromPropBooking;
@@ -36,33 +36,34 @@ class _PreviousTripState extends State<PreviousTrip> {
   @override
   void initState() {
     super.initState();
-    runAfterFirstFrame(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (bookingRecordController.shouldSkipInitialFetch(
-            'previous',
-            isActiveTab: widget.tabIndex == widget.initialTabIndex,
-          )) {
-        return;
-      }
-      getData();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || NavigationGuard.isNavigating) return;
+        if (bookingRecordController.shouldSkipInitialFetch(
+              'previous',
+              isActiveTab: widget.tabIndex == widget.initialTabIndex,
+            )) {
+          return;
+        }
+        getData();
+      });
     });
   }
 
   getData() async {
     await bookingRecordController.getBookingRecord(
-      type: "previous",
+      type: 'previous',
       offset: 0,
     );
-
     refreshController.loadComplete();
     refreshController.refreshCompleted();
   }
 
   onLoading() async {
-    // Pour la pagination, utiliser l'offset actuel du controller
     await bookingRecordController.getBookingRecord(
-      type: "previous",
-      offset: bookingRecordController.offset, // Utiliser l'offset pour la pagination
+      type: 'previous',
+      offset: bookingRecordController.offset,
     );
     refreshController.loadComplete();
   }
@@ -83,37 +84,22 @@ class _PreviousTripState extends State<PreviousTrip> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: notifires.getbgcolor,
-        body: SmartRefresher(
-          controller: refreshController,
-          onRefresh: onRefresh,
-          onLoading: onLoading,
-          enablePullUp: bookingRecordController.offset == -1 ? false : true,
-          child: SafeBookingRecordObx(
-            builder: () {
-              if (bookingRecordController.isLoading.value &&
-                  bookingRecordController.bookingsList.isEmpty) {
-                return myBookingScreenShimmer();
-              }
-              if (bookingRecordController.bookingsList.isEmpty) {
-                return Center(
-                  child: buildNoDataWidget(
-                    context,
-                    'No Previous Booking Available'.tr,
-                  ),
-                );
-              }
-              return myBookingListWidget(
-                List<Bookings>.from(bookingRecordController.bookingsList),
-                'Add Review',
-                stateSetter,
-                widget.fromPropBooking,
-                'Previous',
-                onItemCancelled,
-              );
-            },
-          ),
+      backgroundColor: notifires.getbgcolor,
+      body: SmartRefresher(
+        controller: refreshController,
+        onRefresh: onRefresh,
+        onLoading: onLoading,
+        enablePullUp: bookingRecordController.offset == -1 ? false : true,
+        child: BookingTabListBody(
+          controller: bookingRecordController,
+          fromPropBooking: widget.fromPropBooking,
+          listType: 'Previous',
+          btnText: 'Add Review',
+          emptyMessage: 'No Previous Booking Available'.tr,
+          stateSetter: stateSetter,
+          onItemCancelled: onItemCancelled,
         ),
+      ),
     );
   }
 }
