@@ -223,8 +223,10 @@ class BookingController extends GetxController implements GetxService {
     paymentFlowLog('STEP 8b — clearListeners() done');
 
     if (Get.isRegistered<BookingRecordController>()) {
-      Get.find<BookingRecordController>().armPostNavigationFetchDelay();
-      paymentFlowLog('STEP 8c — armPostNavigationFetchDelay() (500ms)');
+      final brc = Get.find<BookingRecordController>();
+      brc.isNavigating = true;
+      brc.armPostNavigationFetchDelay();
+      paymentFlowLog('STEP 8c — isNavigating=true + armPostNavigationFetchDelay');
     }
 
     generalController.myBookingTabIndex.value = tabIndex;

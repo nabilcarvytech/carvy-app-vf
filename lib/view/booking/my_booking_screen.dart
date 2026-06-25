@@ -75,6 +75,7 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
 
         if (!Get.isRegistered<BookingRecordController>()) return;
         if (bookingRecordController.isClosed) return;
+        if (bookingRecordController.isNavigating) return;
         if (bookingRecordController.isLoading.value) return;
         if (bookingRecordController.hasDataForType(type)) return;
 
@@ -83,12 +84,24 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     };
 
     tabController!.addListener(_tabListener);
+
+    // Réactive les fetchs après la 1re frame (quand la transition offAll est stabilisée).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (Get.isRegistered<BookingRecordController>()) {
+        bookingRecordController.isNavigating = false;
+        paymentFlowLog('STEP 10b — isNavigating=false (MyBooking 1st frame)');
+      }
+    });
   }
 
   @override
   void dispose() {
     tabController?.removeListener(_tabListener);
     tabController?.dispose();
+    if (Get.isRegistered<BookingRecordController>()) {
+      Get.find<BookingRecordController>().isNavigating = false;
+    }
     super.dispose();
   }
 

@@ -31,6 +31,9 @@ class BookingRecordController extends GetxController implements GetxService {
   // Garder une trace du type actuel pour éviter les mélanges
   String? currentType;
 
+  /// Bloque les fetchs pendant [Get.offAll] (évite _dependents.isEmpty).
+  bool isNavigating = false;
+
   // Verrouillage anti-fetch concurrent (offset: 0)
   bool _isFetchingOffsetZero = false;
   DateTime? _lastOffsetZeroFetchAt;
@@ -96,6 +99,7 @@ class BookingRecordController extends GetxController implements GetxService {
   bool shouldSkipInitialFetch(String type, {required bool isActiveTab}) {
     if (!isActiveTab) return true;
     if (!_isControllerActive()) return true;
+    if (isNavigating) return true;
     if (isLoading.value) return true;
     if (bookingsList.isNotEmpty && hasDataForType(type)) return true;
     return false;
@@ -127,6 +131,7 @@ class BookingRecordController extends GetxController implements GetxService {
     _lastOffsetZeroFetchType = null;
     Bookings.suppressParseDebugLogs = false;
     _fetchBlockedUntil = null;
+    isNavigating = false;
     if (_isControllerActive()) {
       isLoading.value = false;
     }
@@ -142,6 +147,11 @@ class BookingRecordController extends GetxController implements GetxService {
     num? offset,
   }) async {
       if (!_isControllerActive()) return;
+      if (isNavigating) {
+        paymentFlowLog('getBookingRecord BLOCKED — isNavigating=true',
+            'type=$type');
+        return;
+      }
 
       // Réinitialiser l'état d'erreur
       hasError.value = false;
