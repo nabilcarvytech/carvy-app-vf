@@ -96,7 +96,12 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
 
     _tabListener = () {
       if (!mounted || _disposed || tabController == null) return;
-      if (tabController!.indexIsChanging) return;
+
+      // Rebuild léger : affiche le TabBarView quand indexIsChanging repasse à false.
+      if (tabController!.indexIsChanging) {
+        setState(() {});
+        return;
+      }
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || _disposed || tabController == null) return;
@@ -164,6 +169,45 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     }
 
     Get.offAll(() => HomeMain(initialIndex: 0));
+  }
+
+  /// TabBarView masqué pendant [TabController.indexIsChanging] — réapparaît à la fin de l'animation.
+  Widget _buildGuardedTabBarView() {
+    final tc = tabController;
+    if (tc == null || _disposed) return const SizedBox.shrink();
+
+    return AnimatedBuilder(
+      animation: tc.animation!,
+      builder: (context, child) {
+        if (tc.indexIsChanging) return const SizedBox.shrink();
+        return child!;
+      },
+      child: TabBarView(
+        controller: tc,
+        children: [
+          MyUpCommingTrip(
+            fromPropBooking: widget.fromPropBooking ?? false,
+            tabIndex: 0,
+            initialTabIndex: _initialTab,
+          ),
+          LiveBooking(
+            fromPropBooking: widget.fromPropBooking ?? false,
+            tabIndex: 1,
+            initialTabIndex: _initialTab,
+          ),
+          PreviousTrip(
+            fromPropBooking: widget.fromPropBooking ?? false,
+            tabIndex: 2,
+            initialTabIndex: _initialTab,
+          ),
+          CancelledTrip(
+            fromPropBooking: widget.fromPropBooking ?? false,
+            tabIndex: 3,
+            initialTabIndex: _initialTab,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -273,33 +317,7 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
                           height: 8,
                         ),
                         Expanded(
-                          child: tabController!.indexIsChanging
-                              ? const SizedBox.shrink()
-                              : TabBarView(
-                            controller: tabController,
-                            children: [
-                              MyUpCommingTrip(
-                                  fromPropBooking:
-                                      widget.fromPropBooking ?? false,
-                                  tabIndex: 0,
-                                  initialTabIndex: _initialTab),
-                              LiveBooking(
-                                  fromPropBooking:
-                                      widget.fromPropBooking ?? false,
-                                  tabIndex: 1,
-                                  initialTabIndex: _initialTab),
-                              PreviousTrip(
-                                  fromPropBooking:
-                                      widget.fromPropBooking ?? false,
-                                  tabIndex: 2,
-                                  initialTabIndex: _initialTab),
-                              CancelledTrip(
-                                  fromPropBooking:
-                                      widget.fromPropBooking ?? false,
-                                  tabIndex: 3,
-                                  initialTabIndex: _initialTab),
-                            ],
-                          ),
+                          child: _buildGuardedTabBarView(),
                         ),
                       ]))),
           ),

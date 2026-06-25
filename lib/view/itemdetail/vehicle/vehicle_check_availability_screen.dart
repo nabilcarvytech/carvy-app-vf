@@ -711,14 +711,13 @@ class _DeferredCalendarDateCell extends StatefulWidget {
 }
 
 class _DeferredCalendarDateCellState extends State<_DeferredCalendarDateCell> {
-  bool _frameReady = false;
+  late final Future<void> _deferFrame;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _frameReady = true);
-    });
+    // Attend la fin de la frame courante avant les calculs isDateAvailable.
+    _deferFrame = Future<void>.delayed(Duration.zero);
   }
 
   Widget _placeholderCell() {
@@ -740,8 +739,15 @@ class _DeferredCalendarDateCellState extends State<_DeferredCalendarDateCell> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_frameReady) return _placeholderCell();
-    return _buildAvailabilityCell(context);
+    return FutureBuilder<void>(
+      future: _deferFrame,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return _placeholderCell();
+        }
+        return _buildAvailabilityCell(context);
+      },
+    );
   }
 
   Widget _buildAvailabilityCell(BuildContext context) {
