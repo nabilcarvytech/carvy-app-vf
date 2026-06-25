@@ -134,16 +134,10 @@ vehicalCategory(List<Makes> list, notifire) {
         // itemCount: (list?.length ?? 0) > 5 ? 5 : (list?.length ?? 0),
         itemCount: list.length,
         itemBuilder: (context, index) {
-          // ========== LOGS DE DÉBOGAGE POUR DIAGNOSTIQUER LES URLs ==========
           final rawUrl = list.elementAt(index).imageUrl;
-          final transformedUrl = rawUrl != null ? Config.getFullImageUrl(rawUrl) : 'null';
-          print('📸 [DEBUG IMAGE MARQUE] Index $index - Nom: ${list.elementAt(index).makeName ?? "N/A"}');
-          print('📸 [DEBUG IMAGE MARQUE] URL Brute: $rawUrl');
-          print('📸 [DEBUG IMAGE MARQUE] URL Transformée: $transformedUrl');
-          print('📸 [DEBUG IMAGE MARQUE] URL est null?: ${rawUrl == null}');
-          print('📸 [DEBUG IMAGE MARQUE] URL est vide?: ${rawUrl?.isEmpty ?? true}');
-          // ===================================================================
-          
+          final transformedUrl =
+              rawUrl != null ? Config.getFullImageUrl(rawUrl) : 'null';
+
           return Padding(
             key: ValueKey('make-${list.elementAt(index).id ?? index}'),
             padding:

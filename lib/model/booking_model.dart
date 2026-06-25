@@ -627,11 +627,6 @@ class Bookings {
       _paymentMethod = safeToString(json['payment_method']);
       _paymentStatus = safeToString(json['payment_status']);
       _propImg = safeToString(json['image']);
-      if (kDebugMode && !Bookings.suppressParseDebugLogs) {
-        if (_propImg != null && _propImg!.isNotEmpty) {
-          debugPrint('🖼️ [DEBUG IMAGE] Raw URL: $_propImg');
-        }
-      }
       _propTitle = safeToString(json['item_title'] ?? json['title']);
       if (_isWeakVehicleTitle(_propTitle)) {
         _propTitle = safeToString(json['title']);

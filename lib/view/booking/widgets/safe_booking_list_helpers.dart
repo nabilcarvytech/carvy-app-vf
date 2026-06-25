@@ -1,0 +1,93 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:carvy/api/config.dart';
+import 'package:carvy/customwidget/project_color.dart';
+
+/// Coque de cellule : aucun rendu lourd avant la fin de la frame de montage.
+class SafeBookingListItemShell extends StatefulWidget {
+  final Widget child;
+
+  const SafeBookingListItemShell({super.key, required this.child});
+
+  @override
+  State<SafeBookingListItemShell> createState() =>
+      _SafeBookingListItemShellState();
+}
+
+class _SafeBookingListItemShellState extends State<SafeBookingListItemShell> {
+  bool _frameReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _frameReady = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!context.mounted) return const SizedBox.shrink();
+    if (!_frameReady) {
+      return const SizedBox(height: 8);
+    }
+    return widget.child;
+  }
+}
+
+/// Obx strictement local : lecture Rx uniquement après la 1re frame de la cellule.
+class DeferredLocalObx extends StatefulWidget {
+  final Widget Function() builder;
+
+  const DeferredLocalObx({super.key, required this.builder});
+
+  @override
+  State<DeferredLocalObx> createState() => _DeferredLocalObxState();
+}
+
+class _DeferredLocalObxState extends State<DeferredLocalObx> {
+  bool _frameReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _frameReady = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!context.mounted || !_frameReady) return const SizedBox.shrink();
+    return Obx(widget.builder);
+  }
+}
+
+/// Image véhicule pour cartes réservation — sans logs, sans rebuild parasite.
+Widget bookingListVehicleImage(String? image) {
+  if (image == null || image.isEmpty || image == 'N/A') {
+    return const Center(
+      child: Icon(Icons.directions_car, color: Colors.grey, size: 40),
+    );
+  }
+
+  final url = Config.getFullImageUrl(image);
+  return CachedNetworkImage(
+    imageUrl: url,
+    fit: BoxFit.cover,
+    placeholder: (_, __) => Container(
+      color: grey5,
+      child: const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+    ),
+    errorWidget: (_, __, ___) => const Center(
+      child: Icon(Icons.directions_car, color: Colors.grey, size: 40),
+    ),
+  );
+}

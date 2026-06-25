@@ -1,4 +1,4 @@
-
+﻿
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
@@ -32,6 +32,7 @@ import 'package:carvy/model/extension_payment_context.dart';
 import 'package:carvy/view/booking/payment_method_screen.dart';
 import 'package:carvy/view/booking/vehicle/vehicle_booking_summary_screen.dart';
 import 'package:carvy/view/booking/vehicle_photoes_booking.dart';
+import 'package:carvy/view/booking/widgets/safe_booking_list_helpers.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/view/digitalsignatuecommon/digital_singnature.dart';
 import 'package:carvy/view/review/review_popup_widget.dart';
@@ -2013,10 +2014,9 @@ myBookingListWidget(
   }
 
   bookingController.clearBookingData();
-  return ListView.builder(
-      shrinkWrap: true,
-      itemCount: list.length,
-      itemBuilder: (context, index) {
+
+  Widget buildSafeItem(BuildContext context, int index) {
+    if (!context.mounted) return const SizedBox.shrink();
         final itemData = Bookings.decodeItemDataList(list[index].itemData);
         if (itemData == null || itemData.isEmpty) {
           return const SizedBox.shrink();
@@ -2076,108 +2076,6 @@ myBookingListWidget(
         final String dropOtpValue = (list[index].dropOtp ?? '').trim();
         final bool hasDropOtp = dropOtpValue.isNotEmpty;
 
-        if (index == 0) {
-          SchedulerBinding.instance.addPostFrameCallback((_) {
-            if (!context.mounted) return;
-            if (!bookingAgrinmentUser2 &&
-                bookingAgrinmentuser == true &&
-                listType == "UpComing") {
-              bookingAgrinmentUser2 = true;
-              showModalBottomSheet<String>(
-              context: context,
-              isScrollControlled: true,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-              ),
-              builder: (context) {
-                return Padding(
-                  padding: EdgeInsets.only(
-                    left: 20,
-                    right: 20,
-                    top: 20,
-                    bottom: MediaQuery.of(context).viewInsets.bottom,
-                  ),
-                  child: StatefulBuilder(
-                    builder: (context, setBottomSheetState) {
-                      return SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Interior Image Required'.tr,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Please upload at least two interior image of the vehicle before entering the pickup OTP."
-                                      .tr,
-                                  style: regular02.copyWith(
-                                    color: getColorBasedOnActiveModuleid(),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  "Note: Adding interior images helps verify the condition of the car before and after pickup. This ensures fair evaluation and avoids disputes regarding the vehicle’s condition."
-                                      .tr,
-                                  style: regular02.copyWith(
-                                    color: getColorBasedOnActiveModuleid(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: CustomsButtons(
-                                    text: "Cancel".tr,
-                                    backgroundColor: Colors.grey.shade400,
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: CustomsButtons(
-                                    text: "Add Image".tr,
-                                    backgroundColor:
-                                        getColorBasedOnActiveModuleid(),
-                                    onPressed: () async {
-                                      bookingAgrinmentuser = false;
-                                      Navigator.pop(context);
-                                      Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (builder) =>
-                                                  VehiclePhotoesBooking(
-                                                      id: "${list[index].id}")));
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            );
-          }
-        });
-        }
 
         void showOtpBottomSheet(BuildContext context, int index) {
           print('📌 [UI] Tentative d\'affichage de la modale OTP maintenant');
@@ -2286,15 +2184,8 @@ myBookingListWidget(
           );
         }
 
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (bookingController.openOtpAfterImageSubmit.value) {
-            Future.delayed(Duration(milliseconds: 500), () {
-              showOtpBottomSheet(context, index);
-              bookingController.openOtpAfterImageSubmit.value = false;
-            });
-          }
-        });
-        return Padding(
+        return SafeBookingListItemShell(
+          child: Padding(
           padding:
               const EdgeInsets.only(left: 13, right: 13, bottom: 10, top: 10),
           child: GestureDetector(
@@ -2374,7 +2265,7 @@ myBookingListWidget(
                                   borderRadius: BorderRadius.circular(12)),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: myNetworkImageWithShimmer(image),
+                                child: bookingListVehicleImage(image),
                               ),
                             ),
                           ],
@@ -3175,8 +3066,8 @@ myBookingListWidget(
                                 ? const SizedBox()
                                 : listType == 'Previous'
                                     ? const SizedBox()
-                                    : Obx(
-                                        () => bookingController
+                                    : DeferredLocalObx(
+                                        builder: () => bookingController
                                                     .showhideisReturn.value ==
                                                 true
                                             ? const SizedBox()
@@ -3305,8 +3196,8 @@ myBookingListWidget(
                                                     ),
                                                   ),
                                       ),
-                            Obx(
-                              () =>
+                            DeferredLocalObx(
+                              builder: () =>
                                   bookingController.showhideisReturn.value ==
                                           true
                                       ? const SizedBox()
@@ -4376,8 +4267,15 @@ myBookingListWidget(
               ),
             ),
           ),
+        ),
         );
-      });
+  }
+
+  return ListView.builder(
+    shrinkWrap: true,
+    itemCount: list.length,
+    itemBuilder: (context, index) => buildSafeItem(context, index),
+  );
 }
 
 bottomSheetReviewed(rating, text) {
@@ -4489,43 +4387,29 @@ Widget myNetworkImage(String? image, [bool? shoeIcononError]) {
 
 Widget myNetworkImageWithShimmer(String? image) {
   if (image != null && image.isNotEmpty && image != 'N/A') {
-    // Utiliser la fonction utilitaire publique pour construire l'URL complète
-    String finalUrl = Config.getFullImageUrl(image);
-    
-    // ========== LOG CRITIQUE POUR DÉBOGUER L'URL FINALE ==========
-    print('🖼️ [DEBUG IMAGE] URL finale utilisée: $finalUrl');
-    print('🖼️ [DEBUG IMAGE] URL originale: $image');
+    final finalUrl = Config.getFullImageUrl(image);
 
     return CachedNetworkImage(
       imageUrl: finalUrl,
       fit: BoxFit.cover,
       placeholder: (context, url) => shimmerContainer(),
-      errorWidget: (context, url, error) {
-        // ========== ERROR BUILDER DÉTAILLÉ POUR DIAGNOSTIQUER LES ERREURS ==========
-        print('🔴 [IMAGE ERROR] URL qui a échoué: $url');
-        print('🔴 [IMAGE ERROR] Type d\'erreur: ${error.runtimeType}');
-        print('🔴 [IMAGE ERROR] Message d\'erreur: $error');
-        print('🔴 [IMAGE ERROR] StackTrace: ${StackTrace.current}');
-        
-        return Center(
-          child: Icon(
-            Icons.directions_car,
-            color: Colors.grey,
-            size: 40,
-          ),
-        );
-      },
-    );
-  } else {
-    print('🖼️ [DEBUG IMAGE] Image est null, vide ou N/A');
-    return Center(
-      child: Icon(
-        Icons.directions_car,
-        color: Colors.grey,
-        size: 40,
+      errorWidget: (context, url, error) => const Center(
+        child: Icon(
+          Icons.directions_car,
+          color: Colors.grey,
+          size: 40,
+        ),
       ),
     );
   }
+
+  return const Center(
+    child: Icon(
+      Icons.directions_car,
+      color: Colors.grey,
+      size: 40,
+    ),
+  );
 }
 
 Widget myNetworkImageFillBox(String? image) {
