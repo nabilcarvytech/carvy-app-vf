@@ -132,6 +132,11 @@ GetItemPrices applySimplifiedVehicleBookingPrices(GetItemPrices src) {
 }
 
 class BookingController extends GetxController implements GetxService {
+  /// ID GetBuilder du corps [PaymentMethodScreen] — jamais de [update] global.
+  static const Object paymentMethodBodyId = 'payment_method_body';
+
+  bool _paymentMethodUiDetached = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -147,12 +152,27 @@ class BookingController extends GetxController implements GetxService {
   void safeUpdate([List<Object>? ids, bool condition = true]) {
     if (!condition || isClosed) return;
     if (!Get.isRegistered<BookingController>()) return;
+    if (NavigationGuard.isNavigating) return;
+    if (_paymentMethodUiDetached) {
+      if (ids == null) return;
+      if (ids.contains(paymentMethodBodyId)) return;
+    }
 
     void schedule() {
       if (isClosed || !Get.isRegistered<BookingController>()) return;
+      if (NavigationGuard.isNavigating) return;
+      if (_paymentMethodUiDetached &&
+          (ids == null || ids.contains(paymentMethodBodyId))) {
+        return;
+      }
       _safeUpdateDebounce?.cancel();
       _safeUpdateDebounce = Timer(const Duration(milliseconds: 16), () {
         if (!isClosed && Get.isRegistered<BookingController>()) {
+          if (NavigationGuard.isNavigating) return;
+          if (_paymentMethodUiDetached &&
+              (ids == null || ids.contains(paymentMethodBodyId))) {
+            return;
+          }
           update(ids, condition);
         }
       });
@@ -170,12 +190,30 @@ class BookingController extends GetxController implements GetxService {
 
   /// Vide les états temporaires de paiement avant navigation post-checkout.
   void clearListeners() {
+    detachPaymentMethodUi();
     paymentMethodsList.clear();
     paymentMethodModel = null;
     isLoadingPaymentMethods.value = false;
     selectedPaymentMethod = null;
     extensionPaymentContext = null;
     prepareForRoutePop();
+  }
+
+  /// Détache le GetBuilder [paymentMethodBodyId] — bloque tout update ciblé ou global.
+  void detachPaymentMethodUi() {
+    _paymentMethodUiDetached = true;
+    prepareForRoutePop();
+  }
+
+  /// Réactive les updates GetBuilder quand [PaymentMethodScreen] est monté.
+  void attachPaymentMethodUi() {
+    _paymentMethodUiDetached = false;
+  }
+
+  /// Rafraîchit uniquement le corps de [PaymentMethodScreen].
+  void notifyPaymentMethodBody() {
+    if (_paymentMethodUiDetached || NavigationGuard.isNavigating) return;
+    safeUpdate([paymentMethodBodyId]);
   }
 
   /// Annule les [update] différés avant un retour arrière.
@@ -218,6 +256,10 @@ class BookingController extends GetxController implements GetxService {
   }) async {
     paymentFlowLog('STEP 8 — _navigateToBookingsAfterPayment START',
         'tabIndex=$tabIndex');
+
+    detachPaymentMethodUi();
+    prepareForRoutePop();
+    paymentFlowLog('STEP 8-pre — detachPaymentMethodUi + prepareForRoutePop');
 
     NavigationGuard.begin();
     paymentFlowLog('STEP 8a — NavigationGuard.isNavigating=true (no Rx yet)');
@@ -1195,7 +1237,7 @@ class BookingController extends GetxController implements GetxService {
     paymentMethodModel = null;
     paymentMethodsList.clear(); // Vider la liste au début
     error.value = false;
-    safeUpdate();
+    notifyPaymentMethodBody();
 
     try {
       // Appel API GET /api/v1/payment-methods
@@ -1439,7 +1481,7 @@ class BookingController extends GetxController implements GetxService {
 
         // Rafraîchissement UI après parsing réussi - IMPORTANT pour GetBuilder
         debugPrint('🔄 Appel de update() pour rafraîchir l\'UI');
-        safeUpdate();
+        notifyPaymentMethodBody();
       } else {
         error.value = true;
         debugPrint(
@@ -1456,7 +1498,7 @@ class BookingController extends GetxController implements GetxService {
           'Erreur lors du chargement des méthodes de paiement'.tr);
     } finally {
       isLoadingPaymentMethods.value = false;
-      safeUpdate(); // Rafraîchissement UI final
+      notifyPaymentMethodBody();
     }
   }
 

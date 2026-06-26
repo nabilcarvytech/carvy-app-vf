@@ -7,6 +7,7 @@ import 'package:carvy/model/booking_payment_method_model.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/utils/payment_flow_debug.dart';
 import 'package:carvy/utils/render_debug.dart';
 import 'package:carvy/utils/safe_navigation.dart';
@@ -36,12 +37,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   @override
   void dispose() {
     _disposed = true;
+    bookingController.detachPaymentMethodUi();
+    bookingController.prepareForRoutePop();
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
+    bookingController.attachPaymentMethodUi();
     runAfterFirstFrame(() {
       if (_disposed || !mounted) return;
       bookingController.fetchPaymentMethods();
@@ -233,7 +237,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         ),
       ),
       body: GetBuilder<BookingController>(
+        id: BookingController.paymentMethodBodyId,
         builder: (controller) {
+          if (_disposed || !mounted || !context.mounted) {
+            return const SizedBox.shrink();
+          }
+          if (NavigationGuard.isNavigating) {
+            return const SizedBox.shrink();
+          }
           renderDebugLog('GetBuilder avec ID: payment_method_body');
           if (controller.isLoadingPaymentMethods.value) {
             return const Center(
@@ -296,7 +307,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     child: InkWell(
                       onTap: () {
                         controller.selectedPaymentMethod = method;
-                        controller.safeUpdate();
+                        controller.notifyPaymentMethodBody();
                       },
                       borderRadius: BorderRadius.circular(12),
                       child: Padding(
