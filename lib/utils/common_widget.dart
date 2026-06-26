@@ -2019,7 +2019,8 @@ myBookingListWidget(
   Widget _buildSafeItem(BuildContext context, int index) {
     if (!context.mounted) return const SizedBox.shrink();
     renderDebugLog('myBookingList._buildSafeItem', 'index=$index');
-        final itemData = Bookings.decodeItemDataList(list[index].itemData);
+        final booking = list[index];
+        final itemData = Bookings.decodeItemDataList(booking.itemData);
         if (itemData == null || itemData.isEmpty) {
           return const SizedBox.shrink();
         }
@@ -2028,8 +2029,8 @@ myBookingListWidget(
             : <String, dynamic>{};
         String vehicleMongoId = Bookings.normalizeEntityId(firstItem['_id']) ??
             Bookings.normalizeEntityId(firstItem['item_id']) ??
-            Bookings.normalizeEntityId(list[index].vehicleId) ??
-            Bookings.normalizeEntityId(list[index].itemid) ??
+            Bookings.normalizeEntityId(booking.vehicleId) ??
+            Bookings.normalizeEntityId(booking.itemid) ??
             '';
         String address = firstItem['address']?.toString() ?? 'N/A'.tr;
         dynamic latitude = firstItem['latitude'] ?? 'N/A'.tr;
@@ -2038,8 +2039,8 @@ myBookingListWidget(
         // Priorité 1: Utiliser propImg qui contient l'URL complète depuis le backend
         // Priorité 2: Utiliser itemData[0]['image'] avec fallback intelligent
         String? image;
-        if (list[index].propImg != null && list[index].propImg!.isNotEmpty && list[index].propImg != 'N/A') {
-          image = list[index].propImg;
+        if (booking.propImg != null && booking.propImg!.isNotEmpty && booking.propImg != 'N/A') {
+          image = booking.propImg;
         } else {
           dynamic itemDataImage = firstItem['image'] ?? firstItem['front_image_url'];
           if (itemDataImage != null && itemDataImage.toString().isNotEmpty && itemDataImage.toString() != 'N/A') {
@@ -2047,13 +2048,13 @@ myBookingListWidget(
           }
         }
         final totalNights = formatBookingCardPriceLine(
-          currencyCode: list[index].currencyCode,
-          total: list[index].total,
-          totalNight: list[index].totalNight,
+          currencyCode: booking.currencyCode,
+          total: booking.total,
+          totalNight: booking.totalNight,
         );
         final hostPhoneDisplay = formatBookingPhoneDisplay(
-          list[index].hostPhoneCountry,
-          list[index].hostNumber,
+          booking.hostPhoneCountry,
+          booking.hostNumber,
         );
         ItemInfo? itemInfoData;
         try {
@@ -2075,7 +2076,7 @@ myBookingListWidget(
         dynamic proType = firstItem['item_type'] ?? 'N/A'.tr;
         String? doorStepPrice = itemInfoData.doorStepPrice;
         final bool isLiveBookingCard = listType.toLowerCase() == "ongoing";
-        final String dropOtpValue = (list[index].dropOtp ?? '').trim();
+        final String dropOtpValue = (booking.dropOtp ?? '').trim();
         final bool hasDropOtp = dropOtpValue.isNotEmpty;
 
 
@@ -2149,11 +2150,11 @@ myBookingListWidget(
                               try {
                                 final value = await bookingController
                                     .updateItemReceivedStatus(
-                                  bookingId: list[index].id.toString(),
+                                  bookingId: booking.id.toString(),
                                 );
                                 print("OTP Verified: $value");
                                 if (value == "yes") {
-                                  list[index].isItemReceivedSetter = "1";
+                                  booking.isItemReceivedSetter = "1";
                                   generalController.myBookingTabIndex.value =
                                       1;
 
@@ -2199,14 +2200,14 @@ myBookingListWidget(
               // afin d'éviter l'erreur 404 causée par l'envoi de l'ID de réservation
               final vehicleId = Bookings.normalizeEntityId(firstItem['_id']) ??
                   Bookings.normalizeEntityId(firstItem['item_id']) ??
-                  Bookings.normalizeEntityId(list[index].vehicleId) ??
-                  Bookings.normalizeEntityId(list[index].itemid) ??
+                  Bookings.normalizeEntityId(booking.vehicleId) ??
+                  Bookings.normalizeEntityId(booking.itemid) ??
                   '';
 
               print('🚀 [NAVIGATION] ID véhicule extrait pour VehicleDetailSScreen : $vehicleId');
               
               // Inspiration Homepage: Définir un titre de fallback robuste
-              String finalTitle = list[index].propTitle ?? "";
+              String finalTitle = booking.propTitle ?? "";
               if (finalTitle.isEmpty ||
                   finalTitle == "null" ||
                   finalTitle == "N/A" ||
@@ -2223,7 +2224,7 @@ myBookingListWidget(
                   VehicleDetailSScreen(
                     id: vehicleId,
                     itemInfo: itemInfoData!,
-                    rating: list[index].rating,
+                    rating: booking.rating,
                     title: finalTitle,
                     address: address,
                     latitute: latitude,
@@ -2232,7 +2233,7 @@ myBookingListWidget(
                     itemType: proType,
                     isWishList: false,
                     chatafterBooking: true,
-                    price: list[index].perNight,
+                    price: booking.perNight,
                   ));
             },
             child: Container(
@@ -2302,7 +2303,6 @@ myBookingListWidget(
                                 right: 10,
                                 child: InkWell(
                                   onTap: () async {
-                                    final booking = list[index];
                                     // ignore: avoid_print
                                     print('--- DUMP COMPLET RÉSERVATION ---');
                                     try {
@@ -2397,7 +2397,7 @@ myBookingListWidget(
                                       return;
                                     }
 
-                                    final Bookings bookingRow = list[index];
+                                    final Bookings bookingRow = booking;
                                     final String bookingIdStr =
                                         '${bookingRow.id}'.trim();
 
@@ -2439,7 +2439,7 @@ myBookingListWidget(
                     padding: const EdgeInsets.all(8.0),
                     child: Column(
                       children: [
-                        list[index].propTitle == null
+                        booking.propTitle == null
                             ? SizedBox()
                             : Row(
                                 children: [
@@ -2459,14 +2459,14 @@ myBookingListWidget(
                         SizedBox(
                           height: 5,
                         ),
-                        list[index].propTitle == null
+                        booking.propTitle == null
                             ? SizedBox()
                             : Row(
                                 children: [
                                   Text(
-                                    (list[index].propTitle!.length > 20
-                                            ? '${list[index].propTitle!.substring(0, 19)}..'
-                                            : list[index].propTitle!)
+                                    (booking.propTitle!.length > 20
+                                            ? '${booking.propTitle!.substring(0, 19)}..'
+                                            : booking.propTitle!)
                                         .tr,
                                     style: heading3Grey1(context).copyWith(),
                                   ),
@@ -2513,9 +2513,9 @@ myBookingListWidget(
                                 : Builder(
                                     builder: (context) {
                                       final statusUi = getBookingStatusDetails(
-                                        list[index].status?.toString(),
+                                        booking.status?.toString(),
                                       );
-                                      final standardStatus = list[index]
+                                      final standardStatus = booking
                                           .status
                                           .toStandardStatus();
                                       final canShowStatusText =
@@ -2602,7 +2602,7 @@ myBookingListWidget(
                               fit: BoxFit.scaleDown,
                               child: Text(
                                 DateTimeFormatter.to24HourFormat(
-                                    list[index].checkIn),
+                                    booking.checkIn),
                                 style: regular2(context).copyWith(),
                               ),
                             ),
@@ -2617,7 +2617,7 @@ myBookingListWidget(
                               fit: BoxFit.scaleDown,
                               child: Text(
                                 DateTimeFormatter.to24HourFormat(
-                                    list[index].checkOut),
+                                    booking.checkOut),
                                 style: regular2(context).copyWith(),
                               ),
                             ),
@@ -2640,9 +2640,9 @@ myBookingListWidget(
                                   const SizedBox(width: 7),
                                   Flexible(
                                     child: Text(
-                                      list[index].hostName == null
+                                      booking.hostName == null
                                           ? "User Not Found".tr
-                                          : "${list[index].hostName}",
+                                          : "${booking.hostName}",
                                       style: regular2(context),
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
@@ -2664,8 +2664,8 @@ myBookingListWidget(
                                       InkWell(
                                         onTap: () => launchUrl(Uri.parse(
                                             bookingPhoneTelUri(
-                                              list[index].hostPhoneCountry,
-                                              list[index].hostNumber,
+                                              booking.hostPhoneCountry,
+                                              booking.hostNumber,
                                             ))),
                                         child: Text(
                                           hostPhoneDisplay,
@@ -2840,51 +2840,51 @@ myBookingListWidget(
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            list[index].basePrice != null &&
-                                    list[index].basePrice != "0.00"
+                            booking.basePrice != null &&
+                                    booking.basePrice != "0.00"
                                 ? eReceiptWidget(
                                     name:
-                                        "${"Amount".tr}(${list[index].totalNight} ${"days".tr}${")".tr}",
+                                        "${"Amount".tr}(${booking.totalNight} ${"days".tr}${")".tr}",
                                     value:
-                                        "${list[index].currencyCode} ${list[index].basePrice}")
+                                        "${booking.currencyCode} ${booking.basePrice}")
                                 : const SizedBox(),
-                            list[index].doorStepPrice != null &&
-                                    list[index].doorStepPrice != "0.00"
+                            booking.doorStepPrice != null &&
+                                    booking.doorStepPrice != "0.00"
                                 ? eReceiptWidget(
                                     name: "Doorstep Price".tr,
                                     value:
-                                        "${list[index].currencyCode} ${list[index].doorStepPrice ?? ""}")
+                                        "${booking.currencyCode} ${booking.doorStepPrice ?? ""}")
                                 : const SizedBox(),
-                            list[index].ivaTax != null &&
-                                    list[index].ivaTax != "0.00"
+                            booking.ivaTax != null &&
+                                    booking.ivaTax != "0.00"
                                 ? eReceiptWidget(
                                     name: "Tax".tr,
                                     value:
-                                        "${list[index].currencyCode} ${list[index].ivaTax}")
+                                        "${booking.currencyCode} ${booking.ivaTax}")
                                 : const SizedBox(),
-                            list[index].serviceCharge != null &&
-                                    list[index].serviceCharge != "0.00"
+                            booking.serviceCharge != null &&
+                                    booking.serviceCharge != "0.00"
                                 ? eReceiptWidget(
                                     name: "Service Charge".tr,
                                     value:
-                                        "${list[index].currencyCode} ${list[index].serviceCharge}")
+                                        "${booking.currencyCode} ${booking.serviceCharge}")
                                 : const SizedBox(),
-                            list[index].cancelledCharge == null
+                            booking.cancelledCharge == null
                                 ? const SizedBox()
-                                : list[index].cancelledCharge == "0.00"
+                                : booking.cancelledCharge == "0.00"
                                     ? const SizedBox()
                                     : eReceiptWidget(
                                         name: "Cancelled Charge".tr,
                                         value:
-                                            "${list[index].currencyCode} ${list[index].cancelledCharge}"),
+                                            "${booking.currencyCode} ${booking.cancelledCharge}"),
                             SizedBox(
                               height: 4,
                             ),
                             eReceiptWidget(
                                 name: "Total".tr,
                                 value:
-                                    "${list[index].currencyCode} ${list[index].total}"),
-                            if (_bookingHasSecurityDeposit(list[index])) ...[
+                                    "${booking.currencyCode} ${booking.total}"),
+                            if (_bookingHasSecurityDeposit(booking)) ...[
                               const SizedBox(height: 8),
                               Divider(
                                 color: Colors.grey.shade300,
@@ -2906,7 +2906,7 @@ myBookingListWidget(
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    "${list[index].currencyCode} ${list[index].securityMoney}",
+                                    "${booking.currencyCode} ${booking.securityMoney}",
                                     style: boldstyle(context).copyWith(
                                       fontSize: 15,
                                     ),
@@ -2914,7 +2914,7 @@ myBookingListWidget(
                                 ],
                               ),
                               if (_bookingShowsDepositOnSiteInfo(
-                                  list[index], listType)) ...[
+                                  booking, listType)) ...[
                                 const SizedBox(height: 8),
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2957,11 +2957,11 @@ myBookingListWidget(
                           children: [
                             listType == 'Cancelled'
                                 ? const SizedBox()
-                                : list[index].isItemReturned == 1
+                                : booking.isItemReturned == 1
                                     ? Expanded(
                                         child: InkWell(
                                           onTap: () async {
-                                            if (list[index].hostName == null) {
+                                            if (booking.hostName == null) {
                                               showErrorToastMessage(
                                                   "Owner not found");
                                               return;
@@ -2973,7 +2973,7 @@ myBookingListWidget(
                                               // var responce = await httpPost(
                                               //     Config.getItemDetails, {
                                               //   "item_id":
-                                              //       "${list[index].itemid}"
+                                              //       "${booking.itemid}"
                                               // });
 
                                               // MOCK: Simulate network delay
@@ -2989,7 +2989,7 @@ myBookingListWidget(
                                                 "data": {
                                                   "ItemDetails": {
                                                     "item_id": int.tryParse(
-                                                            "${list[index].itemid}") ??
+                                                            "${booking.itemid}") ??
                                                         101,
                                                     "title":
                                                         "Toyota Camry 2023",
@@ -3036,9 +3036,9 @@ myBookingListWidget(
                                                       : btnText ==
                                                               "Extend duration"
                                                           ? getColorBasedOnActiveModuleid()
-                                                          : list[index].reviewStatus !=
+                                                          : booking.reviewStatus !=
                                                                       null &&
-                                                                  list[index]
+                                                                  booking
                                                                           .reviewStatus !=
                                                                       "0"
                                                               ? Colors.blue
@@ -3048,9 +3048,9 @@ myBookingListWidget(
                                                 ),
                                                 child: Center(
                                                     child: Text(
-                                                  list[index].reviewStatus !=
+                                                  booking.reviewStatus !=
                                                               null &&
-                                                          list[index]
+                                                          booking
                                                                   .reviewStatus ==
                                                               "1"
                                                       ? "View Review".tr
@@ -3075,11 +3075,11 @@ myBookingListWidget(
                                                     .showhideisReturn.value ==
                                                 true
                                             ? const SizedBox()
-                                            : list[index].isItemReceived == 1
+                                            : booking.isItemReceived == 1
                                                 ? const SizedBox()
                                             : btnText == 'Extend duration' &&
                                                     !_bookingAllowsExtension(
-                                                        list[index].status)
+                                                        booking.status)
                                                 ? const SizedBox()
                                                 : Expanded(
                                                     flex: 1,
@@ -3091,7 +3091,7 @@ myBookingListWidget(
                                                               context, index);
                                                           return;
                                                         }
-                                                        if (list[index]
+                                                        if (booking
                                                                 .hostName ==
                                                             null) {
                                                           showErrorToastMessage(
@@ -3108,7 +3108,7 @@ myBookingListWidget(
                                                           //             .getItemDetails,
                                                           //         {
                                                           //       "item_id":
-                                                          //           "${list[index].itemid}"
+                                                          //           "${booking.itemid}"
                                                           //     });
 
                                                           // MOCK: Simulate network delay
@@ -3126,7 +3126,7 @@ myBookingListWidget(
                                                               "ItemDetails": {
                                                                 "item_id":
                                                                     int.tryParse(
-                                                                            "${list[index].itemid}") ??
+                                                                            "${booking.itemid}") ??
                                                                         101,
                                                                 "title":
                                                                     "Toyota Camry 2023",
@@ -3207,8 +3207,8 @@ myBookingListWidget(
                                   bookingController.showhideisReturn.value ==
                                           true
                                       ? const SizedBox()
-                                      : list[index].isItemDelivered == 1
-                                          ? list[index].isItemRecivedButton ==
+                                      : booking.isItemDelivered == 1
+                                          ? booking.isItemRecivedButton ==
                                                   "yes"
                                               ? Expanded(
                                                   flex: 1,
@@ -3224,7 +3224,7 @@ myBookingListWidget(
                                                           final result =
                                                               await bookingController
                                                                   .singnatureApi(
-                                                                      list[index]
+                                                                      booking
                                                                           .id
                                                                           .toString(),
                                                                       true);
@@ -3342,7 +3342,7 @@ myBookingListWidget(
                                                                                           context,
                                                                                           MaterialPageRoute(
                                                                                             builder: (builder) => DigitalSignature(
-                                                                                              bookings: list[index],
+                                                                                              bookings: booking,
                                                                                               fromPropBooking: fromPropBooking,
                                                                                             ),
                                                                                           ),
@@ -3367,7 +3367,7 @@ myBookingListWidget(
                                                                     .userSigned ==
                                                                 0) {
                                                               showErrorToastMessage(
-                                                                "${list[index].userNumber} has not signed yet. Please wait for their signature before proceeding.",
+                                                                "${booking.userNumber} has not signed yet. Please wait for their signature before proceeding.",
                                                               );
                                                               return;
                                                             }
@@ -3386,7 +3386,7 @@ myBookingListWidget(
                                                       }
                                                       if (internalVehicleImage ==
                                                           "Active") {
-                                                        if (list[index]
+                                                        if (booking
                                                             .iteriorImage
                                                             .isEmpty) {
                                                           showModalBottomSheet<
@@ -3478,7 +3478,7 @@ myBookingListWidget(
                                                                                   backgroundColor: getColorBasedOnActiveModuleid(),
                                                                                   onPressed: () async {
                                                                                     Navigator.pop(context);
-                                                                                    Navigator.push(context, MaterialPageRoute(builder: (builder) => VehiclePhotoesBooking(id: "${list[index].id}")));
+                                                                                    Navigator.push(context, MaterialPageRoute(builder: (builder) => VehiclePhotoesBooking(id: "${booking.id}")));
                                                                                   },
                                                                                 ),
                                                                               ),
@@ -3611,13 +3611,13 @@ myBookingListWidget(
                                                                           try {
                                                                             final value =
                                                                                 await bookingController.updateItemReceivedStatus(
-                                                                              bookingId: list[index].id.toString(),
+                                                                              bookingId: booking.id.toString(),
                                                                             );
                                                                             print("OTP Verified: $value");
                                                                             if (value ==
                                                                                 "yes") {
                                                                               bookingController.openOtpAfterImageSubmit.value = false;
-                                                                              list[index].isItemReceivedSetter = "1";
+                                                                              booking.isItemReceivedSetter = "1";
                                                                               generalController.myBookingTabIndex.value = 1;
                                                                               print("alok");
                                                                               print(generalController.myBookingTabIndex.value);
@@ -3687,13 +3687,13 @@ myBookingListWidget(
                                                     ),
                                                   ),
                                                 )
-                                              : list[index].isItemReceived ==
+                                              : booking.isItemReceived ==
                                                           1 &&
                                                       listType == "ongoing" &&
-                                                      list[index]
+                                                      booking
                                                               .isItemReturned ==
                                                           0 &&
-                                                      list[index].status ==
+                                                      booking.status ==
                                                           "Live"
                                                   ? Expanded(
                                                       flex: 1,
@@ -3784,7 +3784,7 @@ myBookingListWidget(
                                                                               }
                                                                               bookingController
                                                                                   .updateItemDeliverStatus(
-                                                                                bookingId: list[index].id.toString(),
+                                                                                bookingId: booking.id.toString(),
                                                                               )
                                                                                   .then((value) {
                                                                                 print("OTP Verified: $value");
@@ -3795,8 +3795,8 @@ myBookingListWidget(
                                                                                   print(generalController.myBookingTabIndex.value);
 
                                                                                   bookingController.updateBookingStatusIfExists(
-                                                                                    bookingId: list[index].id.toString(),
-                                                                                    hostId: list[index].hostId?.toString() ?? "1001",
+                                                                                    bookingId: booking.id.toString(),
+                                                                                    hostId: booking.hostId?.toString() ?? "1001",
                                                                                     userId: userId.toString(),
                                                                                     newStatus: "Completed",
                                                                                   );
@@ -3871,16 +3871,16 @@ myBookingListWidget(
                                           : const SizedBox(),
                             ),
                             listType == 'UpComing' &&
-                                    list[index].status.isConfirmed
+                                    booking.status.isConfirmed
                                 ? Expanded(
                                     flex: 1,
                                     child: InkWell(
                                       onTap: () {
-                                        print('🚀 [DEBUG] Accès forcé aux photos pour le booking: ${list[index].id}');
+                                        print('🚀 [DEBUG] Accès forcé aux photos pour le booking: ${booking.id}');
                                         
                                         // On ignore toutes les conditions et on navigue direct
                                         Get.to(() => VehiclePhotoesBooking(
-                                          id: list[index].id.toString(),
+                                          id: booking.id.toString(),
                                         ));
                                       },
                                       child: Padding(
@@ -3912,8 +3912,8 @@ myBookingListWidget(
                                       true
                                   ? const SizedBox()
                                   : listType == "Previous" &&
-                                          list[index].isItemReturned == 0 &&
-                                          list[index].status.isConfirmed
+                                          booking.isItemReturned == 0 &&
+                                          booking.status.isConfirmed
                                       ? Expanded(
                                           flex: 1,
                                           child: InkWell(
@@ -4108,7 +4108,7 @@ myBookingListWidget(
                                       context,
                                       MaterialPageRoute(
                                         builder: (builder) => DigitalSignature(
-                                          bookings: list[index],
+                                          bookings: booking,
                                           fromPropBooking: fromPropBooking,
                                         ),
                                       ),
@@ -4144,11 +4144,11 @@ myBookingListWidget(
                           builder: (context) {
                             final showDirections =
                                 shouldShowBookingAgencyDirections(
-                                  bookingStatus: list[index].status,
+                                  bookingStatus: booking.status,
                                   listType: listType,
                                 ) &&
-                                list[index].hostLat != null &&
-                                list[index].hostLng != null;
+                                booking.hostLat != null &&
+                                booking.hostLng != null;
                             const double actionButtonHeight = 48;
                             return Padding(
                               padding: const EdgeInsets.only(right: 10),
@@ -4168,8 +4168,8 @@ myBookingListWidget(
                                             child: ElevatedButton.icon(
                                               onPressed: () =>
                                                   launchBookingAgencyDirections(
-                                                latitude: list[index].hostLat,
-                                                longitude: list[index].hostLng,
+                                                latitude: booking.hostLat,
+                                                longitude: booking.hostLng,
                                               ),
                                               icon: const Icon(
                                                 Icons.directions_car,
@@ -4218,7 +4218,7 @@ myBookingListWidget(
                                                     builder: (builder) =>
                                                         EReceiptScreen(
                                                           bookings:
-                                                              list[index],
+                                                              booking,
                                                           fromPropBooking:
                                                               fromPropBooking,
                                                           doorStepPrice:
@@ -4226,7 +4226,7 @@ myBookingListWidget(
                                                                   "",
                                                         ))).then((value) {
                                               if (value != null) {
-                                                list[index].statusSetter =
+                                                booking.statusSetter =
                                                     value;
                                                 setState(() {});
                                               }
@@ -4264,7 +4264,7 @@ myBookingListWidget(
                         ),
                         _buildClientBookingReviewSection(
                           context,
-                          list[index],
+                          booking,
                           () => setState(() {}),
                         ),
                       ],

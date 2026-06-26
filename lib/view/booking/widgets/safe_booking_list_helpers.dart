@@ -39,7 +39,8 @@ class _SafeBookingListItemShellState extends State<SafeBookingListItemShell> {
   }
 }
 
-/// Obx strictement local : lecture Rx uniquement après la 1re frame de la cellule.
+/// Obx strictement local : monté après [Future.delayed(Duration.zero)]
+/// pour éviter les rebuilds pendant l'attachement du TabController (STEP 10b).
 class DeferredLocalObx extends StatefulWidget {
   final Widget Function() builder;
   final String? debugLabel;
@@ -55,23 +56,30 @@ class DeferredLocalObx extends StatefulWidget {
 }
 
 class _DeferredLocalObxState extends State<DeferredLocalObx> {
-  bool _frameReady = false;
+  late final Future<void> _deferFuture;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _frameReady = true);
-    });
+    _deferFuture = Future<void>.delayed(Duration.zero);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!context.mounted || !_frameReady) return const SizedBox.shrink();
-    final label = widget.debugLabel ?? widget.runtimeType.toString();
-    return DebugObx(
-      spyName: label,
-      builder: widget.builder,
+    if (!context.mounted) return const SizedBox.shrink();
+    return FutureBuilder<void>(
+      future: _deferFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SizedBox.shrink();
+        }
+        if (!context.mounted) return const SizedBox.shrink();
+        final label = widget.debugLabel ?? widget.runtimeType.toString();
+        return Obx(() {
+          renderDebugLog('Construisant Obx dans: $label');
+          return widget.builder();
+        });
+      },
     );
   }
 }
