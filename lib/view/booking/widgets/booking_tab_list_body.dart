@@ -53,8 +53,14 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
     if (_subscribed || !mounted) return;
     _subscribed = true;
     final c = widget.controller;
-    _loadingWorker = ever(c.isLoading, (_) => _safeRebuild());
-    _listWorker = ever(c.bookingsList, (_) => _safeRebuild());
+    _loadingWorker = ever(c.isLoading, (_) {
+      renderDebugLog('ever(BookingRecordController.isLoading)', widget.listType);
+      _safeRebuild();
+    });
+    _listWorker = ever(c.bookingsList, (_) {
+      renderDebugLog('ever(BookingRecordController.bookingsList)', widget.listType);
+      _safeRebuild();
+    });
     _safeRebuild();
   }
 
@@ -82,6 +88,11 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
     final c = widget.controller;
     final loading = c.isLoading.value;
     final list = c.bookingsList;
+
+    renderDebugLog(
+      'Lecture Rx directe dans build (pas Obx)',
+      'listType=${widget.listType}, isLoading=$loading, count=${list.length}',
+    );
 
     renderDebugLog(
       'BookingTabListBody.build',

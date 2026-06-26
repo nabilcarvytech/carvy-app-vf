@@ -983,13 +983,15 @@ class SafeBookingRecordObx extends StatelessWidget {
     if (!bookingRecordControllerIsActive()) {
       return const SizedBox.shrink();
     }
-    return Obx(() {
-      renderDebugLog('Construisant Obx dans: SafeBookingRecordObx');
-      if (!context.mounted || !bookingRecordControllerIsActive()) {
-        return const SizedBox.shrink();
-      }
-      return builder();
-    });
+    return DebugObx(
+      spyName: 'SafeBookingRecordObx',
+      builder: () {
+        if (!context.mounted || !bookingRecordControllerIsActive()) {
+          return const SizedBox.shrink();
+        }
+        return builder();
+      },
+    );
   }
 }
 

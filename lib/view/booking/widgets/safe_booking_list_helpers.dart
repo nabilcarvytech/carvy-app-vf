@@ -69,10 +69,10 @@ class _DeferredLocalObxState extends State<DeferredLocalObx> {
   Widget build(BuildContext context) {
     if (!context.mounted || !_frameReady) return const SizedBox.shrink();
     final label = widget.debugLabel ?? widget.runtimeType.toString();
-    return Obx(() {
-      renderDebugLog('Construisant Obx dans: $label');
-      return widget.builder();
-    });
+    return DebugObx(
+      spyName: label,
+      builder: widget.builder,
+    );
   }
 }
 

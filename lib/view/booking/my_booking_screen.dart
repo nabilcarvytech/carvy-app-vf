@@ -343,7 +343,15 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
                           height: 8,
                         ),
                         Expanded(
-                          child: _buildGuardedTabBarView(),
+                          child: Builder(
+                            builder: (context) {
+                              renderDebugLog(
+                                'Tentative de rendu du TabBarView',
+                                'index=${tabController?.index}, indexIsChanging=${tabController?.indexIsChanging}',
+                              );
+                              return _buildGuardedTabBarView();
+                            },
+                          ),
                         ),
                       ]))),
           ),

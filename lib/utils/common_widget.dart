@@ -3906,8 +3906,9 @@ myBookingListWidget(
                                     ),
                                   )
                                 : const SizedBox(),
-                            Obx(
-                              () => bookingController.dropoffshowHise.value ==
+                            DebugObx(
+                              spyName: 'myBookingList/dropoffOtp[$index]',
+                              builder: () => bookingController.dropoffshowHise.value ==
                                       true
                                   ? const SizedBox()
                                   : listType == "Previous" &&

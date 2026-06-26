@@ -1,6 +1,7 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:carvy/utils/render_debug.dart';
 
 /// Exécute [action] après la fin de la frame courante (hors phase build).
 void runAfterFirstFrame(VoidCallback action) {
@@ -24,11 +25,13 @@ bool _isDuringBuildPhase() {
 class SafeObx extends StatelessWidget {
   final bool Function() isActive;
   final Widget Function() builder;
+  final String? spyName;
 
   const SafeObx({
     super.key,
     required this.isActive,
     required this.builder,
+    this.spyName,
   });
 
   @override
@@ -36,27 +39,38 @@ class SafeObx extends StatelessWidget {
     if (!isActive()) {
       return const SizedBox.shrink();
     }
-    return Obx(() {
-      if (!isActive()) {
-        return const SizedBox.shrink();
-      }
-      return builder();
-    });
+    return DebugObx(
+      spyName: spyName ?? 'SafeObx',
+      builder: () {
+        if (!isActive()) {
+          return const SizedBox.shrink();
+        }
+        return builder();
+      },
+    );
   }
 }
 
 /// Obx protégé par [BuildContext.mounted] — évite les rebuilds sur routes en démontage.
 class MountedSafeObx extends StatelessWidget {
   final Widget Function() builder;
+  final String? spyName;
 
-  const MountedSafeObx({super.key, required this.builder});
+  const MountedSafeObx({
+    super.key,
+    required this.builder,
+    this.spyName,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      if (!context.mounted) return const SizedBox.shrink();
-      return builder();
-    });
+    return DebugObx(
+      spyName: spyName ?? 'MountedSafeObx',
+      builder: () {
+        if (!context.mounted) return const SizedBox.shrink();
+        return builder();
+      },
+    );
   }
 }
 

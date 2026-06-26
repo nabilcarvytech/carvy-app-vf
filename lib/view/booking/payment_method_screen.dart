@@ -8,6 +8,7 @@ import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/payment_flow_debug.dart';
+import 'package:carvy/utils/render_debug.dart';
 import 'package:carvy/utils/safe_navigation.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
@@ -233,6 +234,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       ),
       body: GetBuilder<BookingController>(
         builder: (controller) {
+          renderDebugLog('GetBuilder avec ID: payment_method_body');
           if (controller.isLoadingPaymentMethods.value) {
             return const Center(
               child: CircularProgressIndicator(),
