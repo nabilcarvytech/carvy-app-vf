@@ -17,12 +17,14 @@ class MyUpCommingTrip extends StatefulWidget {
   final bool fromPropBooking;
   final int tabIndex;
   final int initialTabIndex;
+  final bool isTransitioning;
 
   const MyUpCommingTrip({
     super.key,
     required this.fromPropBooking,
     this.tabIndex = 0,
     this.initialTabIndex = 0,
+    this.isTransitioning = true,
   });
 
   @override
@@ -32,10 +34,19 @@ class MyUpCommingTrip extends StatefulWidget {
 class _MyUpCommingTripState extends State<MyUpCommingTrip> {
   final BookingRecordController bookingRecordController = Get.find();
   RefreshController refreshController = RefreshController();
+  bool _localIsTransitioning = true;
+
+  bool get _actionsLocked => widget.isTransitioning || _localIsTransitioning;
 
   @override
   void initState() {
     super.initState();
+    _localIsTransitioning = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) setState(() => _localIsTransitioning = false);
+      });
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -113,6 +124,7 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
               emptyMessage: 'No Upcoming Booking Available'.tr,
               stateSetter: stateSetter,
               onItemCancelled: onItemCancelled,
+              isTransitioning: _actionsLocked,
             ),
           ),
           MyBookingOtpOverlay(

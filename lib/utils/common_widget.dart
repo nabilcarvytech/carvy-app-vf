@@ -1749,8 +1749,9 @@ myBookingListWidget(
   StateSetter setState,
   bool fromPropBooking,
   String listType,
-  onItemCancelled,
-) {
+  onItemCancelled, {
+  bool isTransitioning = false,
+}) {
   BookingController bookingController = Get.find();
   innerMethod(context, index) async {
     if (btnText == 'Extend duration') {
@@ -3068,20 +3069,30 @@ myBookingListWidget(
                                 ? const SizedBox()
                                 : listType == 'Previous'
                                     ? const SizedBox()
-                                    : DeferredLocalObx(
-                                        debugLabel:
-                                            'myBookingList/primaryAction[$index]',
-                                        builder: () => bookingController
-                                                    .showhideisReturn.value ==
-                                                true
-                                            ? const SizedBox()
-                                            : booking.isItemReceived == 1
-                                                ? const SizedBox()
-                                            : btnText == 'Extend duration' &&
-                                                    !_bookingAllowsExtension(
-                                                        booking.status)
-                                                ? const SizedBox()
-                                                : Expanded(
+                                    : isTransitioning
+                                        ? MyBookingStaticActionButton(
+                                            label: '$btnText',
+                                          )
+                                        : GetBuilder<BookingController>(
+                                            id: BookingController.actionIdFor(
+                                                index),
+                                            builder: (actionController) {
+                                              if (!context.mounted) {
+                                                return const SizedBox.shrink();
+                                              }
+                                              if (actionController
+                                                  .hideReturnPanel) {
+                                                return const SizedBox.shrink();
+                                              }
+                                              if (booking.isItemReceived == 1) {
+                                                return const SizedBox.shrink();
+                                              }
+                                              if (btnText == 'Extend duration' &&
+                                                  !_bookingAllowsExtension(
+                                                      booking.status)) {
+                                                return const SizedBox.shrink();
+                                              }
+                                              return Expanded(
                                                     flex: 1,
                                                     child: InkWell(
                                                       onTap: () async {
@@ -3198,22 +3209,30 @@ myBookingListWidget(
                                                             ))),
                                                       ),
                                                     ),
-                                                  ),
-                                      ),
-                            DeferredLocalObx(
-                              debugLabel:
-                                  'myBookingList/deliveredAction[$index]',
-                              builder: () =>
-                                  bookingController.showhideisReturn.value ==
-                                          true
-                                      ? const SizedBox()
-                                      : booking.isItemDelivered == 1
-                                          ? booking.isItemRecivedButton ==
-                                                  "yes"
-                                              ? Expanded(
-                                                  flex: 1,
-                                                  child: InkWell(
-                                                    onTap: () async {
+                                                  );
+                                            },
+                                          ),
+                            isTransitioning
+                                ? const MyBookingStaticActionButton(
+                                    label: 'Action',
+                                  )
+                                : GetBuilder<BookingController>(
+                              id: BookingController.actionIdFor(index),
+                              builder: (actionController) {
+                                if (!context.mounted) {
+                                  return const SizedBox.shrink();
+                                }
+                                if (actionController.hideReturnPanel) {
+                                  return const SizedBox.shrink();
+                                }
+                                if (booking.isItemDelivered != 1) {
+                                  return const SizedBox.shrink();
+                                }
+                                if (booking.isItemRecivedButton == "yes") {
+                                return Expanded(
+                                  flex: 1,
+                                  child: InkWell(
+                                    onTap: () async {
                                                       if (digitalsingnature ==
                                                           "Active") {
                                                         BookingController
@@ -3686,16 +3705,13 @@ myBookingListWidget(
                                                       ),
                                                     ),
                                                   ),
-                                                )
-                                              : booking.isItemReceived ==
-                                                          1 &&
-                                                      listType == "ongoing" &&
-                                                      booking
-                                                              .isItemReturned ==
-                                                          0 &&
-                                                      booking.status ==
-                                                          "Live"
-                                                  ? Expanded(
+                                                );
+                                }
+                                if (booking.isItemReceived == 1 &&
+                                    listType == "ongoing" &&
+                                    booking.isItemReturned == 0 &&
+                                    booking.status == "Live") {
+                                  return Expanded(
                                                       flex: 1,
                                                       child: InkWell(
                                                         onTap: () async {
@@ -3866,9 +3882,10 @@ myBookingListWidget(
                                                               ))),
                                                         ),
                                                       ),
-                                                    )
-                                                  : const SizedBox()
-                                          : const SizedBox(),
+                                                    );
+                                }
+                                return const SizedBox.shrink();
+                              },
                             ),
                             listType == 'UpComing' &&
                                     booking.status.isConfirmed

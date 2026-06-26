@@ -12,12 +12,14 @@ class CancelledTrip extends StatefulWidget {
   final bool fromPropBooking;
   final int tabIndex;
   final int initialTabIndex;
+  final bool isTransitioning;
 
   const CancelledTrip({
     super.key,
     required this.fromPropBooking,
     this.tabIndex = 3,
     this.initialTabIndex = 0,
+    this.isTransitioning = true,
   });
   @override
   State<CancelledTrip> createState() => _CancelledTripState();
@@ -100,6 +102,7 @@ class _CancelledTripState extends State<CancelledTrip> {
           emptyMessage: 'No Cancelled Booking Available'.tr,
           stateSetter: stateSetter,
           onItemCancelled: onItemCancelled,
+          isTransitioning: widget.isTransitioning,
         ),
       ),
     );

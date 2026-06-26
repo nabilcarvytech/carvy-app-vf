@@ -47,6 +47,42 @@ class _SafeBookingListItemShellState extends State<SafeBookingListItemShell> {
   }
 }
 
+/// Bouton d'action neutre pendant la transition de route (aucun Obx / GetX réactif).
+class MyBookingStaticActionButton extends StatelessWidget {
+  final String label;
+
+  const MyBookingStaticActionButton({
+    super.key,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: 1,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 10),
+        child: Container(
+          height: 49,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Text(
+            label.tr,
+            style: boldstyle(context).copyWith(
+              color: Colors.grey.shade700,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Obx strictement local : monté après [Future.delayed(Duration.zero)]
 /// pour éviter les rebuilds pendant l'attachement du TabController (STEP 10b).
 class DeferredLocalObx extends StatefulWidget {

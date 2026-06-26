@@ -3490,6 +3490,27 @@ class BookingController extends GetxController implements GetxService {
   var showhideisReturn = false.obs;
   var dropoffshowHise = false.obs;
 
+  /// Miroir non-Rx de [showhideisReturn] — lu par GetBuilder action (pas Obx).
+  bool hideReturnPanel = false;
+
+  static String actionIdFor(int index) => 'action_$index';
+
+  void setHideReturnPanel(bool hidden, {int maxCells = 25}) {
+    hideReturnPanel = hidden;
+    showhideisReturn.value = hidden;
+    notifyBookingActions(maxCells);
+  }
+
+  void notifyBookingAction(int index) {
+    if (NavigationGuard.isNavigating) return;
+    safeUpdate([actionIdFor(index)]);
+  }
+
+  void notifyBookingActions(int count) {
+    if (NavigationGuard.isNavigating || count <= 0) return;
+    safeUpdate(List.generate(count, (i) => actionIdFor(i)));
+  }
+
   void _setDropoffPanelHidden(bool hidden) {
     if (NavigationGuard.isNavigating) return;
     dropoffshowHise.value = hidden;
@@ -3579,7 +3600,7 @@ class BookingController extends GetxController implements GetxService {
     }
   }
   Future<String> updateItemReceivedStatus({required String bookingId, String? otp}) async {
-    showhideisReturn.value = false;
+    setHideReturnPanel(false);
     showLoading();
     String result = "no";
     try {
@@ -3601,7 +3622,7 @@ class BookingController extends GetxController implements GetxService {
         String? isItemReceived =
             response["data"]["booking_extension"]["is_item_received"];
         if (isItemReceived == "1") {
-          showhideisReturn.value = true;
+          setHideReturnPanel(true);
           result = "yes";
           showToastMessage(response["message"]);
           safeUpdate();
@@ -3659,6 +3680,7 @@ class BookingController extends GetxController implements GetxService {
 
   clearBookingData() {
     SchedulerBinding.instance.addPostFrameCallback((_) {
+      hideReturnPanel = false;
       showhideisReturn.value = false;
       _setDropoffPanelHidden(false);
       otpController.clear();

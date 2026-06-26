@@ -19,6 +19,7 @@ class BookingTabListBody extends StatefulWidget {
   final String emptyMessage;
   final StateSetter stateSetter;
   final void Function(int index) onItemCancelled;
+  final bool isTransitioning;
 
   const BookingTabListBody({
     super.key,
@@ -29,6 +30,7 @@ class BookingTabListBody extends StatefulWidget {
     required this.emptyMessage,
     required this.stateSetter,
     required this.onItemCancelled,
+    this.isTransitioning = false,
   });
 
   @override
@@ -115,6 +117,7 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
       widget.fromPropBooking,
       widget.listType,
       widget.onItemCancelled,
+      isTransitioning: widget.isTransitioning,
     );
   }
 }

@@ -14,12 +14,14 @@ class LiveBooking extends StatefulWidget {
   final bool fromPropBooking;
   final int tabIndex;
   final int initialTabIndex;
+  final bool isTransitioning;
 
   const LiveBooking({
     super.key,
     required this.fromPropBooking,
     this.tabIndex = 1,
     this.initialTabIndex = 0,
+    this.isTransitioning = true,
   });
 
   @override
@@ -103,6 +105,7 @@ class _LiveBookingState extends State<LiveBooking> {
           emptyMessage: 'No Ongoing Booking Available'.tr,
           stateSetter: stateSetter,
           onItemCancelled: onItemCancelled,
+          isTransitioning: widget.isTransitioning,
         ),
       ),
     );

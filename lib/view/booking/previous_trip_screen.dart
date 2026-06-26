@@ -13,12 +13,14 @@ class PreviousTrip extends StatefulWidget {
   final bool fromPropBooking;
   final int tabIndex;
   final int initialTabIndex;
+  final bool isTransitioning;
 
   const PreviousTrip({
     super.key,
     required this.fromPropBooking,
     this.tabIndex = 2,
     this.initialTabIndex = 0,
+    this.isTransitioning = true,
   });
 
   @override
@@ -102,6 +104,7 @@ class _PreviousTripState extends State<PreviousTrip> {
           emptyMessage: 'No Previous Booking Available'.tr,
           stateSetter: stateSetter,
           onItemCancelled: onItemCancelled,
+          isTransitioning: widget.isTransitioning,
         ),
       ),
     );

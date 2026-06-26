@@ -37,6 +37,7 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   late final int _initialTab;
   bool _routeReady = false;
   bool _disposed = false;
+  bool _isTransitioning = true;
 
   String _typeForIndex(int tabIndex) {
     switch (tabIndex) {
@@ -101,8 +102,17 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     handleBoackfromPayment = false;
     bookingController = Get.find();
     _initialTab = widget.initialTabIndex ?? 0;
+    _isTransitioning = true;
     paymentFlowLog('STEP 10a — MyBooking initState',
         'initialTab=$_initialTab, fromPropBooking=${widget.fromPropBooking}');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && !_disposed) {
+          setState(() => _isTransitioning = false);
+        }
+      });
+    });
 
     _tabListener = () {
       if (!mounted || _disposed || tabController == null) return;
@@ -209,21 +219,25 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
             fromPropBooking: widget.fromPropBooking ?? false,
             tabIndex: 0,
             initialTabIndex: _initialTab,
+            isTransitioning: _isTransitioning,
           ),
           LiveBooking(
             fromPropBooking: widget.fromPropBooking ?? false,
             tabIndex: 1,
             initialTabIndex: _initialTab,
+            isTransitioning: _isTransitioning,
           ),
           PreviousTrip(
             fromPropBooking: widget.fromPropBooking ?? false,
             tabIndex: 2,
             initialTabIndex: _initialTab,
+            isTransitioning: _isTransitioning,
           ),
           CancelledTrip(
             fromPropBooking: widget.fromPropBooking ?? false,
             tabIndex: 3,
             initialTabIndex: _initialTab,
+            isTransitioning: _isTransitioning,
           ),
         ],
       ),
