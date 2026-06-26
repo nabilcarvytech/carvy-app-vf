@@ -37,8 +37,10 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   int index = 0;
   late final int _initialTab;
   bool _routeReady = false;
+  bool _stackReady = false;
   bool _disposed = false;
   bool _isTransitioning = true;
+  final Set<int> _mountedTabIndexes = {};
 
   String _typeForIndex(int tabIndex) {
     switch (tabIndex) {
@@ -58,14 +60,16 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     if (!Get.isRegistered<BookingRecordController>()) return;
     if (bookingRecordController.isClosed) return;
 
-    final type = _typeForIndex(_initialTab);
+    final type = _typeForIndex(index);
     if (bookingRecordController.shouldSkipInitialFetch(
       type,
-      isActiveTab: true,
+      isActiveTab: index == _initialTab,
     )) {
+      paymentFlowLog('STEP 10c — fetch skipped', 'type=$type, index=$index');
       return;
     }
 
+    paymentFlowLog('STEP 10c — fetch active tab', 'type=$type, index=$index');
     bookingRecordController.getBookingRecord(type: type, offset: 0);
   }
 
@@ -78,22 +82,36 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
       length: 4,
     );
     index = tabController!.index;
+    _mountedTabIndexes.add(index);
     tabController!.addListener(_tabListener);
 
     setState(() => _routeReady = true);
     renderDebugLog(
       'MyBooking._initTabControllerAfterMount',
-      'STEP 10b — tabController ready, index=${tabController!.index}, about to trigger build',
+      'STEP 10b — TabController ready, index=$index (IndexedStack mode, stack NOT mounted yet)',
     );
-    paymentFlowLog('STEP 10b — MyBooking tabController ready',
-        'initialTab=$_initialTab');
+    paymentFlowLog('STEP 10b — MyBooking TabController ready',
+        'initialTab=$_initialTab, stackReady=false');
 
-    // Fetch initial : 2e frame, après stabilisation TabBar / TabController.
+    // Frame 2 : monte l'IndexedStack (pas de TabBarView — un seul onglet actif).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _disposed || tabController == null) return;
-      if (tabController!.indexIsChanging) return;
-      if (NavigationGuard.isNavigating) return;
-      _fetchActiveTabRecord();
+      paymentFlowLog('STEP 10b2 — mounting IndexedStack',
+          'activeIndex=${tabController!.index}, isNavigating=${NavigationGuard.isNavigating}');
+      renderDebugLog(
+        'MyBooking._mountIndexedStack',
+        'STEP 10b2 — IndexedStack mount scheduled, activeIndex=${tabController!.index}',
+      );
+      setState(() => _stackReady = true);
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _disposed || tabController == null) return;
+        if (NavigationGuard.isNavigating) {
+          paymentFlowLog('STEP 10c — fetch deferred', 'NavigationGuard still active');
+          return;
+        }
+        _fetchActiveTabRecord();
+      });
     });
   }
 
@@ -105,12 +123,13 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     _initialTab = widget.initialTabIndex ?? 0;
     _isTransitioning = true;
     paymentFlowLog('STEP 10a — MyBooking initState',
-        'initialTab=$_initialTab, fromPropBooking=${widget.fromPropBooking}');
+        'initialTab=$_initialTab, IndexedStack deferred, stackReady=false');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future<void>.delayed(const Duration(milliseconds: 300), () {
         if (mounted && !_disposed) {
           setState(() => _isTransitioning = false);
+          paymentFlowLog('STEP 10a2 — isTransitioning=false', 'cell actions unlocked');
         }
       });
     });
@@ -118,30 +137,30 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     _tabListener = () {
       if (!mounted || _disposed || tabController == null) return;
 
-      // Rebuild léger : affiche le TabBarView quand indexIsChanging repasse à false.
-      if (tabController!.indexIsChanging) {
-        renderDebugLog('MyBooking._tabListener', 'indexIsChanging=true → setState');
+      final newIndex = tabController!.index;
+      if (index != newIndex) {
+        index = newIndex;
+        _mountedTabIndexes.add(newIndex);
+        renderDebugLog(
+          'MyBooking._tabListener',
+          'tab changed → index=$newIndex, mountedTabs=$_mountedTabIndexes',
+        );
+        paymentFlowLog('STEP 10d — tab index changed', 'index=$newIndex');
         setState(() {});
-        return;
-      }
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _disposed || tabController == null) return;
-        if (tabController!.indexIsChanging) return;
-        if (index != tabController!.index) {
-          index = tabController!.index;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _disposed || tabController == null) return;
+          if (NavigationGuard.isNavigating) return;
 
           final type = _typeForIndex(index);
-
           if (!Get.isRegistered<BookingRecordController>()) return;
           if (bookingRecordController.isClosed) return;
-          if (NavigationGuard.isNavigating) return;
           if (bookingRecordController.isLoading.value) return;
           if (bookingRecordController.hasDataForType(type)) return;
 
           bookingRecordController.getBookingRecord(type: type, offset: 0);
-        }
-      });
+        });
+      }
     };
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -153,6 +172,7 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   @override
   void dispose() {
     _disposed = true;
+    paymentFlowLog('MyBooking.dispose', 'tabController disposed');
     final controller = tabController;
     if (controller != null) {
       controller.removeListener(_tabListener);
@@ -165,7 +185,6 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   bool get _tabControllerUsable =>
       !_disposed && _routeReady && tabController != null;
 
-  /// Retour AppBar / système : compatible Navigator.push, onglet principal et Get.offAll(MyBooking).
   void _onBackPressed(BuildContext context) {
     final nav = Navigator.of(context);
 
@@ -193,54 +212,123 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     Get.offAll(() => HomeMain(initialIndex: 0));
   }
 
-  /// TabBarView masqué pendant [TabController.indexIsChanging] — réapparaît à la fin de l'animation.
-  Widget _buildGuardedTabBarView() {
+  Widget _buildTabChild(int tabIndex) {
+    if (!_mountedTabIndexes.contains(tabIndex)) {
+      renderDebugLog(
+        'MyBooking._buildTabChild',
+        'tab=$tabIndex → placeholder (never visited)',
+      );
+      return const SizedBox.shrink();
+    }
+
+    renderDebugLog(
+      'MyBooking._buildTabChild',
+      'tab=$tabIndex → building widget',
+    );
+
+    switch (tabIndex) {
+      case 1:
+        return LiveBooking(
+          fromPropBooking: widget.fromPropBooking ?? false,
+          tabIndex: 1,
+          initialTabIndex: _initialTab,
+          isTransitioning: _isTransitioning,
+        );
+      case 2:
+        return PreviousTrip(
+          fromPropBooking: widget.fromPropBooking ?? false,
+          tabIndex: 2,
+          initialTabIndex: _initialTab,
+          isTransitioning: _isTransitioning,
+        );
+      case 3:
+        return CancelledTrip(
+          fromPropBooking: widget.fromPropBooking ?? false,
+          tabIndex: 3,
+          initialTabIndex: _initialTab,
+          isTransitioning: _isTransitioning,
+        );
+      default:
+        return MyUpCommingTrip(
+          fromPropBooking: widget.fromPropBooking ?? false,
+          tabIndex: 0,
+          initialTabIndex: _initialTab,
+          isTransitioning: _isTransitioning,
+        );
+    }
+  }
+
+  /// IndexedStack : ne monte que les onglets déjà visités + l'onglet actif.
+  Widget _buildIndexedStackBody() {
     final tc = tabController;
     if (tc == null || _disposed) return const SizedBox.shrink();
 
-    renderDebugLog(
-      'Tentative de rendu du TabBarView',
-      'index=${tc.index}, indexIsChanging=${tc.indexIsChanging}, animation=${tc.animation?.value}',
-    );
+    if (!_stackReady) {
+      renderDebugLog(
+        'MyBooking._buildIndexedStackBody',
+        'STEP 10b — stackReady=false → SizedBox.shrink()',
+      );
+      return const SizedBox.shrink();
+    }
 
-    return AnimatedBuilder(
-      animation: tc.animation!,
-      builder: (context, child) {
-        renderDebugLog(
-          'AnimatedBuilder(TabBarView guard)',
-          'indexIsChanging=${tc.indexIsChanging}, index=${tc.index}',
-        );
-        if (tc.indexIsChanging) return const SizedBox.shrink();
-        return child!;
+    final activeIndex = tc.index;
+    renderDebugLog(
+      'MyBooking._buildIndexedStackBody',
+      'STEP 10b2 — IndexedStack building, activeIndex=$activeIndex, '
+      'mountedTabs=$_mountedTabIndexes, isTransitioning=$_isTransitioning',
+    );
+    paymentFlowLog('STEP 10b3 — IndexedStack build',
+        'activeIndex=$activeIndex, mountedTabs=$_mountedTabIndexes');
+
+    return IndexedStack(
+      index: activeIndex,
+      sizing: StackFit.expand,
+      children: [
+        _buildTabChild(0),
+        _buildTabChild(1),
+        _buildTabChild(2),
+        _buildTabChild(3),
+      ],
+    );
+  }
+
+  Widget _buildShellScaffold(BuildContext context, {required Widget body}) {
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) {
+        if (didPop) return;
+        _onBackPressed(context);
       },
-      child: TabBarView(
-        controller: tc,
-        children: [
-          MyUpCommingTrip(
-            fromPropBooking: widget.fromPropBooking ?? false,
-            tabIndex: 0,
-            initialTabIndex: _initialTab,
-            isTransitioning: _isTransitioning,
+      child: Align(
+        alignment: Alignment.center,
+        child: SizedBox(
+          width: Dimensions.containerWidth,
+          child: Scaffold(
+            backgroundColor: notifires.getbgcolor,
+            appBar: AppBar(
+              backgroundColor: vehicalThemColor,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              leadingWidth: 56,
+              centerTitle: true,
+              leading: IconButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => _onBackPressed(context),
+                icon: Icon(
+                  Icons.arrow_back_ios_new,
+                  color: whiteColor,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                "My Booking".tr,
+                style: heading2Grey1(context).copyWith(color: whiteColor),
+              ),
+            ),
+            body: body,
           ),
-          LiveBooking(
-            fromPropBooking: widget.fromPropBooking ?? false,
-            tabIndex: 1,
-            initialTabIndex: _initialTab,
-            isTransitioning: _isTransitioning,
-          ),
-          PreviousTrip(
-            fromPropBooking: widget.fromPropBooking ?? false,
-            tabIndex: 2,
-            initialTabIndex: _initialTab,
-            isTransitioning: _isTransitioning,
-          ),
-          CancelledTrip(
-            fromPropBooking: widget.fromPropBooking ?? false,
-            tabIndex: 3,
-            initialTabIndex: _initialTab,
-            isTransitioning: _isTransitioning,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -249,32 +337,39 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     if (Get.isRegistered<PaymentController>()) {
       renderDebugLog('MyBooking.build', 'blocked — PaymentController still alive');
+      paymentFlowLog('MyBooking.build BLOCKED', 'PaymentController registered');
       return const SizedBox.shrink();
     }
     if (NavigationGuard.isNavigating && !_routeReady) {
       renderDebugLog('MyBooking.build', 'blocked — NavigationGuard during STEP 10b');
+      paymentFlowLog('MyBooking.build BLOCKED', 'NavigationGuard + !routeReady');
       return const SizedBox.shrink();
     }
 
     renderDebugLog(
       'MyBooking.build',
-      'routeReady=$_routeReady, disposed=$_disposed, tabUsable=$_tabControllerUsable, '
-      'tabIndex=${tabController?.index}, indexIsChanging=${tabController?.indexIsChanging}',
+      'routeReady=$_routeReady, stackReady=$_stackReady, disposed=$_disposed, '
+      'tabIndex=${tabController?.index}, isTransitioning=$_isTransitioning',
     );
     notifires = Provider.of<ColorNotifires>(context, listen: true);
 
     if (!_routeReady || !_tabControllerUsable) {
-      renderDebugLog('MyBooking.build', 'shell only (TabBarView NOT mounted yet)');
-      return PopScope(
-        canPop: false,
-        onPopInvoked: (bool didPop) {
-          if (didPop) return;
-          _onBackPressed(context);
-        },
-        child: Align(
-          alignment: Alignment.center,
-          child: SizedBox(
-            width: Dimensions.containerWidth,
+      renderDebugLog('MyBooking.build', 'shell only (IndexedStack NOT mounted yet)');
+      paymentFlowLog('MyBooking.build', 'shell only — waiting TabController');
+      return _buildShellScaffold(context, body: const SizedBox.shrink());
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) {
+        if (didPop) return;
+        _onBackPressed(context);
+      },
+      child: Align(
+        alignment: Alignment.center,
+        child: SizedBox(
+          width: Dimensions.containerWidth,
+          child: ConnectivityWrapper(
             child: Scaffold(
               backgroundColor: notifires.getbgcolor,
               appBar: AppBar(
@@ -298,86 +393,30 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
                   style: heading2Grey1(context).copyWith(color: whiteColor),
                 ),
               ),
-              body: const SizedBox.shrink(),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (bool didPop) {
-        if (didPop) return;
-        _onBackPressed(context);
-      },
-      child: Align(
-        alignment: Alignment.center,
-        child: SizedBox(
-          width: Dimensions.containerWidth,
-          child: ConnectivityWrapper(
-            child: Scaffold(
-                backgroundColor: notifires.getbgcolor,
-                appBar: AppBar(
-                  backgroundColor: vehicalThemColor,
-                  surfaceTintColor: Colors.transparent,
-                  elevation: 0,
-                  scrolledUnderElevation: 0,
-                  leadingWidth: 56,
-                  centerTitle: true,
-                  leading: IconButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: () => _onBackPressed(context),
-                    icon: Icon(
-                      Icons.arrow_back_ios_new,
-                      color: whiteColor,
-                      size: 20,
-                    ),
-                  ),
-                  title: Text("My Booking".tr,
-                      style:
-                          heading2Grey1(context).copyWith(color: whiteColor)),
-                ),
-                body: token.isEmpty
-                    ? Center(child: notloginwidget())
-                    : SafeArea(
-                        child: Column(children: <Widget>[
-                        TabBar(
-                          indicatorColor: getColorBasedOnActiveModuleid(),
-                          controller: tabController,
-                          labelColor: getColorBasedOnActiveModuleid(),
-                          labelStyle: heading3Grey1(context),
-                          unselectedLabelColor: notifires.getGrey3Whitecolor,
-                          tabs: [
-                            Tab(
-                              text: "Upcoming".tr,
-                            ),
-                            Tab(
-                              text: "Live".tr,
-                            ),
-                            Tab(
-                              text: "Completed".tr,
-                            ),
-                            Tab(
-                              text: "Cancelled".tr,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        ),
-                        Expanded(
-                          child: Builder(
-                            builder: (context) {
-                              renderDebugLog(
-                                'Tentative de rendu du TabBarView',
-                                'index=${tabController?.index}, indexIsChanging=${tabController?.indexIsChanging}',
-                              );
-                              return _buildGuardedTabBarView();
-                            },
+              body: token.isEmpty
+                  ? Center(child: notloginwidget())
+                  : SafeArea(
+                      child: Column(
+                        children: <Widget>[
+                          TabBar(
+                            indicatorColor: getColorBasedOnActiveModuleid(),
+                            controller: tabController,
+                            labelColor: getColorBasedOnActiveModuleid(),
+                            labelStyle: heading3Grey1(context),
+                            unselectedLabelColor: notifires.getGrey3Whitecolor,
+                            tabs: [
+                              Tab(text: "Upcoming".tr),
+                              Tab(text: "Live".tr),
+                              Tab(text: "Completed".tr),
+                              Tab(text: "Cancelled".tr),
+                            ],
                           ),
-                        ),
-                      ]))),
+                          const SizedBox(height: 8),
+                          Expanded(child: _buildIndexedStackBody()),
+                        ],
+                      ),
+                    ),
+            ),
           ),
         ),
       ),
