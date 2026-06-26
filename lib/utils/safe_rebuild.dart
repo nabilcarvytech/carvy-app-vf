@@ -1,6 +1,7 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/utils/render_debug.dart';
 
 /// Exécute [action] après la fin de la frame courante (hors phase build).
@@ -26,23 +27,31 @@ class SafeObx extends StatelessWidget {
   final bool Function() isActive;
   final Widget Function() builder;
   final String? spyName;
+  /// Bloque tout rebuild Obx pendant [NavigationGuard.isNavigating].
+  final bool guardNavigation;
 
   const SafeObx({
     super.key,
     required this.isActive,
     required this.builder,
     this.spyName,
+    this.guardNavigation = false,
   });
+
+  bool _isFullyActive() {
+    if (guardNavigation && !NavigationGuard.allowsReactiveUi()) return false;
+    return isActive();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (!isActive()) {
+    if (!_isFullyActive()) {
       return const SizedBox.shrink();
     }
     return DebugObx(
       spyName: spyName ?? 'SafeObx',
       builder: () {
-        if (!isActive()) {
+        if (!_isFullyActive()) {
           return const SizedBox.shrink();
         }
         return builder();

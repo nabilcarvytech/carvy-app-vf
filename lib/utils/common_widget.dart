@@ -3912,6 +3912,9 @@ myBookingListWidget(
                               booking: booking,
                               bookingController: bookingController,
                               onStateUpdate: setState,
+                              eligible: listType == 'Previous' &&
+                                  booking.isItemReturned == 0 &&
+                                  booking.status.isConfirmed,
                             ),
                           ],
                         ),

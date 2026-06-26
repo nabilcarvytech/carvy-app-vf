@@ -9,8 +9,9 @@ import 'package:carvy/customwidget/form_elements.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/model/booking_model.dart';
-import 'package:carvy/utils/extension.dart';
+import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/utils/render_debug.dart';
+import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/theme_style.dart';
 
 /// Coque de cellule : aucun rendu lourd avant la fin de la frame de montage.
@@ -91,13 +92,15 @@ class _DeferredLocalObxState extends State<DeferredLocalObx> {
   }
 }
 
-/// Bouton Drop OTP — montage séquentiel (50 ms × index) pour éviter 10 Obx simultanés au STEP 10b.
+/// Bouton Drop OTP — silencieux pendant [NavigationGuard.isNavigating] (STEP 10b).
 class MyBookingDropoffOtpAction extends StatefulWidget {
   final int cellIndex;
   final String listType;
   final Bookings booking;
   final BookingController bookingController;
   final StateSetter onStateUpdate;
+  /// Données figées au build de la cellule — aucune lecture Rx liste dans l'Obx.
+  final bool eligible;
 
   const MyBookingDropoffOtpAction({
     super.key,
@@ -106,6 +109,7 @@ class MyBookingDropoffOtpAction extends StatefulWidget {
     required this.booking,
     required this.bookingController,
     required this.onStateUpdate,
+    required this.eligible,
   });
 
   @override
@@ -115,6 +119,9 @@ class MyBookingDropoffOtpAction extends StatefulWidget {
 
 class _MyBookingDropoffOtpActionState extends State<MyBookingDropoffOtpAction> {
   late final Future<void> _deferFuture;
+  Worker? _hidePanelWorker;
+  Worker? _navigationWorker;
+  bool _hideDropoffPanel = false;
 
   @override
   void initState() {
@@ -122,11 +129,43 @@ class _MyBookingDropoffOtpActionState extends State<MyBookingDropoffOtpAction> {
     _deferFuture = Future<void>.delayed(
       Duration(milliseconds: 50 * widget.cellIndex),
     );
+    _navigationWorker = ever(NavigationGuard.isNavigatingObs, (_) {
+      if (!mounted) return;
+      setState(() {});
+    });
+    _deferFuture.then((_) => _attachHidePanelListener());
+  }
+
+  void _attachHidePanelListener() {
+    if (!mounted) return;
+    if (!NavigationGuard.allowsReactiveUi()) {
+      Future<void>.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) _attachHidePanelListener();
+      });
+      return;
+    }
+    _hidePanelWorker?.dispose();
+    _hideDropoffPanel = widget.bookingController.dropoffshowHise.value;
+    _hidePanelWorker = ever(widget.bookingController.dropoffshowHise, (hidden) {
+      if (!mounted || !NavigationGuard.allowsReactiveUi()) return;
+      setState(() => _hideDropoffPanel = hidden);
+    });
+    if (mounted) setState(() {});
   }
 
   @override
+  void dispose() {
+    _hidePanelWorker?.dispose();
+    _navigationWorker?.dispose();
+    super.dispose();
+  }
+
+  bool _isWidgetActive() => mounted && context.mounted;
+
+  @override
   Widget build(BuildContext context) {
-    if (!context.mounted) return const SizedBox.shrink();
+    if (!_isWidgetActive()) return const SizedBox.shrink();
+    if (!NavigationGuard.allowsReactiveUi()) return const SizedBox.shrink();
 
     return FutureBuilder<void>(
       future: _deferFuture,
@@ -134,57 +173,58 @@ class _MyBookingDropoffOtpActionState extends State<MyBookingDropoffOtpAction> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const SizedBox.shrink();
         }
-        if (!context.mounted) return const SizedBox.shrink();
+        if (!_isWidgetActive() || !NavigationGuard.allowsReactiveUi()) {
+          return const SizedBox.shrink();
+        }
 
-        return Obx(() {
-          renderDebugLog(
-            'Construisant Obx dans: myBookingList/dropoffOtp[${widget.cellIndex}]',
-          );
-          final controller = widget.bookingController;
-          if (controller.dropoffshowHise.value) {
-            return const SizedBox.shrink();
-          }
-          if (widget.listType != 'Previous' ||
-              widget.booking.isItemReturned != 0 ||
-              widget.booking.status.isConfirmed != true) {
-            return const SizedBox.shrink();
-          }
+        return SafeObx(
+          guardNavigation: true,
+          spyName: 'myBookingList/dropoffOtp[${widget.cellIndex}]',
+          isActive: _isWidgetActive,
+          builder: _buildDropoffButton,
+        );
+      },
+    );
+  }
 
-          return Expanded(
-            flex: 1,
-            child: InkWell(
-              onTap: () => _openDropoffOtpSheet(context),
-              child: Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Container(
-                  height: 49,
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.only(
-                    left: 10,
-                    right: 10,
-                    top: 0,
-                    bottom: 0,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: vehicalThemColor,
-                    ),
-                    borderRadius: BorderRadius.circular(13),
-                    color: vehicalThemColor,
-                  ),
-                  child: Text(
-                    'Drop OTP?'.tr,
-                    style: boldstyle(context).copyWith(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
+  Widget _buildDropoffButton() {
+    if (!NavigationGuard.allowsReactiveUi()) {
+      return const SizedBox.shrink();
+    }
+    if (_hideDropoffPanel || !widget.eligible) {
+      return const SizedBox.shrink();
+    }
+
+    return Expanded(
+      flex: 1,
+      child: InkWell(
+        onTap: () => _openDropoffOtpSheet(context),
+        child: Padding(
+          padding: const EdgeInsets.only(right: 10),
+          child: Container(
+            height: 49,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.only(
+              left: 10,
+              right: 10,
+              top: 0,
+              bottom: 0,
+            ),
+            decoration: BoxDecoration(
+              border: Border.all(color: vehicalThemColor),
+              borderRadius: BorderRadius.circular(13),
+              color: vehicalThemColor,
+            ),
+            child: Text(
+              'Drop OTP?'.tr,
+              style: boldstyle(context).copyWith(
+                color: Colors.white,
+                fontSize: 14,
               ),
             ),
-          );
-        });
-      },
+          ),
+        ),
+      ),
     );
   }
 

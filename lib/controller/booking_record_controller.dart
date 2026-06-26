@@ -88,6 +88,8 @@ class BookingRecordController extends GetxController implements GetxService {
 
   void _protectedSafeUpdate([List<Object>? ids, bool condition = true]) {
     if (!_canMutateRx()) return;
+    // Sans ids : RxList / RxBool notifient déjà via ever() — pas de update() global.
+    if (ids == null || ids.isEmpty) return;
     safeUpdate(ids, condition);
   }
 

@@ -3385,6 +3385,11 @@ class BookingController extends GetxController implements GetxService {
   var showhideisReturn = false.obs;
   var dropoffshowHise = false.obs;
 
+  void _setDropoffPanelHidden(bool hidden) {
+    if (NavigationGuard.isNavigating) return;
+    dropoffshowHise.value = hidden;
+  }
+
   final RxBool isMarkingReturnedDirectLoading = false.obs;
   final RxString markingReturnedDirectBookingId = ''.obs;
 
@@ -3510,7 +3515,7 @@ class BookingController extends GetxController implements GetxService {
   }
 
   Future<String> updateItemDeliverStatus({required String bookingId, String? otp}) async {
-    dropoffshowHise.value = false;
+    _setDropoffPanelHidden(false);
     showLoading();
     String result = "error";
     try {
@@ -3533,7 +3538,7 @@ class BookingController extends GetxController implements GetxService {
             response["data"]["booking_extension"]["is_item_delivered"];
         showToastMessage(response["message"]);
         result = isItemDelivered == "1" ? "no" : "yes";
-        dropoffshowHise.value = true;
+        _setDropoffPanelHidden(true);
         safeUpdate();
       } else {
         print('❌ [OTP_ERROR] Erreur API : ${response != null ? response['error'] : 'Réponse nulle'}');
@@ -3550,7 +3555,7 @@ class BookingController extends GetxController implements GetxService {
   clearBookingData() {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       showhideisReturn.value = false;
-      dropoffshowHise.value = false;
+      _setDropoffPanelHidden(false);
       otpController.clear();
       dropOtpController.clear();
       safeUpdate();
