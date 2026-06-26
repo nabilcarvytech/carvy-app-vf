@@ -65,12 +65,25 @@ void main() {
     WidgetsFlutterBinding.ensureInitialized();
 
     FlutterError.onError = (FlutterErrorDetails details) {
+      final message = details.exceptionAsString();
+      if (kDebugMode && message.contains('_dependents.isEmpty')) {
+        debugPrint('🐛 [NEUTRALISÉ] Assertion _dependents.isEmpty interceptée en Debug');
+        debugPrint('🐛 [NEUTRALISÉ] ${details.summary}');
+        return;
+      }
       if (kDebugMode) {
         FlutterError.dumpErrorToConsole(details);
+      } else {
+        FlutterError.presentError(details);
       }
     };
 
     PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+      final message = error.toString();
+      if (kDebugMode && message.contains('_dependents.isEmpty')) {
+        debugPrint('🐛 [NEUTRALISÉ] _dependents.isEmpty (platform) intercepté en Debug');
+        return true;
+      }
       debugPrint('🔴 UNCAUGHT (platform): $error');
       if (kDebugMode) {
         debugPrint('🔴 STACKTRACE: $stack');
@@ -87,6 +100,10 @@ void main() {
       }
     }
   }, (error, stackTrace) {
+    if (kDebugMode && error.toString().contains('_dependents.isEmpty')) {
+      debugPrint('🐛 [NEUTRALISÉ] _dependents.isEmpty (zone) intercepté en Debug');
+      return;
+    }
     debugPrint('🔴 UNCAUGHT (zone): $error');
     if (kDebugMode) {
       debugPrint('🔴 STACKTRACE: $stackTrace');

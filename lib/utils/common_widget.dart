@@ -2021,6 +2021,7 @@ myBookingListWidget(
     if (!context.mounted) return const SizedBox.shrink();
     renderDebugLog('myBookingList._buildSafeItem', 'index=$index');
         final booking = list[index];
+        final hideReturnPanel = bookingController.hideReturnPanel;
         final itemData = Bookings.decodeItemDataList(booking.itemData);
         if (itemData == null || itemData.isEmpty) {
           return const SizedBox.shrink();
@@ -3069,162 +3070,72 @@ myBookingListWidget(
                                 ? const SizedBox()
                                 : listType == 'Previous'
                                     ? const SizedBox()
-                                    : isTransitioning
-                                        ? MyBookingStaticActionButton(
-                                            label: '$btnText',
-                                          )
-                                        : GetBuilder<BookingController>(
-                                            id: BookingController.actionIdFor(
-                                                index),
-                                            builder: (actionController) {
-                                              if (!context.mounted) {
-                                                return const SizedBox.shrink();
-                                              }
-                                              if (actionController
-                                                  .hideReturnPanel) {
-                                                return const SizedBox.shrink();
-                                              }
-                                              if (booking.isItemReceived == 1) {
-                                                return const SizedBox.shrink();
-                                              }
-                                              if (btnText == 'Extend duration' &&
-                                                  !_bookingAllowsExtension(
-                                                      booking.status)) {
-                                                return const SizedBox.shrink();
-                                              }
-                                              return Expanded(
-                                                    flex: 1,
-                                                    child: InkWell(
-                                                      onTap: () async {
-                                                        if (btnText ==
-                                                            'Extend duration') {
-                                                          await innerMethod(
-                                                              context, index);
-                                                          return;
-                                                        }
-                                                        if (booking
-                                                                .hostName ==
-                                                            null) {
-                                                          showErrorToastMessage(
-                                                              "Owner not found");
-                                                          return;
-                                                        }
+                                    : MyBookingPrimaryActionCell(
+                                        hideReturnPanel: hideReturnPanel,
+                                        isTransitioning: isTransitioning,
+                                        booking: booking,
+                                        btnText: '$btnText',
+                                        allowsExtension: _bookingAllowsExtension(
+                                            booking.status),
+                                        actionColor:
+                                            _bookingListPrimaryActionColor(
+                                                btnText),
+                                        onTap: () async {
+                                          if (btnText == 'Extend duration') {
+                                            await innerMethod(context, index);
+                                            return;
+                                          }
+                                          if (booking.hostName == null) {
+                                            showErrorToastMessage(
+                                                "Owner not found");
+                                            return;
+                                          }
 
-                                                        try {
-                                                          showLoading();
-                                                          // ========== MOCK DATA - OLD API CALL COMMENTED ==========
-                                                          // var responce =
-                                                          //     await httpPost(
-                                                          //         Config
-                                                          //             .getItemDetails,
-                                                          //         {
-                                                          //       "item_id":
-                                                          //           "${booking.itemid}"
-                                                          //     });
+                                          try {
+                                            showLoading();
+                                            await Future.delayed(
+                                                const Duration(seconds: 1));
 
-                                                          // MOCK: Simulate network delay
-                                                          await Future.delayed(
-                                                              const Duration(
-                                                                  seconds: 1));
+                                            var responce = {
+                                              "status": 200,
+                                              "message":
+                                                  "Item details retrieved successfully",
+                                              "error": "",
+                                              "data": {
+                                                "ItemDetails": {
+                                                  "item_id": int.tryParse(
+                                                          "${booking.itemid}") ??
+                                                      101,
+                                                  "title": "Toyota Camry 2023",
+                                                  "price": "50.00",
+                                                  "description":
+                                                      "Clean and comfortable sedan",
+                                                  "item_rating": "4.5",
+                                                  "status": "1"
+                                                }
+                                              }
+                                            };
+                                            if (responce != null &&
+                                                responce["status"] == 500) {
+                                              closeLoading();
+                                              showErrorToastMessage(
+                                                  responce["message"]);
+                                              return;
+                                            } else {
+                                              closeLoading();
+                                            }
+                                          } catch (e) {
+                                            closeLoading();
+                                          }
 
-                                                          // MOCK: Static item details response (success)
-                                                          var responce = {
-                                                            "status": 200,
-                                                            "message":
-                                                                "Item details retrieved successfully",
-                                                            "error": "",
-                                                            "data": {
-                                                              "ItemDetails": {
-                                                                "item_id":
-                                                                    int.tryParse(
-                                                                            "${booking.itemid}") ??
-                                                                        101,
-                                                                "title":
-                                                                    "Toyota Camry 2023",
-                                                                "price":
-                                                                    "50.00",
-                                                                "description":
-                                                                    "Clean and comfortable sedan",
-                                                                "item_rating":
-                                                                    "4.5",
-                                                                "status": "1"
-                                                              }
-                                                            }
-                                                          };
-                                                          // ========== END MOCK DATA ==========
-                                                          if (responce !=
-                                                                  null &&
-                                                              responce[
-                                                                      "status"] ==
-                                                                  500) {
-                                                            closeLoading();
-                                                            showErrorToastMessage(
-                                                                responce[
-                                                                    "message"]);
-                                                            return;
-                                                          } else {
-                                                            closeLoading();
-                                                          }
-                                                        } catch (e) {
-                                                          closeLoading();
-                                                        }
-
-                                                        innerMethod(
-                                                            context, index);
-                                                      },
-                                                      child: Padding(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .only(
-                                                                right: 10),
-                                                        child: Container(
-                                                            height: 49,
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .only(
-                                                                    left: 10,
-                                                                    right: 10,
-                                                                    top: 0,
-                                                                    bottom: 0),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              color:
-                                                                  _bookingListPrimaryActionColor(
-                                                                      btnText),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          13),
-                                                            ),
-                                                            child: Center(
-                                                                child: Text(
-                                                              "$btnText".tr,
-                                                              style: boldstyle(
-                                                                      context)
-                                                                  .copyWith(
-                                                                      color:
-                                                                          whiteColor,
-                                                                      fontSize:
-                                                                          14),
-                                                            ))),
-                                                      ),
-                                                    ),
-                                                  );
-                                            },
-                                          ),
-                            isTransitioning
-                                ? const MyBookingStaticActionButton(
-                                    label: 'Action',
-                                  )
-                                : GetBuilder<BookingController>(
-                              id: BookingController.actionIdFor(index),
-                              builder: (actionController) {
-                                if (!context.mounted) {
-                                  return const SizedBox.shrink();
-                                }
-                                if (actionController.hideReturnPanel) {
-                                  return const SizedBox.shrink();
-                                }
+                                          innerMethod(context, index);
+                                        },
+                                      ),
+                            MyBookingDeliveredActionGate(
+                              hideReturnPanel: hideReturnPanel,
+                              isTransitioning: isTransitioning,
+                              child: Builder(
+                                builder: (context) {
                                 if (booking.isItemDelivered != 1) {
                                   return const SizedBox.shrink();
                                 }
@@ -3885,7 +3796,8 @@ myBookingListWidget(
                                                     );
                                 }
                                 return const SizedBox.shrink();
-                              },
+                                },
+                              ),
                             ),
                             listType == 'UpComing' &&
                                     booking.status.isConfirmed

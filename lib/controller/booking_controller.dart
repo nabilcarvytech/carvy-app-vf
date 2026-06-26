@@ -326,8 +326,8 @@ class BookingController extends GetxController implements GetxService {
     paymentFlowLog('STEP 8-pre — detachPaymentMethodUi + detachOtpOverlay + prepareForRoutePop');
 
     if (Get.isRegistered<BookingRecordController>()) {
-      Get.find<BookingRecordController>().clearListeners();
-      paymentFlowLog('STEP 8-pre2 — BookingRecordController.clearListeners()');
+      Get.find<BookingRecordController>().prepareForOffAllNavigation();
+      paymentFlowLog('STEP 8-pre2 — BookingRecordController.prepareForOffAllNavigation()');
     }
 
     if (Get.isRegistered<PaymentController>()) {

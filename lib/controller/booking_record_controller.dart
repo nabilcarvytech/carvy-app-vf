@@ -97,6 +97,14 @@ class BookingRecordController extends GetxController implements GetxService {
     paymentFlowLog('BookingRecordController.restoreListeners — transition mute OFF');
   }
 
+  /// Verrouillage rendu avant [Get.offAll] — ne pas [dispose] le singleton DI.
+  void prepareForOffAllNavigation() {
+    clearListeners();
+    paymentFlowLog(
+      'BookingRecordController.prepareForOffAllNavigation — render locked',
+    );
+  }
+
   bool _canMutateRx({bool bypassNavigationGuard = false}) =>
       _isControllerActive() &&
       !_transitionListenersMuted &&

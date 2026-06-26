@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:carvy/controller/booking_controller.dart';
 import 'package:carvy/controller/booking_record_controller.dart';
 import 'package:carvy/customwidget/data_not_found.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
@@ -40,6 +41,7 @@ class BookingTabListBody extends StatefulWidget {
 class _BookingTabListBodyState extends State<BookingTabListBody> {
   Worker? _loadingWorker;
   Worker? _listWorker;
+  Worker? _hideReturnWorker;
   bool _subscribed = false;
 
   @override
@@ -63,6 +65,13 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
       renderDebugLog('ever(BookingRecordController.bookingsList)', widget.listType);
       _safeRebuild();
     });
+    if (Get.isRegistered<BookingController>()) {
+      _hideReturnWorker =
+          ever(Get.find<BookingController>().showhideisReturn, (_) {
+        renderDebugLog('ever(BookingController.showhideisReturn)', widget.listType);
+        _safeRebuild();
+      });
+    }
     _safeRebuild();
   }
 
@@ -80,6 +89,7 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
   void dispose() {
     _loadingWorker?.dispose();
     _listWorker?.dispose();
+    _hideReturnWorker?.dispose();
     super.dispose();
   }
 

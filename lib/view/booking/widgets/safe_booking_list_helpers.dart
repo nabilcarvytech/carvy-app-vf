@@ -83,6 +83,92 @@ class MyBookingStaticActionButton extends StatelessWidget {
   }
 }
 
+/// Bouton d'action primaire — 100 % StatelessWidget (pas d'Obx / GetBuilder).
+class MyBookingPrimaryActionCell extends StatelessWidget {
+  final bool hideReturnPanel;
+  final bool isTransitioning;
+  final Bookings booking;
+  final String btnText;
+  final bool allowsExtension;
+  final Color actionColor;
+  final VoidCallback onTap;
+
+  const MyBookingPrimaryActionCell({
+    super.key,
+    required this.hideReturnPanel,
+    required this.isTransitioning,
+    required this.booking,
+    required this.btnText,
+    required this.allowsExtension,
+    required this.actionColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!context.mounted) return const SizedBox.shrink();
+    if (isTransitioning || NavigationGuard.isNavigating) {
+      return MyBookingStaticActionButton(label: btnText);
+    }
+    if (hideReturnPanel || booking.isItemReceived == 1) {
+      return const SizedBox.shrink();
+    }
+    if (btnText == 'Extend duration' && !allowsExtension) {
+      return const SizedBox.shrink();
+    }
+    return Expanded(
+      flex: 1,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.only(right: 10),
+          child: Container(
+            height: 49,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: actionColor,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Center(
+              child: Text(
+                btnText.tr,
+                style: boldstyle(context).copyWith(
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Porte StatelessWidget pour deliveredAction — aucun Obx / GetBuilder.
+class MyBookingDeliveredActionGate extends StatelessWidget {
+  final bool hideReturnPanel;
+  final bool isTransitioning;
+  final Widget child;
+
+  const MyBookingDeliveredActionGate({
+    super.key,
+    required this.hideReturnPanel,
+    required this.isTransitioning,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!context.mounted) return const SizedBox.shrink();
+    if (isTransitioning || NavigationGuard.isNavigating) {
+      return const MyBookingStaticActionButton(label: 'Action');
+    }
+    if (hideReturnPanel) return const SizedBox.shrink();
+    return child;
+  }
+}
+
 /// Obx strictement local : monté après [Future.delayed(Duration.zero)]
 /// pour éviter les rebuilds pendant l'attachement du TabController (STEP 10b).
 class DeferredLocalObx extends StatefulWidget {
