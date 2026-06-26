@@ -1,8 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/customwidget/project_color.dart';
+import 'package:carvy/utils/render_debug.dart';
 
 /// Coque de cellule : aucun rendu lourd avant la fin de la frame de montage.
 class SafeBookingListItemShell extends StatefulWidget {
@@ -30,6 +32,7 @@ class _SafeBookingListItemShellState extends State<SafeBookingListItemShell> {
   Widget build(BuildContext context) {
     if (!context.mounted) return const SizedBox.shrink();
     if (!_frameReady) {
+      renderDebugLog('SafeBookingListItemShell.build', 'placeholder (frame pending)');
       return const SizedBox(height: 8);
     }
     return widget.child;
@@ -39,8 +42,13 @@ class _SafeBookingListItemShellState extends State<SafeBookingListItemShell> {
 /// Obx strictement local : lecture Rx uniquement après la 1re frame de la cellule.
 class DeferredLocalObx extends StatefulWidget {
   final Widget Function() builder;
+  final String? debugLabel;
 
-  const DeferredLocalObx({super.key, required this.builder});
+  const DeferredLocalObx({
+    super.key,
+    required this.builder,
+    this.debugLabel,
+  });
 
   @override
   State<DeferredLocalObx> createState() => _DeferredLocalObxState();
@@ -60,7 +68,11 @@ class _DeferredLocalObxState extends State<DeferredLocalObx> {
   @override
   Widget build(BuildContext context) {
     if (!context.mounted || !_frameReady) return const SizedBox.shrink();
-    return Obx(widget.builder);
+    final label = widget.debugLabel ?? widget.runtimeType.toString();
+    return Obx(() {
+      renderDebugLog('Construisant Obx dans: $label');
+      return widget.builder();
+    });
   }
 }
 

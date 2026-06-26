@@ -12,6 +12,7 @@ import '../work_space.dart';
 import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/payment_flow_debug.dart';
+import 'package:carvy/utils/render_debug.dart';
 
 /// Controller pour gérer les enregistrements de réservations (booking records)
 /// Connecté à l'API Node.js locale via POST /api/v1/booking-record
@@ -983,6 +984,7 @@ class SafeBookingRecordObx extends StatelessWidget {
       return const SizedBox.shrink();
     }
     return Obx(() {
+      renderDebugLog('Construisant Obx dans: SafeBookingRecordObx');
       if (!context.mounted || !bookingRecordControllerIsActive()) {
         return const SizedBox.shrink();
       }

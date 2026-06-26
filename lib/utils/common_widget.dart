@@ -24,6 +24,7 @@ import 'package:carvy/customwidget/form_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/helper/web_router.dart';
+import 'package:carvy/utils/render_debug.dart';
 import 'package:carvy/utils/rolling_calendar_bounds.dart';
 import 'package:carvy/utils/safe_navigation.dart';
 import 'package:carvy/utils/theme_style.dart';
@@ -2017,6 +2018,7 @@ myBookingListWidget(
 
   Widget _buildSafeItem(BuildContext context, int index) {
     if (!context.mounted) return const SizedBox.shrink();
+    renderDebugLog('myBookingList._buildSafeItem', 'index=$index');
         final itemData = Bookings.decodeItemDataList(list[index].itemData);
         if (itemData == null || itemData.isEmpty) {
           return const SizedBox.shrink();
@@ -3067,6 +3069,8 @@ myBookingListWidget(
                                 : listType == 'Previous'
                                     ? const SizedBox()
                                     : DeferredLocalObx(
+                                        debugLabel:
+                                            'myBookingList/primaryAction[$index]',
                                         builder: () => bookingController
                                                     .showhideisReturn.value ==
                                                 true
@@ -3197,6 +3201,8 @@ myBookingListWidget(
                                                   ),
                                       ),
                             DeferredLocalObx(
+                              debugLabel:
+                                  'myBookingList/deliveredAction[$index]',
                               builder: () =>
                                   bookingController.showhideisReturn.value ==
                                           true

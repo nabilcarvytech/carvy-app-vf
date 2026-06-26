@@ -6,6 +6,7 @@ import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/model/booking_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/navigation_guard.dart';
+import 'package:carvy/utils/render_debug.dart';
 
 /// Corps de liste réservation — **sans Obx global** sur le ListView.
 /// Les mises à jour passent par [setState] après post-frame pour éviter
@@ -60,6 +61,10 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
   void _safeRebuild() {
     if (!mounted || !context.mounted) return;
     if (NavigationGuard.isNavigating) return;
+    renderDebugLog(
+      'BookingTabListBody._safeRebuild (setState)',
+      'listType=${widget.listType}',
+    );
     setState(() {});
   }
 
@@ -77,6 +82,11 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
     final c = widget.controller;
     final loading = c.isLoading.value;
     final list = c.bookingsList;
+
+    renderDebugLog(
+      'BookingTabListBody.build',
+      'listType=${widget.listType}, loading=$loading, count=${list.length}',
+    );
 
     if (loading && list.isEmpty) {
       return myBookingScreenShimmer();

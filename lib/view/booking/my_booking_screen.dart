@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +14,7 @@ import '../../controller/booking_controller.dart';
 import '../../controller/booking_record_controller.dart';
 import '../../utils/common_widget.dart';
 import '../../utils/navigation_guard.dart';
+import '../../utils/render_debug.dart';
 import '../../utils/payment_flow_debug.dart';
 import '../../work_space.dart';
 
@@ -77,6 +79,10 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     tabController!.addListener(_tabListener);
 
     setState(() => _routeReady = true);
+    renderDebugLog(
+      'MyBooking._initTabControllerAfterMount',
+      'STEP 10b — tabController ready, index=${tabController!.index}, about to trigger build',
+    );
     paymentFlowLog('STEP 10b — MyBooking tabController ready',
         'initialTab=$_initialTab');
 
@@ -103,6 +109,7 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
 
       // Rebuild léger : affiche le TabBarView quand indexIsChanging repasse à false.
       if (tabController!.indexIsChanging) {
+        renderDebugLog('MyBooking._tabListener', 'indexIsChanging=true → setState');
         setState(() {});
         return;
       }
@@ -180,9 +187,18 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     final tc = tabController;
     if (tc == null || _disposed) return const SizedBox.shrink();
 
+    renderDebugLog(
+      'Tentative de rendu du TabBarView',
+      'index=${tc.index}, indexIsChanging=${tc.indexIsChanging}, animation=${tc.animation?.value}',
+    );
+
     return AnimatedBuilder(
       animation: tc.animation!,
       builder: (context, child) {
+        renderDebugLog(
+          'AnimatedBuilder(TabBarView guard)',
+          'indexIsChanging=${tc.indexIsChanging}, index=${tc.index}',
+        );
         if (tc.indexIsChanging) return const SizedBox.shrink();
         return child!;
       },
@@ -216,9 +232,15 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    renderDebugLog(
+      'MyBooking.build',
+      'routeReady=$_routeReady, disposed=$_disposed, tabUsable=$_tabControllerUsable, '
+      'tabIndex=${tabController?.index}, indexIsChanging=${tabController?.indexIsChanging}',
+    );
     notifires = Provider.of<ColorNotifires>(context, listen: true);
 
     if (!_routeReady || !_tabControllerUsable) {
+      renderDebugLog('MyBooking.build', 'shell only (TabBarView NOT mounted yet)');
       return PopScope(
         canPop: false,
         onPopInvoked: (bool didPop) {

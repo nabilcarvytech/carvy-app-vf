@@ -9,7 +9,7 @@ import '../../utils/extension.dart';
 import '../../utils/common_widget.dart';
 import '../../utils/navigation_guard.dart';
 import '../../utils/payment_flow_debug.dart';
-import '../../utils/safe_rebuild.dart';
+import 'package:carvy/utils/render_debug.dart';
 import 'package:carvy/view/booking/widgets/booking_tab_list_body.dart';
 import 'package:carvy/view/booking/widgets/safe_booking_list_helpers.dart';
 
@@ -92,6 +92,10 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
 
   @override
   Widget build(BuildContext context) {
+    renderDebugLog(
+      'MyUpCommingTrip.build',
+      'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}',
+    );
     return Scaffold(
       backgroundColor: notifires.getbgcolor,
       body: Stack(
@@ -112,6 +116,7 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
             ),
           ),
           DeferredLocalObx(
+            debugLabel: 'MyUpCommingTrip/otpOverlay',
             builder: () {
               if (!Get.isRegistered<BookingController>() ||
                   Get.find<BookingController>().isClosed) {

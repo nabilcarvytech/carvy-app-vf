@@ -7,7 +7,7 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/controller/booking_record_controller.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/navigation_guard.dart';
-import 'package:carvy/utils/safe_rebuild.dart';
+import 'package:carvy/utils/render_debug.dart';
 import 'package:carvy/view/booking/widgets/booking_tab_list_body.dart';
 
 class LiveBooking extends StatefulWidget {
@@ -84,6 +84,10 @@ class _LiveBookingState extends State<LiveBooking> {
 
   @override
   Widget build(BuildContext context) {
+    renderDebugLog(
+      'LiveBooking.build',
+      'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}',
+    );
     return Scaffold(
       backgroundColor: notifires.getbgcolor,
       body: SmartRefresher(
