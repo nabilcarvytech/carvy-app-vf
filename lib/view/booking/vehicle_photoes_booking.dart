@@ -217,8 +217,7 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
           BookingController bookingController = Get.find();
           showToastMessage(response['message']?.toString() ??
               'Images uploaded successfully');
-          bookingController.currentBookingIdForOtp.value = widget.id;
-          bookingController.openOtpAfterImageSubmit.value = true;
+          bookingController.requestOtpOverlay(widget.id);
           generalController.currentIndex.value = 0;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Get.back(result: true);

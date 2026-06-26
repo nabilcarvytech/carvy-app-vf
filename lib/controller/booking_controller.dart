@@ -135,7 +135,15 @@ class BookingController extends GetxController implements GetxService {
   /// ID GetBuilder du corps [PaymentMethodScreen] — jamais de [update] global.
   static const Object paymentMethodBodyId = 'payment_method_body';
 
+  /// ID GetBuilder de l'overlay OTP ([MyBookingOtpOverlay]) — updates manuels uniquement.
+  static const Object otpOverlayId = 'otp';
+
   bool _paymentMethodUiDetached = false;
+  bool _otpOverlayDetached = false;
+
+  /// État OTP overlay (non-Rx) — lu par GetBuilder, jamais par Obx.
+  bool otpOverlayOpen = false;
+  String otpOverlayBookingId = '';
 
   @override
   void onInit() {
@@ -157,6 +165,10 @@ class BookingController extends GetxController implements GetxService {
       if (ids == null) return;
       if (ids.contains(paymentMethodBodyId)) return;
     }
+    if (_otpOverlayDetached) {
+      if (ids == null) return;
+      if (ids.contains(otpOverlayId)) return;
+    }
 
     void schedule() {
       if (isClosed || !Get.isRegistered<BookingController>()) return;
@@ -165,12 +177,20 @@ class BookingController extends GetxController implements GetxService {
           (ids == null || ids.contains(paymentMethodBodyId))) {
         return;
       }
+      if (_otpOverlayDetached &&
+          (ids == null || ids.contains(otpOverlayId))) {
+        return;
+      }
       _safeUpdateDebounce?.cancel();
       _safeUpdateDebounce = Timer(const Duration(milliseconds: 16), () {
         if (!isClosed && Get.isRegistered<BookingController>()) {
           if (NavigationGuard.isNavigating) return;
           if (_paymentMethodUiDetached &&
               (ids == null || ids.contains(paymentMethodBodyId))) {
+            return;
+          }
+          if (_otpOverlayDetached &&
+              (ids == null || ids.contains(otpOverlayId))) {
             return;
           }
           update(ids, condition);
@@ -216,6 +236,46 @@ class BookingController extends GetxController implements GetxService {
     safeUpdate([paymentMethodBodyId]);
   }
 
+  /// Réactive l'overlay OTP quand [MyUpCommingTrip] est monté.
+  void attachOtpOverlay() {
+    _otpOverlayDetached = false;
+  }
+
+  /// Kill switch : bloque tout update(['otp']) pendant navigation / dispose.
+  void detachOtpOverlay() {
+    _otpOverlayDetached = true;
+    otpOverlayOpen = false;
+    otpOverlayBookingId = '';
+    openOtpAfterImageSubmit.value = false;
+    currentBookingIdForOtp.value = '';
+    prepareForRoutePop();
+  }
+
+  /// Demande l'ouverture de la modale OTP via GetBuilder (pas Obx).
+  void requestOtpOverlay(String bookingId) {
+    if (_otpOverlayDetached || NavigationGuard.isNavigating) return;
+    otpOverlayOpen = true;
+    otpOverlayBookingId = bookingId;
+    openOtpAfterImageSubmit.value = true;
+    currentBookingIdForOtp.value = bookingId;
+    notifyOtpOverlay();
+  }
+
+  /// Ferme l'overlay OTP sans notifier si [notifyUi] est false (transition).
+  void dismissOtpOverlay({bool notifyUi = false}) {
+    otpOverlayOpen = false;
+    otpOverlayBookingId = '';
+    openOtpAfterImageSubmit.value = false;
+    currentBookingIdForOtp.value = '';
+    if (notifyUi) notifyOtpOverlay();
+  }
+
+  /// Rafraîchit uniquement [MyBookingOtpOverlay].
+  void notifyOtpOverlay() {
+    if (_otpOverlayDetached || NavigationGuard.isNavigating) return;
+    safeUpdate([otpOverlayId]);
+  }
+
   /// Annule les [update] différés avant un retour arrière.
   void prepareForRoutePop() {
     _safeUpdateDebounce?.cancel();
@@ -224,6 +284,8 @@ class BookingController extends GetxController implements GetxService {
 
   @override
   void onClose() {
+    detachOtpOverlay();
+    detachPaymentMethodUi();
     _safeUpdateDebounce?.cancel();
     _safeUpdateDebounce = null;
     reviewCommentController.dispose();
@@ -258,8 +320,9 @@ class BookingController extends GetxController implements GetxService {
         'tabIndex=$tabIndex');
 
     detachPaymentMethodUi();
+    detachOtpOverlay();
     prepareForRoutePop();
-    paymentFlowLog('STEP 8-pre — detachPaymentMethodUi + prepareForRoutePop');
+    paymentFlowLog('STEP 8-pre — detachPaymentMethodUi + detachOtpOverlay + prepareForRoutePop');
 
     NavigationGuard.begin();
     paymentFlowLog('STEP 8a — NavigationGuard.isNavigating=true (no Rx yet)');

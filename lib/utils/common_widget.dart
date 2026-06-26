@@ -2158,7 +2158,7 @@ myBookingListWidget(
                                   generalController.myBookingTabIndex.value =
                                       1;
 
-                                  bookingController.openOtpAfterImageSubmit.value = false;
+                                  bookingController.dismissOtpOverlay();
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
@@ -3616,7 +3616,7 @@ myBookingListWidget(
                                                                             print("OTP Verified: $value");
                                                                             if (value ==
                                                                                 "yes") {
-                                                                              bookingController.openOtpAfterImageSubmit.value = false;
+                                                                              bookingController.dismissOtpOverlay();
                                                                               booking.isItemReceivedSetter = "1";
                                                                               generalController.myBookingTabIndex.value = 1;
                                                                               print("alok");

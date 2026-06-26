@@ -11,7 +11,7 @@ import '../../utils/navigation_guard.dart';
 import '../../utils/payment_flow_debug.dart';
 import 'package:carvy/utils/render_debug.dart';
 import 'package:carvy/view/booking/widgets/booking_tab_list_body.dart';
-import 'package:carvy/view/booking/widgets/safe_booking_list_helpers.dart';
+import 'package:carvy/view/booking/widgets/my_booking_otp_overlay.dart';
 
 class MyUpCommingTrip extends StatefulWidget {
   final bool fromPropBooking;
@@ -115,39 +115,9 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
               onItemCancelled: onItemCancelled,
             ),
           ),
-          DeferredLocalObx(
-            debugLabel: 'MyUpCommingTrip/otpOverlay',
-            builder: () {
-              if (!Get.isRegistered<BookingController>() ||
-                  Get.find<BookingController>().isClosed) {
-                return const SizedBox.shrink();
-              }
-              final bookingController = Get.find<BookingController>();
-              if (!bookingController.openOtpAfterImageSubmit.value) {
-                return const SizedBox.shrink();
-              }
-              final bookingId = bookingController.currentBookingIdForOtp.value;
-              dynamic matchedBooking;
-              for (final booking in bookingRecordController.bookingsList) {
-                if (booking.id?.toString() == bookingId) {
-                  matchedBooking = booking;
-                  break;
-                }
-              }
-              final canOpenOtp =
-                  (matchedBooking?.status as String?)?.isConfirmed == true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!context.mounted) return;
-                if (canOpenOtp) {
-                  CommonWidgets.showOtpBottomSheet(context, bookingId);
-                }
-                if (Get.isRegistered<BookingController>() &&
-                    !Get.find<BookingController>().isClosed) {
-                  bookingController.openOtpAfterImageSubmit.value = false;
-                }
-              });
-              return const SizedBox.shrink();
-            },
+          MyBookingOtpOverlay(
+            bookingRecordController: bookingRecordController,
+            onShowOtp: CommonWidgets.showOtpBottomSheet,
           ),
         ],
       ),
