@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:carvy/controller/booking_controller.dart';
+import 'package:carvy/controller/payment_controller.dart';
 import 'package:carvy/model/booking_payment_method_model.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/project_color.dart';
@@ -45,6 +46,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   @override
   void initState() {
     super.initState();
+    if (!Get.isRegistered<PaymentController>()) {
+      Get.put(PaymentController());
+    }
     bookingController.attachPaymentMethodUi();
     runAfterFirstFrame(() {
       if (_disposed || !mounted) return;

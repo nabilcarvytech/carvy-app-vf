@@ -12,6 +12,7 @@ import 'package:carvy/view/booking/previous_trip_screen.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
 import '../../controller/booking_controller.dart';
 import '../../controller/booking_record_controller.dart';
+import '../../controller/payment_controller.dart';
 import '../../utils/common_widget.dart';
 import '../../utils/navigation_guard.dart';
 import '../../utils/render_debug.dart';
@@ -246,6 +247,15 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    if (Get.isRegistered<PaymentController>()) {
+      renderDebugLog('MyBooking.build', 'blocked — PaymentController still alive');
+      return const SizedBox.shrink();
+    }
+    if (NavigationGuard.isNavigating && !_routeReady) {
+      renderDebugLog('MyBooking.build', 'blocked — NavigationGuard during STEP 10b');
+      return const SizedBox.shrink();
+    }
+
     renderDebugLog(
       'MyBooking.build',
       'routeReady=$_routeReady, disposed=$_disposed, tabUsable=$_tabControllerUsable, '

@@ -82,8 +82,24 @@ class BookingRecordController extends GetxController implements GetxService {
   bool _isControllerActive() =>
       !isClosed && Get.isRegistered<BookingRecordController>();
 
+  bool _transitionListenersMuted = false;
+
+  /// Coupe les notifications pendant [Get.offAll] post-paiement (STEP 10b).
+  void clearListeners() {
+    _transitionListenersMuted = true;
+    _activeRequestId++;
+    _isFetchingOffsetZero = false;
+    paymentFlowLog('BookingRecordController.clearListeners — transition mute ON');
+  }
+
+  void restoreListeners() {
+    _transitionListenersMuted = false;
+    paymentFlowLog('BookingRecordController.restoreListeners — transition mute OFF');
+  }
+
   bool _canMutateRx({bool bypassNavigationGuard = false}) =>
       _isControllerActive() &&
+      !_transitionListenersMuted &&
       (bypassNavigationGuard || !NavigationGuard.isNavigating);
 
   void _protectedSafeUpdate([List<Object>? ids, bool condition = true]) {

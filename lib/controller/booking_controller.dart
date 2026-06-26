@@ -17,6 +17,7 @@ import 'package:carvy/controller/items_detail_controller.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/controller/push_notifications.dart';
 import 'package:carvy/controller/booking_record_controller.dart';
+import 'package:carvy/controller/payment_controller.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/digital_singnature_model.dart';
@@ -324,14 +325,32 @@ class BookingController extends GetxController implements GetxService {
     prepareForRoutePop();
     paymentFlowLog('STEP 8-pre — detachPaymentMethodUi + detachOtpOverlay + prepareForRoutePop');
 
+    if (Get.isRegistered<BookingRecordController>()) {
+      Get.find<BookingRecordController>().clearListeners();
+      paymentFlowLog('STEP 8-pre2 — BookingRecordController.clearListeners()');
+    }
+
+    if (Get.isRegistered<PaymentController>()) {
+      Get.find<PaymentController>().clearListeners();
+      Get.delete<PaymentController>(force: true);
+      paymentFlowLog('STEP 8-pre3 — PaymentController deleted (force)');
+    }
+
     NavigationGuard.begin();
     paymentFlowLog('STEP 8a — NavigationGuard.isNavigating=true (no Rx yet)');
 
-    paymentFlowLog('STEP 9 — Get.offAll(MyBooking)…');
-    await Get.offAll(() => MyBooking(
-          fromPropBooking: false,
-          initialTabIndex: tabIndex,
-        ));
+    paymentFlowLog('STEP 9 — scheduling Get.offAll(MyBooking) post-frame…');
+    final navCompleter = Completer<void>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navFuture = Get.offAll(() => MyBooking(
+            fromPropBooking: false,
+            initialTabIndex: tabIndex,
+          ));
+      (navFuture ?? Future<void>.value()).whenComplete(() {
+        if (!navCompleter.isCompleted) navCompleter.complete();
+      });
+    });
+    await navCompleter.future;
     paymentFlowLog('STEP 10 — Get.offAll(MyBooking) completed');
 
     paymentFlowLog(
@@ -370,6 +389,9 @@ class BookingController extends GetxController implements GetxService {
     );
 
     NavigationGuard.endAfterFrame();
+    if (Get.isRegistered<BookingRecordController>()) {
+      Get.find<BookingRecordController>().restoreListeners();
+    }
     paymentFlowLog('STEP 14 — _navigateToBookingsAfterPayment END');
   }
 
