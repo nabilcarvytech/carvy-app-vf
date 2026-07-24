@@ -16,10 +16,8 @@ import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/work_space.dart';
 
 class AddAddressController extends GetxController implements GetxService {
-  TextEditingController houseFloorNumberController = TextEditingController();
-  TextEditingController buildingBlockNumberController = TextEditingController();
-  TextEditingController landmarkController = TextEditingController();
   TextEditingController fullAddressController = TextEditingController();
+  TextEditingController addressLabelController = TextEditingController();
   TextEditingController cityController = TextEditingController();
   TextEditingController stateController = TextEditingController();
   TextEditingController countryController = TextEditingController();
@@ -35,6 +33,8 @@ class AddAddressController extends GetxController implements GetxService {
   RxString addressText = "".obs;
   RxBool isAddressLoading = false.obs;
   bool _isInternalAddressWrite = false;
+  /// Si true, ne pas écraser le libellé saisi manuellement lors d'un nouveau reverse geocode.
+  bool _labelManuallyEdited = false;
 
   static const List<String> _knownTestAddressMarkers = [
     'los angeles',
@@ -48,11 +48,13 @@ class AddAddressController extends GetxController implements GetxService {
   void onInit() {
     super.onInit();
     fullAddressController.addListener(_syncAddressTextFromController);
+    addressLabelController.addListener(_onLabelControllerChanged);
   }
 
   @override
   void onClose() {
     fullAddressController.removeListener(_syncAddressTextFromController);
+    addressLabelController.removeListener(_onLabelControllerChanged);
     super.onClose();
   }
 
@@ -63,6 +65,11 @@ class AddAddressController extends GetxController implements GetxService {
       addressText.value = txt;
       update();
     }
+  }
+
+  void _onLabelControllerChanged() {
+    if (_isInternalAddressWrite) return;
+    _labelManuallyEdited = true;
   }
 
   /// Centre carte neutre (Maroc) — pas d'adresse texte affichée tant que le GPS n'a pas répondu.
@@ -107,6 +114,10 @@ class AddAddressController extends GetxController implements GetxService {
     final display = shortenAddress(resolved.fullAddress, 120);
     _isInternalAddressWrite = true;
     fullAddressController.text = display;
+    if (!_labelManuallyEdited || addressLabelController.text.trim().isEmpty) {
+      addressLabelController.text = resolved.suggestedLabel;
+      _labelManuallyEdited = false;
+    }
     _isInternalAddressWrite = false;
     addressText.value = display;
 
@@ -117,7 +128,16 @@ class AddAddressController extends GetxController implements GetxService {
       postalCodeController.text = resolved.postalCode;
     }
 
-    fulladdress.value = display.trim();
+    fulladdress.value = _composeDisplayAddress();
+  }
+
+  String _composeDisplayAddress() {
+    final label = addressLabelController.text.trim();
+    final address = fullAddressController.text.trim();
+    if (label.isNotEmpty && address.isNotEmpty) {
+      return '$label · $address';
+    }
+    return address.isNotEmpty ? address : label;
   }
 
   /// Reverse geocoding (package geocoding) + remplissage des champs adresse.
@@ -209,22 +229,24 @@ class AddAddressController extends GetxController implements GetxService {
       return;
     }
 
-    if (houseFloorNumberController.text.isEmpty) {
-      showErrorToastMessage(
-          "Please enter the house number and floor number.".tr);
-      return;
-    }
-
-    if (fullAddressController.text.isEmpty) {
+    if (fullAddressController.text.trim().isEmpty) {
       showErrorToastMessage("Please select the address from the map.".tr);
       return;
     }
 
+    if (addressLabelController.text.trim().isEmpty) {
+      _isInternalAddressWrite = true;
+      addressLabelController.text = GeocodingService.suggestAddressLabel(
+        fullAddressController.text,
+      );
+      _isInternalAddressWrite = false;
+    }
+
     final map = {
-      "house_floor_number": houseFloorNumberController.text,
-      "building_block_number": buildingBlockNumberController.text,
-      "landmark": landmarkController.text,
-      "full_address": fullAddressController.text,
+      "full_address": fullAddressController.text.trim(),
+      "address_label": addressLabelController.text.trim(),
+      // Compatibilité backend / affichages legacy qui lisent encore landmark.
+      "landmark": addressLabelController.text.trim(),
       "city": cityController.text,
       "state": stateController.text,
       "country": countryController.text,
@@ -316,12 +338,17 @@ class AddAddressController extends GetxController implements GetxService {
       return;
     }
 
-    houseFloorNumberController.text =
-        data.houseFloorNumber?.toString() ?? '';
-    buildingBlockNumberController.text =
-        data.buildingBlockNumber?.toString() ?? '';
-    landmarkController.text = data.landmark?.toString() ?? '';
+    _isInternalAddressWrite = true;
+    final label = data.addressLabel?.toString().trim() ?? '';
+    addressLabelController.text = label.isNotEmpty
+        ? label
+        : GeocodingService.suggestAddressLabel(
+            data.fullAddress?.toString() ?? '',
+          );
     fullAddressController.text = data.fullAddress?.toString() ?? '';
+    _isInternalAddressWrite = false;
+    _labelManuallyEdited = label.isNotEmpty;
+
     cityController.text = data.city?.toString() ?? '';
     stateController.text = data.state?.toString() ?? '';
     countryController.text = data.country?.toString() ?? '';
@@ -329,20 +356,30 @@ class AddAddressController extends GetxController implements GetxService {
     doorSteplatitude.value = data.doorstepLatitude?.toString() ?? "";
     doorSteplongitude.value = data.doorstepLongitude?.toString() ?? "";
     addressText.value = fullAddressController.text;
-    fulladdress.value =
-        "${houseFloorNumberController.text.isNotEmpty ? houseFloorNumberController.text : ""} "
-        "${buildingBlockNumberController.text.isNotEmpty ? buildingBlockNumberController.text : ""} "
-        "${landmarkController.text.isNotEmpty ? landmarkController.text : ""} "
-        "${fullAddressController.text}".trim();
+    fulladdress.value = _composeDisplayAddress();
 
     update();
   }
 
+  void ensureSuggestedLabelIfEmpty() {
+    if (addressLabelController.text.trim().isNotEmpty) return;
+    final source = fullAddressController.text.trim().isNotEmpty
+        ? fullAddressController.text
+        : addressText.value;
+    if (source.trim().isEmpty) return;
+    _isInternalAddressWrite = true;
+    addressLabelController.text = GeocodingService.suggestAddressLabel(source);
+    _isInternalAddressWrite = false;
+    fulladdress.value = _composeDisplayAddress();
+    update();
+  }
+
   void clearAddressFields() {
-    houseFloorNumberController.clear();
-    buildingBlockNumberController.clear();
-    landmarkController.clear();
+    _isInternalAddressWrite = true;
+    addressLabelController.clear();
     fullAddressController.clear();
+    _isInternalAddressWrite = false;
+    _labelManuallyEdited = false;
     cityController.clear();
     stateController.clear();
     countryController.clear();

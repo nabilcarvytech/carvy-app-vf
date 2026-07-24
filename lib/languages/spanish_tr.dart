@@ -1063,6 +1063,10 @@ const Map<String, String> esES = {
   "Pick Address": "Seleccionar dirección",
   "Save Address": "Guardar dirección",
   "Add Address Details": "Agregar detalles de la dirección",
+  "Current Address": "Dirección actual",
+  "Full address": "Dirección completa",
+  "Address Label": "Etiqueta de dirección",
+  "Home, Office, Airport...": "Casa, Oficina, Aeropuerto...",
   "No Ongoing Booking Available": "No hay reservas en curso disponibles",
   "Popular Region": "Región popular",
   "Lead your vehicle to make some extra cash":

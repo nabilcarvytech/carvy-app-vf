@@ -1002,7 +1002,7 @@ class _HostErecieptState extends State<HostEreciept> {
                               ),
                               Expanded(
                                 child: Text(
-                                  "${doorStepAddressModel?.houseFloorNumber ?? ""}${doorStepAddressModel?.buildingBlockNumber ?? ""} ${doorStepAddressModel?.fullAddress ?? ""}",
+                                  "${doorStepAddressModel?.addressLabel != null && doorStepAddressModel!.addressLabel.toString().isNotEmpty ? "${doorStepAddressModel!.addressLabel} · " : ""}${doorStepAddressModel?.fullAddress ?? ""}",
                                   maxLines: 4,
                                   overflow: TextOverflow.ellipsis,
                                   style: regular2(context),

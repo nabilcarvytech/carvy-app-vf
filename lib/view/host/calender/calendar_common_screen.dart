@@ -58,9 +58,9 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
   }
 
   AddItemsHostController addItemsHostController = Get.find();
-  DateRangePickerController dateRangePickerControllers =
-      DateRangePickerController();
   bool isDateSelected = false;
+  /// Premier clic d'une plage (null = prochain clic = début de plage).
+  DateTime? _rangeAnchor;
   List<PickerDateRange> selectedDates = [];
   List selectedPriceMap = [];
   List selectedAvailableRange = [];
@@ -128,10 +128,15 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
 
             // ========== APPEL API RÉEL - Dates du calendrier ==========
             // IMPORTANT: L'ID est passé dans l'URL (ex: /get-item-dates/123)
+            // Plage annuelle (12 mois) passée en query pour que le backend
+            // puisse limiter / paginer les disponibilités si besoin.
             String itemId = (initialitems?.id ?? lastItemId).toString();
             String endpointWithId = "${Config.getItemDates}/$itemId";
-            print('📡 [CALENDAR_DIAG] Chargement des dates du calendrier pour l\'ID: $itemId');
-            var response = await httpGet(endpointWithId, {});
+            final rangeQuery = RollingCalendarBounds.apiDateRangeQuery();
+            print(
+                '📡 [CALENDAR_DIAG] Chargement des dates du calendrier pour l\'ID: $itemId '
+                '(${rangeQuery['start_date']} → ${rangeQuery['end_date']})');
+            var response = await httpGet(endpointWithId, rangeQuery);
             print('📥 [CALENDAR_DIAG] Réponse brute getItemDates: ${jsonEncode(response)}');
             // ========== END APPEL API RÉEL ==========
 
@@ -716,6 +721,246 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
     safeGetBack(context: context, then: then);
   }
 
+  bool _isSameDate(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  bool _dateInPickerRanges(DateTime date, List<PickerDateRange> ranges) {
+    final d = DateTime(date.year, date.month, date.day);
+    return ranges.any((range) {
+      if (range.startDate == null) return false;
+      final start = DateTime(
+        range.startDate!.year,
+        range.startDate!.month,
+        range.startDate!.day,
+      );
+      final end = range.endDate == null
+          ? start
+          : DateTime(
+              range.endDate!.year,
+              range.endDate!.month,
+              range.endDate!.day,
+            );
+      return _isSameDate(d, start) ||
+          _isSameDate(d, end) ||
+          (d.isAfter(start) && d.isBefore(end));
+    });
+  }
+
+  void _onMonthSelectionChanged(DateRangePickerSelectionChangedArgs args) {
+    // Mode single : on construit la plage nous-mêmes pour permettre
+    // une sélection qui traverse plusieurs mois de la ListView.
+    final dynamic value = args.value;
+    if (value is! DateTime) return;
+
+    final tapped = DateTime(value.year, value.month, value.day);
+    final priceValue =
+        addItemsHostController.textEditingControllerPrice.text.isEmpty
+            ? '0'
+            : addItemsHostController.textEditingControllerPrice.text;
+
+    setState(() {
+      if (_rangeAnchor == null) {
+        _rangeAnchor = tapped;
+        selectedDates = [PickerDateRange(tapped, tapped)];
+      } else {
+        final start =
+            tapped.isBefore(_rangeAnchor!) ? tapped : _rangeAnchor!;
+        final end =
+            tapped.isBefore(_rangeAnchor!) ? _rangeAnchor! : tapped;
+        selectedDates = [PickerDateRange(start, end)];
+        _rangeAnchor = null;
+      }
+
+      isDateSelected = selectedDates.isNotEmpty;
+      selectedAvailableRange = selectedDates
+          .map((date) => {
+                'date': date,
+                'value': priceValue,
+                'status': 'Available',
+              })
+          .toList();
+      selectedNotAvailableRange = selectedDates
+          .map((date) => {
+                'date': date,
+                'value': priceValue,
+                'status': 'Not Available',
+              })
+          .toList();
+    });
+  }
+
+  Widget _buildMonthCalendarCard({
+    required DateTime monthStart,
+    required DateTime monthEnd,
+  }) {
+    final windowMin = RollingCalendarBounds.bookingMinDate();
+    final windowMax = RollingCalendarBounds.lastDate();
+    final minDate =
+        monthStart.isBefore(windowMin) ? windowMin : monthStart;
+    final maxDate = monthEnd.isAfter(windowMax) ? windowMax : monthEnd;
+
+    // Mois entièrement hors fenêtre (ne devrait pas arriver).
+    if (minDate.isAfter(maxDate)) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          // Hauteur fixe : 1 en-tête + 1 ligne jours + 6 semaines de cellules.
+          height: 390,
+          child: SfDateRangePicker(
+            key: ValueKey('month-${monthStart.year}-${monthStart.month}'),
+            allowViewNavigation: false,
+            showNavigationArrow: false,
+            enableMultiView: false,
+            navigationMode: DateRangePickerNavigationMode.none,
+            view: DateRangePickerView.month,
+            // Single + plage manuelle : permet de sélectionner sur plusieurs mois.
+            selectionMode: DateRangePickerSelectionMode.single,
+            initialDisplayDate: monthStart,
+            minDate: minDate,
+            maxDate: maxDate,
+            enablePastDates: false,
+            headerHeight: 44,
+            headerStyle: DateRangePickerHeaderStyle(
+              textAlign: TextAlign.start,
+              backgroundColor: Colors.white,
+              textStyle: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: boxcolor,
+              ),
+            ),
+            monthViewSettings: DateRangePickerMonthViewSettings(
+              firstDayOfWeek: 7,
+              viewHeaderHeight: 32,
+              dayFormat: 'EEE',
+              numberOfWeeksInView: 6,
+              viewHeaderStyle: DateRangePickerViewHeaderStyle(
+                backgroundColor: themeColor.withOpacity(0.1),
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+            backgroundColor: Colors.white,
+            onSelectionChanged: _onMonthSelectionChanged,
+            cellBuilder: _buildDayCell,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDayCell(
+    BuildContext context,
+    DateRangePickerCellDetails cellDetails,
+  ) {
+    Color cellColor = whiteColor;
+    Color textColor = blackColor;
+    String cellPrice = '';
+
+    final cellDateNormalized = DateTime(
+      cellDetails.date.year,
+      cellDetails.date.month,
+      cellDetails.date.day,
+    );
+    final isPast = cellDateNormalized.isBefore(
+      DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+    );
+
+    final isBookedDate =
+        _dateInPickerRanges(cellDateNormalized, bookedDates);
+    final isAvailableDate =
+        _dateInPickerRanges(cellDateNormalized, availableDates);
+    final isSelectedDate =
+        _dateInPickerRanges(cellDateNormalized, selectedDates);
+
+    if (isBookedDate) {
+      cellColor = greentext;
+      textColor = whiteColor;
+      final priceToDisplay =
+          (bookedPrice != null &&
+                  bookedPrice.toString() != '0' &&
+                  bookedPrice.toString().isNotEmpty)
+              ? bookedPrice.toString()
+              : defaultVehiclePrice;
+      cellPrice = '$currency $priceToDisplay';
+    } else if (isAvailableDate) {
+      cellColor = themeColor;
+      textColor = whiteColor;
+      final dateKey =
+          DateFormat('yyyy-MM-dd').format(cellDateNormalized);
+      final priceToDisplay =
+          finalCustomPricesMap[dateKey]?.toString() ?? vehicleBasePrice;
+      cellPrice = '$currency $priceToDisplay';
+    } else if (!isPast) {
+      cellColor = Colors.red;
+      textColor = whiteColor;
+      cellPrice = '$currency $defaultVehiclePrice';
+    }
+
+    if (isSelectedDate) {
+      cellColor = orangeColor;
+      textColor = whiteColor;
+      cellPrice = '';
+    }
+
+    final resolvedTextColor = isPast ? whiteColor : textColor;
+
+    return Padding(
+      padding: const EdgeInsets.all(2),
+      child: Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isPast ? greyColor.withOpacity(0.5) : themeColor,
+            width: 1.2,
+          ),
+          borderRadius: BorderRadius.circular(5),
+          color: cellColor,
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                convertToLocaleDigits(cellDetails.date.day.toString()),
+                style: TextStyle(
+                  color: resolvedTextColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  height: 1.1,
+                ),
+              ),
+              if (cellPrice.isNotEmpty)
+                Text(
+                  convertToLocaleDigits(cellPrice),
+                  style: smallAirBk.copyWith(
+                    fontSize: 8,
+                    color: resolvedTextColor,
+                    fontWeight: FontWeight.w500,
+                    height: 1.1,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return showerrorWhenloginwithOtherDevice == "token not match"
@@ -750,8 +995,7 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                       title: Text("Calendar".tr, style: heading2Grey1(context)),
                       centerTitle: true,
                     ),
-                    body: ListView(
-                      physics: const NeverScrollableScrollPhysics(),
+                    body: Column(
                       children: [
                         Padding(
                           padding: const EdgeInsets.all(12),
@@ -856,54 +1100,63 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               vertical: 10, horizontal: 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Wrap(
+                            spacing: 16,
+                            runSpacing: 12,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              // First Row of Legend Items
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Avability(
                                     color: greentext,
                                     borderColor: lightsGrey,
                                   ),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: 8),
                                   LabelNames(labelname: 'Booked'.tr),
-                                  const SizedBox(width: 20),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
                                   Avability(
                                     color: redColor,
                                     borderColor: redColor,
                                   ),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: 8),
                                   LabelNames(labelname: 'Not available'.tr),
-                                  const SizedBox(width: 20),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
                                   Avability(
                                     color: themeColor,
                                     borderColor: notifires.getwhiteblackcolor,
                                   ),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: 8),
                                   LabelNames(labelname: 'Available'.tr),
                                 ],
                               ),
-                              const SizedBox(
-                                  height:
-                                      15), // Add some spacing between the rows
-                              // Second Row of Legend Items
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Avability(
                                     color: yellowColor,
                                     borderColor: yellowColor,
                                   ),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: 8),
                                   LabelNames(labelname: "Selected".tr),
-                                  const SizedBox(width: 20),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
                                   Avability(
                                     color: greycolor.withOpacity(0.4),
                                     borderColor: greycolor.withOpacity(0.4),
                                   ),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: 8),
                                   LabelNames(labelname: "Past Dates".tr),
                                 ],
                               ),
@@ -911,339 +1164,36 @@ class _CalendarCommonScreenState extends State<CalendarCommonScreen> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        SizedBox(
-                          height: 800,
-                          child: SfDateRangePicker(
-                              allowViewNavigation: false,
-                              headerStyle: DateRangePickerHeaderStyle(
-                                textAlign: TextAlign.start,
-                                textStyle:
-                                    TextStyle(fontSize: 18, color: boxcolor),
-                              ),
-                              monthCellStyle: DateRangePickerMonthCellStyle(
-                                  blackoutDateTextStyle: const TextStyle(
-                                    color: Colors.white,
-                                  ),
-                                  blackoutDatesDecoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.green.shade100)),
-                              controller: dateRangePickerControllers,
-                              monthViewSettings:
-                                  DateRangePickerMonthViewSettings(
-                                viewHeaderStyle: DateRangePickerViewHeaderStyle(
-                                  backgroundColor: themeColor.withOpacity(0.1),
-                                  textStyle: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                      fontSize: 12),
-                                ),
-                              ),
-                              backgroundColor: Colors.white,
-                              navigationDirection:
-                                  DateRangePickerNavigationDirection.vertical,
-                              navigationMode:
-                                  DateRangePickerNavigationMode.scroll,
-                              enableMultiView: true,
-                              minDate: RollingCalendarBounds.firstDate(),
-                              maxDate: RollingCalendarBounds.lastDate(),
-                              enablePastDates: false,
-                              onViewChanged: (args) {
-                                RollingCalendarBounds.clampPickerView(
-                                  args,
-                                  dateRangePickerControllers,
-                                );
-                              },
-                              view: DateRangePickerView.month,
-                              selectionMode: DateRangePickerSelectionMode.range,
-                              onSelectionChanged:
-                                  (DateRangePickerSelectionChangedArgs args) {
-                                PickerDateRange? selectedRange = args.value;
-
-                                if (selectedRange != null) {
-                                  selectedDates = [selectedRange];
-
-                                  DateTime startDate =
-                                      selectedRange.startDate ?? DateTime.now();
-
-                                  DateTime endDate =
-                                      selectedRange.endDate ?? DateTime.now();
-                                  Duration totalRange =
-                                      endDate.difference(startDate);
-
-                                  List<DateTime> allDates = [];
-
-                                  for (int i = 0; i <= totalRange.inDays; i++) {
-                                    allDates
-                                        .add(startDate.add(Duration(days: i)));
-                                  }
-
-                                  if (allDates.isNotEmpty) {
-                                    setState(() {
-                                      isDateSelected = true;
-                                    });
-                                  } else {
-                                    setState(() {
-                                      isDateSelected = false;
-                                    });
-                                  }
-                                } else {}
-
-                                if (selectedDates.isNotEmpty) {
-                                  selectedAvailableRange = selectedDates
-                                      .map((date) => {
-                                            "date": date,
-                                            "value": addItemsHostController
-                                                    .textEditingControllerPrice
-                                                    .text
-                                                    .isEmpty
-                                                ? "0"
-                                                : addItemsHostController
-                                                    .textEditingControllerPrice
-                                                    .text,
-                                            'status': "Available",
-                                          })
-                                      .toList();
-                                }
-
-                                if (selectedDates.isNotEmpty) {
-                                  selectedNotAvailableRange = selectedDates
-                                      .map((date) => {
-                                            "date": date,
-                                            "value": addItemsHostController
-                                                    .textEditingControllerPrice
-                                                    .text
-                                                    .isEmpty
-                                                ? "0"
-                                                : addItemsHostController
-                                                    .textEditingControllerPrice
-                                                    .text,
-                                            'status': "Not Available",
-                                          })
-                                      .toList();
-                                }
-                              },
-                              cellBuilder: (BuildContext context,
-                                  DateRangePickerCellDetails cellDetails) {
-                                Color cellColor = whiteColor;
-                                Color textColor = blackColor;
-                                String cellPrice = '';
-
-                                // Normaliser la date de la cellule (sans heure) pour comparaison
-                                DateTime cellDateNormalized = DateTime(
-                                  cellDetails.date.year,
-                                  cellDetails.date.month,
-                                  cellDetails.date.day,
-                                );
-                                
-                                // Format de date pour les logs (yyyy-MM-dd)
-                                String cellDateFormatted = DateFormat('yyyy-MM-dd').format(cellDateNormalized);
-                                
-                                // Print spécifique pour le 17 février
-                                if (cellDetails.date.month == 2 && cellDetails.date.day == 17) {
-                                  print('📅 [FEB_17_DEBUG] Date cellule: $cellDateFormatted');
-                                  print('📅 [FEB_17_DEBUG] notAvailableDates count: ${notAvailableDates.length}');
-                                  print('📅 [FEB_17_DEBUG] availableDates count: ${availableDates.length}');
-                                  print('📅 [FEB_17_DEBUG] bookedDates count: ${bookedDates.length}');
-                                  if (notAvailableDates.isNotEmpty) {
-                                    print('📅 [FEB_17_DEBUG] Première date non disponible: ${DateFormat('yyyy-MM-dd').format(notAvailableDates.first.startDate!)}');
-                                  }
-                                }
-
-                                // Fonction helper pour comparer uniquement les dates (sans heures)
-                                bool isSameDate(DateTime date1, DateTime date2) {
-                                  return date1.year == date2.year &&
-                                         date1.month == date2.month &&
-                                         date1.day == date2.day;
-                                }
-
-                                bool isNotAvailableDate = false;
-                                bool isBookedDate = false;
-                                bool isAvailableDate = false;
-                                bool isSelectedDate = false;
-                                
-                                // 1. Vérifier les dates réservées (VERT)
-                                isBookedDate = bookedDates.any((range) {
-                                  if (range.startDate == null || range.endDate == null) return false;
-                                  DateTime rangeStartNormalized = DateTime(
-                                    range.startDate!.year,
-                                    range.startDate!.month,
-                                    range.startDate!.day,
-                                  );
-                                  DateTime rangeEndNormalized = DateTime(
-                                    range.endDate!.year,
-                                    range.endDate!.month,
-                                    range.endDate!.day,
-                                  );
-                                  return isSameDate(cellDateNormalized, rangeStartNormalized) ||
-                                         isSameDate(cellDateNormalized, rangeEndNormalized) ||
-                                         (cellDateNormalized.isAfter(rangeStartNormalized) &&
-                                          cellDateNormalized.isBefore(rangeEndNormalized));
-                                });
-
-                                if (isBookedDate) {
-                                  cellColor = greentext;
-                                  textColor = whiteColor;
-                                  // Utiliser le prix réservé si disponible, sinon le prix par défaut
-                                  String priceToDisplay = (bookedPrice != null && bookedPrice.toString() != "0" && bookedPrice.toString().isNotEmpty) 
-                                      ? bookedPrice.toString() 
-                                      : defaultVehiclePrice;
-                                  cellPrice = '$currency $priceToDisplay';
-                                  if (cellDetails.date.month == 2 && cellDetails.date.day == 17) {
-                                    print('📅 [FEB_17_DEBUG] ✅ Date marquée en VERT (réservée)');
-                                  }
-                                } 
-                                // 2. Vérifier si la date est disponible (BLEU)
-                                else {
-                                  // Check if the date is available
-                                  isAvailableDate = availableDates.any((range) {
-                                    if (range.startDate == null || range.endDate == null) return false;
-                                    DateTime rangeStartNormalized = DateTime(
-                                      range.startDate!.year,
-                                      range.startDate!.month,
-                                      range.startDate!.day,
-                                    );
-                                    DateTime rangeEndNormalized = DateTime(
-                                      range.endDate!.year,
-                                      range.endDate!.month,
-                                      range.endDate!.day,
-                                    );
-                                    return isSameDate(cellDateNormalized, rangeStartNormalized) ||
-                                           isSameDate(cellDateNormalized, rangeEndNormalized) ||
-                                           (cellDateNormalized.isAfter(rangeStartNormalized) &&
-                                            cellDateNormalized.isBefore(rangeEndNormalized));
-                                  });
-
-                                  if (isAvailableDate) {
-                                    cellColor = themeColor;
-                                    textColor = whiteColor;
-
-                                    int index = availableDates.indexWhere((range) {
-                                      if (range.startDate == null || range.endDate == null) return false;
-                                      DateTime rangeStartNormalized = DateTime(
-                                        range.startDate!.year,
-                                        range.startDate!.month,
-                                        range.startDate!.day,
-                                      );
-                                      DateTime rangeEndNormalized = DateTime(
-                                        range.endDate!.year,
-                                        range.endDate!.month,
-                                        range.endDate!.day,
-                                      );
-                                      return isSameDate(cellDateNormalized, rangeStartNormalized) ||
-                                             isSameDate(cellDateNormalized, rangeEndNormalized) ||
-                                             (cellDateNormalized.isAfter(rangeStartNormalized) &&
-                                              cellDateNormalized.isBefore(rangeEndNormalized));
-                                    });
-
-                                    // Assure-toi que la variable dateKey est formatée en yyyy-MM-dd
-                                    String dateKey = DateFormat('yyyy-MM-dd').format(cellDateNormalized);
-                                    
-                                    // Utilise cette logique exacte pour le texte
-                                    String priceToDisplay = finalCustomPricesMap[dateKey]?.toString() ?? vehicleBasePrice;
-                                    
-                                    // Log de rendu
-                                    print('🎨 [RENDER] Date: $dateKey | Prix: $priceToDisplay');
-                                    
-                                    cellPrice = "$currency $priceToDisplay";
-                                    print('🔵 [COLOR_DIAG] Date marquée en BLEU (disponible): $cellDateFormatted');
-                                    if (cellDetails.date.month == 2 && cellDetails.date.day == 17) {
-                                      print('📅 [FEB_17_DEBUG] ✅ Date marquée en BLEU (disponible)');
-                                    }
-                                  } 
-                                  // 3. Si la date N'EST PAS dans availableDates, elle DOIT être ROUGE
-                                  else {
-                                    // Vérifier si c'est une date passée (on ne les colore pas en rouge)
-                                    bool isPastDate = cellDateNormalized.isBefore(DateTime.now());
-                                    
-                                    if (!isPastDate) {
-                                      // Date future qui n'est pas disponible = ROUGE
-                                      cellColor = Colors.red;
-                                      textColor = whiteColor;
-                                      // Afficher le prix par défaut pour les dates bloquées
-                                      cellPrice = "$currency $defaultVehiclePrice";
-                                      print('🔴 [COLOR_DIAG] Date marquée en ROUGE (non disponible - pas dans availableDates): $cellDateFormatted');
-                                      if (cellDetails.date.month == 2 && cellDetails.date.day == 17) {
-                                        print('📅 [FEB_17_DEBUG] ✅ Date marquée en ROUGE (non disponible - pas dans availableDates)');
-                                      }
-                                    } else {
-                                      // Date passée = blanc par défaut
-                                      if (cellDetails.date.month == 2 && cellDetails.date.day == 17) {
-                                        print('📅 [FEB_17_DEBUG] ⚠️ Date passée (blanc par défaut)');
-                                      }
-                                    }
-                                  }
-                                }
-
-                                // 4. Vérifier si la date est sélectionnée (ORANGE) - indépendant des autres statuts
-                                isSelectedDate = selectedDates.any((range) {
-                                  if (range.startDate == null || range.endDate == null) return false;
-                                  DateTime rangeStartNormalized = DateTime(
-                                    range.startDate!.year,
-                                    range.startDate!.month,
-                                    range.startDate!.day,
-                                  );
-                                  DateTime rangeEndNormalized = DateTime(
-                                    range.endDate!.year,
-                                    range.endDate!.month,
-                                    range.endDate!.day,
-                                  );
-                                  return isSameDate(cellDateNormalized, rangeStartNormalized) ||
-                                         isSameDate(cellDateNormalized, rangeEndNormalized) ||
-                                         (cellDateNormalized.isAfter(rangeStartNormalized) &&
-                                          cellDateNormalized.isBefore(rangeEndNormalized));
-                                });
-                                
-                                if (isSelectedDate) {
-                                  cellColor = orangeColor;
-                                  textColor = whiteColor;
-                                  cellPrice = '';
-                                }
-                                
-                                return Padding(
-                                  padding: const EdgeInsets.all(5.0),
-                                  child: Container(
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                          color: cellDetails.date
-                                                  .isBefore(DateTime.now())
-                                              ? greyColor.withOpacity(0.5)
-                                              : themeColor,
-                                          width: 1.5,
-                                          style: BorderStyle.solid),
-                                      borderRadius: BorderRadius.circular(5),
-                                      color: cellColor,
-                                    ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          convertToLocaleDigits(
-                                              cellDetails.date.day.toString()),
-                                          style: TextStyle(
-                                              color: cellDetails.date
-                                                      .isBefore(DateTime.now())
-                                                  ? whiteColor
-                                                  : textColor,
-                                              fontWeight: FontWeight.w600),
-                                        ),
-                                        Text(
-                                          convertToLocaleDigits(
-                                              cellPrice.toString()),
-                                          style: smallAirBk.copyWith(
-                                              fontSize: 8,
-                                              color: cellDetails.date
-                                                      .isBefore(DateTime.now())
-                                                  ? whiteColor
-                                                  : textColor,
-                                              fontWeight: FontWeight.w500),
-                                          textAlign: TextAlign.center,
-                                        )
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }),
+                        // ListView de mois à hauteur fixe : évite le bug Syncfusion
+                        // (navigationMode.scroll) qui écrase les lignes de jours
+                        // quand la hauteur restante du Column/Expanded est trop faible.
+                        Expanded(
+                          child: ListView.builder(
+                            padding: const EdgeInsets.only(
+                              left: 8,
+                              right: 8,
+                              bottom: 96,
+                            ),
+                            itemCount: RollingCalendarBounds.windowMonths,
+                            itemBuilder: (context, index) {
+                              final windowStart =
+                                  RollingCalendarBounds.firstDate();
+                              final monthStart = DateTime(
+                                windowStart.year,
+                                windowStart.month + index,
+                                1,
+                              );
+                              final monthEnd = DateTime(
+                                monthStart.year,
+                                monthStart.month + 1,
+                                0,
+                              );
+                              return _buildMonthCalendarCard(
+                                monthStart: monthStart,
+                                monthEnd: monthEnd,
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ),

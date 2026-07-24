@@ -1150,6 +1150,10 @@ const Map<String, String> frFR = {
   "Pick Address": "Choisir une adresse",
   "Save Address": "Enregistrer l'adresse",
   "Add Address Details": "Ajouter les détails de l'adresse",
+  "Current Address": "Adresse actuelle",
+  "Full address": "Adresse complète",
+  "Address Label": "Libellé de l'adresse",
+  "Home, Office, Airport...": "Maison, Bureau, Aéroport...",
   "No Ongoing Booking Available": "Aucune réservation en cours disponible",
   "Popular Region": "Région populaire",
   "Lead your vehicle to make some extra cash":
@@ -1176,7 +1180,7 @@ const Map<String, String> frFR = {
   "open_location_settings": "Ouvrir les paramètres",
   "Current location": "Localisation actuelle",
   "The selected date range must be within the current month and the next two months.":
-      "La plage de dates doit être comprise entre le mois en cours et les deux mois suivants.",
+      "La plage de dates sélectionnée doit être comprise dans les 12 prochains mois.",
   "Select a location on the map or use the search field.":
       "Sélectionnez un lieu sur la carte ou utilisez la recherche.",
   "Error: Invalid Google API key. Please check your configuration.":

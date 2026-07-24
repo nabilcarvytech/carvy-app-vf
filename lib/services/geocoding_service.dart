@@ -11,6 +11,8 @@ class ResolvedAddress {
     this.country = '',
     this.postalCode = '',
     this.subLocality = '',
+    this.name = '',
+    this.suggestedLabel = 'Home',
   });
 
   final String fullAddress;
@@ -20,6 +22,9 @@ class ResolvedAddress {
   final String country;
   final String postalCode;
   final String subLocality;
+  final String name;
+  /// Libellé intelligent (Maison, Bureau, Aéroport, etc.).
+  final String suggestedLabel;
 }
 
 /// Reverse geocoding via le package [geocoding] (pas d'adresse codée en dur).
@@ -69,6 +74,7 @@ class GeocodingService {
       country: country,
     );
 
+    final name = (p.name ?? '').trim();
     return ResolvedAddress(
       fullAddress: fullAddress,
       street: streetLine.isNotEmpty ? streetLine : (p.street ?? '').trim(),
@@ -77,7 +83,85 @@ class GeocodingService {
       country: country,
       postalCode: postalCode,
       subLocality: subLocality,
+      name: name,
+      suggestedLabel: suggestAddressLabel('$name $fullAddress'),
     );
+  }
+
+  /// Déduit un libellé de lieu à partir du texte d'adresse / du nom du lieu.
+  static String suggestAddressLabel(String context) {
+    final lower = context.toLowerCase();
+    if (_containsAny(lower, [
+      'airport',
+      'aéroport',
+      'aeroport',
+      'aeropuerto',
+    ])) {
+      return 'Airport';
+    }
+    if (_containsAny(lower, [
+      'hotel',
+      'hôtel',
+      'motel',
+      'resort',
+      'hostel',
+    ])) {
+      return 'Hotel';
+    }
+    if (_containsAny(lower, [
+      'office',
+      'bureau',
+      'business',
+      'cowork',
+      'co-working',
+      'empresa',
+    ])) {
+      return 'Office';
+    }
+    if (_containsAny(lower, [
+      'station',
+      'gare',
+      'train station',
+      'railway',
+    ])) {
+      return 'Station';
+    }
+    if (_containsAny(lower, [
+      'hospital',
+      'hôpital',
+      'hopital',
+      'clinic',
+      'clinique',
+    ])) {
+      return 'Hospital';
+    }
+    if (_containsAny(lower, [
+      'mall',
+      'shopping',
+      'centre commercial',
+      'centro comercial',
+    ])) {
+      return 'Shopping';
+    }
+    if (_containsAny(lower, [
+      'university',
+      'université',
+      'universite',
+      'campus',
+      'school',
+      'école',
+      'ecole',
+    ])) {
+      return 'School';
+    }
+    return 'Home';
+  }
+
+  static bool _containsAny(String haystack, List<String> needles) {
+    for (final n in needles) {
+      if (haystack.contains(n)) return true;
+    }
+    return false;
   }
 
   static String _firstNonEmpty(List<String?> values) {

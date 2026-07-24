@@ -681,7 +681,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                           const SizedBox(width: 5),
                           Expanded(
                             child: Text(
-                              "${doorStepAddressModel!.houseFloorNumber}${doorStepAddressModel!.buildingBlockNumber} ${doorStepAddressModel!.fullAddress}",
+                              "${doorStepAddressModel!.addressLabel != null && doorStepAddressModel!.addressLabel.toString().isNotEmpty ? "${doorStepAddressModel!.addressLabel} · " : ""}${doorStepAddressModel!.fullAddress ?? ""}",
                               maxLines: 4,
                               overflow: TextOverflow.ellipsis,
                               style: regular2(context),

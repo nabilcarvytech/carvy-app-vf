@@ -495,9 +495,15 @@ class _EditCalenderOnThirdStepCommonState
           SizedBox(
             height: 800,
             child: SfDateRangePicker(
+                headerHeight: 48,
                 headerStyle: DateRangePickerHeaderStyle(
                   textAlign: TextAlign.start,
-                  textStyle: TextStyle(fontSize: 18, color: boxcolor),
+                  backgroundColor: Colors.white,
+                  textStyle: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: boxcolor,
+                  ),
                 ),
                 monthCellStyle: DateRangePickerMonthCellStyle(
                     blackoutDateTextStyle: const TextStyle(
@@ -507,20 +513,23 @@ class _EditCalenderOnThirdStepCommonState
                         shape: BoxShape.circle, color: Colors.green.shade100)),
                 controller: dateRangePickerControllers,
                 monthViewSettings: DateRangePickerMonthViewSettings(
+                  firstDayOfWeek: 7,
+                  viewHeaderHeight: 36,
+                  dayFormat: 'EEE',
                   viewHeaderStyle: DateRangePickerViewHeaderStyle(
                     backgroundColor: darkbox.withOpacity(
                         0.1),
                     textStyle: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
-                        fontSize: 12),
+                        fontSize: 11),
                   ),
                 ),
                 backgroundColor: Colors.white,
                 navigationDirection:
                     DateRangePickerNavigationDirection.vertical,
                 navigationMode: DateRangePickerNavigationMode.scroll,
-                enableMultiView: true,
+                enableMultiView: false,
                 allowViewNavigation: false,
                 minDate: RollingCalendarBounds.firstDate(),
                 maxDate: RollingCalendarBounds.lastDate(),

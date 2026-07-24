@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 
 /// Fenêtre glissante de sélection : du 1er jour du mois courant
-/// au dernier jour du 3e mois (ex. janvier → fin mars).
+/// au dernier jour du 12e mois (plage annuelle continue).
 class RollingCalendarBounds {
   RollingCalendarBounds._();
+
+  /// Nombre de mois inclus dans la fenêtre (mois courant inclus).
+  static const int windowMonths = 12;
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -14,10 +17,25 @@ class RollingCalendarBounds {
     return DateTime(ref.year, ref.month, 1);
   }
 
-  /// Borne de fin : dernier jour du 3e mois à partir du mois courant.
+  /// Borne de fin : dernier jour du 12e mois à partir du mois courant
+  /// (ex. juillet 2026 → fin juin 2027).
   static DateTime lastDate([DateTime? reference]) {
     final ref = _dateOnly(reference ?? DateTime.now());
-    return DateTime(ref.year, ref.month + 3, 0);
+    return DateTime(ref.year, ref.month + windowMonths, 0);
+  }
+
+  /// Plage [start, end] au format `yyyy-MM-dd` pour les appels API.
+  static Map<String, String> apiDateRangeQuery([DateTime? reference]) {
+    final first = firstDate(reference);
+    final last = lastDate(reference);
+    String fmt(DateTime d) =>
+        '${d.year.toString().padLeft(4, '0')}-'
+        '${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
+    return {
+      'start_date': fmt(first),
+      'end_date': fmt(last),
+    };
   }
 
   static bool isWithinWindow(DateTime date, [DateTime? reference]) {

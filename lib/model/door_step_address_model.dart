@@ -46,9 +46,8 @@ class AddressData {
 }
 
 class DoorStepAddress {
-  dynamic houseFloorNumber;
-  dynamic buildingBlockNumber;
-  dynamic landmark;
+  /// Libellé / type de lieu (Maison, Bureau, Aéroport…).
+  dynamic addressLabel;
   dynamic fullAddress;
   dynamic city;
   dynamic state;
@@ -57,10 +56,13 @@ class DoorStepAddress {
   double? doorstepLatitude;
   double? doorstepLongitude;
 
+  /// Champs legacy (lecture seule pour anciennes réponses API).
+  dynamic houseFloorNumber;
+  dynamic buildingBlockNumber;
+  dynamic landmark;
+
   DoorStepAddress({
-    this.houseFloorNumber,
-    this.buildingBlockNumber,
-    this.landmark,
+    this.addressLabel,
     this.fullAddress,
     this.city,
     this.state,
@@ -68,13 +70,17 @@ class DoorStepAddress {
     this.postalCode,
     this.doorstepLatitude,
     this.doorstepLongitude,
+    this.houseFloorNumber,
+    this.buildingBlockNumber,
+    this.landmark,
   });
 
   factory DoorStepAddress.fromJson(Map<String, dynamic> json) {
+    final label = json['address_label']?.toString() ??
+        json['landmark']?.toString() ??
+        json['house_floor_number']?.toString();
     return DoorStepAddress(
-      houseFloorNumber: json['house_floor_number']?.toString(),
-      buildingBlockNumber: json['building_block_number'],
-      landmark: json['landmark'],
+      addressLabel: label,
       fullAddress: json['full_address'],
       city: json['city'],
       state: json['state'],
@@ -86,14 +92,15 @@ class DoorStepAddress {
       doorstepLongitude: (json['doorstep_longitude'] != null)
           ? double.tryParse(json['doorstep_longitude'].toString())
           : null,
+      houseFloorNumber: json['house_floor_number']?.toString(),
+      buildingBlockNumber: json['building_block_number'],
+      landmark: json['landmark'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'house_floor_number': houseFloorNumber,
-      'building_block_number': buildingBlockNumber,
-      'landmark': landmark,
+      'address_label': addressLabel,
       'full_address': fullAddress,
       'city': city,
       'state': state,

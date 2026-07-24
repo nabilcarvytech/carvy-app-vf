@@ -598,10 +598,13 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                                 )
                                               : Expanded(
                                                   child: Text(
-                                                    "${addAddressController.houseFloorNumberController.text.isNotEmpty ? addAddressController.houseFloorNumberController.text : ""} "
-                                                    "${addAddressController.buildingBlockNumberController.text.isNotEmpty ? addAddressController.buildingBlockNumberController.text : ""} "
-                                                    "${addAddressController.landmarkController.text.isNotEmpty ? addAddressController.landmarkController.text : ""} "
-                                                    "${addAddressController.fullAddressController.text}",
+                                                    addAddressController
+                                                            .fulladdress
+                                                            .value
+                                                            .isNotEmpty
+                                                        ? addAddressController
+                                                            .fulladdress.value
+                                                        : "${addAddressController.addressLabelController.text.isNotEmpty ? "${addAddressController.addressLabelController.text} · " : ""}${addAddressController.fullAddressController.text}",
                                                     style: regular(context)
                                                         .copyWith(
                                                       fontSize: 15,

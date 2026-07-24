@@ -1045,6 +1045,10 @@ const Map<String, String> arAR = {
   "Pick Address": "اختر العنوان",
   "Save Address": "حفظ العنوان",
   "Add Address Details": "إضافة تفاصيل العنوان",
+  "Current Address": "العنوان الحالي",
+  "Full address": "العنوان الكامل",
+  "Address Label": "تسمية العنوان",
+  "Home, Office, Airport...": "منزل، مكتب، مطار...",
   "No Ongoing Booking Available": "لا توجد حجوزات جارية متاحة",
   "Popular Region": "المنطقة الشعبية",
   "Lead your vehicle to make some extra cash":

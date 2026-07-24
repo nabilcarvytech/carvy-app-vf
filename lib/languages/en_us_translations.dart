@@ -1078,7 +1078,7 @@ const Map<String, String> enUs = {
   "open_location_settings": "Open settings",
   "Current location": "Current location",
   "The selected date range must be within the current month and the next two months.":
-      "The selected date range must be within the current month and the next two months.",
+      "The selected date range must be within the next 12 months.",
   "Select a location on the map or use the search field.":
       "Select a location on the map or use the search field.",
   "Odometers": "Odometers",
@@ -1289,6 +1289,10 @@ const Map<String, String> enUs = {
   "initial_total_price": "Initial total price",
   "long_term_discount": "Long term discount",
   "home_delivery": "Home delivery",
+  "Current Address": "Current Address",
+  "Full address": "Full address",
+  "Address Label": "Address Label",
+  "Home, Office, Airport...": "Home, Office, Airport...",
   "currency_mad": "MAD",
   "morocco": "Morocco",
   "Bluetooth": "Bluetooth",

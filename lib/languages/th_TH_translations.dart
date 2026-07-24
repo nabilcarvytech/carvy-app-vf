@@ -1030,6 +1030,10 @@ const Map<String, String> thTH = {
   "Pick Address": "เลือกที่อยู่",
   "Save Address": "บันทึกที่อยู่",
   "Add Address Details": "เพิ่มรายละเอียดที่อยู่",
+  "Current Address": "ที่อยู่ปัจจุบัน",
+  "Full address": "ที่อยู่เต็ม",
+  "Address Label": "ป้ายที่อยู่",
+  "Home, Office, Airport...": "บ้าน, สำนักงาน, สนามบิน...",
   "No Ongoing Booking Available": "ไม่มีกำหนดการจองที่กำลังดำเนินการ",
   "Popular Region": "ภูมิภาคยอดนิยม",
   "Lead your vehicle to make some extra cash":

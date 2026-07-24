@@ -1047,6 +1047,10 @@ const Map<String, String> ruRU = {
   "Pick Address": "Выберите адрес",
   "Save Address": "Сохранить адрес",
   "Add Address Details": "Добавить детали адреса",
+  "Current Address": "Текущий адрес",
+  "Full address": "Полный адрес",
+  "Address Label": "Метка адреса",
+  "Home, Office, Airport...": "Дом, Офис, Аэропорт...",
   "No Ongoing Booking Available": "Нет доступных текущих бронирований",
   "Popular Region": "Популярный регион",
   "Lead your vehicle to make some extra cash":

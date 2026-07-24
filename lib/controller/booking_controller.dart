@@ -23,6 +23,7 @@ import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/digital_singnature_model.dart';
 import 'package:carvy/model/item_details_model.dart';
 import 'package:carvy/utils/common_widget.dart';
+import 'package:carvy/utils/rolling_calendar_bounds.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/utils/payment_flow_debug.dart';
@@ -3148,12 +3149,9 @@ class BookingController extends GetxController implements GetxService {
   String doorStepAddress() {
     AddAddressController addAddressController = Get.find();
     Map<String, dynamic> map = {
-      "house_floor_number":
-          addAddressController.houseFloorNumberController.text,
-      "building_block_number":
-          addAddressController.buildingBlockNumberController.text,
-      "landmark": addAddressController.landmarkController.text,
       "full_address": addAddressController.fullAddressController.text,
+      "address_label": addAddressController.addressLabelController.text,
+      "landmark": addAddressController.addressLabelController.text,
       "city": addAddressController.cityController.text,
       "state": addAddressController.stateController.text,
       "country": addAddressController.countryController.text,
@@ -3302,8 +3300,9 @@ class BookingController extends GetxController implements GetxService {
       alreadySelectedList.clear();
       availableDatesPrice.clear();
 
-      // Appel API réel - ID directement dans l'URL
-      var response = await httpGet(endpointWithId, {});
+      // Appel API réel - ID directement dans l'URL, plage annuelle en query
+      final rangeQuery = RollingCalendarBounds.apiDateRangeQuery();
+      var response = await httpGet(endpointWithId, rangeQuery);
 
       // ========== TRACEUR DE PAYLOAD ==========
       if (response != null && response is Map) {

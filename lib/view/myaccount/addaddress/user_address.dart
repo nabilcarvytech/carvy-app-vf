@@ -20,11 +20,7 @@ class UserAddress extends StatefulWidget {
 }
 
 class _UserAddressState extends State<UserAddress> {
-  bool isOfficeSelected = false;
-  bool isHomeSelected = false;
-  bool isOtherSelected = false;
   AddAddressController addAddressController = Get.find();
-  final _formKey = GlobalKey<FormState>();
 
   late GoogleMapController mapController;
   void _onMapTapped(LatLng position) async {
@@ -115,7 +111,6 @@ class _UserAddressState extends State<UserAddress> {
     );
   }
 
-  String selectedOption = "";
   void _zoomOut() {
     mapController.animateCamera(
       CameraUpdate.zoomOut(),
@@ -126,15 +121,9 @@ class _UserAddressState extends State<UserAddress> {
   @override
   void initState() {
     super.initState();
-
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   if (widget.dataClear == true) {
-    //     addAddressController.clearAddressFunction();
-    //   }
-    // });
+    addAddressController.ensureSuggestedLabelIfEmpty();
   }
 
-  final FocusNode _focusNode = FocusNode();
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -368,7 +357,7 @@ class _UserAddressState extends State<UserAddress> {
                 Padding(
                   padding: const EdgeInsets.only(left: 10),
                   child: Text(
-                    'House No. & Floor',
+                    'Current Address'.tr,
                     style: regular3(context),
                     textAlign: TextAlign.center,
                   ),
@@ -378,9 +367,9 @@ class _UserAddressState extends State<UserAddress> {
                   children: [
                     Expanded(
                       child: TextFieldAdvance(
-                          hintTxt: "",
+                          hintTxt: 'Full address'.tr,
                           textEditingControllerCommon:
-                              addAddressController.houseFloorNumberController,
+                              addAddressController.fullAddressController,
                           inputType: TextInputType.streetAddress,
                           inputAlignment: TextAlign.start),
                     ),
@@ -390,7 +379,7 @@ class _UserAddressState extends State<UserAddress> {
                 Padding(
                   padding: const EdgeInsets.only(left: 10),
                   child: Text(
-                    'Building & Block No. (Optional)',
+                    'Address Label'.tr,
                     style: regular3(context),
                     textAlign: TextAlign.center,
                   ),
@@ -400,32 +389,10 @@ class _UserAddressState extends State<UserAddress> {
                   children: [
                     Expanded(
                       child: TextFieldAdvance(
-                          hintTxt: "",
-                          textEditingControllerCommon: addAddressController
-                              .buildingBlockNumberController,
-                          inputType: TextInputType.streetAddress,
-                          inputAlignment: TextAlign.start),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.only(left: 10),
-                  child: Text(
-                    'LandMark & Area Name. (Optional)',
-                    style: regular3(context),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFieldAdvance(
-                          hintTxt: "",
+                          hintTxt: 'Home, Office, Airport...'.tr,
                           textEditingControllerCommon:
-                              addAddressController.landmarkController,
-                          inputType: TextInputType.streetAddress,
+                              addAddressController.addressLabelController,
+                          inputType: TextInputType.text,
                           inputAlignment: TextAlign.start),
                     ),
                   ],
