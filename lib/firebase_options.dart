@@ -62,7 +62,8 @@ class DefaultFirebaseOptions {
     storageBucket: 'carvy-test.firebasestorage.app',
     iosClientId:
         '415377246287-knvcq59kbb9j4nn27aogt5j3qg94imi3.apps.googleusercontent.com',
-    iosBundleId: 'com.carvy.app',
+    // Actif: com.carvy.app.v2 | Ancien: com.carvy.app (indisponible sur le compte CARVY TECH)
+    iosBundleId: 'com.carvy.app.v2',
   );
 
   static const FirebaseOptions web = FirebaseOptions(

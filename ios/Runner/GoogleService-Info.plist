@@ -14,8 +14,9 @@
 	<string>415377246287</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
+	<!-- Bundle ID actif pour TestFlight. Ancien: com.carvy.app (pris sur un autre compte Apple) -->
 	<key>BUNDLE_ID</key>
-	<string>com.carvy.app</string>
+	<string>com.carvy.app.v2</string>
 	<key>PROJECT_ID</key>
 	<string>carvy-test</string>
 	<key>STORAGE_BUCKET</key>
