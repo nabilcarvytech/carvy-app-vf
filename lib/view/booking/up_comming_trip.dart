@@ -12,6 +12,7 @@ import '../../utils/payment_flow_debug.dart';
 import 'package:carvy/utils/render_debug.dart';
 import 'package:carvy/view/booking/widgets/booking_tab_list_body.dart';
 import 'package:carvy/view/booking/widgets/my_booking_otp_overlay.dart';
+import 'package:carvy/view/bottombar/home_main.dart';
 
 class MyUpCommingTrip extends StatefulWidget {
   final bool fromPropBooking;
@@ -36,29 +37,60 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
   RefreshController refreshController = RefreshController();
   bool _localIsTransitioning = true;
 
+  void _tryInitialFetch({bool allowRetry = true}) {
+    if (!mounted) return;
+    if (NavigationGuard.isNavigating) {
+      if (allowRetry) _scheduleInitialFetchAfterNavigation();
+      return;
+    }
+    final skip = bookingRecordController.shouldSkipInitialFetch(
+      'upcoming',
+      isActiveTab: widget.tabIndex == widget.initialTabIndex,
+    );
+    paymentFlowLog('STEP 14 — MyUpCommingTrip postFrame',
+        'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}, skipFetch=$skip, listLen=${bookingRecordController.bookingsList.length}, isLoading=${bookingRecordController.isLoading.value}');
+    if (skip) {
+      if (allowRetry && NavigationGuard.isNavigating) {
+        _scheduleInitialFetchAfterNavigation();
+      }
+      return;
+    }
+    getData();
+  }
+
+  void _scheduleInitialFetchAfterNavigation() {
+    paymentFlowLog('STEP 14-retry — scheduling upcoming fetch after navigation');
+    NavigationGuard.runWhenIdle(() async {
+      if (!mounted) return;
+      _tryInitialFetch(allowRetry: false);
+    });
+  }
+
   bool get _actionsLocked => widget.isTransitioning || _localIsTransitioning;
+
+  void _scheduleLocalTransitionUnlock() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (context.findAncestorWidgetOfExactType<HomeMain>() == null) {
+        setState(() => _localIsTransitioning = false);
+        return;
+      }
+      Future<void>.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) setState(() => _localIsTransitioning = false);
+      });
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     _localIsTransitioning = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future<void>.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) setState(() => _localIsTransitioning = false);
-      });
-    });
+    _scheduleLocalTransitionUnlock();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || NavigationGuard.isNavigating) return;
-        final skip = bookingRecordController.shouldSkipInitialFetch(
-          'upcoming',
-          isActiveTab: widget.tabIndex == widget.initialTabIndex,
-        );
-        paymentFlowLog('STEP 14 — MyUpCommingTrip postFrame',
-            'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}, skipFetch=$skip, listLen=${bookingRecordController.bookingsList.length}, isLoading=${bookingRecordController.isLoading.value}');
-        if (skip) return;
-        getData();
+        if (!mounted) return;
+        _tryInitialFetch();
       });
     });
   }
@@ -107,9 +139,10 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
       'MyUpCommingTrip.build',
       'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}',
     );
-    return Scaffold(
-      backgroundColor: notifires.getbgcolor,
-      body: Stack(
+    return ColoredBox(
+      color: notifires.getbgcolor,
+      child: Stack(
+        fit: StackFit.expand,
         children: [
           SmartRefresher(
             controller: refreshController,

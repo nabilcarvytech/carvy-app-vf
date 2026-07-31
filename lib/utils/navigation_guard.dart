@@ -31,6 +31,22 @@ class NavigationGuard {
     });
   }
 
+  /// Exécute [action] dès que [isNavigating] repasse à false (retry post-paiement).
+  static Future<void> runWhenIdle(
+    Future<void> Function() action, {
+    Duration pollInterval = const Duration(milliseconds: 100),
+    int maxAttempts = 50,
+  }) async {
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      if (!isNavigating) {
+        await action();
+        return;
+      }
+      await Future.delayed(pollInterval);
+    }
+    await action();
+  }
+
   static void endImmediately() {
     isNavigating = false;
   }

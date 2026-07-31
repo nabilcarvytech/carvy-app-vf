@@ -107,19 +107,30 @@ class BookingRecordController extends GetxController implements GetxService {
 
   bool _canMutateRx({bool bypassNavigationGuard = false}) =>
       _isControllerActive() &&
-      !_transitionListenersMuted &&
-      (bypassNavigationGuard || !NavigationGuard.isNavigating);
+      (bypassNavigationGuard ||
+          (!_transitionListenersMuted && !NavigationGuard.isNavigating));
 
-  void _protectedSafeUpdate([List<Object>? ids, bool condition = true]) {
-    if (!_canMutateRx()) return;
+  void _protectedSafeUpdate(
+    [List<Object>? ids,
+    bool condition = true,
+    bool bypassNavigationGuard = false,
+  ]) {
+    if (!_canMutateRx(bypassNavigationGuard: bypassNavigationGuard)) return;
     // Sans ids : RxList / RxBool notifient déjà via ever() — pas de update() global.
     if (ids == null || ids.isEmpty) return;
     safeUpdate(ids, condition);
   }
 
-  void _protectedRefresh() {
-    if (!_canMutateRx()) return;
+  void _protectedRefresh({bool bypassNavigationGuard = false}) {
+    if (!_canMutateRx(bypassNavigationGuard: bypassNavigationGuard)) return;
     bookingsList.refresh();
+  }
+
+  /// Normalise `data.bookings` (minuscule) vers `data.Bookings` pour le modèle.
+  static void _normalizeBookingsListKey(Map<String, dynamic> data) {
+    if (!data.containsKey('Bookings') && data.containsKey('bookings')) {
+      data['Bookings'] = data['bookings'];
+    }
   }
 
   /// Données déjà chargées pour cet onglet — évite un fetch initial redondant.
@@ -188,6 +199,10 @@ class BookingRecordController extends GetxController implements GetxService {
       }
 
       if (!_canMutateRx(bypassNavigationGuard: bypassNavigationGuard)) return;
+
+      void updateUi([List<Object>? ids, bool condition = true]) {
+        _protectedSafeUpdate(ids, condition, bypassNavigationGuard);
+      }
 
       // Réinitialiser l'état d'erreur
       hasError.value = false;
@@ -277,7 +292,7 @@ class BookingRecordController extends GetxController implements GetxService {
           hasError.value = true;
           errorMessage = 'Token d\'authentification manquant';
           isLoading.value = false;
-          _protectedSafeUpdate();
+          updateUi();
           return;
         }
 
@@ -338,7 +353,7 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = 'Format de réponse invalide';
         isLoading.value = false;
-        _protectedSafeUpdate();
+        updateUi();
         return;
       }
 
@@ -350,7 +365,7 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = errorMsg;
         isLoading.value = false;
-        _protectedSafeUpdate();
+        updateUi();
         return;
       }
 
@@ -362,17 +377,31 @@ class BookingRecordController extends GetxController implements GetxService {
         hasError.value = true;
         errorMessage = 'Réponse incomplète du serveur';
         isLoading.value = false;
-        _protectedSafeUpdate();
+        updateUi();
         return;
       }
 
-      // Vérifier que 'data' contient 'Bookings'
-      if (!responseData['data'].containsKey('Bookings')) {
-        debugPrint('❌ [BookingRecord] ERREUR: responseData["data"] ne contient pas la clé "Bookings"');
+      final rawData = responseData['data'];
+      if (rawData is! Map) {
+        debugPrint('❌ [BookingRecord] ERREUR: responseData["data"] n\'est pas un Map');
+        hasError.value = true;
+        errorMessage = 'Format de réponse invalide: data invalide';
+        isLoading.value = false;
+        updateUi();
+        return;
+      }
+      final dataMap = Map<String, dynamic>.from(rawData);
+      _normalizeBookingsListKey(dataMap);
+      responseData['data'] = dataMap;
+
+      if (!dataMap.containsKey('Bookings')) {
+        debugPrint(
+            '❌ [BookingRecord] ERREUR: data ne contient pas Bookings/bookings');
+        debugPrint('❌ [BookingRecord] Clés disponibles: ${dataMap.keys.toList()}');
         hasError.value = true;
         errorMessage = 'Format de réponse invalide: clé Bookings manquante';
         isLoading.value = false;
-        _protectedSafeUpdate();
+        updateUi();
         return;
       }
 
@@ -444,9 +473,11 @@ class BookingRecordController extends GetxController implements GetxService {
           // Vérification des clés critiques
           List<String> missingKeys = [];
           
-          if (bookingJson['_id'] == null && bookingJson['id'] == null) {
-            missingKeys.add('_id/id');
-            print('⚠️ [BookingRecord] Booking #$i: Clé _id/id manquante');
+          if (bookingJson['_id'] == null &&
+              bookingJson['id'] == null &&
+              bookingJson['booking_id'] == null) {
+            missingKeys.add('_id/id/booking_id');
+            print('⚠️ [BookingRecord] Booking #$i: Clé _id/id/booking_id manquante');
           }
           if (bookingJson['itemid'] == null) {
             missingKeys.add('itemid');
@@ -492,7 +523,8 @@ class BookingRecordController extends GetxController implements GetxService {
           }
           
           // Log des valeurs importantes pour debug
-          debugPrint('   • _id/id: ${bookingJson['_id'] ?? bookingJson['id']}');
+          debugPrint(
+              '   • _id/id/booking_id: ${bookingJson['_id'] ?? bookingJson['id'] ?? bookingJson['booking_id']}');
           debugPrint('   • currency_code: ${bookingJson['currency_code']} (null = cause "null 127.5")');
           debugPrint('   • total: ${bookingJson['total']}');
           debugPrint('   • per_day: ${bookingJson['per_day']}');
@@ -654,7 +686,7 @@ class BookingRecordController extends GetxController implements GetxService {
           
           // ========== 3. RAFRAÎCHISSEMENT DE L'UI ==========
           // RxList notifie automatiquement GetX, mais on appelle update() pour être sûr
-          _protectedSafeUpdate();
+          updateUi();
         } else {
           debugPrint('⚠️ [BookingRecord] bookingModel.data.bookings est null ou vide');
         }
@@ -800,7 +832,7 @@ class BookingRecordController extends GetxController implements GetxService {
           _canMutateRx(bypassNavigationGuard: bypassNavigationGuard)) {
         isLoading.value = false;
         Bookings.suppressParseDebugLogs = false;
-        _protectedSafeUpdate();
+        updateUi();
         if (isNewSearch && normalizedType == 'upcoming') {
           paymentFlowLog('STEP 16-detail — getBookingRecord finally',
               'listLen=${bookingsList.length}, hasError=$hasError');

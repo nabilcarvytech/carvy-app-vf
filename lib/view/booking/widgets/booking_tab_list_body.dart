@@ -42,6 +42,7 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
   Worker? _loadingWorker;
   Worker? _listWorker;
   Worker? _hideReturnWorker;
+  Worker? _navigationWorker;
   bool _subscribed = false;
 
   @override
@@ -72,12 +73,15 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
         _safeRebuild();
       });
     }
+    _navigationWorker = ever(NavigationGuard.isNavigatingObs, (_) {
+      renderDebugLog('ever(NavigationGuard.isNavigating)', widget.listType);
+      _safeRebuild();
+    });
     _safeRebuild();
   }
 
   void _safeRebuild() {
     if (!mounted || !context.mounted) return;
-    if (NavigationGuard.isNavigating) return;
     renderDebugLog(
       'BookingTabListBody._safeRebuild (setState)',
       'listType=${widget.listType}',
@@ -90,6 +94,7 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
     _loadingWorker?.dispose();
     _listWorker?.dispose();
     _hideReturnWorker?.dispose();
+    _navigationWorker?.dispose();
     super.dispose();
   }
 
@@ -115,8 +120,20 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
       return myBookingScreenShimmer();
     }
     if (list.isEmpty) {
-      return Center(
-        child: buildNoDataWidget(context, widget.emptyMessage),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: buildNoDataWidget(context, widget.emptyMessage),
+              ),
+            ),
+          );
+        },
       );
     }
 

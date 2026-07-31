@@ -42,6 +42,48 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   bool _isTransitioning = true;
   final Set<int> _mountedTabIndexes = {};
 
+  bool _isEmbeddedInHomeMain() =>
+      context.findAncestorWidgetOfExactType<HomeMain>() != null;
+
+  /// Route poussée (profil) ou [Get.offAll] post-paiement — pas l'onglet HomeMain.
+  Future<void> _prepareStandaloneEntry() async {
+    if (!mounted || _disposed || _isEmbeddedInHomeMain()) return;
+
+    paymentFlowLog(
+      'MyBooking — standalone entry',
+      'unlock actions + refresh (profile or post-payment)',
+    );
+    NavigationGuard.endImmediately();
+    bookingController.clearBookingData();
+    if (Get.isRegistered<BookingRecordController>()) {
+      bookingRecordController.restoreListeners();
+      final type = _typeForIndex(_initialTab);
+      await bookingRecordController.getBookingRecord(
+        type: type,
+        offset: 0,
+        bypassNavigationGuard: true,
+      );
+    }
+
+    if (mounted && !_disposed) {
+      setState(() => _isTransitioning = false);
+    }
+  }
+
+  void _scheduleTransitionUnlock() {
+    if (!mounted || _disposed) return;
+    if (!_isEmbeddedInHomeMain()) {
+      setState(() => _isTransitioning = false);
+      return;
+    }
+    Future<void>.delayed(const Duration(milliseconds: 300), () {
+      if (mounted && !_disposed) {
+        setState(() => _isTransitioning = false);
+        paymentFlowLog('STEP 10a2 — isTransitioning=false', 'cell actions unlocked');
+      }
+    });
+  }
+
   String _typeForIndex(int tabIndex) {
     switch (tabIndex) {
       case 1:
@@ -55,8 +97,12 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     }
   }
 
-  void _fetchActiveTabRecord() {
-    if (!mounted || _disposed || NavigationGuard.isNavigating) return;
+  void _fetchActiveTabRecord({bool allowRetry = true}) {
+    if (!mounted || _disposed) return;
+    if (NavigationGuard.isNavigating) {
+      if (allowRetry) _scheduleFetchAfterNavigation();
+      return;
+    }
     if (!Get.isRegistered<BookingRecordController>()) return;
     if (bookingRecordController.isClosed) return;
 
@@ -66,11 +112,22 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
       isActiveTab: index == _initialTab,
     )) {
       paymentFlowLog('STEP 10c — fetch skipped', 'type=$type, index=$index');
+      if (allowRetry && NavigationGuard.isNavigating) {
+        _scheduleFetchAfterNavigation();
+      }
       return;
     }
 
     paymentFlowLog('STEP 10c — fetch active tab', 'type=$type, index=$index');
     bookingRecordController.getBookingRecord(type: type, offset: 0);
+  }
+
+  void _scheduleFetchAfterNavigation() {
+    paymentFlowLog('STEP 10c-retry — scheduling fetch after navigation');
+    NavigationGuard.runWhenIdle(() async {
+      if (!mounted || _disposed) return;
+      _fetchActiveTabRecord(allowRetry: false);
+    });
   }
 
   void _initTabControllerAfterMount() {
@@ -107,7 +164,8 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || _disposed || tabController == null) return;
         if (NavigationGuard.isNavigating) {
-          paymentFlowLog('STEP 10c — fetch deferred', 'NavigationGuard still active');
+          paymentFlowLog('STEP 10c — fetch deferred, scheduling retry');
+          _scheduleFetchAfterNavigation();
           return;
         }
         _fetchActiveTabRecord();
@@ -126,12 +184,9 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
         'initialTab=$_initialTab, IndexedStack deferred, stackReady=false');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future<void>.delayed(const Duration(milliseconds: 300), () {
-        if (mounted && !_disposed) {
-          setState(() => _isTransitioning = false);
-          paymentFlowLog('STEP 10a2 — isTransitioning=false', 'cell actions unlocked');
-        }
-      });
+      if (!mounted || _disposed) return;
+      _prepareStandaloneEntry();
+      _scheduleTransitionUnlock();
     });
 
     _tabListener = () {
@@ -150,7 +205,18 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || _disposed || tabController == null) return;
-          if (NavigationGuard.isNavigating) return;
+          if (NavigationGuard.isNavigating) {
+            NavigationGuard.runWhenIdle(() async {
+              if (!mounted || _disposed || tabController == null) return;
+              final type = _typeForIndex(index);
+              if (!Get.isRegistered<BookingRecordController>()) return;
+              if (bookingRecordController.isClosed) return;
+              if (bookingRecordController.isLoading.value) return;
+              if (bookingRecordController.hasDataForType(type)) return;
+              bookingRecordController.getBookingRecord(type: type, offset: 0);
+            });
+            return;
+          }
 
           final type = _typeForIndex(index);
           if (!Get.isRegistered<BookingRecordController>()) return;

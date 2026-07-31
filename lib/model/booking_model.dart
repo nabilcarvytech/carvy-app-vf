@@ -56,9 +56,10 @@ class Data {
   }
 
   Data.fromJson(dynamic json) {
-    if (json['Bookings'] != null) {
+    final rawBookings = json['Bookings'] ?? json['bookings'];
+    if (rawBookings != null) {
       _bookings = [];
-      final bookingsJson = json['Bookings'] as List;
+      final bookingsJson = rawBookings as List;
       final logParse = kDebugMode && !Bookings.suppressParseDebugLogs;
 
       if (logParse) {
@@ -91,7 +92,7 @@ class Data {
             '✅ [Data.fromJson] ${_bookings?.length ?? 0} réservations parsées avec succès');
       }
     } else if (kDebugMode && !Bookings.suppressParseDebugLogs) {
-      debugPrint('⚠️ [Data.fromJson] json["Bookings"] est null');
+      debugPrint('⚠️ [Data.fromJson] json["Bookings"]/json["bookings"] est null');
     }
     
     // Sécurisation des champs numériques offset et limit
@@ -565,7 +566,9 @@ class Bookings {
   Bookings.fromJson(dynamic json) {
     try {
       // ========== 1. INSPECTION DU DÉCODAGE - ID ==========
-      _id = normalizeEntityId(json['_id'] ?? json['id']);
+      _id = normalizeEntityId(
+        json['_id'] ?? json['id'] ?? json['booking_id'],
+      );
 
       // ========== CHAMPS IDENTIFIANTS (String) ==========
       _itemid = normalizeEntityId(

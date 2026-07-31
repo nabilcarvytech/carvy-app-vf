@@ -39,6 +39,10 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   SearchControllerHome filterController = Get.find();
   final ScrollController scrollController = ScrollController();
 
+  /// Espace sous la barre d'état (accueil + barre compacte épinglée).
+  static const double _kHomeHeaderTopGap = 12.0;
+  static const double _kHomeHeaderHorizontalPadding = 16.0;
+
   @override
   void initState() {
     super.initState();
@@ -68,15 +72,20 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     await fetchData();
   }
 
+  double _homeHeaderTopInset(BuildContext context) =>
+      MediaQuery.paddingOf(context).top + _kHomeHeaderTopGap;
+
+  double _collapsedHomeHeaderHeight(BuildContext context) =>
+      _homeHeaderTopInset(context) + kToolbarHeight;
+
   /// Progression du collapse du header : 0 = déployé, 1 = replié.
   /// Calculé depuis les contraintes du [LayoutBuilder] — pas de notifier externe.
   double _headerCollapseProgress(
     BuildContext context,
     BoxConstraints constraints,
   ) {
-    final double topPadding = MediaQuery.paddingOf(context).top;
     final double expandedHeight = _expandedHomeHeaderExtent(context);
-    final double collapsedHeight = topPadding + kToolbarHeight;
+    final double collapsedHeight = _collapsedHomeHeaderHeight(context);
     final double range = expandedHeight - collapsedHeight;
     if (range <= 0) return 1.0;
     return ((expandedHeight - constraints.biggest.height) / range)
@@ -107,20 +116,30 @@ class _VehicleHomePageState extends State<VehicleHomePage>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(height: MediaQuery.paddingOf(context).top),
+            SizedBox(height: _homeHeaderTopInset(context)),
             SizedBox(
               height: kToolbarHeight,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _buildHomeToolbarRow(context),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _kHomeHeaderHorizontalPadding,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Spacer(),
+                    profilePhotoOnHomeScreen(context),
+                  ],
                 ),
               ),
             ),
-            customSearchContainer(context, () {
-              filterController.submitMethod(context);
-            }, false),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: _kHomeHeaderHorizontalPadding,
+              ),
+              child: customSearchContainer(context, () {
+                filterController.submitMethod(context);
+              }, false),
+            ),
           ],
         ),
       ),
@@ -294,7 +313,8 @@ class _VehicleHomePageState extends State<VehicleHomePage>
   }
 
   /// Hauteur du header bleu mobile (bloc large).
-  double _expandedHomeHeaderExtent(BuildContext context) => 280.0;
+  double _expandedHomeHeaderExtent(BuildContext context) =>
+      280.0 + _kHomeHeaderTopGap;
 
   Widget _buildCompactStickySearchBar(BuildContext context) {
     final Color hintColor = Colors.grey.shade600;
@@ -406,15 +426,6 @@ class _VehicleHomePageState extends State<VehicleHomePage>
     );
   }
 
-  Widget _buildHomeToolbarRow(BuildContext context) {
-    return Row(
-      children: [
-        const Spacer(),
-        profilePhotoOnHomeScreen(context),
-      ],
-    );
-  }
-
   SliverToBoxAdapter _buildSectionSliver({
     required String sectionName,
     required Widget child,
@@ -451,38 +462,39 @@ class _VehicleHomePageState extends State<VehicleHomePage>
       backgroundColor: const Color(0xFF1A3A8A),
       surfaceTintColor: Colors.transparent,
       automaticallyImplyLeading: false,
-      toolbarHeight: kToolbarHeight,
+      toolbarHeight: kToolbarHeight + _kHomeHeaderTopGap,
       titleSpacing: 0,
       centerTitle: true,
       title: const SizedBox.shrink(),
       flexibleSpace: LayoutBuilder(
         builder: (context, constraints) {
           final double collapse = _headerCollapseProgress(context, constraints);
-          final double topPadding = MediaQuery.paddingOf(context).top;
+          final double topInset = _homeHeaderTopInset(context);
 
           return Stack(
             fit: StackFit.expand,
             children: [
               _buildExpandedHeaderContent(context, 1.0 - collapse),
               Positioned(
-                top: topPadding,
-                left: 0,
-                right: 0,
+                top: topInset,
+                left: _kHomeHeaderHorizontalPadding,
+                right: _kHomeHeaderHorizontalPadding,
                 height: kToolbarHeight,
                 child: Opacity(
                   opacity: collapse,
                   child: IgnorePointer(
                     ignoring: collapse < 0.05,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Row(
-                        children: [
-                          Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
                             child: _buildCompactStickySearchBar(context),
                           ),
-                          profilePhotoOnHomeScreen(context),
-                        ],
-                      ),
+                        ),
+                        profilePhotoOnHomeScreen(context),
+                      ],
                     ),
                   ),
                 ),

@@ -76,6 +76,12 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
   }
 
   void _openSelectTimeScreen() {
+    if (!bookingController.validateMinRentalDaysForDateSelection(
+      widget.itemDetails,
+    )) {
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(

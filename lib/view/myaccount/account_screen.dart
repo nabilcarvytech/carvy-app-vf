@@ -252,13 +252,12 @@ class _AccounScreenState extends State<AccountScreen> {
                                               "initialTabIndex": generalController.myBookingTabIndex.value
                                             });
                                       } else {
-                                        Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (builder) => MyBooking(
-                                                      fromPropBooking: false,
-                                                      initialTabIndex: generalController.myBookingTabIndex.value,
-                                                    )));
+                                        Get.to(() => MyBooking(
+                                              fromPropBooking: false,
+                                              initialTabIndex:
+                                                  generalController
+                                                      .myBookingTabIndex.value,
+                                            ));
                                       }
                                     }
                                   },

@@ -70,16 +70,13 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
   // État de validation de la politique d'annulation
   bool isPolicyAccepted = false;
 
-  getData(coupon, wallet) async {
+  getData(String coupon) async {
     setState(() {});
     await bookingController.getDataBookingSummery(
-        widget.idFeatured, coupon, wallet, widget.isAddDoorStepPrice,
+        widget.idFeatured, coupon, "", widget.isAddDoorStepPrice,
         dailyPrice: widget.price);
-    await bookingController.getWalletData();
     setState(() {});
   }
-
-  bool switchWallet = false;
   @override
   void initState() {
     super.initState();
@@ -118,7 +115,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
       if (token.isNotEmpty) {
         print('🔐 [initState] Token présent, appel de getData()');
         debugPrint('🔐 [initState] Token présent, appel de getData()');
-        getData("", "");
+        getData("");
       } else {
         print('⚠️ [initState] Token vide, getData() non appelé');
         debugPrint('⚠️ [initState] Token vide, getData() non appelé');
@@ -1215,23 +1212,10 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                                   onTap:
                                                                       () async {
                                                                     showLoading();
-                                                                    if (switchWallet) {
-                                                                      await getData(
-                                                                          bookingController
-                                                                              .textEditingController
-                                                                              .text,
-                                                                          bookingController
-                                                                              .walletModel!
-                                                                              .data!
-                                                                              .walletBalance!);
-                                                                    } else {
-                                                                      await getData(
-                                                                          bookingController
-                                                                              .textEditingController
-                                                                              .text,
-                                                                          "");
-                                                                    }
-
+                                                                    await getData(
+                                                                        bookingController
+                                                                            .textEditingController
+                                                                            .text);
                                                                     closeLoading();
                                                                   },
                                                                   child: Text(
@@ -1262,167 +1246,6 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                           : const SizedBox(
                                               height: 10,
                                             ),
-                                    ),
-                                    Obx(
-                                      () => bookingController
-                                                  .isPaymentSuccess.value ==
-                                              true
-                                          ? const SizedBox()
-                                          : bookingController
-                                                      .isPaymentSuccess.value ==
-                                                  true
-                                              ? const SizedBox()
-                                              : bookingController.walletModel ==
-                                                      null
-                                                  ? const SizedBox()
-                                                  : bookingController
-                                                              .walletModel
-                                                              ?.data
-                                                              ?.walletBalance ==
-                                                          null
-                                                      ? const SizedBox()
-                                                      : bookingController
-                                                                  .walletModel
-                                                                  ?.data
-                                                                  ?.walletBalance ==
-                                                              "0"
-                                                          ? const SizedBox()
-                                                          : bookingController
-                                                                      .walletModel
-                                                                      ?.data
-                                                                      ?.walletBalance ==
-                                                                  "0.00"
-                                                              ? const SizedBox()
-                                                              : Container(
-                                                                  width: Get
-                                                                      .size
-                                                                      .width,
-                                                                  color: notifires
-                                                                      .getboxcolor,
-                                                                  child:
-                                                                      Padding(
-                                                                    padding:
-                                                                        const EdgeInsets
-                                                                            .only(
-                                                                      left: 20,
-                                                                      right: 20,
-                                                                    ),
-                                                                    child:
-                                                                        Column(
-                                                                      crossAxisAlignment:
-                                                                          CrossAxisAlignment
-                                                                              .start,
-                                                                      children: [
-                                                                        Column(
-                                                                          children: [
-                                                                            Row(
-                                                                              mainAxisAlignment: MainAxisAlignment.start,
-                                                                              children: [
-                                                                                Text(
-                                                                                  "Pay from Wallet".tr,
-                                                                                  style: heading2(context).copyWith(),
-                                                                                ),
-                                                                              ],
-                                                                            ),
-                                                                            const SizedBox(
-                                                                              height: 10,
-                                                                            ),
-                                                                            Container(
-                                                                              decoration: BoxDecoration(
-                                                                                color: notifires.getBoxColor,
-                                                                                borderRadius: BorderRadius.circular(12),
-                                                                              ),
-                                                                              child: Column(
-                                                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                                                children: [
-                                                                                  Text(
-                                                                                    "Wallet Balance".tr,
-                                                                                    style: heading3Grey1(context).copyWith(color: notifires.getGrey1Whitecolor),
-                                                                                  ),
-                                                                                  const SizedBox(
-                                                                                    height: 5,
-                                                                                  ),
-                                                                                  Row(
-                                                                                    children: [
-                                                                                      Wrap(
-                                                                                        children: [
-                                                                                          Text(
-                                                                                            "Available for Payment : ".tr,
-                                                                                            style: regular2(context),
-                                                                                          ),
-                                                                                          bookingController.walletModel!.data!.walletBalance == null
-                                                                                              ? const SizedBox()
-                                                                                              : Text(
-                                                                                                  '${bookingController.currency} ${bookingController.walletModel!.data!.walletBalance!}',
-                                                                                                  style: boldstyle(context).copyWith(color: notifires.getGrey2Whitecolor, fontSize: 14),
-                                                                                                ),
-                                                                                        ],
-                                                                                      ),
-                                                                                      Spacer(),
-                                                                                      bookingController.walletModel == null
-                                                                                          ? const SizedBox()
-                                                                                          : SizedBox(
-                                                                                              height: 10,
-                                                                                              child: Transform.scale(
-                                                                                                scale: .6,
-                                                                                                child: Transform.translate(
-                                                                                                    offset: Offset(10, 0),
-                                                                                                    child: Switch(
-                                                                                                        activeColor: getColorBasedOnActiveModuleid(),
-                                                                                                        value: switchWallet,
-                                                                                                        onChanged: (onChanged) async {
-                                                                                                          if (bookingController.walletModel!.data!.walletBalance == "0" || bookingController.walletModel!.data!.walletBalance == "0.00") {
-                                                                                                            showErrorToastMessage("Wallet balance is 0");
-                                                                                                            return;
-                                                                                                          }
-
-                                                                                                          String? cp;
-                                                                                                          if (bookingController.getItemPrices!.data!.couponCode == null) {
-                                                                                                            cp = "";
-                                                                                                          } else {
-                                                                                                            cp = bookingController.getItemPrices!.data!.couponCode;
-                                                                                                          }
-                                                                                                          showLoading();
-                                                                                                          if (onChanged == true) {
-                                                                                                            await getData(cp, bookingController.walletModel!.data!.walletBalance!);
-                                                                                                          } else {
-                                                                                                            await getData(cp, "");
-                                                                                                          }
-                                                                                                          closeLoading();
-                                                                                                          switchWallet = onChanged;
-                                                                                                          setState(() {});
-                                                                                                        })),
-                                                                                              ))
-                                                                                    ],
-                                                                                  ),
-                                                                                  bookingController.getItemPrices!.data!.remainingWalletBalance == '0' && !switchWallet
-                                                                                      ? const SizedBox()
-                                                                                      : const SizedBox(
-                                                                                          height: 8,
-                                                                                        ),
-                                                                                  bookingController.getItemPrices!.data!.remainingWalletBalance == '0' && !switchWallet
-                                                                                      ? const SizedBox()
-                                                                                      : Wrap(
-                                                                                          children: [
-                                                                                            Text(
-                                                                                              "Remaining Wallet Balance : ".tr,
-                                                                                              style: regular2(context),
-                                                                                            ),
-                                                                                            Text(
-                                                                                              "${bookingController.currency} ${bookingController.getItemPrices!.data!.remainingWalletBalance!}",
-                                                                                              style: boldstyle(context).copyWith(color: notifires.getGrey2Whitecolor, fontSize: 14),
-                                                                                            ),
-                                                                                          ],
-                                                                                        )
-                                                                                ],
-                                                                              ),
-                                                                            ),
-                                                                          ],
-                                                                        ),
-                                                                      ],
-                                                                    ),
-                                                                  ),
-                                                                ),
                                     ),
                                     const SizedBox(
                                       height: 10,
@@ -1743,40 +1566,6 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             const SizedBox(
                                               height: 2,
                                             ),
-                                            bookingController.getItemPrices!
-                                                        .data!.walletAmount ==
-                                                    "0"
-                                                ? const SizedBox()
-                                                : Row(
-                                                    children: [
-                                                      Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                            "Wallet".tr,
-                                                            style: regular2(
-                                                                    context)
-                                                                .copyWith(
-                                                                    color: notifires
-                                                                        .getGrey3Whitecolor),
-                                                          )
-                                                        ],
-                                                      ),
-                                                      const Spacer(),
-                                                      Text(
-                                                        "${bookingController.currency} ${bookingController.getItemPrices!.data!.walletAmount!}",
-                                                        style: regular2(context)
-                                                            .copyWith(
-                                                                color: notifires
-                                                                    .getGrey3Whitecolor),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 10,
-                                                      )
-                                                    ],
-                                                  ),
                                             const SizedBox(
                                               height: 7,
                                             ),

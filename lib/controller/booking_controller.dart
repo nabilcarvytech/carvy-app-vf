@@ -370,9 +370,12 @@ class BookingController extends GetxController implements GetxService {
         'myBookingTabIndex=$tabIndex, currentIndex=2');
 
     if (Get.isRegistered<BookingRecordController>()) {
+      final recordController = Get.find<BookingRecordController>();
+      recordController.restoreListeners();
+      paymentFlowLog('STEP 12d — restoreListeners() before STEP 13 fetch');
       final type = BookingRecordController.typeForTabIndex(tabIndex);
       paymentFlowLog('STEP 13 — getBookingRecord($type)');
-      await Get.find<BookingRecordController>().getBookingRecord(
+      await recordController.getBookingRecord(
         type: type,
         offset: 0,
         bypassNavigationGuard: true,
@@ -2561,6 +2564,62 @@ class BookingController extends GetxController implements GetxService {
   int? resolveMinRentalDaysForBooking(dynamic itemDetails) =>
       _resolveMinRentalDaysForBooking(itemDetails);
 
+  /// Jours calendaires inclusifs entre deux dates (sans prise en compte des heures).
+  int calendarDaysBetweenDates(DateTime checkIn, DateTime checkOut) {
+    final start = DateTime(checkIn.year, checkIn.month, checkIn.day);
+    final end = DateTime(checkOut.year, checkOut.month, checkOut.day);
+    final days = end.difference(start).inDays + 1;
+    return days < 1 ? 1 : days;
+  }
+
+  /// Valide la durée minimale à l'étape calendrier (« Suivant » avant les heures).
+  bool validateMinRentalDaysForDateSelection(dynamic itemDetails) {
+    if (startDate.value.isEmpty || endDate.value.isEmpty) {
+      showErrorToastMessage('Select date to continue'.tr);
+      return false;
+    }
+
+    final checkIn = DateTime.tryParse(startDate.value);
+    final checkOut = DateTime.tryParse(endDate.value);
+    if (checkIn == null || checkOut == null) {
+      showErrorToastMessage('Select date to continue'.tr);
+      return false;
+    }
+
+    final selectedDays = calendarDaysBetweenDates(checkIn, checkOut);
+    final minRequired = resolveMinRentalDaysForBooking(itemDetails);
+    if (minRequired != null &&
+        minRequired > 0 &&
+        selectedDays < minRequired) {
+      showErrorToastMessage(
+        'min_rental_duration_vehicle_days'.trParams({
+          'days': minRequired.toString(),
+        }),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _validateMinRentalDaysForBillableCount(
+    int billableDays,
+    dynamic itemDetails,
+  ) {
+    final minRequired = _resolveMinRentalDaysForBooking(itemDetails);
+    if (minRequired != null &&
+        minRequired > 0 &&
+        billableDays < minRequired) {
+      showErrorToastMessage(
+        'min_rental_duration_vehicle_days'.trParams({
+          'days': minRequired.toString(),
+        }),
+      );
+      return false;
+    }
+    return true;
+  }
+
   bool isEndTimeBeforeStartTime(String startTime, String endTime) {
     bool is24HourFormat =
         startTime.contains(RegExp(r'^[0-9]{1,2}:[0-9]{2}$')) &&
@@ -2657,6 +2716,12 @@ class BookingController extends GetxController implements GetxService {
       _parseStringToTimeOfDay(selectedStartTime.value),
       _parseStringToTimeOfDay(selectedEndTime.value),
     );
+    if (!_validateMinRentalDaysForBillableCount(
+      billableNights,
+      itemDetails,
+    )) {
+      return;
+    }
     if (webPlateForm) {
       Get.toNamed(WebRoutes.vehicleBookingSummaryScreen, arguments: {
         "idFeatured": idFeatured,

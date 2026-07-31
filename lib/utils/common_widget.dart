@@ -4032,7 +4032,10 @@ myBookingListWidget(
   }
 
   return ListView.builder(
-    shrinkWrap: true,
+    physics: const AlwaysScrollableScrollPhysics(
+      parent: BouncingScrollPhysics(),
+    ),
+    padding: EdgeInsets.zero,
     itemCount: list.length,
     itemBuilder: (context, index) => _buildSafeItem(context, index),
   );
