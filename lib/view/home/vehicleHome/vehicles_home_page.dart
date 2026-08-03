@@ -12,6 +12,7 @@ import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:carvy/view/home/location_screen.dart';
 import 'package:carvy/view/home/top_categories.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
+import 'package:carvy/view/itemdetail/vehicle/view_on_map_screen.dart';
 import 'package:carvy/view/search/after_search.dart';
 import 'package:carvy/view/search/vehicle/vehicle_filter.dart';
 import 'package:carvy/customwidget/search_wizard.dart';
@@ -151,6 +152,34 @@ class _VehicleHomePageState extends State<VehicleHomePage>
       if (!mounted) return;
       setState(() {});
     });
+  }
+
+  /// Ouvre la carte unifiée (géoloc, marqueurs véhicules, zoom limité, bottom sheet).
+  Future<void> _openHomeMap() async {
+    filterController.hitApiOnMap = false;
+    filterController.searchFilterList.clear();
+
+    if (webPlateForm) {
+      Get.toNamed(
+        WebRoutes.viewOnMapScreen,
+        arguments: {
+          'title': 'Map'.tr,
+          'list': <dynamic>[],
+        },
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ViewOnMapScreen(
+          title: 'Map'.tr,
+          list: const [],
+        ),
+      ),
+    );
   }
 
   /// Même feuille de filtres que sur le flux recherche (prix, assurance, marques, etc.).
@@ -788,9 +817,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             buildAction(
               icon: Icons.map_outlined,
               label: "Map",
-              onTap: () {
-                print("Open Map");
-              },
+              onTap: _openHomeMap,
             ),
             const SizedBox(
               height: 32,

@@ -16,7 +16,6 @@ import 'package:carvy/controller/auth_controller.dart';
 import 'package:carvy/controller/global_scope_controller.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/model/check_mobile_model.dart';
-import 'package:carvy/model/login_model.dart' as logmod;
 import 'package:carvy/model/login_model.dart';
 import 'package:carvy/model/get_user_profile.dart';
 import 'package:carvy/model/vendor_model.dart';
@@ -141,11 +140,66 @@ class ProfileController extends GetxController implements GetxService {
     return null;
   }
 
+  String _resolveAuthToken(String? apiToken) {
+    final fromApi = apiToken?.trim() ?? '';
+    if (fromApi.isNotEmpty) return fromApi;
+    if (token.isNotEmpty) return token;
+    final fromStorage = GetStorage().read('token')?.toString().trim() ?? '';
+    if (fromStorage.isNotEmpty) return fromStorage;
+    final raw = GetStorage().read('raw_user_token')?.toString().trim() ?? '';
+    if (raw.isNotEmpty) return raw;
+    return loginModel?.data?.token?.trim() ?? '';
+  }
+
+  void _mergeUserFieldsIntoData(
+    Map<String, dynamic> data,
+    Map<String, dynamic> userMap,
+  ) {
+    for (final entry in userMap.entries) {
+      if (entry.value == null) continue;
+      if (entry.key == 'token') {
+        final t = entry.value.toString().trim();
+        if (t.isNotEmpty) data[entry.key] = t;
+        continue;
+      }
+      data[entry.key] = entry.value;
+    }
+    final resolved = _resolveAuthToken(data['token']?.toString());
+    if (resolved.isNotEmpty) {
+      data['token'] = resolved;
+    }
+  }
+
   void _persistLoginModelToStorage() {
     if (loginModel == null) return;
+
+    final resolvedToken = _resolveAuthToken(loginModel!.data?.token);
+    if (resolvedToken.isNotEmpty) {
+      final base = Map<String, dynamic>.from(loginModel!.toJson());
+      final rawData = base['data'];
+      if (rawData is Map) {
+        final data = Map<String, dynamic>.from(rawData);
+        data['token'] = resolvedToken;
+        base['data'] = data;
+        loginModel = LoginModel.fromJson(base);
+        authController.setLoginModel(loginModel!);
+      }
+    }
+
     final encoded = jsonEncode(loginModel!.toJson());
     GetStorage().write('user_data', encoded);
     UserData().saveLoginData('UserData', encoded);
+
+    if (resolvedToken.isNotEmpty) {
+      token = resolvedToken;
+      GetStorage().write('token', token);
+      GetStorage().write('raw_user_token', token);
+    }
+    if (loginModel!.data?.id != null &&
+        loginModel!.data!.id!.trim().isNotEmpty) {
+      userId = loginModel!.data!.id!;
+      GetStorage().write('userIdGlobal', userId.toString());
+    }
   }
 
   /// Charge le profil depuis get-user-profile (incl. birthdate) et met à jour l'UI.
@@ -193,7 +247,10 @@ class ProfileController extends GetxController implements GetxService {
           data[key] = value;
         }
       }
-      data['token'] ??= token;
+      final resolved = _resolveAuthToken(data['token']?.toString());
+      if (resolved.isNotEmpty) {
+        data['token'] = resolved;
+      }
 
       base['data'] = data;
       loginModel = LoginModel.fromJson(base);
@@ -212,9 +269,17 @@ class ProfileController extends GetxController implements GetxService {
       final updateProfile = UpdateProfile.fromJson(response);
       final user = updateProfile.data?.user;
       if (user == null) return null;
-      return LoginModel(
-        data: logmod.Data.fromJson(user.toJson()),
-      );
+
+      final base = Map<String, dynamic>.from(loginModel?.toJson() ?? {});
+      final rawData = base['data'];
+      final data = rawData is Map
+          ? Map<String, dynamic>.from(rawData)
+          : Map<String, dynamic>.from(user.toJson());
+      _mergeUserFieldsIntoData(data, user.toJson());
+      base['status'] = response['status'] ?? 200;
+      base['message'] = response['message'] ?? base['message'];
+      base['data'] = data;
+      return LoginModel.fromJson(base);
     }
 
     final base = Map<String, dynamic>.from(loginModel?.toJson() ?? {});
@@ -223,12 +288,7 @@ class ProfileController extends GetxController implements GetxService {
         ? Map<String, dynamic>.from(rawData)
         : <String, dynamic>{};
 
-    for (final entry in userMap.entries) {
-      if (entry.value != null) {
-        data[entry.key] = entry.value;
-      }
-    }
-    data['token'] ??= token;
+    _mergeUserFieldsIntoData(data, userMap);
     base['status'] = response['status'] ?? 200;
     base['message'] = response['message'] ?? base['message'];
     base['data'] = data;
@@ -672,8 +732,7 @@ class ProfileController extends GetxController implements GetxService {
         loginModel!.data!.profileImageSetter = img;
         myImage.value = img;
         authController.setLoginModel(loginModel!);
-        UserData userObj = UserData();
-        userObj.saveLoginData("UserData", jsonEncode(loginModel!.toJson()));
+        _persistLoginModelToStorage();
         update();
       }
     } catch (_) {}
@@ -752,9 +811,8 @@ class ProfileController extends GetxController implements GetxService {
       loginModel!.data!.profileImageSetter = imageUrl;
       myImage.value = imageUrl;
       authController.setLoginModel(loginModel!);
+      _persistLoginModelToStorage();
       update();
-      UserData userObj = UserData();
-      userObj.saveLoginData("UserData", jsonEncode(loginModel!.toJson()));
       final okMsg = decoded['message']?.toString();
       showToastMessage(okMsg != null && okMsg.isNotEmpty
           ? okMsg

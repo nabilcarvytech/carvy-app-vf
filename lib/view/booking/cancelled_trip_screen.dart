@@ -25,9 +25,13 @@ class CancelledTrip extends StatefulWidget {
   State<CancelledTrip> createState() => _CancelledTripState();
 }
 
-class _CancelledTripState extends State<CancelledTrip> {
+class _CancelledTripState extends State<CancelledTrip>
+    with AutomaticKeepAliveClientMixin {
   final BookingRecordController bookingRecordController = Get.find();
   RefreshController refreshController = RefreshController();
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -83,14 +87,16 @@ class _CancelledTripState extends State<CancelledTrip> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     renderDebugLog(
       'CancelledTrip.build',
       'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}',
     );
-    return Scaffold(
-      backgroundColor: notifires.getbgcolor,
-      body: SmartRefresher(
+    return ColoredBox(
+      color: notifires.getbgcolor,
+      child: SmartRefresher(
         controller: refreshController,
+        physics: kBookingTabScrollPhysics,
         onRefresh: onRefresh,
         onLoading: onLoading,
         enablePullUp: bookingRecordController.offset == -1 ? false : true,

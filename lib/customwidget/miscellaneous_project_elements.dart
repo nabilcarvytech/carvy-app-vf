@@ -15,6 +15,8 @@ import 'package:carvy/controller/wish_list_controller.dart';
 import 'dart:io';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/http_service.dart';
+import 'package:carvy/helper/map_privacy_helper.dart';
+import 'package:carvy/services/location_service.dart';
 import 'package:awesome_snackbar_content/awesome_snackbar_content.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/common_widget.dart';
@@ -659,26 +661,125 @@ class FullMapScreen extends StatefulWidget {
 }
 
 class _FullMapScreenState extends State<FullMapScreen> {
-  late GoogleMapController mapController;
+  GoogleMapController? mapController;
+  LatLng? _userLatLng;
+  late LatLng _vehicleDisplayPosition;
+  Set<Marker> _markers = {};
+  Set<Circle> _circles = {};
+  LatLng _initialTarget = const LatLng(31.7917, -7.0926);
+  double _initialZoom = 12;
+
+  @override
+  void initState() {
+    super.initState();
+    _prepareMapData();
+  }
+
+  Future<void> _prepareMapData() async {
+    final lat = double.tryParse('${widget.latitude}');
+    final lng = double.tryParse('${widget.longitude}');
+    if (lat != null && lng != null) {
+      _vehicleDisplayPosition = MapPrivacyHelper.obfuscateCoordinates(
+        lat,
+        lng,
+        'vehicle_${lat}_$lng',
+      );
+    } else {
+      _vehicleDisplayPosition = _initialTarget;
+    }
+
+    final position = await LocationService.getCurrentPositionWithChecks(context);
+    if (position != null) {
+      _userLatLng = LatLng(position.latitude, position.longitude);
+    }
+
+    final points = <LatLng>[_vehicleDisplayPosition];
+    if (_userLatLng != null) {
+      points.add(_userLatLng!);
+    }
+
+    if (points.length > 1) {
+      final bounds = MapPrivacyHelper.boundsForPoints(points);
+      _initialTarget = LatLng(
+        (bounds.northeast.latitude + bounds.southwest.latitude) / 2,
+        (bounds.northeast.longitude + bounds.southwest.longitude) / 2,
+      );
+      _initialZoom = 11.5;
+    } else {
+      _initialTarget = _vehicleDisplayPosition;
+      _initialZoom = 12;
+    }
+
+    _markers = {
+      Marker(
+        markerId: const MarkerId('vehicle_approx'),
+        position: _vehicleDisplayPosition,
+      ),
+    };
+    _circles = {
+      Circle(
+        circleId: const CircleId('vehicle_zone'),
+        center: _vehicleDisplayPosition,
+        radius: MapPrivacyHelper.approximateZoneRadiusMeters,
+        fillColor: getColorBasedOnActiveModuleid().withOpacity(0.12),
+        strokeColor: getColorBasedOnActiveModuleid().withOpacity(0.35),
+        strokeWidth: 1,
+      ),
+    };
+    if (_userLatLng != null) {
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('user_location'),
+          position: _userLatLng!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        ),
+      );
+    }
+
+    if (mounted) setState(() {});
+    if (mapController != null) {
+      await _fitCamera();
+    }
+  }
+
+  Future<void> _fitCamera() async {
+    final controller = mapController;
+    if (controller == null) return;
+
+    final points = <LatLng>[_vehicleDisplayPosition];
+    if (_userLatLng != null) {
+      points.add(_userLatLng!);
+    }
+
+    if (points.length > 1) {
+      await controller.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          MapPrivacyHelper.boundsForPoints(points),
+          80,
+        ),
+      );
+    } else {
+      await controller.animateCamera(
+        CameraUpdate.newLatLngZoom(_vehicleDisplayPosition, _initialZoom),
+      );
+    }
+  }
+
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
+    _fitCamera();
   }
 
   void _zoomIn() {
-    mapController.animateCamera(
+    mapController?.animateCamera(
       CameraUpdate.zoomIn(),
     );
   }
 
   void _zoomOut() {
-    mapController.animateCamera(
+    mapController?.animateCamera(
       CameraUpdate.zoomOut(),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
   }
 
   @override
@@ -707,16 +808,10 @@ class _FullMapScreenState extends State<FullMapScreen> {
                   zoomGesturesEnabled: true,
                   compassEnabled: true,
                   onMapCreated: _onMapCreated,
-                  markers: {
-                    Marker(
-                        markerId: const MarkerId("1"),
-                        position: LatLng(double.parse(widget.latitude),
-                            double.parse(widget.longitude)))
-                  },
+                  markers: _markers,
+                  circles: _circles,
                   initialCameraPosition: CameraPosition(
-                      target: LatLng(double.parse(widget.latitude),
-                          double.parse(widget.longitude)),
-                      zoom: 14)),
+                      target: _initialTarget, zoom: _initialZoom)),
             ),
             kIsWeb || Platform.isAndroid
                 ? const SizedBox()

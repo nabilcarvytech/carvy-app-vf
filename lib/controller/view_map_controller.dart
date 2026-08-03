@@ -39,47 +39,35 @@ class MapViewController extends GetxController implements GetxService{
       text: TextSpan(
         text: price,
         style: const TextStyle(
-          fontSize: 15.0,
+          fontSize: 14.0,
+          fontWeight: FontWeight.w600,
           color: Colors.white,
         ),
       ),
       textDirection: TextDirection.ltr,
+      maxLines: 1,
     );
     textPainter.layout();
-    int textWidth = textPainter.width.toInt();
-    int width = (textWidth + 15).clamp(30, 50);
-    final Paint backgroundPaint = Paint()..color = getColorBasedOnActiveModuleid();
+    // Largeur adaptée au texte (l'ancien clamp 30–50 écrasait le badge prix).
+    final int width =
+        (textPainter.width.toInt() + 28).clamp(baseWidth > 70 ? baseWidth : 70, 220);
+    final Paint backgroundPaint = Paint()
+      ..color = getColorBasedOnActiveModuleid();
     canvas.drawRRect(
-      RRect.fromRectAndCorners(
+      RRect.fromRectAndRadius(
         Rect.fromLTWH(0.0, 0.0, width.toDouble(), height.toDouble()),
-        topLeft: const Radius.circular(4),
-        topRight: const Radius.circular(4),
-        bottomLeft: const Radius.circular(4),
-        bottomRight: const Radius.circular(4),
+        const Radius.circular(8),
       ),
       backgroundPaint,
     );
 
-    final Paint borderPaint = Paint()..color = getColorBasedOnActiveModuleid();
-    canvas.drawRRect(
-      RRect.fromRectAndCorners(
-        Rect.fromLTWH(
-          8.0, 8.0, (width - 8).toDouble(), (height - 8).toDouble(),
-        ),
-        topLeft: const Radius.circular(15.0),
-        topRight: const Radius.circular(15.0),
-        bottomLeft: const Radius.circular(15.0),
-        bottomRight: const Radius.circular(15.0),
-      ),
-      borderPaint,
-    );
-
-
     final double textX = (width - textPainter.width) / 2;
     final double textY = (height - textPainter.height) / 2;
     textPainter.paint(canvas, Offset(textX, textY));
-    final ui.Image markerImage = await pictureRecorder.endRecording().toImage(width, height);
-    final ByteData? byteData = await markerImage.toByteData(format: ui.ImageByteFormat.png);
+    final ui.Image markerImage =
+        await pictureRecorder.endRecording().toImage(width, height);
+    final ByteData? byteData =
+        await markerImage.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
   }
 

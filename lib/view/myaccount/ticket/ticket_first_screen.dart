@@ -5,8 +5,6 @@ import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
-import 'package:carvy/view/bottombar/home_main.dart';
-import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/view/myaccount/ticket/ticket_close_screen.dart';
 import 'package:carvy/view/myaccount/ticket/ticket_create_screen.dart';
 import 'package:carvy/view/myaccount/ticket/ticket_open_screen.dart';
@@ -41,21 +39,26 @@ class _TicketFirstScreenState extends State<TicketFirstScreen>
     });
   }
 
+  void _popToPreviousScreen() {
+    if (isHostMode.value) {
+      generalController.currentIndexHost.value = 4;
+      generalController.tabControllerHost.index = 4;
+    } else {
+      generalController.currentIndex.value = 4;
+      generalController.tabController.index = 4;
+    }
+    Get.back();
+  }
+
   stateSetter(fn) => setState(() {});
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (v) {
-        if (isHostMode.value == true) {
-          generalController.currentIndexHost.value == 4;
-          generalController.tabControllerHost.index == 4;
-          Get.to(() => const BottomHost(initialIndex: 4));
-        } else {
-          generalController.currentIndex.value == 4;
-          generalController.tabController.index == 4;
-          Get.to(() => const HomeMain(initialIndex: 4));
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _popToPreviousScreen();
         }
       },
       child: Scaffold(
@@ -65,17 +68,7 @@ class _TicketFirstScreenState extends State<TicketFirstScreen>
           elevation: 0,
           leadingWidth: 80,
           leading: InkWell(
-            onTap: () {
-              if (isHostMode.value == true) {
-                generalController.currentIndexHost.value == 4;
-                generalController.tabControllerHost.index == 4;
-                Get.to(const BottomHost(initialIndex: 4));
-              } else {
-                generalController.currentIndex.value == 4;
-                generalController.tabController.index == 4;
-                Get.to(const HomeMain(initialIndex: 4));
-              }
-            },
+            onTap: _popToPreviousScreen,
             child: Padding(
               padding:
                   const EdgeInsets.only(left: 20, top: 8, bottom: 8, right: 20),

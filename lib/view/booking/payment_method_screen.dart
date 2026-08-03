@@ -497,74 +497,83 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           );
         },
       ),
-      bottomNavigationBar: MountedSafeObx(
-        builder: () {
-        final isLoading = bookingController.isProcessingBooking.value;
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: notifires.getbgcolor,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
+      bottomNavigationBar: GetBuilder<BookingController>(
+        id: BookingController.paymentMethodBodyId,
+        builder: (controller) {
+          return Obx(() {
+            final isLoading = controller.isProcessingBooking.value;
+            final selected = controller.selectedPaymentMethod;
+            final canConfirm = selected != null && !isLoading;
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: notifires.getbgcolor,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: SafeArea(
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: (bookingController.selectedPaymentMethod == null ||
-                        isLoading)
-                    ? null
-                    : () {
-                        paymentFlowLog('STEP 0 — Confirm payment button TAP',
-                            'extension=${widget.isExtension}, method=${bookingController.selectedPaymentMethod?.name}');
-                        if (widget.isExtension) {
-                          paymentFlowLog(
-                              'STEP 0 — calling processExtensionPayment');
-                          bookingController.processExtensionPayment();
-                        } else {
-                          paymentFlowLog('STEP 0 — calling processBooking',
-                              'vehicleId=${widget.vehicleId}');
-                          bookingController.processBooking(
-                            vehicleId: widget.vehicleId,
-                            widgetVehicleId: widget.vehicleId,
-                          );
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: getColorBasedOnActiveModuleid(),
-                  disabledBackgroundColor: notifires.getgreycolor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              child: SafeArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: canConfirm
+                        ? () {
+                            paymentFlowLog(
+                              'STEP 0 — Confirm payment button TAP',
+                              'extension=${widget.isExtension}, method=${selected.name}',
+                            );
+                            if (widget.isExtension) {
+                              paymentFlowLog(
+                                  'STEP 0 — calling processExtensionPayment');
+                              controller.processExtensionPayment();
+                            } else {
+                              paymentFlowLog(
+                                'STEP 0 — calling processBooking',
+                                'vehicleId=${widget.vehicleId}',
+                              );
+                              controller.processBooking(
+                                vehicleId: widget.vehicleId,
+                                widgetVehicleId: widget.vehicleId,
+                              );
+                            }
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: getColorBasedOnActiveModuleid(),
+                      disabledBackgroundColor: notifires.getgreycolor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            'confirm_payment'.tr,
+                            style: heading2(context).copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
-                child: isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : Text(
-                        'confirm_payment'.tr,
-                        style: heading2(context).copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
               ),
-            ),
-          ),
-        );
-      },
+            );
+          });
+        },
       ),
     ),
     );

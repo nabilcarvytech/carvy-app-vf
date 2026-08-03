@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
@@ -11,7 +10,9 @@ import 'package:carvy/controller/booking_controller.dart';
 import 'package:carvy/controller/search_controller.dart';
 import 'package:carvy/controller/view_map_controller.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
+import 'package:carvy/helper/map_privacy_helper.dart';
 import 'package:carvy/model/items_model.dart';
+import 'package:carvy/services/location_service.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/view/bottombar/home_main.dart';
 import 'package:carvy/view/itemdetail/vehicle/vehicle_detail_screen.dart';
@@ -20,9 +21,6 @@ import '../../../customwidget/custom_active_module_id_widget.dart';
 import '../../../customwidget/project_color.dart';
 import '../../../model/vehicle_home_model.dart';
 import '../../../utils/theme_style.dart';
-import '../../host/common_widget_host.dart';
-import '../../search/vehicle/vehicle_filter.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:carvy/customwidget/search_wizard.dart';
 
@@ -36,24 +34,32 @@ class ViewOnMapScreen extends StatefulWidget {
 }
 
 class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
-  /// Zoom max pour masquer l'emplacement exact des véhicules (quartier, pas la rue).
-  static const double _kVehicleMapMaxZoom = 13.5;
-  static const double _kVehicleMapInitialZoom = 13.0;
+  /// Zoom max pour masquer l'emplacement exact (quartier, pas la rue).
+  static const double _kVehicleMapMaxZoom =
+      MapPrivacyHelper.vehicleMapMaxZoom;
+  static const double _kVehicleMapInitialZoom =
+      MapPrivacyHelper.vehicleMapInitialZoom;
   static const MinMaxZoomPreference _kVehicleMapZoomPreference =
-      MinMaxZoomPreference(null, _kVehicleMapMaxZoom);
+      MinMaxZoomPreference(3.0, _kVehicleMapMaxZoom);
 
   GoogleMapController? googleMapController;
   MapViewController mapViewController = Get.put(MapViewController());
   late final PageController pageController;
   SearchControllerHome searchControllerHome = Get.find();
-  LatLng mylatlng = const LatLng(37.4219983, -122.084);
+  /// Fallback Maroc — évite le centrage par défaut sur Mountain View (Californie).
+  LatLng mylatlng = const LatLng(31.7917, -7.0926);
   Set<Marker> markers = {};
+  final Map<String, LatLng> _obfuscatedPositions = {};
+  LatLng? _userLatLng;
+  bool _cameraInitialized = false;
+  bool _pendingCameraInit = false;
   ItemModel? itemModel;
   bool visibleList = false;
   LatLng? _lastApiCallLocation;
   LatLng? _lastLocationWithResults;
   List<dynamic> items = [];
   bool _userMovingMap = false;
+  bool _isClampingZoom = false;
   CarouselSliderController carouselController = CarouselSliderController();
   Timer? _debounce;
   CameraPosition? _currentCameraPosition;
@@ -65,19 +71,214 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
     super.initState();
 
     _scrollController.addListener(_onScroll);
-    items = List.from(widget.list ?? []);
+    // Liste complète : args de navigation, sinon résultats de recherche globaux.
+    if (widget.list != null && widget.list!.isNotEmpty) {
+      items = List.from(widget.list!);
+    } else if (searchControllerHome.searchFilterList.isNotEmpty) {
+      items = List.from(searchControllerHome.searchFilterList);
+    } else {
+      items = [];
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) async {
+      searchControllerHome.desildetoSendparametersBasedOnPage.value = true;
+      await _bootstrapMap();
+    });
+  }
+
+  /// Parse lat/lng depuis Items / ItemsData (string, num, ou vide).
+  LatLng? _parseItemLatLng(dynamic location) {
+    try {
+      final latRaw = location.latitude;
+      final lngRaw = location.longitude;
+      final latitude = latRaw is num
+          ? latRaw.toDouble()
+          : double.tryParse(latRaw?.toString().trim() ?? '');
+      final longitude = lngRaw is num
+          ? lngRaw.toDouble()
+          : double.tryParse(lngRaw?.toString().trim() ?? '');
+      if (latitude == null || longitude == null) return null;
+      if (latitude == 0 && longitude == 0) return null;
+      if (latitude < -90 || latitude > 90) return null;
+      if (longitude < -180 || longitude > 180) return null;
+      return LatLng(latitude, longitude);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  LatLng _displayPositionForItem(dynamic location) {
+    final id = location.id?.toString() ?? location.hashCode.toString();
+    final cached = _obfuscatedPositions[id];
+    if (cached != null) return cached;
+
+    final exact = _parseItemLatLng(location);
+    if (exact == null) {
+      return mylatlng;
+    }
+
+    final obfuscated = MapPrivacyHelper.obfuscateCoordinates(
+      exact.latitude,
+      exact.longitude,
+      id,
+    );
+    _obfuscatedPositions[id] = obfuscated;
+    return obfuscated;
+  }
+
+  Future<void> _bootstrapMap() async {
+    _pendingCameraInit = true;
+
+    // 1) Position utilisateur (pin bleu)
+    await _ensureUserLocation(requestPermission: true);
+
+    // 2) Liste véhicules : args → état recherche → API autour du centre
+    if (items.isEmpty &&
+        searchControllerHome.searchFilterList.isNotEmpty) {
+      items = List.from(searchControllerHome.searchFilterList);
+    }
+    if (items.isEmpty) {
+      await _fetchVehiclesForMap();
+    }
+
     if (items.isNotEmpty) {
-      mylatlng = LatLng(double.parse(items[0].latitude.toString()),
-          double.parse(items[0].longitude.toString()));
+      visibleList = true;
+      final withCoords =
+          items.where((e) => _parseItemLatLng(e) != null).toList();
+      final anchor = withCoords.isNotEmpty ? withCoords.first : items.first;
+      mylatlng = _displayPositionForItem(anchor);
       _lastApiCallLocation = mylatlng;
       _lastLocationWithResults = mylatlng;
-      visibleList = true;
-      setMarkers();
     }
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      searchControllerHome.desildetoSendparametersBasedOnPage.value = true;
-      searchControllerHome.searchFilterList.clear();
-    });
+
+    // 3) Une seule injection atomique des markers (véhicules + user)
+    await setMarkers();
+    await _centerMapOnUserAndVehicles(requestPermission: false);
+  }
+
+  Future<void> _ensureUserLocation({required bool requestPermission}) async {
+    if (_userLatLng != null) return;
+    if (!requestPermission) return;
+    final position =
+        await LocationService.getCurrentPositionWithChecks(context);
+    if (position == null) return;
+    _userLatLng = LatLng(position.latitude, position.longitude);
+    _prepareUserLocationMarker(_userLatLng!);
+  }
+
+  void _prepareUserLocationMarker(LatLng userLatLng) {
+    currentLocationMarker = Marker(
+      markerId: const MarkerId('current_location'),
+      position: userLatLng,
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      consumeTapEvents: true,
+      onTap: () {},
+    );
+  }
+
+  /// Charge les véhicules disponibles si la carte s'ouvre sans liste.
+  Future<void> _fetchVehiclesForMap() async {
+    final lat = _userLatLng?.latitude.toString() ??
+        (slatsearch?.isNotEmpty == true ? slatsearch : null) ??
+        mylatlng.latitude.toString();
+    final lng = _userLatLng?.longitude.toString() ??
+        (sLongSearch?.isNotEmpty == true ? sLongSearch : null) ??
+        mylatlng.longitude.toString();
+
+    try {
+      final price = searchControllerHome.resolveSearchPriceParam();
+      final result = await searchControllerHome.searchItems(
+        '',
+        searchControllerHome.selectedtypesvalues.toString(),
+        price,
+        "${activeModuleId.value == 1 ? searchControllerHome.selectedBeds : '0'}",
+        "${activeModuleId.value == 1 ? searchControllerHome.selectedBathroom : '0'}",
+        searchControllerHome.featuresvalues.toString(),
+        "1000",
+        generalScopeController.startDateCustomDate.value.toString(),
+        generalScopeController.endDateCustomDate.value.toString(),
+        activeModuleId.value == 1 ? "0" : "0",
+        lat,
+        lng,
+        context,
+        "${activeModuleId.value == 2 ? searchControllerHome.maketypeFunction() : activeModuleId.value == 5 ? searchControllerHome.bookablemetadata() : ''}",
+      );
+      itemModel = ItemModel.fromJson(result);
+      final newItems = itemModel?.data?.items ?? [];
+      if (newItems.isEmpty) return;
+      items = List.from(newItems);
+      searchControllerHome.searchFilterList
+        ..clear()
+        ..addAll(newItems);
+      searchControllerHome.offset = itemModel!.data!.offset!;
+    } catch (e) {
+      debugPrint('Map vehicle fetch failed: $e');
+    }
+  }
+
+  Future<void> _applyCameraToPoints(List<LatLng> points) async {
+    if (points.isEmpty) {
+      await _animateMapCamera(
+        CameraUpdate.newLatLngZoom(
+          mylatlng,
+          _clampedMapZoom(_kVehicleMapInitialZoom),
+        ),
+      );
+      return;
+    }
+
+    if (points.length == 1) {
+      mylatlng = points.first;
+      await _animateMapCamera(
+        CameraUpdate.newLatLngZoom(
+          mylatlng,
+          _clampedMapZoom(_kVehicleMapInitialZoom),
+        ),
+      );
+      return;
+    }
+
+    final bounds = MapPrivacyHelper.boundsForPoints(points);
+    await _animateMapCamera(CameraUpdate.newLatLngBounds(bounds, 80));
+  }
+
+  Future<void> _centerMapOnUserAndVehicles({
+    required bool requestPermission,
+  }) async {
+    await _ensureUserLocation(requestPermission: requestPermission);
+    if (_userLatLng != null) {
+      _prepareUserLocationMarker(_userLatLng!);
+    }
+
+    final points = <LatLng>[];
+    if (_userLatLng != null) {
+      points.add(_userLatLng!);
+    }
+    for (final item in items) {
+      if (_parseItemLatLng(item) != null) {
+        points.add(_displayPositionForItem(item));
+      }
+    }
+
+    if (googleMapController == null) {
+      _pendingCameraInit = true;
+      if (points.isNotEmpty) {
+        mylatlng = points.first;
+      }
+      // Nouveau Set obligatoire : GoogleMap ignore les mutations in-place.
+      await setMarkers();
+      return;
+    }
+
+    await _applyCameraToPoints(points);
+    _cameraInitialized = true;
+    _pendingCameraInit = false;
+  }
+
+  Future<void> _setUserLocationMarker(LatLng userLatLng) async {
+    _userLatLng = userLatLng;
+    _prepareUserLocationMarker(userLatLng);
+    // Réinjecte tous les markers (évite d'écraser les véhicules).
+    await setMarkers();
   }
 
   @override
@@ -102,19 +303,154 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
     final controller = googleMapController;
     if (controller == null) return;
     await controller.animateCamera(update);
+    await _enforceMaxZoom();
+  }
+
+  Future<void> _enforceMaxZoom() async {
+    final controller = googleMapController;
+    if (controller == null) return;
     try {
       final zoom = await controller.getZoomLevel();
       if (zoom > _kVehicleMapMaxZoom) {
-        await controller.animateCamera(
+        await controller.moveCamera(
           CameraUpdate.zoomTo(_kVehicleMapMaxZoom),
         );
       }
     } catch (_) {}
   }
 
+  void _openVehiclePreviewSheet(dynamic vehicle) {
+    ItemInfo? itemInfoData;
+    try {
+      final jsonString = vehicle.itemInfo;
+      if (jsonString != null) {
+        itemInfoData = ItemInfo.fromJson(json.decode(jsonString));
+      }
+    } catch (_) {}
+
+    final approxLabel =
+        MapPrivacyHelper.approximateAddressLabel(vehicle).tr;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          margin: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: notifires.getboxcolor,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    height: 160,
+                    width: double.infinity,
+                    child: myNetworkImageWithShimmer('${vehicle.image}'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '${vehicle.name}',
+                  style: heading3Grey1(context),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.location_on_outlined,
+                      color: getColorBasedOnActiveModuleid(),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        approxLabel,
+                        style: regular(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "$currency ${vehicle.price}${" /day".tr}",
+                  style: heading2Grey1(context).copyWith(
+                    color: getColorBasedOnActiveModuleid(),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: getColorBasedOnActiveModuleid(),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => VehicleDetailSScreen(
+                            id: vehicle.id,
+                            itemInfo: itemInfoData,
+                            rating: vehicle.itemRating,
+                            title: vehicle.name,
+                            address: approxLabel,
+                            latitute: vehicle.latitude,
+                            longtitute: vehicle.longitude,
+                            frontImage: vehicle.image,
+                            itemType: vehicle.itemType,
+                            price: vehicle.price,
+                            isWishList: vehicle.isInWishlist ?? false,
+                            handleback: true,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'View details'.tr,
+                      style: heading3(context).copyWith(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void mapReload(int index) {
-    mylatlng = LatLng(double.parse(items[index].latitude.toString()),
-        double.parse(items[index].longitude.toString()));
+    if (index < 0 || index >= items.length) return;
+    mylatlng = _displayPositionForItem(items[index]);
     setState(() {
       _animateMapCamera(CameraUpdate.newLatLng(mylatlng));
     });
@@ -163,27 +499,30 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
       );
       itemModel = ItemModel.fromJson(result);
       var newItems = itemModel!.data!.items ?? [];
-      setState(() {
-        if (newItems.isNotEmpty) {
-          items.clear();
-          items.addAll(newItems);
-          mylatlng = _lastApiCallLocation!;
-          _lastLocationWithResults = mylatlng;
-          markers.clear();
-          setMarkers();
-          visibleList = true;
-          searchControllerHome.searchFilterList.clear();
-          searchControllerHome.searchFilterList.addAll(newItems);
-          searchControllerHome.offset = itemModel!.data!.offset!;
-        } else {
-          if (_lastLocationWithResults != null) {
-            _animateMapCamera(
-              CameraUpdate.newLatLng(_lastLocationWithResults!),
-            );
-          }
-        }
-        isLoadingMap = false;
-      });
+      if (newItems.isNotEmpty) {
+        items = List.from(newItems);
+        _obfuscatedPositions.clear();
+        final withCoords = items.where((e) => _parseItemLatLng(e) != null);
+        final anchor =
+            withCoords.isNotEmpty ? withCoords.first : items.first;
+        mylatlng = _displayPositionForItem(anchor);
+        _lastLocationWithResults = mylatlng;
+        await setMarkers();
+        visibleList = true;
+        searchControllerHome.searchFilterList
+          ..clear()
+          ..addAll(newItems);
+        searchControllerHome.offset = itemModel!.data!.offset!;
+      } else if (_lastLocationWithResults != null) {
+        await _animateMapCamera(
+          CameraUpdate.newLatLng(_lastLocationWithResults!),
+        );
+      }
+      if (mounted) {
+        setState(() {
+          isLoadingMap = false;
+        });
+      }
     } catch (error) {
       setState(() {
         isLoadingMap = false;
@@ -208,37 +547,93 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
   }
 
   Marker? currentLocationMarker;
-  void setMarkers() async {
-    Set<Marker> newMarkers = {};
-    List<dynamic> localList = List.from(items);
+  BitmapDescriptor? _vehicleMarkerIcon;
 
-    for (var location in localList) {
+  Future<BitmapDescriptor> _loadVehicleMarkerIcon() async {
+    if (_vehicleMarkerIcon != null) return _vehicleMarkerIcon!;
+    try {
+      final bytes = await mapViewController.getBytesFromCanvasImage(96, 96);
+      _vehicleMarkerIcon = BitmapDescriptor.bytes(
+        bytes,
+        width: 48,
+        height: 48,
+        imagePixelRatio: 2,
+      );
+    } catch (e) {
+      debugPrint('Vehicle marker icon fallback: $e');
+      _vehicleMarkerIcon =
+          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+    }
+    return _vehicleMarkerIcon!;
+  }
+
+  /// Injecte tous les véhicules (+ pin utilisateur) dans un **nouveau** Set.
+  /// GoogleMap ne détecte pas les mutations in-place de [markers].
+  Future<void> setMarkers() async {
+    final Set<Marker> newMarkers = {};
+    final Set<Circle> newCircles = {};
+    final List<dynamic> localList = List.from(items);
+    final zoneColor = getColorBasedOnActiveModuleid();
+    final vehicleIcon = await _loadVehicleMarkerIcon();
+
+    for (var i = 0; i < localList.length; i++) {
+      final location = localList[i];
       try {
-        final latitude = double.tryParse(location.latitude.toString());
-        final longitude = double.tryParse(location.longitude.toString());
-
-        if (latitude == null || longitude == null) {
+        if (_parseItemLatLng(location) == null) {
+          debugPrint(
+            'Skip marker: missing coords for item ${location.id}',
+          );
           continue;
         }
 
-        final priceText = location.price.toString().tr;
-        final markerIcon =
-            await mapViewController.getBytesFromCanvas(priceText, 150, 25);
+        // Position floutée (400–1200 m) — jamais les coords exactes API.
+        final displayPosition = _displayPositionForItem(location);
+        final markerId =
+            'vehicle_${location.id?.toString() ?? 'idx'}_$i';
+
+        newCircles.add(
+          Circle(
+            circleId: CircleId('zone_$markerId'),
+            center: displayPosition,
+            radius: MapPrivacyHelper.approximateZoneRadiusMeters,
+            fillColor: zoneColor.withOpacity(0.12),
+            strokeColor: zoneColor.withOpacity(0.35),
+            strokeWidth: 1,
+          ),
+        );
+
+        final priceLabel =
+            '$currency ${location.price}${" /day".tr}'.trim();
+        final captured = location;
+        final capturedIndex = i;
 
         newMarkers.add(
           Marker(
-            markerId: MarkerId(location.id.toString()),
-            position: LatLng(latitude, longitude),
-            icon: BitmapDescriptor.bytes(markerIcon),
+            markerId: MarkerId(markerId),
+            position: displayPosition,
+            icon: vehicleIcon,
+            consumeTapEvents: true,
+            infoWindow: InfoWindow(
+              title: '${captured.name ?? ''}',
+              snippet: priceLabel,
+              onTap: () => _openVehiclePreviewSheet(captured),
+            ),
             onTap: () {
-              final index =
-                  items.indexWhere((element) => element.id == location.id);
-
-              if (index != -1) {
+              final index = items.indexWhere(
+                (element) =>
+                    element.id?.toString() == captured.id?.toString(),
+              );
+              final resolvedIndex = index != -1 ? index : capturedIndex;
+              if (resolvedIndex >= 0 && resolvedIndex < items.length) {
+                setState(() {
+                  visibleList = true;
+                  currentIndex = resolvedIndex;
+                });
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollToIndex(index);
+                  _scrollToIndex(resolvedIndex);
                 });
               }
+              _openVehiclePreviewSheet(captured);
             },
           ),
         );
@@ -247,51 +642,45 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
       }
     }
 
+    if (_userLatLng != null) {
+      _prepareUserLocationMarker(_userLatLng!);
+    }
     if (currentLocationMarker != null) {
       newMarkers.add(currentLocationMarker!);
+      newCircles.add(
+        Circle(
+          circleId: const CircleId('current_location_circle'),
+          center: currentLocationMarker!.position,
+          radius: 50,
+          fillColor: Colors.blue.withOpacity(0.25),
+          strokeColor: Colors.blue,
+          strokeWidth: 2,
+        ),
+      );
     }
 
+    debugPrint(
+      'Map markers: ${newMarkers.length} '
+      '(vehicles: ${newMarkers.where((m) => m.markerId.value.startsWith('vehicle_')).length} '
+      '/ items: ${localList.length})',
+    );
+
+    if (!mounted) return;
     setState(() {
       markers = newMarkers;
+      circles = newCircles;
     });
   }
 
   Set<Circle> circles = {};
 
-  void _moveToCurrentLocation() async {
+  Future<void> _moveToCurrentLocation() async {
     showLoading();
-    await _requestPermission();
-    Position position = await _getCurrentLocation();
-    closeLoading();
-    final currentLocationMarkerIcon = await mapViewController
-        .getBytesFromCanvasImage(50, 50); // Adjust as needed
-    Marker newCurrentLocationMarker = Marker(
-      markerId: const MarkerId("current_location"),
-      position: LatLng(position.latitude, position.longitude),
-      icon: BitmapDescriptor.bytes(currentLocationMarkerIcon),
-    );
-
-    setState(() {
-      currentLocationMarker = newCurrentLocationMarker;
-      markers.add(currentLocationMarker!);
-      circles.add(
-        Circle(
-          circleId: const CircleId("current_location_circle"),
-          center: LatLng(position.latitude, position.longitude),
-          radius: 50,
-          fillColor: Colors.blue.withOpacity(0.5),
-          strokeColor: Colors.blue,
-          strokeWidth: 2,
-        ),
-      );
-    });
-
-    _animateMapCamera(
-      CameraUpdate.newLatLngZoom(
-        LatLng(position.latitude, position.longitude),
-        _clampedMapZoom(_kVehicleMapInitialZoom),
-      ),
-    );
+    try {
+      await _centerMapOnUserAndVehicles(requestPermission: true);
+    } finally {
+      closeLoading();
+    }
   }
 
   Future<void> searchMethod() async {
@@ -362,6 +751,26 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
           .loadString('assets/json/map_dark.json');
       googleMapController?.setMapStyle(style);
     }
+
+    // Réapplique les markers dès que le contrôleur est prêt.
+    if (markers.isNotEmpty || items.isNotEmpty) {
+      await setMarkers();
+    }
+
+    if (_pendingCameraInit || !_cameraInitialized) {
+      final points = <LatLng>[];
+      if (_userLatLng != null) {
+        points.add(_userLatLng!);
+      }
+      for (final item in items) {
+        if (_parseItemLatLng(item) != null) {
+          points.add(_displayPositionForItem(item));
+        }
+      }
+      await _applyCameraToPoints(points);
+      _cameraInitialized = true;
+      _pendingCameraInit = false;
+    }
   }
 
   void _zoomIn() {
@@ -392,38 +801,6 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
     }
   }
 
-  Future<void> _requestPermission() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        closeLoading();
-        showOpenAppSettingsDialog(context,
-            "Please enable location services to show the nearest vehicles around you.");
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      closeLoading();
-      showOpenAppSettingsDialog(context,
-          "Please enable location services to show the nearest vehicles around you.");
-      return;
-    }
-  }
-
-  Future<Position> _getCurrentLocation() async {
-    try {
-      return await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.high)
-          .timeout(const Duration(seconds: 15));
-    } on TimeoutException {
-      showErrorToastMessage(
-          "Failed to get current location within the timeout. Please search manually.");
-      rethrow;
-    }
-  }
-
   bool isLoadingMap = false;
   @override
   Widget build(BuildContext context) {
@@ -443,15 +820,36 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
               zoom: _kVehicleMapInitialZoom,
             ),
             markers: markers,
+            circles: circles,
             onCameraMove: (CameraPosition position) {
+              if (_isClampingZoom) return;
               _userMovingMap = true;
-              _currentCameraPosition = position;
+              // Empêche le pinch-zoom au-delà du plafond (adresse exacte).
+              if (position.zoom > _kVehicleMapMaxZoom) {
+                _currentCameraPosition = CameraPosition(
+                  target: position.target,
+                  zoom: _kVehicleMapMaxZoom,
+                  tilt: position.tilt,
+                  bearing: position.bearing,
+                );
+                _isClampingZoom = true;
+                googleMapController
+                    ?.moveCamera(
+                  CameraUpdate.newCameraPosition(_currentCameraPosition!),
+                )
+                    .whenComplete(() {
+                  _isClampingZoom = false;
+                });
+              } else {
+                _currentCameraPosition = position;
+              }
               if (_debounce?.isActive ?? false) _debounce?.cancel();
               _debounce = Timer(const Duration(seconds: 1), () {
                 _userMovingMap = false;
               });
             },
             onCameraIdle: () {
+              _enforceMaxZoom();
               if (_debounce?.isActive ?? false) _debounce?.cancel();
               _debounce = Timer(const Duration(seconds: 1), () {
                 if (_currentCameraPosition != null && _userMovingMap) {
@@ -568,62 +966,6 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
                   ],
                 ),
               )),
-          Positioned(
-              left: 20,
-              top: 130,
-              child: Row(
-                children: [
-                  InkWell(
-                    onTap: () {
-                      searchControllerHome.prepareFilterSheetOpen();
-                      showPopUpScreen(
-                          context,
-                          VehicleFilter(
-                              forsearch: true,
-                              onMapRefresh: () {
-                                searchMethod();
-                              }));
-                    },
-                    child: PhysicalModel(
-                      color: Colors.transparent,
-                      shadowColor: notifires.getGrey4Whitecolor,
-                      elevation: 2.0, // Adjust the elevation value as needed
-                      borderRadius: BorderRadius.circular(12.0),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        width: 120,
-                        height: 37,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          color: Colors.white,
-                        ),
-                        child: Row(
-                          children: [
-                            Image.asset(
-                              'assets/images/f.png',
-                              color: grey2,
-                            ),
-                            const SizedBox(
-                              width: 8,
-                            ),
-                            Text(
-                              "Filter".tr,
-                              style: regular2(context).copyWith(color: grey2),
-                            ),
-                            const SizedBox(
-                              width: 5,
-                            ),
-                            const Icon(
-                              CupertinoIcons.arrow_up_down,
-                              size: 17,
-                            )
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )),
           isLoadingMap == false
               ? const SizedBox()
               : Positioned(
@@ -709,6 +1051,9 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
                         padding: const EdgeInsets.all(10),
                         child: InkWell(
                           onTap: () {
+                            final approx = MapPrivacyHelper
+                                .approximateAddressLabel(items[index])
+                                .tr;
                             Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -717,7 +1062,7 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
                                           itemInfo: itemInfoData,
                                           rating: items[index].itemRating,
                                           title: items[index].name,
-                                          address: items[index].address,
+                                          address: approx,
                                           latitute: items[index].latitude,
                                           longtitute: items[index].longitude,
                                           frontImage: items[index].image,
@@ -777,7 +1122,10 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
                                           ),
                                           Expanded(
                                               child: Text(
-                                            items[index].address.toString(),
+                                            MapPrivacyHelper
+                                                    .approximateAddressLabel(
+                                                        items[index])
+                                                .tr,
                                             style: regular(context).copyWith(
                                                 overflow:
                                                     TextOverflow.ellipsis),

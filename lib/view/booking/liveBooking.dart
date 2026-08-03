@@ -28,9 +28,13 @@ class LiveBooking extends StatefulWidget {
   State<LiveBooking> createState() => _LiveBookingState();
 }
 
-class _LiveBookingState extends State<LiveBooking> {
+class _LiveBookingState extends State<LiveBooking>
+    with AutomaticKeepAliveClientMixin {
   final BookingRecordController bookingRecordController = Get.find();
   RefreshController refreshController = RefreshController();
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -86,14 +90,16 @@ class _LiveBookingState extends State<LiveBooking> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     renderDebugLog(
       'LiveBooking.build',
       'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}',
     );
-    return Scaffold(
-      backgroundColor: notifires.getbgcolor,
-      body: SmartRefresher(
+    return ColoredBox(
+      color: notifires.getbgcolor,
+      child: SmartRefresher(
         controller: refreshController,
+        physics: kBookingTabScrollPhysics,
         onRefresh: onRefresh,
         onLoading: onLoading,
         enablePullUp: bookingRecordController.offset == -1 ? false : true,

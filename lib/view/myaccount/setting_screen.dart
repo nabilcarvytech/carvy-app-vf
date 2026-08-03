@@ -10,8 +10,6 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
-import 'package:carvy/view/bottombar/home_main.dart';
-import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/work_space.dart';
 
 class SettingScreen extends StatefulWidget {
@@ -27,6 +25,15 @@ class _SettingScreenState extends State<SettingScreen> {
   bool isdark = GetStorage().read("getDarkValue") ?? false;
 
   bool darkMode = true;
+
+  void _popToPreviousScreen() {
+    if (isHostMode.value) {
+      generalController.currentIndexHost.value = 4;
+    } else {
+      generalController.currentIndex.value = 4;
+    }
+    Get.back();
+  }
   @override
   void initState() {
     super.initState();
@@ -40,34 +47,10 @@ class _SettingScreenState extends State<SettingScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (v) {
-        if (isHostMode.value == true) {
-          generalController.currentIndexHost.value = 4;
-          if (webPlateForm) {
-            Get.toNamed(WebRoutes.buttomHost, arguments: {"initialIndex": 4});
-          } else {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const BottomHost(
-                          initialIndex: 4,
-                        )));
-          }
-        } else {
-          generalController.currentIndex.value = 4;
-          if (webPlateForm) {
-            Get.toNamed(WebRoutes.homeMain, arguments: {"initialIndex": 4});
-          } else {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const HomeMain(
-                          initialIndex: 4,
-                        )));
-          }
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _popToPreviousScreen();
         }
-
-        // return false;
       },
       child: Align(
         alignment: Alignment.center,
@@ -76,35 +59,7 @@ class _SettingScreenState extends State<SettingScreen> {
           child: Scaffold(
             backgroundColor: notifires.getbgcolor,
             appBar: CustomAppBars(
-              onBackButtonPressed: () {
-                if (isHostMode.value == true) {
-                  generalController.currentIndexHost.value = 4;
-                  if (webPlateForm) {
-                    Get.toNamed(WebRoutes.buttomHost,
-                        arguments: {"initialIndex": 4});
-                  } else {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const BottomHost(
-                                  initialIndex: 4,
-                                )));
-                  }
-                } else {
-                  generalController.currentIndex.value = 4;
-                  if (webPlateForm) {
-                    Get.toNamed(WebRoutes.homeMain,
-                        arguments: {"initialIndex": 4});
-                  } else {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const HomeMain(
-                                  initialIndex: 4,
-                                )));
-                  }
-                }
-              },
+              onBackButtonPressed: _popToPreviousScreen,
               title: 'Setting'.tr,
               backgroundColor: notifires.getbgcolor,
               iconColor: notifires.getwhiteblackcolor,

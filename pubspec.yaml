@@ -11,7 +11,7 @@ description: >
   * **User-Friendly Design**: Navigate through a clean and intuitive interface.
   Discover the convenience and flexibility of carvy—download the app and start your journey today
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: '>=3.3.3 <4.0.0'

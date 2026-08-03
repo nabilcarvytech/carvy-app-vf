@@ -220,6 +220,16 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
     setState(() {});
   }
 
+  void _popToPreviousScreen() {
+    if (Navigator.of(context).canPop()) {
+      Get.back();
+      return;
+    }
+    // Carte ouverte comme route racine (ex. après Get.offAll)
+    generalController.currentIndex.value = 4;
+    Get.offAll(() => const HomeMain(initialIndex: 4));
+  }
+
   final FocusNode _focusNode = FocusNode();
 
   @override
@@ -231,14 +241,7 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
         backgroundColor: notifires.getbgcolor,
         title: 'Map'.tr,
         titleColor: notifires.getwhiteblackcolor,
-        onBackButtonPressed: () {
-          if (widget.isback == "back") {
-            Get.back();
-          } else {
-            generalController.currentIndex.value = 0;
-            Get.to(const HomeMain(initialIndex: 0));
-          }
-        },
+        onBackButtonPressed: _popToPreviousScreen,
       ),
       bottomNavigationBar: SafeArea(
         child: Container(

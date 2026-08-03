@@ -32,10 +32,14 @@ class MyUpCommingTrip extends StatefulWidget {
   State<MyUpCommingTrip> createState() => _MyUpCommingTripState();
 }
 
-class _MyUpCommingTripState extends State<MyUpCommingTrip> {
+class _MyUpCommingTripState extends State<MyUpCommingTrip>
+    with AutomaticKeepAliveClientMixin {
   final BookingRecordController bookingRecordController = Get.find();
   RefreshController refreshController = RefreshController();
   bool _localIsTransitioning = true;
+
+  @override
+  bool get wantKeepAlive => true;
 
   void _tryInitialFetch({bool allowRetry = true}) {
     if (!mounted) return;
@@ -135,6 +139,7 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     renderDebugLog(
       'MyUpCommingTrip.build',
       'tabIndex=${widget.tabIndex}, initialTab=${widget.initialTabIndex}',
@@ -146,6 +151,7 @@ class _MyUpCommingTripState extends State<MyUpCommingTrip> {
         children: [
           SmartRefresher(
             controller: refreshController,
+            physics: kBookingTabScrollPhysics,
             onRefresh: onRefresh,
             onLoading: onLoading,
             enablePullUp: bookingRecordController.offset == -1 ? false : true,

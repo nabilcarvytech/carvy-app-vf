@@ -1154,6 +1154,8 @@ const Map<String, String> frFR = {
   "Full address": "Adresse complète",
   "Address Label": "Libellé de l'adresse",
   "Home, Office, Airport...": "Maison, Bureau, Aéroport...",
+  "Approximate area": "Zone approximative",
+  "View details": "Voir les détails",
   "No Ongoing Booking Available": "Aucune réservation en cours disponible",
   "Popular Region": "Région populaire",
   "Lead your vehicle to make some extra cash":

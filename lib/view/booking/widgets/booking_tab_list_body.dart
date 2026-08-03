@@ -38,16 +38,24 @@ class BookingTabListBody extends StatefulWidget {
   State<BookingTabListBody> createState() => _BookingTabListBodyState();
 }
 
+/// Scroll iOS / pull-to-refresh : rebond naturel sans reset de position.
+const ScrollPhysics kBookingTabScrollPhysics = AlwaysScrollableScrollPhysics(
+  parent: BouncingScrollPhysics(),
+);
+
 class _BookingTabListBodyState extends State<BookingTabListBody> {
   Worker? _loadingWorker;
   Worker? _listWorker;
   Worker? _hideReturnWorker;
   Worker? _navigationWorker;
   bool _subscribed = false;
+  final ScrollController _scrollController = ScrollController();
+  int _lastListLength = 0;
 
   @override
   void initState() {
     super.initState();
+    _lastListLength = widget.controller.bookingsList.length;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _subscribeAfterMount();
@@ -58,13 +66,20 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
     if (_subscribed || !mounted) return;
     _subscribed = true;
     final c = widget.controller;
-    _loadingWorker = ever(c.isLoading, (_) {
+    _loadingWorker = ever(c.isLoading, (loading) {
       renderDebugLog('ever(BookingRecordController.isLoading)', widget.listType);
-      _safeRebuild();
+      // Shimmer initial uniquement — évite un setState à chaque pagination.
+      if (c.bookingsList.isEmpty || loading) {
+        _safeRebuild();
+      }
     });
-    _listWorker = ever(c.bookingsList, (_) {
+    _listWorker = ever(c.bookingsList, (list) {
       renderDebugLog('ever(BookingRecordController.bookingsList)', widget.listType);
-      _safeRebuild();
+      final nextLength = list.length;
+      if (nextLength != _lastListLength) {
+        _lastListLength = nextLength;
+        _safeRebuild();
+      }
     });
     if (Get.isRegistered<BookingController>()) {
       _hideReturnWorker =
@@ -95,6 +110,7 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
     _listWorker?.dispose();
     _hideReturnWorker?.dispose();
     _navigationWorker?.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -123,9 +139,9 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
       return LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
+            controller: _scrollController,
+            primary: false,
+            physics: kBookingTabScrollPhysics,
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Center(
@@ -145,6 +161,7 @@ class _BookingTabListBodyState extends State<BookingTabListBody> {
       widget.listType,
       widget.onItemCancelled,
       isTransitioning: widget.isTransitioning,
+      scrollController: _scrollController,
     );
   }
 }

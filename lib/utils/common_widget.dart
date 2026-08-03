@@ -1751,6 +1751,7 @@ myBookingListWidget(
   String listType,
   onItemCancelled, {
   bool isTransitioning = false,
+  ScrollController? scrollController,
 }) {
   BookingController bookingController = Get.find();
   innerMethod(context, index) async {
@@ -4032,6 +4033,9 @@ myBookingListWidget(
   }
 
   return ListView.builder(
+    key: PageStorageKey<String>('my_booking_list_$listType'),
+    controller: scrollController,
+    primary: false,
     physics: const AlwaysScrollableScrollPhysics(
       parent: BouncingScrollPhysics(),
     ),

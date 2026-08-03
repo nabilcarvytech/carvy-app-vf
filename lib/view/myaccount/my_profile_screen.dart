@@ -12,8 +12,6 @@ import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
-import 'package:carvy/view/bottombar/home_main.dart';
-import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/work_space.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:intl/intl.dart';
@@ -121,29 +119,31 @@ class _MyProfileState extends State<MyProfile> {
     });
   }
 
+  void _popToPreviousScreen() {
+    if (isHostMode.value) {
+      if (generalController.currentIndexHost.value == 0) {
+        generalController.currentIndexHost.value = 0;
+      } else {
+        generalController.currentIndexHost.value = 4;
+      }
+    } else {
+      if (generalController.currentIndex.value == 0) {
+        generalController.currentIndex.value = 0;
+      } else {
+        generalController.currentIndex.value = 4;
+      }
+    }
+    Get.back();
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (valo) {
-        if (isHostMode.value == true) {
-          if (generalController.currentIndexHost.value == 0) {
-            generalController.currentIndexHost.value = 0;
-            Get.to(const BottomHost(initialIndex: 0));
-          } else {
-            generalController.currentIndexHost.value = 4;
-            Get.to(const BottomHost(initialIndex: 4));
-          }
-        } else {
-          if (generalController.currentIndex.value == 0) {
-            generalController.currentIndex.value = 0;
-            Get.to(() => const HomeMain(initialIndex: 0));
-          } else {
-            generalController.currentIndex.value = 4;
-            Get.to(() => const HomeMain(initialIndex: 4));
-          }
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _popToPreviousScreen();
         }
-        // return false;
       },
       child: Align(
         alignment: Alignment.center,
@@ -155,25 +155,7 @@ class _MyProfileState extends State<MyProfile> {
               appBar: AppBar(
                 backgroundColor: Colors.transparent,
                 leading: GestureDetector(
-                    onTap: () {
-                      if (isHostMode.value == true) {
-                        if (generalController.currentIndexHost.value == 0) {
-                          generalController.currentIndexHost.value = 0;
-                          Get.to(const BottomHost(initialIndex: 0));
-                        } else {
-                          generalController.currentIndexHost.value = 4;
-                          Get.to(const BottomHost(initialIndex: 4));
-                        }
-                      } else {
-                        if (generalController.currentIndex.value == 0) {
-                          generalController.currentIndex.value = 0;
-                          Get.to(const HomeMain(initialIndex: 0));
-                        } else {
-                          generalController.currentIndex.value = 4;
-                          Get.to(const HomeMain(initialIndex: 4));
-                        }
-                      }
-                    },
+                    onTap: _popToPreviousScreen,
                     child: Padding(
                       padding: const EdgeInsets.only(
                           left: 20, top: 8, bottom: 8, right: 20),

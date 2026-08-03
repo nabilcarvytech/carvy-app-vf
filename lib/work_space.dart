@@ -158,8 +158,17 @@ getUserDataLocallyToHandleTheState() async {
         authController.setLoginModel(loginModel!);
 
         if (loginModel!.data != null) {
-          if (loginModel!.data!.token != null) {
-            token = loginModel!.data!.token!;
+          final storedToken = loginModel!.data!.token?.trim() ?? '';
+          if (storedToken.isNotEmpty) {
+            token = storedToken;
+          } else {
+            final fallbackToken =
+                GetStorage().read('token')?.toString().trim() ??
+                    GetStorage().read('raw_user_token')?.toString().trim() ??
+                    '';
+            if (fallbackToken.isNotEmpty) {
+              token = fallbackToken;
+            }
           }
           if (loginModel!.data!.firstName != null) {
             profileController.myName.value = loginModel!.data!.firstName!;

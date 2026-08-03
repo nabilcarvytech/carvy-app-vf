@@ -1876,95 +1876,101 @@ Widget customSearchContainer(
               TableRow(children: [
                 Card(
                   elevation: 2,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 4,
-                        child: GestureDetector(
-                          onTap: () {
-                            onSearch();
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(8),
-                                  bottomLeft: Radius.circular(8),
-                                  topRight: Radius.circular(8),
-                                  bottomRight: Radius.circular(8),
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Obx(() {
+                    final hasLocation = generalScopeController
+                            .homeSearchLocation.value.isNotEmpty ||
+                        generalScopeController
+                            .textEditingControllerCity.text.isNotEmpty;
+                    final hasDates =
+                        filterController.startDate.value.isNotEmpty &&
+                            filterController.endDates.value.isNotEmpty;
+                    final showClear = hasLocation || hasDates;
+
+                    return SizedBox(
+                      height: 44,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: showClear ? 3 : 1,
+                            child: Material(
+                              color: yelloColor2,
+                              child: InkWell(
+                                onTap: onSearch,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(8),
+                                  bottomLeft: const Radius.circular(8),
+                                  topRight: showClear
+                                      ? Radius.zero
+                                      : const Radius.circular(8),
+                                  bottomRight: showClear
+                                      ? Radius.zero
+                                      : const Radius.circular(8),
                                 ),
-                                color: yelloColor2),
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                  left: 8, right: 8, top: 10, bottom: 12),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
+                                child: Center(
+                                  child: Text(
                                     "Search".tr,
                                     style: boldstyle(context)
                                         .copyWith(color: Colors.white),
-                                  )
-                                ],
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      Obx(
-                        () {
-                          final hasLocation = generalScopeController
-                                  .homeSearchLocation.value.isNotEmpty ||
-                              generalScopeController
-                                  .textEditingControllerCity.text.isNotEmpty;
-                          final hasDates = filterController
-                                  .startDate.value.isNotEmpty &&
-                              filterController.endDates.value.isNotEmpty;
-                          if (!hasLocation && !hasDates) {
-                            return const SizedBox();
-                          }
-                          return Expanded(
-                                flex: 1,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    filterController.clearFilter();
-                                  },
-                                  child: Container(
-                                    decoration: const BoxDecoration(
-                                      borderRadius: BorderRadius.only(
-                                        bottomRight: Radius.circular(8),
-                                        bottomLeft: Radius.circular(8),
-                                      ),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                          left: 8,
-                                          right: 8,
-                                          top: 10,
-                                          bottom: 12),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.delete,
-                                            color: redColor,
-                                            size: 17,
-                                          ),
-                                          Text(
-                                            "clear".tr,
-                                            style: boldstyle(context).copyWith(
-                                                color: redColor, fontSize: 14),
-                                          )
-                                        ],
-                                      ),
+                          if (showClear) ...[
+                            Container(
+                              width: 1,
+                              color: Colors.grey.shade200,
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: OutlinedButton.icon(
+                                onPressed: filterController.clearFilter,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: redColor,
+                                  backgroundColor: redColor.withOpacity(0.08),
+                                  side: BorderSide(
+                                    color: redColor.withOpacity(0.45),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 0,
+                                  ),
+                                  minimumSize: const Size(0, 44),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.only(
+                                      topRight: Radius.circular(8),
+                                      bottomRight: Radius.circular(8),
                                     ),
                                   ),
                                 ),
-                              );
-                        },
+                                icon: Icon(
+                                  Icons.restart_alt_rounded,
+                                  size: 18,
+                                  color: redColor,
+                                ),
+                                label: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    "clear".tr,
+                                    style: boldstyle(context).copyWith(
+                                      color: redColor,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  }),
                 )
               ]),
             ],

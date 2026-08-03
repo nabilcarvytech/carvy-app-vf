@@ -1293,6 +1293,8 @@ const Map<String, String> enUs = {
   "Full address": "Full address",
   "Address Label": "Address Label",
   "Home, Office, Airport...": "Home, Office, Airport...",
+  "Approximate area": "Approximate area",
+  "View details": "View details",
   "currency_mad": "MAD",
   "morocco": "Morocco",
   "Bluetooth": "Bluetooth",
