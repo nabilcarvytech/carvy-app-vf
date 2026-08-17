@@ -112,6 +112,10 @@ class ItemsData {
   String? distance;
   /// Aligné sur [Items.parsedMinRentalDays] pour la pagination des recherches.
   int parsedMinRentalDays;
+  /// `local` | `delivery` — flag API ou dérivé côté client.
+  String? availabilityType;
+  bool? isDelivery;
+  String? deliveryPrice;
   ItemsData({
     this.id,
     this.name,
@@ -133,6 +137,9 @@ class ItemsData {
     this.itemType,
     this.distance,
     this.parsedMinRentalDays = 1,
+    this.availabilityType,
+    this.isDelivery,
+    this.deliveryPrice,
   });
   set wishlistSetter(bool value) {
     isInWishlist = value;
@@ -168,6 +175,41 @@ class ItemsData {
                 : null
             : null);
 
+    final rawAvailability = json['availabilityType'] ??
+        json['availability_type'] ??
+        json['availability_mode'];
+    final normalized = rawAvailability?.toString().trim().toLowerCase();
+    String? availabilityType;
+    if (normalized == 'local' ||
+        normalized == 'on_site' ||
+        normalized == 'based' ||
+        normalized == 'base') {
+      availabilityType = 'local';
+    } else if (normalized == 'delivery' ||
+        normalized == 'livraison' ||
+        normalized == 'doorstep') {
+      availabilityType = 'delivery';
+    }
+
+    final rawIsDelivery = json['is_delivery'] ?? json['isDelivery'];
+    bool? isDelivery;
+    if (rawIsDelivery is bool) {
+      isDelivery = rawIsDelivery;
+    } else if (rawIsDelivery != null) {
+      final s = rawIsDelivery.toString().trim().toLowerCase();
+      isDelivery = s == '1' || s == 'true' || s == 'yes';
+    } else {
+      isDelivery = availabilityType == 'delivery';
+    }
+    if (isDelivery == true && availabilityType == null) {
+      availabilityType = 'delivery';
+    }
+
+    final deliveryPrice = json['delivery_price']?.toString() ??
+        json['deliveryPrice']?.toString() ??
+        json['doorStep_price']?.toString() ??
+        json['doorstep_price']?.toString();
+
     return ItemsData(
       id: json['id']?.toString() ?? json['_id']?.toString(),
       name: json['name'],
@@ -189,6 +231,9 @@ class ItemsData {
       itemType: json['item_type'],
       distance: json['distance'],
       parsedMinRentalDays: resolveMinRentalDaysForSearchItem(json),
+      availabilityType: availabilityType,
+      isDelivery: isDelivery,
+      deliveryPrice: deliveryPrice,
     );
   }
 

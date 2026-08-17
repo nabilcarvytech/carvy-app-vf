@@ -114,54 +114,104 @@ class ItemModel {
 
 class Data {
   List<Items>? _items;
+  List<Items>? _onSiteItems;
+  List<Items>? _deliveryItems;
   num? _offset;
 
   Data({
     List<Items>? items,
+    List<Items>? onSiteItems,
+    List<Items>? deliveryItems,
     num? offset,
   }) {
     _items = items;
+    _onSiteItems = onSiteItems;
+    _deliveryItems = deliveryItems;
     _offset = offset;
   }
-  Data.fromJson(dynamic json) {
-    if (json['items'] != null) {
-      _items = [];
 
+  static List<Items> _parseItemsList(
+    dynamic raw, {
+    String? forceAvailabilityType,
+  }) {
+    final out = <Items>[];
+    if (raw == null) return out;
+
+    void addOne(dynamic item) {
       try {
-        final rawItems = json['items'];
-
-        if (rawItems is List) {
-          for (var item in rawItems) {
-            try {
-              _items!.add(Items.fromJson(item));
-            } catch (e, stack) {
-              // Ignorer les erreurs de parsing silencieusement
-            }
+        final parsed = Items.fromJson(item);
+        if (forceAvailabilityType != null) {
+          parsed.availabilityType = forceAvailabilityType;
+          if (forceAvailabilityType == 'delivery') {
+            parsed.isDelivery = true;
+          } else if (forceAvailabilityType == 'local') {
+            parsed.isDelivery = false;
           }
-        } else if (rawItems is Map<String, dynamic>) {
-          rawItems.forEach((key, value) {
-            try {
-              _items!.add(Items.fromJson(value));
-            } catch (e, stack) {
-              // Ignorer les erreurs de parsing silencieusement
-            }
-          });
         }
-      } catch (e, stack) {
-        // Ignorer les erreurs globales silencieusement
+        out.add(parsed);
+      } catch (_) {}
+    }
+
+    try {
+      if (raw is List) {
+        for (final item in raw) {
+          addOne(item);
+        }
+      } else if (raw is Map) {
+        raw.forEach((_, value) => addOne(value));
       }
+    } catch (_) {}
+    return out;
+  }
+
+  Data.fromJson(dynamic json) {
+    _onSiteItems = _parseItemsList(
+      json['on_site_items'] ?? json['onSiteItems'],
+      forceAvailabilityType: 'local',
+    );
+    _deliveryItems = _parseItemsList(
+      json['delivery_items'] ?? json['deliveryItems'],
+      forceAvailabilityType: 'delivery',
+    );
+
+    if (json['items'] != null) {
+      _items = _parseItemsList(json['items']);
+    } else if (_onSiteItems!.isNotEmpty || _deliveryItems!.isNotEmpty) {
+      _items = <Items>[..._onSiteItems!, ..._deliveryItems!];
+    } else {
+      _items = [];
+    }
+
+    // Si seules les listes typées existent, elles restent la source de vérité.
+    if ((_onSiteItems == null || _onSiteItems!.isEmpty) &&
+        (_deliveryItems == null || _deliveryItems!.isEmpty) &&
+        _items != null &&
+        _items!.isNotEmpty) {
+      _onSiteItems = _items!
+          .where((e) => (e.availabilityType ?? 'local') != 'delivery')
+          .toList();
+      _deliveryItems =
+          _items!.where((e) => e.availabilityType == 'delivery').toList();
     }
 
     _offset = json['offset'];
   }
 
   List<Items>? get items => _items;
+  List<Items>? get onSiteItems => _onSiteItems;
+  List<Items>? get deliveryItems => _deliveryItems;
   num? get offset => _offset;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
     if (_items != null) {
       map['items'] = _items?.map((v) => v.toJson()).toList();
+    }
+    if (_onSiteItems != null) {
+      map['on_site_items'] = _onSiteItems?.map((v) => v.toJson()).toList();
+    }
+    if (_deliveryItems != null) {
+      map['delivery_items'] = _deliveryItems?.map((v) => v.toJson()).toList();
     }
     map['offset'] = _offset;
     return map;
@@ -193,6 +243,10 @@ class Items {
   String? _fuel;
   String? _seats;
   int _parsedMinRentalDays = 1;
+  /// `local` | `delivery` — flag API ou dérivé côté client.
+  String? _availabilityType;
+  bool? _isDelivery;
+  String? _deliveryPrice;
 
   Items({
     String? id,
@@ -217,6 +271,9 @@ class Items {
     String? transmission,
     String? fuel,
     String? seats,
+    String? availabilityType,
+    bool? isDelivery,
+    String? deliveryPrice,
   }) {
     _id = id;
     _name = name;
@@ -240,6 +297,9 @@ class Items {
     _transmission = transmission;
     _fuel = fuel;
     _seats = seats;
+    _availabilityType = availabilityType;
+    _isDelivery = isDelivery;
+    _deliveryPrice = deliveryPrice;
   }
 
   Items.fromJson(dynamic json) {
@@ -367,6 +427,41 @@ class Items {
     _distance = json['distance']?.toString() ?? '0';
 
     _parsedMinRentalDays = resolveMinRentalDaysForSearchItem(json);
+
+    final rawAvailability = json['availabilityType'] ??
+        json['availability_type'] ??
+        json['availability_mode'];
+    final normalized = rawAvailability?.toString().trim().toLowerCase();
+    if (normalized == 'local' ||
+        normalized == 'on_site' ||
+        normalized == 'based' ||
+        normalized == 'base') {
+      _availabilityType = 'local';
+    } else if (normalized == 'delivery' ||
+        normalized == 'livraison' ||
+        normalized == 'doorstep') {
+      _availabilityType = 'delivery';
+    } else {
+      _availabilityType = null;
+    }
+
+    final rawIsDelivery = json['is_delivery'] ?? json['isDelivery'];
+    if (rawIsDelivery is bool) {
+      _isDelivery = rawIsDelivery;
+    } else if (rawIsDelivery != null) {
+      final s = rawIsDelivery.toString().trim().toLowerCase();
+      _isDelivery = s == '1' || s == 'true' || s == 'yes';
+    } else {
+      _isDelivery = _availabilityType == 'delivery';
+    }
+    if (_isDelivery == true && _availabilityType == null) {
+      _availabilityType = 'delivery';
+    }
+
+    _deliveryPrice = json['delivery_price']?.toString() ??
+        json['deliveryPrice']?.toString() ??
+        json['doorStep_price']?.toString() ??
+        json['doorstep_price']?.toString();
   }
 
   /// Durée minimum de location exigée par le véhicule (aligné sur `min_rental_days` / `item_info`).
@@ -394,6 +489,12 @@ class Items {
   String? get transmission => _transmission;
   String? get fuel => _fuel;
   String? get seats => _seats;
+  String? get availabilityType => _availabilityType;
+  set availabilityType(String? value) => _availabilityType = value;
+  bool? get isDelivery => _isDelivery;
+  set isDelivery(bool? value) => _isDelivery = value;
+  String? get deliveryPrice => _deliveryPrice;
+  set deliveryPrice(String? value) => _deliveryPrice = value;
   set wishlistSetter(bool value) {
     _isInWishlist = value;
   }
@@ -428,6 +529,9 @@ class Items {
     map['transmission'] = _transmission;
     map['fuel_type'] = _fuel;
     map['number_of_seats'] = _seats;
+    map['availabilityType'] = _availabilityType;
+    map['is_delivery'] = _isDelivery;
+    map['delivery_price'] = _deliveryPrice;
     return map;
   }
 }

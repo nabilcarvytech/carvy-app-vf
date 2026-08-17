@@ -990,6 +990,10 @@ class SearchControllerHome extends GetxController implements GetxService {
       "radius": placeRadius.toString(),
       "search_on_map":
           desildetoSendparametersBasedOnPage.value == true ? "1" : "0",
+      // Recherche élargie : basés dans la ville OU livrant vers la ville.
+      // Le backend peut renvoyer `availabilityType: local|delivery` par item.
+      "include_delivery": "1",
+      "expand_location_delivery": true,
       "sort": selectredeShortByvalue.value == "Nearest Location"
           ? "nearest_location"
           : selectredeShortByvalue.value == "Highest Ranked"

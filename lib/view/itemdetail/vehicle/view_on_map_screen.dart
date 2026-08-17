@@ -53,6 +53,10 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
   LatLng? _userLatLng;
   bool _cameraInitialized = false;
   bool _pendingCameraInit = false;
+  /// Masque la carte brute jusqu'à GPS + caméra prêts (évite le saut de centrage).
+  bool _isMapInitializing = true;
+  /// N'instancie GoogleMap qu'une fois le centre initial connu.
+  bool _mapReadyToBuild = false;
   ItemModel? itemModel;
   bool visibleList = false;
   LatLng? _lastApiCallLocation;
@@ -150,9 +154,32 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
       _lastLocationWithResults = mylatlng;
     }
 
+    // Centre initial = GPS utilisateur (sinon premier véhicule / fallback).
+    if (_userLatLng != null) {
+      mylatlng = _userLatLng!;
+    }
+
     // 3) Une seule injection atomique des markers (véhicules + user)
     await setMarkers();
-    await _centerMapOnUserAndVehicles(requestPermission: false);
+
+    if (!mounted) return;
+    // Monte GoogleMap seulement maintenant, déjà ciblée sur mylatlng.
+    setState(() {
+      _mapReadyToBuild = true;
+    });
+
+    // Si le contrôleur existe déjà (cas rare), finaliser le centrage tout de suite.
+    if (googleMapController != null) {
+      await _centerMapOnUserAndVehicles(requestPermission: false);
+      _finishMapInitialization();
+    }
+  }
+
+  void _finishMapInitialization() {
+    if (!mounted || !_isMapInitializing) return;
+    setState(() {
+      _isMapInitializing = false;
+    });
   }
 
   Future<void> _ensureUserLocation({required bool requestPermission}) async {
@@ -215,30 +242,52 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
     }
   }
 
-  Future<void> _applyCameraToPoints(List<LatLng> points) async {
+  Future<void> _applyCameraToPoints(
+    List<LatLng> points, {
+    bool instant = false,
+  }) async {
     if (points.isEmpty) {
-      await _animateMapCamera(
+      await _moveOrAnimateCamera(
         CameraUpdate.newLatLngZoom(
           mylatlng,
           _clampedMapZoom(_kVehicleMapInitialZoom),
         ),
+        instant: instant,
       );
       return;
     }
 
     if (points.length == 1) {
       mylatlng = points.first;
-      await _animateMapCamera(
+      await _moveOrAnimateCamera(
         CameraUpdate.newLatLngZoom(
           mylatlng,
           _clampedMapZoom(_kVehicleMapInitialZoom),
         ),
+        instant: instant,
       );
       return;
     }
 
     final bounds = MapPrivacyHelper.boundsForPoints(points);
-    await _animateMapCamera(CameraUpdate.newLatLngBounds(bounds, 80));
+    await _moveOrAnimateCamera(
+      CameraUpdate.newLatLngBounds(bounds, 80),
+      instant: instant,
+    );
+  }
+
+  Future<void> _moveOrAnimateCamera(
+    CameraUpdate update, {
+    required bool instant,
+  }) async {
+    final controller = googleMapController;
+    if (controller == null) return;
+    if (instant) {
+      await controller.moveCamera(update);
+      await _enforceMaxZoom();
+    } else {
+      await _animateMapCamera(update);
+    }
   }
 
   Future<void> _centerMapOnUserAndVehicles({
@@ -767,10 +816,13 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
           points.add(_displayPositionForItem(item));
         }
       }
-      await _applyCameraToPoints(points);
+      // moveCamera sous le loader : pas d'animation visible au dévoilement.
+      await _applyCameraToPoints(points, instant: true);
       _cameraInitialized = true;
       _pendingCameraInit = false;
     }
+
+    _finishMapInitialization();
   }
 
   void _zoomIn() {
@@ -804,63 +856,66 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
   bool isLoadingMap = false;
   @override
   Widget build(BuildContext context) {
+    final brandColor = getColorBasedOnActiveModuleid();
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          GoogleMap(
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            minMaxZoomPreference: _kVehicleMapZoomPreference,
-            onMapCreated: _onMapCreated,
-            initialCameraPosition: CameraPosition(
-              target: mylatlng,
-              zoom: _kVehicleMapInitialZoom,
-            ),
-            markers: markers,
-            circles: circles,
-            onCameraMove: (CameraPosition position) {
-              if (_isClampingZoom) return;
-              _userMovingMap = true;
-              // Empêche le pinch-zoom au-delà du plafond (adresse exacte).
-              if (position.zoom > _kVehicleMapMaxZoom) {
-                _currentCameraPosition = CameraPosition(
-                  target: position.target,
-                  zoom: _kVehicleMapMaxZoom,
-                  tilt: position.tilt,
-                  bearing: position.bearing,
-                );
-                _isClampingZoom = true;
-                googleMapController
-                    ?.moveCamera(
-                  CameraUpdate.newCameraPosition(_currentCameraPosition!),
-                )
-                    .whenComplete(() {
-                  _isClampingZoom = false;
-                });
-              } else {
-                _currentCameraPosition = position;
-              }
-              if (_debounce?.isActive ?? false) _debounce?.cancel();
-              _debounce = Timer(const Duration(seconds: 1), () {
-                _userMovingMap = false;
-              });
-            },
-            onCameraIdle: () {
-              _enforceMaxZoom();
-              if (_debounce?.isActive ?? false) _debounce?.cancel();
-              _debounce = Timer(const Duration(seconds: 1), () {
-                if (_currentCameraPosition != null && _userMovingMap) {
-                  searchMethodOnMapMoved(
-                      _currentCameraPosition!.target.latitude.toString(),
-                      _currentCameraPosition!.target.longitude.toString());
-                  _userMovingMap = false;
+          if (_mapReadyToBuild)
+            GoogleMap(
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              minMaxZoomPreference: _kVehicleMapZoomPreference,
+              onMapCreated: _onMapCreated,
+              initialCameraPosition: CameraPosition(
+                target: mylatlng,
+                zoom: _kVehicleMapInitialZoom,
+              ),
+              markers: markers,
+              circles: circles,
+              onCameraMove: (CameraPosition position) {
+                if (_isClampingZoom) return;
+                _userMovingMap = true;
+                // Empêche le pinch-zoom au-delà du plafond (adresse exacte).
+                if (position.zoom > _kVehicleMapMaxZoom) {
+                  _currentCameraPosition = CameraPosition(
+                    target: position.target,
+                    zoom: _kVehicleMapMaxZoom,
+                    tilt: position.tilt,
+                    bearing: position.bearing,
+                  );
+                  _isClampingZoom = true;
+                  googleMapController
+                      ?.moveCamera(
+                    CameraUpdate.newCameraPosition(_currentCameraPosition!),
+                  )
+                      .whenComplete(() {
+                    _isClampingZoom = false;
+                  });
+                } else {
+                  _currentCameraPosition = position;
                 }
-              });
-            },
-          ),
+                if (_debounce?.isActive ?? false) _debounce?.cancel();
+                _debounce = Timer(const Duration(seconds: 1), () {
+                  _userMovingMap = false;
+                });
+              },
+              onCameraIdle: () {
+                _enforceMaxZoom();
+                if (_debounce?.isActive ?? false) _debounce?.cancel();
+                _debounce = Timer(const Duration(seconds: 1), () {
+                  if (_currentCameraPosition != null && _userMovingMap) {
+                    searchMethodOnMapMoved(
+                        _currentCameraPosition!.target.latitude.toString(),
+                        _currentCameraPosition!.target.longitude.toString());
+                    _userMovingMap = false;
+                  }
+                });
+              },
+            ),
+          if (!_isMapInitializing)
           Positioned(
               left: 20,
               right: 20,
@@ -966,9 +1021,8 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
                   ],
                 ),
               )),
-          isLoadingMap == false
-              ? const SizedBox()
-              : Positioned(
+          if (!_isMapInitializing && isLoadingMap)
+            Positioned(
                   top: 120,
                   left: 0,
                   right: 0,
@@ -986,6 +1040,7 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
                           scale: 2,
                         )),
                   )),
+          if (!_isMapInitializing)
           Positioned(
             bottom: 50,
             right: 10,
@@ -1015,6 +1070,7 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
               ],
             ),
           ),
+          if (!_isMapInitializing)
           Visibility(
             visible: visibleList && items.isNotEmpty,
             child: Positioned(
@@ -1173,6 +1229,41 @@ class _ViewOnMapScreenState extends State<ViewOnMapScreen> {
               ),
             ),
           ),
+          if (_isMapInitializing)
+            Positioned.fill(
+              child: ColoredBox(
+                color: Colors.white,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 42,
+                        height: 42,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(brandColor),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          "Retrieving your location...".tr,
+                          textAlign: TextAlign.center,
+                          style: regular3(context).copyWith(
+                            color: grey2,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

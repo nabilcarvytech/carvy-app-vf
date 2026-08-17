@@ -1176,7 +1176,7 @@ const Map<String, String> frFR = {
       "Veuillez entrer le numéro de la maison et le numéro d'étage.",
   "Please select the address from the map.":
       "Veuillez sélectionner l'adresse sur la carte.",
-  "Retrieving your location...": "Récupération de votre position...",
+  "Retrieving your location...": "Recherche de votre position...",
   "location_required_for_address":
       "La localisation est nécessaire pour définir votre adresse. Veuillez activer le GPS.",
   "open_location_settings": "Ouvrir les paramètres",
@@ -1380,6 +1380,7 @@ const Map<String, String> frFR = {
   "Smoking Allowed": "Fumer autorisé",
   "min_rental_duration_vehicle_days":
       "La durée minimale de location pour ce véhicule est de @days jours.",
+  "min_rental_duration_info": "@days jours minimum de location",
   "International Travel Allowed": "Voyage international autorisé",
   "register_wizard_app_bar_title": "Créer un compte",
   "register_wizard_who_are_you": "Qui êtes-vous ?",
@@ -1519,6 +1520,15 @@ const Map<String, String> frFR = {
   "reviews_details": "Détails des évaluations",
   "agency_rating": "Note de l'agence",
   "comments_label": "Commentaires",
+  "carvy_user_fallback": "Utilisateur Carvy",
+  "Client anonyme": "Utilisateur Carvy",
+  "availability_on_site_section": "Disponible sur place",
+  "availability_on_site_badge": "Disponible sur place",
+  "availability_delivery_section": "Disponible en livraison à @city",
+  "availability_delivery_section_generic": "Disponible en livraison",
+  "availability_delivery_badge": "Disponible en livraison à @city",
+  "availability_delivery_badge_generic": "Disponible en livraison",
+  "availability_delivery_fee": "Livraison : @price",
   "view_all": "Voir tout",
   "agency_ads": "Annonces",
   "email_otp_title": "Vérifiez votre e-mail",

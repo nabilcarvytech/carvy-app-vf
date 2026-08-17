@@ -2572,6 +2572,45 @@ class BookingController extends GetxController implements GetxService {
     return days < 1 ? 1 : days;
   }
 
+  /// Durée « nuits / span » alignée sur [RentalBillingDays] à heures égales :
+  /// même jour → 1, sinon `end - start` (ex. 20→25 = 5 jours).
+  int calendarSpanRentalDays(DateTime checkIn, DateTime checkOut) {
+    final start = DateTime(checkIn.year, checkIn.month, checkIn.day);
+    final end = DateTime(checkOut.year, checkOut.month, checkOut.day);
+    final span = end.difference(start).inDays;
+    return span < 1 ? 1 : span;
+  }
+
+  /// Date de fin minimale pour respecter [minDays] (ex. début 20 + 5 → 25).
+  DateTime minimumEndDateForMinRental(DateTime start, int minDays) {
+    final day = DateTime(start.year, start.month, start.day);
+    final m = minDays < 1 ? 1 : minDays;
+    if (m <= 1) return day;
+    return day.add(Duration(days: m));
+  }
+
+  bool _isCalendarDateAvailable(DateTime date) {
+    final d = DateTime(date.year, date.month, date.day);
+    return availableDates.any(
+      (a) => a.year == d.year && a.month == d.month && a.day == d.day,
+    );
+  }
+
+  /// Première date de fin disponible ≥ minimum requis (dans la fenêtre calendrier).
+  DateTime? _resolveAvailableMinEndDate(DateTime start, int minDays) {
+    final target = minimumEndDateForMinRental(start, minDays);
+    if (_isCalendarDateAvailable(target) &&
+        RollingCalendarBounds.isWithinWindow(target)) {
+      return target;
+    }
+    for (var i = 1; i <= 62; i++) {
+      final candidate = target.add(Duration(days: i));
+      if (!RollingCalendarBounds.isWithinWindow(candidate)) break;
+      if (_isCalendarDateAvailable(candidate)) return candidate;
+    }
+    return null;
+  }
+
   /// Valide la durée minimale à l'étape calendrier (« Suivant » avant les heures).
   bool validateMinRentalDaysForDateSelection(dynamic itemDetails) {
     if (startDate.value.isEmpty || endDate.value.isEmpty) {
@@ -2586,7 +2625,7 @@ class BookingController extends GetxController implements GetxService {
       return false;
     }
 
-    final selectedDays = calendarDaysBetweenDates(checkIn, checkOut);
+    final selectedDays = calendarSpanRentalDays(checkIn, checkOut);
     final minRequired = resolveMinRentalDaysForBooking(itemDetails);
     if (minRequired != null &&
         minRequired > 0 &&
@@ -2850,13 +2889,132 @@ class BookingController extends GetxController implements GetxService {
   final Duration _debounceDuration = const Duration(milliseconds: 300);
   DateTime? previousStartDate;
   DateTime? previousEndDate;
+  /// Évite la boucle Syncfusion quand on force la plage min. programmatiquement.
+  bool _applyingMinRentalRange = false;
+  /// Contexte véhicule pour la contrainte min_rental_days sur le calendrier.
+  dynamic calendarSelectionItemDetails;
   var nextStartTime = "".obs;
   var nextEndTime = "".obs;
   var handleTimeSlotsOnCurrentDate = false.obs;
   DateTime? _lastSnackbarShownTime;
   final Duration _snackbarDebounceDuration = const Duration(minutes: 1);
 
-  void onSelectionChanged(DateRangePickerSelectionChangedArgs args) {
+  bool get _hasCommittedCalendarRange =>
+      previousStartDate != null &&
+      previousEndDate != null &&
+      startDate.value.isNotEmpty &&
+      endDate.value.isNotEmpty;
+
+  /// Applique la contrainte min + synchronise le picker / l'état.
+  /// Retourne la date de début effective, ou null si la sélection est invalide.
+  DateTime? _applyMinRentalSelection({
+    required DateTime tappedOrStart,
+    required DateTime? rawEnd,
+    required int minRequired,
+    required DateTime now,
+  }) {
+    DateTime effectiveStart = tappedOrStart;
+    DateTime? effectiveEnd;
+    var didRejectTooShort = false;
+
+    if (rawEnd == null) {
+      // Syncfusion envoie souvent end=null au clic suivant une plage complète.
+      // Si une plage existe déjà et que le clic est ≥ début → on met à jour la FIN
+      // (prolongation libre), sans recommencer à zéro.
+      if (_hasCommittedCalendarRange &&
+          previousStartDate != null &&
+          !tappedOrStart.isBefore(previousStartDate!)) {
+        effectiveStart = previousStartDate!;
+        final minEnd =
+            minimumEndDateForMinRental(effectiveStart, minRequired);
+        if (tappedOrStart.isBefore(minEnd)) {
+          final clamped =
+              _resolveAvailableMinEndDate(effectiveStart, minRequired);
+          if (clamped == null) {
+            showErrorToastMessage(
+              'min_rental_duration_vehicle_days'.trParams({
+                'days': minRequired.toString(),
+              }),
+            );
+            return null;
+          }
+          effectiveEnd = clamped;
+          didRejectTooShort = minRequired > 1;
+        } else {
+          effectiveEnd = tappedOrStart;
+        }
+      } else {
+        // Nouvelle sélection (1er clic ou clic avant l'ancien début).
+        final autoEnd =
+            _resolveAvailableMinEndDate(tappedOrStart, minRequired);
+        if (autoEnd == null) {
+          showErrorToastMessage(
+            'min_rental_duration_vehicle_days'.trParams({
+              'days': minRequired.toString(),
+            }),
+          );
+          return null;
+        }
+        effectiveEnd = autoEnd;
+      }
+    } else {
+      final minEnd = minimumEndDateForMinRental(effectiveStart, minRequired);
+      if (rawEnd.isBefore(minEnd)) {
+        final clamped =
+            _resolveAvailableMinEndDate(effectiveStart, minRequired);
+        if (clamped == null) {
+          showErrorToastMessage(
+            'min_rental_duration_vehicle_days'.trParams({
+              'days': minRequired.toString(),
+            }),
+          );
+          return null;
+        }
+        effectiveEnd = clamped;
+        didRejectTooShort = minRequired > 1;
+      } else {
+        effectiveEnd = rawEnd;
+      }
+    }
+
+    if (!_isCalendarDateAvailable(effectiveStart) ||
+        !_isCalendarDateAvailable(effectiveEnd)) {
+      _showUnavailableDateError(now);
+      return null;
+    }
+
+    _applyingMinRentalRange = true;
+    try {
+      dateRangePickerController.selectedRange =
+          PickerDateRange(effectiveStart, effectiveEnd);
+    } finally {
+      _applyingMinRentalRange = false;
+    }
+
+    if (didRejectTooShort) {
+      showCustomSnackbar(
+        title: 'min_rental_days_label'.tr,
+        message: 'min_rental_duration_vehicle_days'.trParams({
+          'days': minRequired.toString(),
+        }),
+        color: getColorBasedOnActiveModuleid(),
+        contentType: ContentType.help,
+      );
+    }
+
+    startDate.value = DateFormat('yyyy-MM-dd').format(effectiveStart);
+    endDate.value = DateFormat('yyyy-MM-dd').format(effectiveEnd);
+    previousStartDate = effectiveStart;
+    previousEndDate = effectiveEnd;
+    return effectiveStart;
+  }
+
+  void onSelectionChanged(
+    DateRangePickerSelectionChangedArgs args, {
+    dynamic itemDetails,
+  }) {
+    if (_applyingMinRentalRange) return;
+
     vehicleBookingTunnelComplete.value = false;
     selectedStartTime.value = "";
     nextStartTime.value = "";
@@ -2870,140 +3028,137 @@ class BookingController extends GetxController implements GetxService {
     // Ne pas appeler update() ici : rebuild synchrone du SfDateRangePicker (GetBuilder)
     // pouvait relancer onSelectionChanged → boucle inflateWidget / écran noir.
     final now = DateTime.now();
-    if (_lastSelectionTime != null &&
+    if (args.value is! PickerDateRange) return;
+
+    final rawStart = args.value.startDate as DateTime?;
+    final rawEnd = args.value.endDate as DateTime?;
+    if (rawStart == null) return;
+
+    final DateTime tappedOrStart =
+        DateTime(rawStart.year, rawStart.month, rawStart.day);
+    final DateTime? selectedEndDate = rawEnd == null
+        ? null
+        : DateTime(rawEnd.year, rawEnd.month, rawEnd.day);
+
+    // Ne pas freiner les clics de prolongation de fin (après plage auto).
+    final looksLikeEndExtend = _hasCommittedCalendarRange &&
+        previousStartDate != null &&
+        selectedEndDate == null &&
+        !tappedOrStart.isBefore(previousStartDate!);
+    if (!looksLikeEndExtend &&
+        _lastSelectionTime != null &&
         now.difference(_lastSelectionTime!) < _debounceDuration) {
       return;
     }
     _lastSelectionTime = now;
-    if (args.value is PickerDateRange) {
-      final DateTime? selectedStartDate = args.value.startDate as DateTime?;
-      final DateTime? selectedEndDate = args.value.endDate as DateTime?;
-      bool isStartDateAvailable = selectedStartDate != null &&
-          availableDates.contains(selectedStartDate);
-      bool isEndDateAvailable =
-          selectedEndDate != null && availableDates.contains(selectedEndDate);
-      if (!isStartDateAvailable ||
-          (selectedEndDate != null && !isEndDateAvailable)) {
-        _showUnavailableDateError(now);
+
+    // Dispo : pour une prolongation (plage déjà active), le "start" Syncfusion
+    // est en réalité le clic de fin — on valide ce clic ; le vrai début est
+    // contrôlé ensuite dans [_applyMinRentalSelection].
+    if (!_isCalendarDateAvailable(tappedOrStart)) {
+      _showUnavailableDateError(now);
+      return;
+    }
+    if (selectedEndDate != null &&
+        !_isCalendarDateAvailable(selectedEndDate)) {
+      _showUnavailableDateError(now);
+      return;
+    }
+
+    final details = itemDetails ?? calendarSelectionItemDetails;
+    final minRequired = resolveMinRentalDaysForBooking(details) ?? 1;
+
+    final selectedStartDate = _applyMinRentalSelection(
+      tappedOrStart: tappedOrStart,
+      rawEnd: selectedEndDate,
+      minRequired: minRequired,
+      now: now,
+    );
+    if (selectedStartDate == null) return;
+
+    bool isStartDateToday = isToday(selectedStartDate);
+    if (isStartDateToday) {
+      DateTime startTime = DateTime(now.year, now.month, now.day, 23, 01);
+      DateTime endTime = DateTime(now.year, now.month, now.day, 23, 59);
+      bool isBetweenTimeRange = isBetween(startTime, endTime);
+      if (isBetweenTimeRange) {
+        if (_lastSnackbarShownTime == null ||
+            now.difference(_lastSnackbarShownTime!) >
+                _snackbarDebounceDuration) {
+          _lastSnackbarShownTime = now;
+          showCustomSnackbar(
+            title: 'Booking Unavailable'.tr,
+            message:
+                'You cannot book the vehicle between 23:01 and 23:59.'.tr,
+            color: redColor,
+            contentType: ContentType.warning,
+          );
+        }
+        currenttimeSlots.clear();
+        avalibleSlots.clear();
+        safeUpdate();
         return;
       }
-      if (selectedEndDate == null) {
-        if (isStartDateAvailable) {
-          startDate.value = DateFormat('yyyy-MM-dd').format(selectedStartDate);
-          endDate.value = DateFormat('yyyy-MM-dd').format(selectedStartDate);
-          previousStartDate = selectedStartDate;
-          previousEndDate = selectedStartDate;
-        } else {
-          _showUnavailableDateError(now);
-          startDate.value = previousStartDate != null
-              ? DateFormat('yyyy-MM-dd').format(previousStartDate!)
-              : '';
-          endDate.value = previousEndDate != null
-              ? DateFormat('yyyy-MM-dd').format(previousEndDate!)
-              : '';
-          return;
-        }
-      } else {
-        if (isStartDateAvailable && isEndDateAvailable) {
-          startDate.value = DateFormat('yyyy-MM-dd').format(selectedStartDate);
-          endDate.value = DateFormat('yyyy-MM-dd').format(selectedEndDate);
-          previousStartDate = selectedStartDate;
-          previousEndDate = selectedEndDate;
-        } else {
-          _showUnavailableDateError(now);
-          startDate.value = previousStartDate != null
-              ? DateFormat('yyyy-MM-dd').format(previousStartDate!)
-              : '';
-          endDate.value = previousEndDate != null
-              ? DateFormat('yyyy-MM-dd').format(previousEndDate!)
-              : '';
-          return;
-        }
-      }
-      bool isStartDateToday = isToday(selectedStartDate);
-      if (isStartDateToday) {
-        DateTime startTime = DateTime(now.year, now.month, now.day, 23, 01);
-        DateTime endTime = DateTime(now.year, now.month, now.day, 23, 59);
-        bool isBetweenTimeRange = isBetween(startTime, endTime);
-        if (isBetweenTimeRange) {
-          if (_lastSnackbarShownTime == null ||
-              now.difference(_lastSnackbarShownTime!) >
-                  _snackbarDebounceDuration) {
-            _lastSnackbarShownTime = now;
-            showCustomSnackbar(
-              title: 'Booking Unavailable'.tr,
-              message:
-                  'You cannot book the vehicle between 23:01 and 23:59.'.tr,
-              color: redColor,
-              contentType: ContentType.warning,
-            );
-          }
-          currenttimeSlots.clear();
-          avalibleSlots.clear();
-          safeUpdate();
-          return;
-        }
-      }
-      checkDateApi(idFeatured: '$idFeatured').then((value) {
-        if (value != null && value["data"] != null) {
-          print("1");
-          if (value["data"]["next_start_time"] != null) {
-            print("2");
-            nextStartTime.value =
-                convert12To24(value["data"]["next_start_time"]);
-            nextEndTime.value = convert12To24(value["data"]["next_end_time"]);
-            debugPrint(
-                'next_available_time_on_checkout: ${nextStartTime.value}');
-          } else {
-            print("3");
-            nextStartTime.value = "00:00";
-            nextEndTime.value = "11:30";
-            debugPrint(
-                'next_available_time_on_checkout is null, using fallback: ${nextStartTime.value}');
-          }
-          if (value["data"]["availability"] != null &&
-              value["data"]["availability"]["next_start_time"] != null) {
-            print("4");
-            nextStartTime.value =
-                convert12To24(value["data"]["availability"]["next_start_time"]);
-            nextEndTime.value =
-                convert12To24(value["data"]["availability"]["next_end_time"]);
-            debugPrint(
-                'next_start_time from availability: ${nextStartTime.value}');
-          }
-          if (isToday(selectedStartDate)) {
-            print("5");
-            compareAndGenerateSlots(
-                selectedStartDate, nextStartTime.value, nextEndTime.value);
-          } else {
-            if (startDate.value == endDate.value) {
-              curreentStatus.value = "SameDate";
-              filterTimeSlotsfunctionSameDate(
-                  nextStartTime.value, nextEndTime.value);
-            } else {
-              print("6");
-              filterTimeSlotsfunctionSameDate(
-                  nextStartTime.value, nextEndTime.value);
-              curreentStatus.value = "otherDates";
-            }
-          }
-          safeUpdate();
-        } else {
-          print("7");
-          showErrorToastMessage(
-              "Failed to fetch availability. Please try again.");
-        }
-      }).catchError((error) {
-        print("8");
-        debugPrint('Error in checkDateApi: $error');
-        showErrorToastMessage(
-            "An error occurred while checking availability.".tr);
-        nextStartTime.value = "09:00";
-        nextEndTime.value = "22:00";
-        safeUpdate();
-      });
-      safeUpdate();
     }
+    checkDateApi(idFeatured: '$idFeatured').then((value) {
+      if (value != null && value["data"] != null) {
+        print("1");
+        if (value["data"]["next_start_time"] != null) {
+          print("2");
+          nextStartTime.value =
+              convert12To24(value["data"]["next_start_time"]);
+          nextEndTime.value = convert12To24(value["data"]["next_end_time"]);
+          debugPrint(
+              'next_available_time_on_checkout: ${nextStartTime.value}');
+        } else {
+          print("3");
+          nextStartTime.value = "00:00";
+          nextEndTime.value = "11:30";
+          debugPrint(
+              'next_available_time_on_checkout is null, using fallback: ${nextStartTime.value}');
+        }
+        if (value["data"]["availability"] != null &&
+            value["data"]["availability"]["next_start_time"] != null) {
+          print("4");
+          nextStartTime.value =
+              convert12To24(value["data"]["availability"]["next_start_time"]);
+          nextEndTime.value =
+              convert12To24(value["data"]["availability"]["next_end_time"]);
+          debugPrint(
+              'next_start_time from availability: ${nextStartTime.value}');
+        }
+        if (isToday(selectedStartDate)) {
+          print("5");
+          compareAndGenerateSlots(
+              selectedStartDate, nextStartTime.value, nextEndTime.value);
+        } else {
+          if (startDate.value == endDate.value) {
+            curreentStatus.value = "SameDate";
+            filterTimeSlotsfunctionSameDate(
+                nextStartTime.value, nextEndTime.value);
+          } else {
+            print("6");
+            filterTimeSlotsfunctionSameDate(
+                nextStartTime.value, nextEndTime.value);
+            curreentStatus.value = "otherDates";
+          }
+        }
+        safeUpdate();
+      } else {
+        print("7");
+        showErrorToastMessage(
+            "Failed to fetch availability. Please try again.");
+      }
+    }).catchError((error) {
+      print("8");
+      debugPrint('Error in checkDateApi: $error');
+      showErrorToastMessage(
+          "An error occurred while checking availability.".tr);
+      nextStartTime.value = "09:00";
+      nextEndTime.value = "22:00";
+      safeUpdate();
+    });
+    safeUpdate();
   }
 
   void compareAndGenerateSlots(
@@ -3085,13 +3240,26 @@ class BookingController extends GetxController implements GetxService {
     isDateAvailale.value = false;
     startDate.value = "";
     endDate.value = "";
-    dateRangePickerController.selectedRange = null;
+    previousStartDate = null;
+    previousEndDate = null;
+    _lastSelectionTime = null;
+    _applyingMinRentalRange = true;
+    try {
+      dateRangePickerController.selectedRange = null;
+    } finally {
+      _applyingMinRentalRange = false;
+    }
     selectedStartTime.value = "";
     selectedEndTime.value = "";
     hindTimeStart.value = "";
     hindTimeSEnd.value = "";
     isenqablestarttime.value = false;
     isenableendTime.value = false;
+    nextStartTime.value = "";
+    nextEndTime.value = "";
+    handleTimeSlotsOnCurrentDate.value = false;
+    avalibleSlots.clear();
+    currenttimeSlots.clear();
     vehicleNoController.clear();
     safeUpdate();
   }
@@ -3347,6 +3515,8 @@ class BookingController extends GetxController implements GetxService {
   Future<void> fetchDataCalendar(id) async {
     print('🚀 TENTATIVE APPEL API CALENDRIER');
     isLoading.value = true;
+    // Rafraîchir l'UI immédiatement pour afficher le loader (GetBuilder).
+    safeUpdate();
 
     try {
       // ========== TRACEUR D'ADRESSE IP ==========

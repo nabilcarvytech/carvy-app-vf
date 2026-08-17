@@ -49,11 +49,20 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
   late BookingController bookingController;
   AddAddressController addAddressController = Get.find();
   
-  getData() async {
+  /// Incrémenté à chaque chargement réussi pour forcer un remount Syncfusion.
+  int _calendarDataEpoch = 0;
+
+  Future<void> getData() async {
     print('📅 getData() appelé avec idFeatured: ${widget.idFeatured}');
     try {
       await bookingController.fetchDataCalendar(widget.idFeatured);
       print('✅ fetchDataCalendar terminé');
+      if (!mounted) return;
+      // Force un nouveau SfDateRangePicker : les cellBuilder Syncfusion ne se
+      // rafraîchissent pas toujours via GetBuilder seul.
+      setState(() {
+        _calendarDataEpoch++;
+      });
     } catch (e) {
       print('❌ Erreur dans getData(): $e');
     }
@@ -103,7 +112,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
   void initState() {
     super.initState();
     print('🔄 initState() de VehicleCheckAvailability appelé');
-    
+
     // S'assurer que le contrôleur est initialisé
     try {
       bookingController = Get.find<BookingController>();
@@ -112,7 +121,15 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
       print('⚠️ BookingController non trouvé, création avec Get.put()');
       bookingController = Get.put(BookingController());
     }
-    
+
+    // Masquer le calendrier dès le 1er frame (évite cellules figées sans prix).
+    bookingController.isLoading.value = true;
+    bookingController.availableDates.clear();
+    bookingController.availableDatesPrice.clear();
+    bookingController.alreadySelectedList.clear();
+    bookingController.idFeatured = widget.idFeatured;
+    bookingController.calendarSelectionItemDetails = widget.itemDetails;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       print('📋 addPostFrameCallback exécuté');
       addAddressController.getDoorStepAddressp(false);
@@ -139,9 +156,8 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
               '📅 Préremplissage calendrier: ${bookingController.startDate.value} -> ${bookingController.endDate.value}');
         }
       }
-      bookingController.availableDates.clear();
-      bookingController.availableDatesPrice.clear();
-      bookingController.alreadySelectedList.clear();
+      // clearMethod() peut avoir vidé les listes — garder le loader actif.
+      bookingController.isLoading.value = true;
       bookingController.idFeatured = widget.idFeatured;
       print('📞 Appel de getData() depuis addPostFrameCallback');
       getData();
@@ -204,20 +220,34 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
               backgroundColor: notifires.getbgcolor,
               elevation: 0,
               actions: [
-                InkWell(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 15),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Icon(Icons.delete_forever, color: acentColor),
-                      ],
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: TextButton.icon(
+                    onPressed: () {
+                      bookingController.clearMethod();
+                      // Remount Syncfusion pour effacer toute sélection visuelle.
+                      setState(() {
+                        _calendarDataEpoch++;
+                      });
+                    },
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      color: getColorBasedOnActiveModuleid(),
+                      size: 22,
+                    ),
+                    label: Text(
+                      'Clear'.tr,
+                      style: regular2(context).copyWith(
+                        color: getColorBasedOnActiveModuleid(),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 40),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
-                  onTap: () {
-                    bookingController.clearMethod();
-                    setState(() {});
-                  },
                 ),
               ],
               leading: backButton(),
@@ -251,8 +281,57 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                 ],
                               ),
                             ),
-                            const SizedBox(
-                              height: 16,
+                            Builder(
+                              builder: (context) {
+                                final minDays = bookingController
+                                    .resolveMinRentalDaysForBooking(
+                                        widget.itemDetails);
+                                if (minDays == null || minDays <= 1) {
+                                  return const SizedBox(height: 16);
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      10, 8, 10, 12),
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: getColorBasedOnActiveModuleid()
+                                          .withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: getColorBasedOnActiveModuleid()
+                                            .withOpacity(0.25),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline,
+                                          size: 18,
+                                          color:
+                                              getColorBasedOnActiveModuleid(),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'min_rental_duration_info'
+                                                .trParams({
+                                              'days': minDays.toString(),
+                                            }),
+                                            style: regular2(context).copyWith(
+                                              color: notifires
+                                                  .getGrey2Whitecolor,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -298,6 +377,9 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     borderRadius: BorderRadius.circular(0),
                                   ),
                                   child: SfDateRangePicker(
+                                key: ValueKey(
+                                  'availability_cal_${widget.idFeatured}_$_calendarDataEpoch',
+                                ),
                                 minDate: RollingCalendarBounds.firstDate(),
                                 maxDate: RollingCalendarBounds.lastDate(),
                                 enablePastDates: false,
@@ -322,17 +404,21 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     bookingController.dateRangePickerController,
                                 selectionMode:
                                     DateRangePickerSelectionMode.range,
-                                onSelectionChanged:
-                                    bookingController.onSelectionChanged,
+                                onSelectionChanged: (args) =>
+                                    bookingController.onSelectionChanged(
+                                  args,
+                                  itemDetails: widget.itemDetails,
+                                ),
                                 startRangeSelectionColor: Colors.transparent,
                                 endRangeSelectionColor: Colors.transparent,
                                 rangeSelectionColor: Colors.transparent,
                                 selectionColor: Colors.transparent,
                                 cellBuilder: (context, cellDetails) {
-                                  return _DeferredCalendarDateCell(
+                                  return _CalendarAvailabilityCell(
                                     cellDetails: cellDetails,
                                     bookingController: bookingController,
-                                    hideDailyPriceForCell: _hideDailyPriceForCell,
+                                    hideDailyPriceForCell:
+                                        _hideDailyPriceForCell,
                                   );
                                 },
                               ),
@@ -702,66 +788,21 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
   }
 }
 
-/// Cellule calendrier : les calculs de disponibilité s'exécutent après la 1re frame.
-class _DeferredCalendarDateCell extends StatefulWidget {
+/// Cellule calendrier : lit les listes du [BookingController] à chaque build
+/// (pas de FutureBuilder — il figeait le 1er rendu sans prix/disponibilités).
+class _CalendarAvailabilityCell extends StatelessWidget {
   final DateRangePickerCellDetails cellDetails;
   final BookingController bookingController;
   final bool Function(DateTime) hideDailyPriceForCell;
 
-  const _DeferredCalendarDateCell({
+  const _CalendarAvailabilityCell({
     required this.cellDetails,
     required this.bookingController,
     required this.hideDailyPriceForCell,
   });
 
   @override
-  State<_DeferredCalendarDateCell> createState() =>
-      _DeferredCalendarDateCellState();
-}
-
-class _DeferredCalendarDateCellState extends State<_DeferredCalendarDateCell> {
-  late final Future<void> _deferFrame;
-
-  @override
-  void initState() {
-    super.initState();
-    // Attend la fin de la frame courante avant les calculs isDateAvailable.
-    _deferFrame = Future<void>.delayed(Duration.zero);
-  }
-
-  Widget _placeholderCell() {
-    final day = widget.cellDetails.date.day;
-    return Container(
-      margin: const EdgeInsets.all(1),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: grey5),
-        color: Colors.transparent,
-      ),
-      child: Text(
-        convertToLocaleDigits(day.toString()),
-        style: const TextStyle(fontSize: 15, fontFamily: 'InterMedium'),
-      ),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<void>(
-      future: _deferFrame,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return _placeholderCell();
-        }
-        return _buildAvailabilityCell(context);
-      },
-    );
-  }
-
-  Widget _buildAvailabilityCell(BuildContext context) {
-    final bookingController = widget.bookingController;
-    final cellDetails = widget.cellDetails;
     final now = DateTime.now();
     final cellDate = DateTime(
       cellDetails.date.year,
@@ -781,7 +822,7 @@ class _DeferredCalendarDateCellState extends State<_DeferredCalendarDateCell> {
             d.day == cellDate.day);
 
     String? priceText;
-    if (!widget.hideDailyPriceForCell(cellDate) && isDateAvailable) {
+    if (!hideDailyPriceForCell(cellDate) && isDateAvailable) {
       var index = -1;
       for (var i = 0; i < bookingController.availableDates.length; i++) {
         final d = bookingController.availableDates[i];

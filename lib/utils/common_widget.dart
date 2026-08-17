@@ -23,6 +23,7 @@ import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/form_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
+import 'package:carvy/helper/vehicle_availability_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/render_debug.dart';
 import 'package:carvy/utils/rolling_calendar_bounds.dart';
@@ -684,6 +685,91 @@ bool isSelected = false;
 int wishListLoading = -1;
 int wishListLoadingHorizontal = -1;
 
+Widget _searchAvailabilityBadge(dynamic item) {
+  final type = VehicleAvailabilityHelper.readType(item);
+  bool isDelivery = type == VehicleAvailabilityType.delivery;
+  String? deliveryPrice;
+  try {
+    if (item.isDelivery == true) isDelivery = true;
+    deliveryPrice = item.deliveryPrice?.toString();
+  } catch (_) {}
+
+  // Badge explicite uniquement pour la livraison (les sections séparent déjà le local).
+  if (!isDelivery) return const SizedBox.shrink();
+
+  String city = '';
+  try {
+    if (Get.isRegistered<SearchControllerHome>()) {
+      final sc = Get.find<SearchControllerHome>();
+      city = sc.setCity.trim().isNotEmpty
+          ? sc.setCity.trim()
+          : generalScopeController.homeSearchLocation.value.trim();
+    }
+  } catch (_) {}
+
+  const accent = Color(0xFFE67E22);
+  final label = VehicleAvailabilityHelper.deliveryBadgeLabel(city);
+  final priceText = (deliveryPrice ?? '').trim();
+  final hasPrice = priceText.isNotEmpty &&
+      priceText != '0' &&
+      priceText != '0.0' &&
+      priceText != '0.00' &&
+      priceText.toLowerCase() != 'null';
+
+  return ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 230),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: accent.withOpacity(0.94),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.local_shipping_outlined,
+                  size: 14, color: Colors.white),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (hasPrice) ...[
+            const SizedBox(height: 2),
+            Text(
+              'availability_delivery_fee'.trParams({
+                'price': currency.trim().isEmpty
+                    ? priceText
+                    : '$currency $priceText',
+              }),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
 Widget itemVerticalView(
     list, shrink, fromWishList, StateSetter setState, openDetailInButtMSheet) {
   return GridView.builder(
@@ -880,6 +966,15 @@ Widget itemVerticalView(
                                   ),
                                 ),
                               ],
+                            ),
+                          ),
+                          Positioned(
+                            top: 10,
+                            left: 10,
+                            right: 48,
+                            child: Align(
+                              alignment: Alignment.topLeft,
+                              child: _searchAvailabilityBadge(item),
                             ),
                           ),
                           Positioned(
@@ -1426,12 +1521,25 @@ Widget _buildClientBookingReviewSection(
 DateTime? _parseBookingDateTime(String? raw) {
   final value = raw?.trim() ?? '';
   if (value.isEmpty) return null;
-  try {
-    return DateFormat('dd-MM-yyyy hh:mm a').parse(value);
-  } catch (_) {}
+
+  // ISO en premier : DateFormat('dd-MM-yyyy') lit mal "2026-08-21" → année 0027.
   try {
     return DateTime.parse(value);
   } catch (_) {}
+
+  const patterns = <String>[
+    'dd-MM-yyyy hh:mm a',
+    'dd-MM-yyyy HH:mm',
+    'dd-MM-yyyy',
+    'yyyy-MM-dd HH:mm:ss',
+    'yyyy-MM-dd HH:mm',
+    'yyyy-MM-dd',
+  ];
+  for (final pattern in patterns) {
+    try {
+      return DateFormat(pattern).parseStrict(value);
+    } catch (_) {}
+  }
   return null;
 }
 
@@ -1441,6 +1549,24 @@ DateTime? _parseBookingEndDateTime(Bookings booking) {
 
 DateTime? _parseBookingStartDateTime(Bookings booking) {
   return _parseBookingDateTime(booking.checkIn);
+}
+
+/// `true` uniquement si la date du jour >= date de début (jour J atteint).
+bool _isBookingStartDateReached(Bookings booking) {
+  final start = _parseBookingStartDateTime(booking);
+  if (start == null) return false;
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final startDay = DateTime(start.year, start.month, start.day);
+  // Équivalent date-only de isAfter / isAtSameMomentAs.
+  return today.isAfter(startDay) || today.isAtSameMomentAs(startDay);
+}
+
+/// Affiche « Confirmer la réception » seulement à partir du jour de check-in.
+bool _shouldShowConfirmReceptionButton(Bookings booking, String listType) {
+  if (listType != 'UpComing') return false;
+  if (!booking.status.isConfirmed) return false;
+  return _isBookingStartDateReached(booking);
 }
 
 Color _bookingListPrimaryActionColor(String btnText) {
@@ -3800,15 +3926,16 @@ myBookingListWidget(
                                 },
                               ),
                             ),
-                            listType == 'UpComing' &&
-                                    booking.status.isConfirmed
+                            _shouldShowConfirmReceptionButton(
+                                    booking, listType)
                                 ? Expanded(
                                     flex: 1,
                                     child: InkWell(
                                       onTap: () {
-                                        print('🚀 [DEBUG] Accès forcé aux photos pour le booking: ${booking.id}');
-                                        
-                                        // On ignore toutes les conditions et on navigue direct
+                                        if (!_shouldShowConfirmReceptionButton(
+                                            booking, listType)) {
+                                          return;
+                                        }
                                         Get.to(() => VehiclePhotoesBooking(
                                           id: booking.id.toString(),
                                         ));
@@ -3835,7 +3962,7 @@ myBookingListWidget(
                                       ),
                                     ),
                                   )
-                                : const SizedBox(),
+                                : const SizedBox.shrink(),
                             MyBookingDropoffOtpAction(
                               cellIndex: index,
                               listType: listType,

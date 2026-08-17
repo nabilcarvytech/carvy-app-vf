@@ -8,6 +8,7 @@ import 'package:carvy/controller/home_controller.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
+import 'package:carvy/helper/vehicle_availability_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/items_model.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
@@ -50,8 +51,58 @@ class _AfterSearchState extends State<AfterSearch> {
   RefreshController refreshController = RefreshController();
   ItemModel? itemModel;
   List<dynamic> list = [];
+  List<dynamic> onSiteList = [];
+  List<dynamic> deliveryList = [];
   bool execption = false;
   bool showloading = false;
+
+  String get _searchedCity {
+    if (filterController.setCity.trim().isNotEmpty) {
+      return filterController.setCity.trim();
+    }
+    final fromHome = generalScopeController.homeSearchLocation.value.trim();
+    if (fromHome.isNotEmpty) return fromHome;
+    return widget.cityName?.toString().trim() ?? '';
+  }
+
+  bool _itemIsDelivery(dynamic item) {
+    final type = VehicleAvailabilityHelper.readType(item);
+    if (type == VehicleAvailabilityType.delivery) return true;
+    try {
+      if (item.isDelivery == true) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  void _rebuildCombinedList() {
+    list = <dynamic>[...onSiteList, ...deliveryList];
+  }
+
+  void _hydrateListsFromItemModel(ItemModel model) {
+    final data = model.data;
+    final typedOnSite = data?.onSiteItems ?? [];
+    final typedDelivery = data?.deliveryItems ?? [];
+    final combined = data?.items ?? [];
+    final city = _searchedCity;
+
+    // Complète availabilityType si le backend ne l'envoie pas sur chaque item.
+    VehicleAvailabilityHelper.applyToList(typedOnSite, searchedCity: city);
+    VehicleAvailabilityHelper.applyToList(typedDelivery, searchedCity: city);
+    VehicleAvailabilityHelper.applyToList(combined, searchedCity: city);
+
+    if (typedOnSite.isNotEmpty || typedDelivery.isNotEmpty) {
+      onSiteList = List<dynamic>.from(typedOnSite);
+      deliveryList = List<dynamic>.from(typedDelivery);
+    } else {
+      onSiteList = combined
+          .where((e) => !_itemIsDelivery(e))
+          .toList(growable: true);
+      deliveryList = combined
+          .where((e) => _itemIsDelivery(e))
+          .toList(growable: true);
+    }
+    _rebuildCombinedList();
+  }
 
   /// Durée demandée (jours calendaires inclusifs), alignée sur [BookingController.getDaysInBetween].
   int? _calculateRequestedDays() {
@@ -85,7 +136,9 @@ class _AfterSearchState extends State<AfterSearch> {
   void _applyMinRentalDaysFilterAfterSearch() {
     final rd = _calculateRequestedDays();
     if (rd == null) return;
-    _removeItemsExceedingMinRentalDays(list);
+    _removeItemsExceedingMinRentalDays(onSiteList);
+    _removeItemsExceedingMinRentalDays(deliveryList);
+    _rebuildCombinedList();
     filterController.searchFilterList
         .removeWhere((item) => item.parsedMinRentalDays > rd);
   }
@@ -101,6 +154,8 @@ class _AfterSearchState extends State<AfterSearch> {
     filterController.offset = 0;
     itemModel = null;
     list = [];
+    onSiteList = [];
+    deliveryList = [];
     // Nettoyer aussi la liste globale de filtres pour éviter les doublons
     filterController.searchFilterList.clear();
     setState(() {});
@@ -123,18 +178,20 @@ class _AfterSearchState extends State<AfterSearch> {
         filterController.maketypeFunction(),
       );
       itemModel = ItemModel.fromJson(result);
-      final initialItems = itemModel!.data?.items ?? [];
-      list.addAll(initialItems);
-      filterController.searchFilterList.addAll(initialItems);
+      _hydrateListsFromItemModel(itemModel!);
+      filterController.searchFilterList
+        ..clear()
+        ..addAll(list.whereType<Items>());
       _applyMinRentalDaysFilterAfterSearch();
 
       // DEBUG: vérifier la taille exacte retournée par l'API
-      print("🔎 [SEARCH] Initial items count: ${initialItems.length}");
+      print(
+          "🔎 [SEARCH] Initial items: total=${list.length}, onSite=${onSiteList.length}, delivery=${deliveryList.length}");
 
       // Si le backend ne gère pas encore la pagination (moins que le limit),
       // désactiver explicitement le chargement supplémentaire
       const int pageLimit = 10;
-      if (initialItems.length < pageLimit) {
+      if (list.length < pageLimit) {
         filterController.offset = -1;
       } else {
         filterController.offset = itemModel!.data!.offset ?? -1;
@@ -172,43 +229,55 @@ class _AfterSearchState extends State<AfterSearch> {
         filterController.maketypeFunction(),
       );
 
-      var data = result['data'];
-      // Supporter data = { items: [...] } (ancien schéma) et data = [...] (nouveau)
-      List<dynamic> rawItems;
-      num? newOffset;
-      if (data is List) {
-        rawItems = data;
-        newOffset = -1;
+      final pageModel = ItemModel.fromJson(result);
+      var pageOnSite = List<dynamic>.from(pageModel.data?.onSiteItems ?? []);
+      var pageDelivery =
+          List<dynamic>.from(pageModel.data?.deliveryItems ?? []);
+      var pageCombined = List<dynamic>.from(pageModel.data?.items ?? []);
+
+      if (pageOnSite.isEmpty && pageDelivery.isEmpty && pageCombined.isEmpty) {
+        final data = result['data'];
+        if (data is List) {
+          pageCombined = data
+              .map((item) => ItemsData.fromJson(item as Map<String, dynamic>))
+              .toList();
+        }
+      }
+
+      if (pageOnSite.isNotEmpty || pageDelivery.isNotEmpty) {
+        _removeItemsExceedingMinRentalDays(pageOnSite);
+        _removeItemsExceedingMinRentalDays(pageDelivery);
       } else {
-        rawItems = (data['items'] as List<dynamic>?) ?? [];
-        newOffset = data['offset'] ?? -1;
+        _removeItemsExceedingMinRentalDays(pageCombined);
+        pageOnSite = pageCombined
+            .where((e) => !_itemIsDelivery(e))
+            .toList(growable: true);
+        pageDelivery = pageCombined
+            .where((e) => _itemIsDelivery(e))
+            .toList(growable: true);
       }
 
-      final convertedItems = rawItems.map((item) {
-        return ItemsData.fromJson(item as Map<String, dynamic>);
-      }).toList();
-
-      final rd = _calculateRequestedDays();
-      if (rd != null) {
-        convertedItems.removeWhere((item) => item.parsedMinRentalDays > rd);
-      }
-
-      // DEBUG: pagination
+      final fetchedCount = pageOnSite.length + pageDelivery.length;
       print(
-          "🔎 [SEARCH] Pagination fetched ${convertedItems.length} items (prev total: ${list.length})");
+          "🔎 [SEARCH] Pagination fetched $fetchedCount items (prev total: ${list.length})");
 
       const int pageLimit = 10;
+      final newOffset = pageModel.data?.offset ??
+          (result['data'] is Map ? result['data']['offset'] : null) ??
+          -1;
 
-      if (filterController.offset != -1 && convertedItems.isNotEmpty) {
-        list.addAll(convertedItems);
-        filterController.offset = newOffset ?? -1;
+      if (filterController.offset != -1 && fetchedCount > 0) {
+        onSiteList.addAll(pageOnSite);
+        deliveryList.addAll(pageDelivery);
+        _rebuildCombinedList();
+        filterController.searchFilterList
+            .addAll([...pageOnSite, ...pageDelivery].whereType<Items>());
+        filterController.offset = newOffset is num ? newOffset : -1;
       } else {
-        // Plus de données : couper la pagination
         filterController.offset = -1;
       }
 
-      // Si le backend renvoie moins que le limit, arrêter la pagination
-      if (convertedItems.length < pageLimit) {
+      if (fetchedCount < pageLimit) {
         filterController.offset = -1;
       }
 
@@ -225,6 +294,8 @@ class _AfterSearchState extends State<AfterSearch> {
   onRefresh() {
     itemModel = null;
     list = [];
+    onSiteList = [];
+    deliveryList = [];
     setState(() {});
     filterController.offset = 0;
     searchMethod();
@@ -250,14 +321,98 @@ class _AfterSearchState extends State<AfterSearch> {
 
     if (widget.itemList != null) {
       showloading = true;
-
       list = List<dynamic>.from(widget.itemList!);
       _removeItemsExceedingMinRentalDays(list);
+      onSiteList = list.where((e) => !_itemIsDelivery(e)).toList();
+      deliveryList = list.where((e) => _itemIsDelivery(e)).toList();
+      _rebuildCombinedList();
       filterController.offset = widget.itemList!.length;
     } else {
       itemModel = null;
       searchMethod();
     }
+  }
+
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+    required int count,
+    Color? accent,
+  }) {
+    final color = accent ?? getColorBasedOnActiveModuleid();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 12, 6, 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              style: heading3(context).copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '$count',
+              style: regular2(context).copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionedSearchResults(StateSetter setState) {
+    final city = _searchedCity;
+    final children = <Widget>[];
+
+    if (onSiteList.isNotEmpty) {
+      children.add(
+        _buildSectionHeader(
+          icon: Icons.storefront_outlined,
+          title: VehicleAvailabilityHelper.localSectionTitle(),
+          count: onSiteList.length,
+        ),
+      );
+      children.add(
+        itemVerticalView(onSiteList, true, false, setState, true),
+      );
+    }
+
+    if (deliveryList.isNotEmpty) {
+      children.add(
+        _buildSectionHeader(
+          icon: Icons.local_shipping_outlined,
+          title: VehicleAvailabilityHelper.deliverySectionTitle(city),
+          count: deliveryList.length,
+          accent: const Color(0xFFE67E22),
+        ),
+      );
+      children.add(
+        itemVerticalView(deliveryList, true, false, setState, true),
+      );
+    }
+
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      children: children,
+    );
   }
 
   @override
@@ -799,15 +954,19 @@ class _AfterSearchState extends State<AfterSearch> {
                         context,
                         "SomeThing Went Wrong".tr,
                       )
-                    : itemModel == null && showloading == false
+                    : itemModel == null &&
+                            showloading == false &&
+                            widget.itemList == null
                         ? verticleShimmerWidgetBookable()
                         : list.isEmpty
                             ? Center(
                                 child: buildNoDataWidget(
                                     context, filterController.dataNotFound.tr),
                               )
-                            : itemVerticalView(
-                                list, false, false, stateSetter, true),
+                            : (onSiteList.isNotEmpty || deliveryList.isNotEmpty)
+                                ? _buildSectionedSearchResults(stateSetter)
+                                : itemVerticalView(
+                                    list, false, false, stateSetter, true),
               ),
             ),
           ),

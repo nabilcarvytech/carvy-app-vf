@@ -7,6 +7,79 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:get/get.dart';
 
+bool _isAnonymousReviewerLabel(String value) {
+  final v = value.toLowerCase().trim();
+  return v.isEmpty ||
+      v == 'client anonyme' ||
+      v == 'anonymous' ||
+      v == 'anonymous client' ||
+      v == 'anonymous user' ||
+      v == 'guest' ||
+      v == 'client' ||
+      v == 'n/a' ||
+      v == 'null' ||
+      v == '-' ||
+      v == 'undefined';
+}
+
+/// Prénom + initiale du nom + étoiles.
+/// Ex. « Mohammed Ali » → « Mohammed A***** », « Nabil » → « Nabil*** ».
+String formatMaskedReviewerName({
+  String? rawName,
+  String? firstName,
+  String? lastName,
+}) {
+  final f = firstName?.trim() ?? '';
+  final l = lastName?.trim() ?? '';
+  String full;
+  if (f.isNotEmpty || l.isNotEmpty) {
+    full = [f, l].where((p) => p.isNotEmpty).join(' ');
+  } else {
+    full = (rawName ?? '').trim();
+  }
+  full = full.replaceAll(RegExp(r'\s+'), ' ');
+
+  if (_isAnonymousReviewerLabel(full)) {
+    return 'carvy_user_fallback'.tr;
+  }
+
+  final parts = full.split(' ');
+  if (parts.length == 1) {
+    return '${parts.first}***';
+  }
+
+  final first = parts.first;
+  final family = parts.sublist(1).join();
+  final initial = family.isNotEmpty ? family[0].toUpperCase() : '';
+  return '$first $initial*****';
+}
+
+/// Résout et masque le nom affiché sur une carte d'avis.
+String resolveMaskedReviewerDisplayName(Map<String, dynamic> review) {
+  final client = review['client'];
+  Map<String, dynamic>? clientMap;
+  if (client is Map<String, dynamic>) {
+    clientMap = client;
+  } else if (client is Map) {
+    clientMap = Map<String, dynamic>.from(client);
+  }
+
+  return formatMaskedReviewerName(
+    rawName: clientMap?['name']?.toString() ??
+        review['guest_name']?.toString() ??
+        review['user_name']?.toString() ??
+        review['client_name']?.toString(),
+    firstName: clientMap?['first_name']?.toString() ??
+        clientMap?['firstName']?.toString() ??
+        review['first_name']?.toString() ??
+        review['firstName']?.toString(),
+    lastName: clientMap?['last_name']?.toString() ??
+        clientMap?['lastName']?.toString() ??
+        review['last_name']?.toString() ??
+        review['lastName']?.toString(),
+  );
+}
+
 /// Liste verticale des avis véhicule (note = [ReviewRatings.vehicleRatingFromJson]).
 Widget buildVehicleReviewListTile(
   BuildContext context,
@@ -14,8 +87,7 @@ Widget buildVehicleReviewListTile(
   bool compactMessage = false,
 }) {
   final rating = ReviewRatings.vehicleRatingFromJson(review);
-  final guestName =
-      review['guest_name']?.toString() ?? review['client']?['name']?.toString() ?? 'Guest'.tr;
+  final guestName = resolveMaskedReviewerDisplayName(review);
   final guestImage = review['guest_profile_image'] ??
       review['guest_image'] ??
       review['client']?['profile_picture'];
@@ -87,7 +159,7 @@ Widget buildAgencyReviewListTile(
 ) {
   final rating = ReviewRatings.agencyRatingFromJson(review);
   final client = review['client'] as Map<String, dynamic>?;
-  final clientName = client?['name']?.toString() ?? 'Client'.tr;
+  final clientName = resolveMaskedReviewerDisplayName(review);
   final clientImage = client?['profile_picture'];
   final comment = review['comment']?.toString() ?? review['message']?.toString() ?? '';
   final createdAt = review['created_at']?.toString() ?? '';
