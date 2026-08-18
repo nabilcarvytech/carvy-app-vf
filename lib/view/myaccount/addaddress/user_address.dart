@@ -10,6 +10,7 @@ import 'package:carvy/customwidget/project_bar.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
+import 'package:carvy/model/address_history_model.dart';
 import 'package:carvy/view/myaccount/addaddress/pick_address_with_map.dart';
 
 class UserAddress extends StatefulWidget {
@@ -122,6 +123,83 @@ class _UserAddressState extends State<UserAddress> {
   void initState() {
     super.initState();
     addAddressController.ensureSuggestedLabelIfEmpty();
+    addAddressController.fetchAddressHistory();
+  }
+
+  Future<void> _applyRecentAddressChip(AddressHistoryModel item) async {
+    final target = addAddressController.applyRecentAddress(item);
+    if (target == null) return;
+    try {
+      await mapController.animateCamera(
+        CameraUpdate.newLatLngZoom(target, 16),
+      );
+    } catch (e) {
+      debugPrint('animateCamera recent address: $e');
+    }
+    if (mounted) setState(() {});
+  }
+
+  Widget _buildRecentAddressChip(AddressHistoryModel item) {
+    final label = item.label.trim();
+    final address = item.address.trim();
+    final accent = getColorBasedOnActiveModuleid();
+    final shortAddress = addAddressController.shortenAddress(address, 52);
+    final singleLineText = label.isNotEmpty
+        ? '$shortAddress ($label)'
+        : shortAddress;
+
+    return Material(
+      color: notifires.getBoxColor,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () => _applyRecentAddressChip(item),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 140, maxWidth: 280),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: accent.withOpacity(0.35)),
+          ),
+          child: label.isNotEmpty
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: regular2(context).copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: notifires.getwhiteblackcolor,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      shortAddress,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: regular2(context).copyWith(
+                        fontSize: 12,
+                        height: 1.25,
+                        color: notifires.getGrey3Whitecolor,
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  singleLineText,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: regular2(context).copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: notifires.getwhiteblackcolor,
+                  ),
+                ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -329,8 +407,11 @@ class _UserAddressState extends State<UserAddress> {
                         }),
                       ),
                       GestureDetector(
-                        onTap: () {
-                          Get.to(() => PickAddressWitjhMap());
+                        onTap: () async {
+                          await Get.to(() => PickAddressWitjhMap());
+                          if (!mounted) return;
+                          await addAddressController.recordCurrentAddressInHistory();
+                          setState(() {});
                         },
                         child: Container(
                           height: 30,
@@ -350,6 +431,59 @@ class _UserAddressState extends State<UserAddress> {
                     ],
                   ),
                 ),
+                Divider(
+                  color: greyColor2,
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.only(left: 10),
+                  child: Text(
+                    'Recent Addresses'.tr,
+                    style: regular3(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Obx(() {
+                  if (addAddressController.isAddressHistoryLoading.value) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  }
+                  if (addAddressController.recentAddresses.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      child: Text(
+                        'No recent addresses yet'.tr,
+                        style: regular2(context).copyWith(color: Colors.grey),
+                      ),
+                    );
+                  }
+                  return SizedBox(
+                    height: 76,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      itemCount: addAddressController.recentAddresses.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        return _buildRecentAddressChip(
+                          addAddressController.recentAddresses[index],
+                        );
+                      },
+                    ),
+                  );
+                }),
+                const SizedBox(height: 12),
                 Divider(
                   color: greyColor2,
                 ),

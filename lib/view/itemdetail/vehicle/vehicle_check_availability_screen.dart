@@ -49,36 +49,21 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
   late BookingController bookingController;
   AddAddressController addAddressController = Get.find();
 
-  /// Ancre le badge « Min. X jours » au-dessus du premier jour sélectionné.
-  final LayerLink _minDaysBadgeLink = LayerLink();
-  
-  /// Incrémenté à chaque chargement réussi pour forcer un remount Syncfusion.
+  /// Remount contrôlé du picker (ex. bouton Effacer) — pas après fetch API.
   int _calendarDataEpoch = 0;
 
-  bool _isStartDateCell(DateTime cellDate) {
-    DateTime? start;
-    if (bookingController.startDate.value.isNotEmpty) {
-      start = DateTime.tryParse(bookingController.startDate.value);
-    }
-    start ??=
-        bookingController.dateRangePickerController.selectedRange?.startDate;
-    if (start == null) return false;
-    return start.year == cellDate.year &&
-        start.month == cellDate.month &&
-        start.day == cellDate.day;
-  }
+  /// Force le cellBuilder à relire startDate/endDate après chaque sélection.
+  int _selectionEpoch = 0;
 
   Future<void> getData() async {
     print('📅 getData() appelé avec idFeatured: ${widget.idFeatured}');
     try {
       await bookingController.fetchDataCalendar(widget.idFeatured);
       print('✅ fetchDataCalendar terminé');
-      if (!mounted) return;
-      // Force un nouveau SfDateRangePicker : les cellBuilder Syncfusion ne se
-      // rafraîchissent pas toujours via GetBuilder seul.
-      setState(() {
-        _calendarDataEpoch++;
-      });
+      // Ne PAS remonter SfDateRangePicker (ValueKey / setState) après le fetch :
+      // Syncfusion crash ("native peer has been collected") si le RenderObject
+      // est détruit pendant drawCustomcellSelection.
+      // GetBuilder + cellBuilder relisent déjà availableDates après safeUpdate().
     } catch (e) {
       print('❌ Erreur dans getData(): $e');
     }
@@ -164,9 +149,13 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
         final start = DateTime.tryParse(bookingController.startDate.value);
         final end = DateTime.tryParse(bookingController.endDate.value);
         if (start != null && end != null) {
-          bookingController.dateRangePickerController.selectedRange =
-              PickerDateRange(start, end);
           bookingController.dateRangePickerController.displayDate = start;
+          // selectedRange après le 1er frame du picker (évite paint sur peer mort).
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            bookingController.dateRangePickerController.selectedRange =
+                PickerDateRange(start, end);
+          });
           bookingController.isDateAvailale.value = true;
           print(
               '📅 Préremplissage calendrier: ${bookingController.startDate.value} -> ${bookingController.endDate.value}');
@@ -274,16 +263,20 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
             ),
             body: GetBuilder<BookingController>(
               builder: (controller) {
-                if (controller.isLoading.value) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: LinearProgressIndicator(
-                      color: getColorBasedOnActiveModuleid(),
-                    ),
-                  );
-                }
+                // Ne jamais remplacer le calendrier par un seul loader : démonter
+                // SfDateRangePicker pendant un fetch provoque le crash Syncfusion
+                // (drawCustomcellSelection / native peer collected).
                 return Stack(
                       children: [
+                        if (controller.isLoading.value)
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: LinearProgressIndicator(
+                              color: getColorBasedOnActiveModuleid(),
+                            ),
+                          ),
                         SingleChildScrollView(
                             child: Padding(
                           padding: const EdgeInsets.all(10),
@@ -346,100 +339,86 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     color: whiteColor,
                                     borderRadius: BorderRadius.circular(0),
                                   ),
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      SfDateRangePicker(
-                                        key: ValueKey(
-                                          'availability_cal_${widget.idFeatured}_$_calendarDataEpoch',
+                                  child: RepaintBoundary(
+                                    child: SfDateRangePicker(
+                                      key: ValueKey(
+                                        'availability_cal_${widget.idFeatured}_'
+                                        '$_calendarDataEpoch',
+                                      ),
+                                      minDate:
+                                          RollingCalendarBounds.firstDate(),
+                                      maxDate:
+                                          RollingCalendarBounds.lastDate(),
+                                      enablePastDates: false,
+                                      onViewChanged: (args) {
+                                        RollingCalendarBounds.clampPickerView(
+                                          args,
+                                          bookingController
+                                              .dateRangePickerController,
+                                        );
+                                      },
+                                      headerHeight: 0,
+                                      headerStyle: DateRangePickerHeaderStyle(
+                                        backgroundColor: whiteColor,
+                                        textAlign: TextAlign.center,
+                                        textStyle: TextStyle(
+                                          color: blackColor,
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                        minDate:
-                                            RollingCalendarBounds.firstDate(),
-                                        maxDate:
-                                            RollingCalendarBounds.lastDate(),
-                                        enablePastDates: false,
-                                        onViewChanged: (args) {
-                                          RollingCalendarBounds.clampPickerView(
-                                            args,
-                                            bookingController
-                                                .dateRangePickerController,
-                                          );
-                                        },
-                                        headerHeight: 0,
-                                        headerStyle:
-                                            DateRangePickerHeaderStyle(
-                                          backgroundColor: whiteColor,
-                                          textAlign: TextAlign.center,
+                                      ),
+                                      monthViewSettings:
+                                          DateRangePickerMonthViewSettings(
+                                        dayFormat: 'EEE',
+                                        showTrailingAndLeadingDates: false,
+                                        viewHeaderStyle:
+                                            DateRangePickerViewHeaderStyle(
                                           textStyle: TextStyle(
-                                            color: blackColor,
-                                            fontWeight: FontWeight.bold,
+                                            color:
+                                                notifires.getGrey3Whitecolor,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
-                                        backgroundColor: whiteColor,
-                                        allowViewNavigation: false,
-                                        controller: bookingController
-                                            .dateRangePickerController,
-                                        selectionMode:
-                                            DateRangePickerSelectionMode.range,
-                                        onSelectionChanged: (args) =>
-                                            bookingController
-                                                .onSelectionChanged(
+                                      ),
+                                      backgroundColor: whiteColor,
+                                      allowViewNavigation: false,
+                                      controller: bookingController
+                                          .dateRangePickerController,
+                                      selectionMode:
+                                          DateRangePickerSelectionMode.range,
+                                      onSelectionChanged: (args) {
+                                        bookingController.onSelectionChanged(
                                           args,
                                           itemDetails: widget.itemDetails,
-                                        ),
-                                        startRangeSelectionColor:
-                                            Colors.transparent,
-                                        endRangeSelectionColor:
-                                            Colors.transparent,
-                                        rangeSelectionColor:
-                                            Colors.transparent,
-                                        selectionColor: Colors.transparent,
-                                        cellBuilder: (context, cellDetails) {
-                                          final cell =
-                                              _CalendarAvailabilityCell(
-                                            cellDetails: cellDetails,
-                                            bookingController:
-                                                bookingController,
-                                            hideDailyPriceForCell:
-                                                _hideDailyPriceForCell,
-                                          );
-                                          if (minDays <= 1 ||
-                                              !_isStartDateCell(
-                                                  cellDetails.date)) {
-                                            return cell;
-                                          }
-                                          return CompositedTransformTarget(
-                                            link: _minDaysBadgeLink,
-                                            child: cell,
-                                          );
-                                        },
-                                      ),
-                                      Positioned(
-                                        left: 0,
-                                        top: 0,
-                                        child: Obx(() {
-                                          final hasSelection =
-                                              bookingController
-                                                  .startDate.value.isNotEmpty;
-                                          if (!hasSelection || minDays <= 1) {
-                                            return const SizedBox.shrink();
-                                          }
-                                          return CompositedTransformFollower(
-                                            link: _minDaysBadgeLink,
-                                            showWhenUnlinked: false,
-                                            targetAnchor: Alignment.topCenter,
-                                            followerAnchor:
-                                                Alignment.bottomCenter,
-                                            offset: const Offset(0, -2),
-                                            child: IgnorePointer(
-                                              child: _MinRentalStartBadge(
-                                                days: minDays,
-                                              ),
-                                            ),
-                                          );
-                                        }),
-                                      ),
-                                    ],
+                                        );
+                                        if (mounted) {
+                                          setState(() {
+                                            _selectionEpoch++;
+                                          });
+                                        }
+                                      },
+                                      startRangeSelectionColor:
+                                          Colors.transparent,
+                                      endRangeSelectionColor:
+                                          Colors.transparent,
+                                      rangeSelectionColor: Colors.transparent,
+                                      selectionColor: Colors.transparent,
+                                      cellBuilder: (context, cellDetails) {
+                                        return _CalendarAvailabilityCell(
+                                          key: ValueKey(
+                                            '${cellDetails.date.year}-'
+                                            '${cellDetails.date.month}-'
+                                            '${cellDetails.date.day}-'
+                                            '$_selectionEpoch',
+                                          ),
+                                          cellDetails: cellDetails,
+                                          bookingController: bookingController,
+                                          hideDailyPriceForCell:
+                                              _hideDailyPriceForCell,
+                                          minRentalDays: minDays,
+                                        );
+                                      },
+                                    ),
                                   ),
                                 );
                               },
@@ -459,7 +438,8 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                               child: Container(
                                                 height: 10,
                                                 width: 10,
-                                                color: pc1.withOpacity(.4),
+                                                color: Colors.grey
+                                                    .withOpacity(0.35),
                                               )),
                                           const SizedBox(width: 5),
                                           Text(
@@ -813,12 +793,74 @@ class _CalendarAvailabilityCell extends StatelessWidget {
   final DateRangePickerCellDetails cellDetails;
   final BookingController bookingController;
   final bool Function(DateTime) hideDailyPriceForCell;
+  final int minRentalDays;
 
   const _CalendarAvailabilityCell({
+    super.key,
     required this.cellDetails,
     required this.bookingController,
     required this.hideDailyPriceForCell,
+    required this.minRentalDays,
   });
+
+  DateTime? _parseDay(String value) {
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) return null;
+    return DateTime(parsed.year, parsed.month, parsed.day);
+  }
+
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  /// Date de départ effective : picker Syncfusion en priorité, puis [startDate].
+  DateTime? _resolveSelectedStartDate() {
+    final range = bookingController.dateRangePickerController.selectedRange;
+    final fromPicker = range?.startDate;
+    if (fromPicker != null) {
+      return _dateOnly(fromPicker);
+    }
+    if (bookingController.startDate.value.isNotEmpty) {
+      return _parseDay(bookingController.startDate.value);
+    }
+    return null;
+  }
+
+  /// Date de fin effective : picker Syncfusion en priorité, puis [endDate].
+  DateTime? _resolveSelectedEndDate() {
+    final range = bookingController.dateRangePickerController.selectedRange;
+    final fromPicker = range?.endDate;
+    if (fromPicker != null) {
+      return _dateOnly(fromPicker);
+    }
+    if (bookingController.endDate.value.isNotEmpty) {
+      return _parseDay(bookingController.endDate.value);
+    }
+    return null;
+  }
+
+  bool _isInSelectedRange(DateTime cellDate) {
+    final start = _resolveSelectedStartDate();
+    if (start == null) return false;
+    final end = _resolveSelectedEndDate();
+    if (end == null) {
+      return _sameDay(cellDate, start);
+    }
+    return !cellDate.isBefore(start) && !cellDate.isAfter(end);
+  }
+
+  bool _isRangeStartCell(DateTime cellDate) {
+    final start = _resolveSelectedStartDate();
+    return start != null && _sameDay(cellDate, start);
+  }
+
+  bool _isRangeEndCell(DateTime cellDate) {
+    final start = _resolveSelectedStartDate();
+    final end = _resolveSelectedEndDate();
+    if (start == null || end == null || _sameDay(start, end)) return false;
+    return _sameDay(cellDate, end);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -829,25 +871,20 @@ class _CalendarAvailabilityCell extends StatelessWidget {
       cellDetails.date.day,
     );
 
-    final isDateAvailable = bookingController.availableDates.any((d) =>
-        d.year == cellDate.year &&
-        d.month == cellDate.month &&
-        d.day == cellDate.day);
+    final isDateAvailable = bookingController.availableDates.any(
+      (d) => _sameDay(d, cellDate),
+    );
 
-    final isInAlreadySelectedList =
-        bookingController.alreadySelectedList.any((d) =>
-            d.year == cellDate.year &&
-            d.month == cellDate.month &&
-            d.day == cellDate.day);
+    final isInAlreadySelectedList = bookingController.alreadySelectedList.any(
+      (d) => _sameDay(d, cellDate),
+    );
 
     String? priceText;
     if (!hideDailyPriceForCell(cellDate) && isDateAvailable) {
       var index = -1;
       for (var i = 0; i < bookingController.availableDates.length; i++) {
         final d = bookingController.availableDates[i];
-        if (d.year == cellDate.year &&
-            d.month == cellDate.month &&
-            d.day == cellDate.day) {
+        if (_sameDay(d, cellDate)) {
           index = i;
           break;
         }
@@ -873,86 +910,99 @@ class _CalendarAvailabilityCell extends StatelessWidget {
 
     final today = DateTime(now.year, now.month, now.day);
     final outsideWindow = !RollingCalendarBounds.isWithinWindow(cellDate);
-    final isPastOrUnavailable = (cellDate.isBefore(today) && cellDate != today) ||
+    final isPast = cellDate.isBefore(today);
+    final isUnavailable = isPast ||
         outsideWindow ||
-        !isDateAvailable;
+        !isDateAvailable ||
+        isInAlreadySelectedList;
 
-    Color cellColor = Colors.transparent;
-    if (isPastOrUnavailable) {
-      cellColor = Colors.grey.withOpacity(0.2);
-    } else if (isInAlreadySelectedList) {
-      cellColor = pc1.withOpacity(.4);
-    } else if (bookingController.startDate.value.isNotEmpty) {
-      final start = DateTime.tryParse(bookingController.startDate.value);
-      if (start != null &&
-          start.year == cellDate.year &&
-          start.month == cellDate.month &&
-          start.day == cellDate.day) {
-        cellColor = greenback;
-      }
-    }
-    if (cellColor == Colors.transparent &&
-        bookingController.endDate.value.isNotEmpty) {
-      final end = DateTime.tryParse(bookingController.endDate.value);
-      if (end != null &&
-          end.year == cellDate.year &&
-          end.month == cellDate.month &&
-          end.day == cellDate.day) {
-        cellColor = greenback;
-      }
-    }
-    if (cellColor == Colors.transparent &&
-        bookingController.startDate.value.isNotEmpty &&
-        bookingController.endDate.value.isNotEmpty) {
-      final start = DateTime.tryParse(bookingController.startDate.value);
-      final end = DateTime.tryParse(bookingController.endDate.value);
-      if (start != null &&
-          end != null &&
-          start.isBefore(cellDate) &&
-          end.isAfter(cellDate)) {
-        cellColor = greenback;
-      }
+    // Le cellBuilder remplace le rendu Syncfusion : plage visible ici.
+    final isInSelectedRange = _isInSelectedRange(cellDate);
+    final isRangeStart = _isRangeStartCell(cellDate);
+    final isRangeEnd = _isRangeEndCell(cellDate);
+    final isRangeMiddle = isInSelectedRange && !isRangeStart && !isRangeEnd;
+
+    final Color cellColor;
+    if (isRangeStart || isRangeEnd) {
+      cellColor = greenback;
+    } else if (isRangeMiddle) {
+      cellColor = greenback.withOpacity(0.38);
+    } else if (isUnavailable) {
+      cellColor = Colors.grey.withOpacity(0.18);
+    } else {
+      cellColor = Colors.white;
     }
 
-    return Container(
-      margin: const EdgeInsets.all(1),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: grey5),
-        color: cellColor,
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              convertToLocaleDigits(cellDetails.date.day.toString()),
-              style: TextStyle(
-                fontSize: 15,
-                fontFamily: 'InterMedium',
-                color: isPastOrUnavailable
-                    ? Colors.grey.shade600
-                    : isInAlreadySelectedList
-                        ? Colors.white
-                        : isDateAvailable
-                            ? Colors.black
-                            : Colors.grey.shade600,
-                decoration: isPastOrUnavailable
-                    ? TextDecoration.lineThrough
-                    : TextDecoration.none,
+    final dayTextColor = isRangeStart || isRangeEnd
+        ? Colors.white
+        : isRangeMiddle
+            ? const Color(0xFF1B5E20)
+            : isUnavailable
+                ? Colors.grey.shade500
+                : Colors.black;
+
+    final showMinDaysBadge = isRangeStart && minRentalDays > 1;
+
+    return SizedBox.expand(
+      child: Stack(
+        clipBehavior: Clip.none,
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isInSelectedRange
+                    ? greenback.withOpacity(isRangeMiddle ? 0.55 : 1)
+                    : isUnavailable
+                        ? Colors.grey.shade300
+                        : grey5,
               ),
+              color: cellColor,
             ),
-            if (priceText != null)
-              Text(
-                convertToLocaleDigits(priceText),
-                style: regular(context).copyWith(
-                  fontSize: 9,
-                  color: isPastOrUnavailable ? Colors.grey.shade500 : grey2,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  convertToLocaleDigits(cellDetails.date.day.toString()),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontFamily: 'InterMedium',
+                    color: dayTextColor,
+                    decoration: isUnavailable && !isInSelectedRange
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                  ),
+                ),
+                if (priceText != null)
+                  Text(
+                    convertToLocaleDigits(priceText),
+                    style: regular(context).copyWith(
+                      fontSize: 9,
+                      color: isRangeStart || isRangeEnd
+                          ? Colors.white.withOpacity(0.9)
+                          : isRangeMiddle
+                              ? const Color(0xFF2E7D32)
+                              : isUnavailable
+                                  ? Colors.grey.shade400
+                                  : grey2,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (showMinDaysBadge)
+            Positioned(
+              top: -26,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Center(
+                  child: _MinRentalStartBadge(days: minRentalDays),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

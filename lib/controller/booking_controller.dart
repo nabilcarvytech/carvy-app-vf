@@ -2893,117 +2893,82 @@ class BookingController extends GetxController implements GetxService {
   bool _applyingMinRentalRange = false;
   /// Contexte véhicule pour la contrainte min_rental_days sur le calendrier.
   dynamic calendarSelectionItemDetails;
+
+  /// Applique [selectedRange] hors du paint Syncfusion (évite nullptr native peer).
+  void _setPickerSelectedRangeSafely(PickerDateRange? range) {
+    void apply() {
+      if (isClosed || !Get.isRegistered<BookingController>()) return;
+      _applyingMinRentalRange = true;
+      try {
+        dateRangePickerController.selectedRange = range;
+      } catch (e) {
+        debugPrint('⚠️ selectedRange sync skipped: $e');
+      } finally {
+        _applyingMinRentalRange = false;
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => apply());
+  }
+
+  /// Rebuild UI après que Syncfusion a fini drawCustomcellSelection.
+  void _safeUpdateAfterPickerPaint() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!isClosed && Get.isRegistered<BookingController>()) {
+        safeUpdate();
+      }
+    });
+  }
+
   var nextStartTime = "".obs;
   var nextEndTime = "".obs;
   var handleTimeSlotsOnCurrentDate = false.obs;
   DateTime? _lastSnackbarShownTime;
   final Duration _snackbarDebounceDuration = const Duration(minutes: 1);
 
-  bool get _hasCommittedCalendarRange =>
-      previousStartDate != null &&
-      previousEndDate != null &&
-      startDate.value.isNotEmpty &&
-      endDate.value.isNotEmpty;
-
-  /// Applique la contrainte min + synchronise le picker / l'état.
+  /// Synchronise le picker / l'état sans imposer la plage minimale à l'affichage.
+  /// La contrainte min est validée au clic « Suivant » ([validateMinRentalDaysForDateSelection]).
   /// Retourne la date de début effective, ou null si la sélection est invalide.
-  DateTime? _applyMinRentalSelection({
+  DateTime? _applyCalendarSelection({
     required DateTime tappedOrStart,
     required DateTime? rawEnd,
-    required int minRequired,
     required DateTime now,
   }) {
     DateTime effectiveStart = tappedOrStart;
     DateTime? effectiveEnd;
-    var didRejectTooShort = false;
 
-    if (rawEnd == null) {
-      // Syncfusion envoie souvent end=null au clic suivant une plage complète.
-      // Si une plage existe déjà et que le clic est ≥ début → on met à jour la FIN
-      // (prolongation libre), sans recommencer à zéro.
-      if (_hasCommittedCalendarRange &&
-          previousStartDate != null &&
-          !tappedOrStart.isBefore(previousStartDate!)) {
-        effectiveStart = previousStartDate!;
-        final minEnd =
-            minimumEndDateForMinRental(effectiveStart, minRequired);
-        if (tappedOrStart.isBefore(minEnd)) {
-          final clamped =
-              _resolveAvailableMinEndDate(effectiveStart, minRequired);
-          if (clamped == null) {
-            showErrorToastMessage(
-              'min_rental_duration_vehicle_days'.trParams({
-                'days': minRequired.toString(),
-              }),
-            );
-            return null;
-          }
-          effectiveEnd = clamped;
-          didRejectTooShort = minRequired > 1;
-        } else {
-          effectiveEnd = tappedOrStart;
-        }
-      } else {
-        // Nouvelle sélection (1er clic ou clic avant l'ancien début).
-        final autoEnd =
-            _resolveAvailableMinEndDate(tappedOrStart, minRequired);
-        if (autoEnd == null) {
-          showErrorToastMessage(
-            'min_rental_duration_vehicle_days'.trParams({
-              'days': minRequired.toString(),
-            }),
-          );
-          return null;
-        }
-        effectiveEnd = autoEnd;
-      }
+    if (rawEnd != null) {
+      effectiveStart = tappedOrStart;
+      effectiveEnd = DateTime(rawEnd.year, rawEnd.month, rawEnd.day);
+    } else if (previousStartDate != null &&
+        startDate.value.isNotEmpty &&
+        !tappedOrStart.isBefore(previousStartDate!)) {
+      // Deuxième clic (ou prolongation) : fixe la fin au jour tapé, sans auto-extension min.
+      effectiveStart = previousStartDate!;
+      effectiveEnd = tappedOrStart;
     } else {
-      final minEnd = minimumEndDateForMinRental(effectiveStart, minRequired);
-      if (rawEnd.isBefore(minEnd)) {
-        final clamped =
-            _resolveAvailableMinEndDate(effectiveStart, minRequired);
-        if (clamped == null) {
-          showErrorToastMessage(
-            'min_rental_duration_vehicle_days'.trParams({
-              'days': minRequired.toString(),
-            }),
-          );
-          return null;
-        }
-        effectiveEnd = clamped;
-        didRejectTooShort = minRequired > 1;
-      } else {
-        effectiveEnd = rawEnd;
-      }
+      // Premier clic ou nouveau départ : uniquement la date de début.
+      effectiveStart = tappedOrStart;
+      effectiveEnd = null;
     }
 
-    if (!_isCalendarDateAvailable(effectiveStart) ||
-        !_isCalendarDateAvailable(effectiveEnd)) {
+    if (!_isCalendarDateAvailable(effectiveStart)) {
+      _showUnavailableDateError(now);
+      return null;
+    }
+    if (effectiveEnd != null && !_isCalendarDateAvailable(effectiveEnd)) {
       _showUnavailableDateError(now);
       return null;
     }
 
-    _applyingMinRentalRange = true;
-    try {
-      dateRangePickerController.selectedRange =
-          PickerDateRange(effectiveStart, effectiveEnd);
-    } finally {
-      _applyingMinRentalRange = false;
-    }
-
-    if (didRejectTooShort) {
-      showCustomSnackbar(
-        title: 'min_rental_days_label'.tr,
-        message: 'min_rental_duration_vehicle_days'.trParams({
-          'days': minRequired.toString(),
-        }),
-        color: getColorBasedOnActiveModuleid(),
-        contentType: ContentType.help,
-      );
-    }
+    _setPickerSelectedRangeSafely(
+      PickerDateRange(effectiveStart, effectiveEnd),
+    );
 
     startDate.value = DateFormat('yyyy-MM-dd').format(effectiveStart);
-    endDate.value = DateFormat('yyyy-MM-dd').format(effectiveEnd);
+    endDate.value = effectiveEnd != null
+        ? DateFormat('yyyy-MM-dd').format(effectiveEnd)
+        : '';
     previousStartDate = effectiveStart;
     previousEndDate = effectiveEnd;
     return effectiveStart;
@@ -3040,9 +3005,9 @@ class BookingController extends GetxController implements GetxService {
         ? null
         : DateTime(rawEnd.year, rawEnd.month, rawEnd.day);
 
-    // Ne pas freiner les clics de prolongation de fin (après plage auto).
-    final looksLikeEndExtend = _hasCommittedCalendarRange &&
-        previousStartDate != null &&
+    // Ne pas freiner les clics de prolongation de fin (après sélection du début).
+    final looksLikeEndExtend = previousStartDate != null &&
+        startDate.value.isNotEmpty &&
         selectedEndDate == null &&
         !tappedOrStart.isBefore(previousStartDate!);
     if (!looksLikeEndExtend &&
@@ -3054,7 +3019,7 @@ class BookingController extends GetxController implements GetxService {
 
     // Dispo : pour une prolongation (plage déjà active), le "start" Syncfusion
     // est en réalité le clic de fin — on valide ce clic ; le vrai début est
-    // contrôlé ensuite dans [_applyMinRentalSelection].
+    // contrôlé ensuite dans [_applyCalendarSelection].
     if (!_isCalendarDateAvailable(tappedOrStart)) {
       _showUnavailableDateError(now);
       return;
@@ -3065,16 +3030,18 @@ class BookingController extends GetxController implements GetxService {
       return;
     }
 
-    final details = itemDetails ?? calendarSelectionItemDetails;
-    final minRequired = resolveMinRentalDaysForBooking(details) ?? 1;
-
-    final selectedStartDate = _applyMinRentalSelection(
+    final selectedStartDate = _applyCalendarSelection(
       tappedOrStart: tappedOrStart,
       rawEnd: selectedEndDate,
-      minRequired: minRequired,
       now: now,
     );
     if (selectedStartDate == null) return;
+
+    // Plage incomplète : afficher uniquement le début, pas d'appel API.
+    if (endDate.value.isEmpty) {
+      _safeUpdateAfterPickerPaint();
+      return;
+    }
 
     bool isStartDateToday = isToday(selectedStartDate);
     if (isStartDateToday) {
@@ -3096,7 +3063,7 @@ class BookingController extends GetxController implements GetxService {
         }
         currenttimeSlots.clear();
         avalibleSlots.clear();
-        safeUpdate();
+        _safeUpdateAfterPickerPaint();
         return;
       }
     }
@@ -3143,7 +3110,7 @@ class BookingController extends GetxController implements GetxService {
             curreentStatus.value = "otherDates";
           }
         }
-        safeUpdate();
+        _safeUpdateAfterPickerPaint();
       } else {
         print("7");
         showErrorToastMessage(
@@ -3156,9 +3123,9 @@ class BookingController extends GetxController implements GetxService {
           "An error occurred while checking availability.".tr);
       nextStartTime.value = "09:00";
       nextEndTime.value = "22:00";
-      safeUpdate();
+      _safeUpdateAfterPickerPaint();
     });
-    safeUpdate();
+    _safeUpdateAfterPickerPaint();
   }
 
   void compareAndGenerateSlots(
@@ -3243,12 +3210,7 @@ class BookingController extends GetxController implements GetxService {
     previousStartDate = null;
     previousEndDate = null;
     _lastSelectionTime = null;
-    _applyingMinRentalRange = true;
-    try {
-      dateRangePickerController.selectedRange = null;
-    } finally {
-      _applyingMinRentalRange = false;
-    }
+    _setPickerSelectedRangeSafely(null);
     selectedStartTime.value = "";
     selectedEndTime.value = "";
     hindTimeStart.value = "";
@@ -3515,8 +3477,8 @@ class BookingController extends GetxController implements GetxService {
   Future<void> fetchDataCalendar(id) async {
     print('🚀 TENTATIVE APPEL API CALENDRIER');
     isLoading.value = true;
-    // Rafraîchir l'UI immédiatement pour afficher le loader (GetBuilder).
-    safeUpdate();
+    // Overlay loader uniquement — ne pas démonter le picker.
+    _safeUpdateAfterPickerPaint();
 
     try {
       // ========== TRACEUR D'ADRESSE IP ==========
@@ -3734,10 +3696,11 @@ class BookingController extends GetxController implements GetxService {
     } finally {
       isLoading.value = false;
       debugPrint(
-          '🔄 [fetchDataCalendar] isLoading mis à false, appel de update()');
-      safeUpdate();
+          '🔄 [fetchDataCalendar] isLoading mis à false, refresh post-frame');
+      // Post-frame : évite update() pendant drawCustomcellSelection Syncfusion.
+      _safeUpdateAfterPickerPaint();
       debugPrint(
-          '✅ [fetchDataCalendar] update() appelé - UI devrait se rafraîchir');
+          '✅ [fetchDataCalendar] refresh planifié - UI calendrier intacte');
     }
   }
 

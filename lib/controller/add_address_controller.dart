@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/helper/http_service.dart';
+import 'package:carvy/model/address_history_model.dart';
 import 'package:carvy/model/door_step_address_model.dart';
 import 'package:carvy/model/login_model.dart';
 import 'package:carvy/services/geocoding_service.dart';
@@ -32,6 +33,8 @@ class AddAddressController extends GetxController implements GetxService {
 
   RxString addressText = "".obs;
   RxBool isAddressLoading = false.obs;
+  RxBool isAddressHistoryLoading = false.obs;
+  RxList<AddressHistoryModel> recentAddresses = <AddressHistoryModel>[].obs;
   bool _isInternalAddressWrite = false;
   /// Si true, ne pas écraser le libellé saisi manuellement lors d'un nouveau reverse geocode.
   bool _labelManuallyEdited = false;
@@ -140,6 +143,131 @@ class AddAddressController extends GetxController implements GetxService {
     return address.isNotEmpty ? address : label;
   }
 
+  List<dynamic>? _extractAddressHistoryList(dynamic response) {
+    if (response == null || response is! Map) return null;
+    final data = response['data'];
+    if (data is Map) {
+      final nested = data['addressHistory'] ?? data['address_history'];
+      if (nested is List) return nested;
+    }
+    final topLevel = response['addressHistory'] ?? response['address_history'];
+    if (topLevel is List) return topLevel;
+    return null;
+  }
+
+  /// GET /users/address-history
+  Future<void> fetchAddressHistory() async {
+    isAddressHistoryLoading.value = true;
+    try {
+      final response = await httpGet(Config.getAddressHistory, {});
+      final rawList = _extractAddressHistoryList(response);
+      if (rawList == null) {
+        recentAddresses.clear();
+        return;
+      }
+
+      final parsed = rawList
+          .whereType<Map>()
+          .map((e) => AddressHistoryModel.fromJson(
+                Map<String, dynamic>.from(e),
+              ))
+          .where((e) => e.address.trim().isNotEmpty)
+          .toList();
+
+      recentAddresses.assignAll(parsed);
+    } catch (e, st) {
+      debugPrint('fetchAddressHistory: $e\n$st');
+      recentAddresses.clear();
+    } finally {
+      isAddressHistoryLoading.value = false;
+      update();
+    }
+  }
+
+  /// POST /users/address-history
+  Future<void> saveAddressToHistory({
+    required String address,
+    required String label,
+    required double latitude,
+    required double longitude,
+  }) async {
+    if (address.trim().isEmpty) return;
+    try {
+      final body = {
+        'address': address.trim(),
+        'label': label.trim(),
+        'latitude': latitude,
+        'longitude': longitude,
+      };
+      final response = await httpPost(Config.saveAddressHistory, body);
+      final status = response?['status'] ?? response?['success'];
+      if (status == 200 || status == 201) {
+        await fetchAddressHistory();
+      }
+    } catch (e, st) {
+      debugPrint('saveAddressToHistory: $e\n$st');
+    }
+  }
+
+  /// Enregistre l'adresse courante dans l'historique (carte ou validation).
+  Future<void> recordCurrentAddressInHistory() async {
+    if (!hasValidDoorstepCoordinates) return;
+
+    final address = fullAddressController.text.trim().isNotEmpty
+        ? fullAddressController.text.trim()
+        : addressText.value.trim();
+    if (address.isEmpty) return;
+
+    var label = addressLabelController.text.trim();
+    if (label.isEmpty) {
+      label = GeocodingService.suggestAddressLabel(address);
+    }
+
+    final lat = double.tryParse(doorSteplatitude.value);
+    final lng = double.tryParse(doorSteplongitude.value);
+    if (lat == null || lng == null) return;
+
+    await saveAddressToHistory(
+      address: address,
+      label: label,
+      latitude: lat,
+      longitude: lng,
+    );
+  }
+
+  /// Applique une adresse récente aux champs et coordonnées actifs.
+  LatLng? applyRecentAddress(AddressHistoryModel item) {
+    if (item.address.trim().isEmpty) return null;
+
+    _isInternalAddressWrite = true;
+    fullAddressController.text = item.address;
+    addressLabelController.text = item.label.trim().isNotEmpty
+        ? item.label.trim()
+        : GeocodingService.suggestAddressLabel(item.address);
+    _isInternalAddressWrite = false;
+    _labelManuallyEdited = true;
+
+    addressText.value = item.address;
+    doorSteplatitude.value = item.latitude.toString();
+    doorSteplongitude.value = item.longitude.toString();
+    fulladdress.value = _composeDisplayAddress();
+
+    final target = LatLng(item.latitude, item.longitude);
+    markers
+      ..clear()
+      ..add(
+        Marker(
+          markerId: const MarkerId('marker_2'),
+          position: target,
+          draggable: true,
+          icon: BitmapDescriptor.defaultMarker,
+        ),
+      );
+
+    update();
+    return target;
+  }
+
   /// Reverse geocoding (package geocoding) + remplissage des champs adresse.
   Future<void> resolveAddressFromLatLng(double lat, double lng) async {
     isAddressLoading.value = true;
@@ -171,13 +299,19 @@ class AddAddressController extends GetxController implements GetxService {
   Future<({double lat, double lng})?> fetchCurrentLocation(
     BuildContext context,
   ) async {
+    var loadingShown = false;
     try {
+      // Dialogues GPS/permissions sans overlay de chargement (évite freeze UI).
+      if (!await LocationService.ensureLocationReady(context)) {
+        return null;
+      }
+
       showLoading();
-      final position = await LocationService.getCurrentPositionWithChecks(
-        context,
+      loadingShown = true;
+
+      final position = await LocationService.getCurrentPosition(
         timeLimit: LocationService.defaultTimeLimit,
       );
-      closeLoading();
 
       if (position == null) {
         return null;
@@ -189,9 +323,12 @@ class AddAddressController extends GetxController implements GetxService {
       update();
       return (lat: position.latitude, lng: position.longitude);
     } catch (e) {
-      closeLoading();
       debugPrint('fetchCurrentLocation: $e');
       return null;
+    } finally {
+      if (loadingShown) {
+        closeLoading();
+      }
     }
   }
 
@@ -262,6 +399,7 @@ class AddAddressController extends GetxController implements GetxService {
 
       if (response != null && response["status"] == 200) {
         showToastMessage("${response["message"]}");
+        await recordCurrentAddressInHistory();
         await getDoorStepAddressp(false);
         generalController.currentIndex.value = 0;
 

@@ -220,7 +220,11 @@ class _PickAddressWitjhMapState extends State<PickAddressWitjhMap> {
     setState(() {});
   }
 
-  void _popToPreviousScreen() {
+  Future<void> _popToPreviousScreen() async {
+    if (addAddressController.canConfirmDoorstepAddress) {
+      await addAddressController.recordCurrentAddressInHistory();
+    }
+    if (!mounted) return;
     if (Navigator.of(context).canPop()) {
       Get.back();
       return;

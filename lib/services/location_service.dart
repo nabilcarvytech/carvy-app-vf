@@ -18,19 +18,30 @@ class LocationService {
       return true;
     }
 
-    await Get.defaultDialog(
-      title: 'GPS'.tr,
-      middleText: 'location_required_for_address'.tr,
-      textConfirm: 'open_location_settings'.tr,
-      textCancel: 'Cancel'.tr,
-      confirmTextColor: Colors.white,
-      onConfirm: () {
-        Get.back();
-        Geolocator.openLocationSettings();
-      },
-      onCancel: () => Get.back(),
+    final openSettings = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('GPS'.tr),
+        content: Text('location_required_for_address'.tr),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('Cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: Text('open_location_settings'.tr),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
     );
 
+    if (openSettings != true) {
+      return false;
+    }
+
+    await Geolocator.openLocationSettings();
+    // Une seule vérification au retour — pas de boucle d'attente.
     return Geolocator.isLocationServiceEnabled();
   }
 
@@ -64,19 +75,32 @@ class LocationService {
     return true;
   }
 
+  /// Contrôles GPS + permissions (sans indicateur de chargement).
+  static Future<bool> ensureLocationReady([BuildContext? context]) async {
+    if (!await ensureLocationEnabled()) {
+      return false;
+    }
+    return ensureLocationPermission(context);
+  }
+
   /// GPS activé + permissions OK + position [LocationAccuracy.best] (timeLimit 10 s).
   static Future<Position?> getCurrentPositionWithChecks(
     BuildContext? context, {
     Duration timeLimit = defaultTimeLimit,
   }) async {
-    if (!await ensureLocationEnabled()) {
+    if (!await ensureLocationReady(context)) {
       return null;
     }
 
-    if (!await ensureLocationPermission(context)) {
-      return null;
-    }
+    return getCurrentPosition(
+      timeLimit: timeLimit,
+    );
+  }
 
+  /// Position courante (GPS et permissions déjà validés).
+  static Future<Position?> getCurrentPosition({
+    Duration timeLimit = defaultTimeLimit,
+  }) async {
     final settings = LocationSettings(
       accuracy: LocationAccuracy.best,
       timeLimit: timeLimit,
@@ -93,7 +117,7 @@ class LocationService {
       );
       return null;
     } catch (e) {
-      debugPrint('LocationService.getCurrentPositionWithChecks: $e');
+      debugPrint('LocationService.getCurrentPosition: $e');
       showErrorToastMessage('Failed to get current location.'.tr);
       return null;
     }

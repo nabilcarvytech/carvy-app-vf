@@ -1150,6 +1150,8 @@ const Map<String, String> frFR = {
   "Pick Address": "Choisir une adresse",
   "Save Address": "Enregistrer l'adresse",
   "Add Address Details": "Ajouter les détails de l'adresse",
+  "Recent Addresses": "Adresses récentes",
+  "No recent addresses yet": "Aucune adresse récente pour le moment",
   "Current Address": "Adresse actuelle",
   "Full address": "Adresse complète",
   "Address Label": "Libellé de l'adresse",

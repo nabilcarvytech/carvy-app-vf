@@ -1303,6 +1303,8 @@ const Map<String, String> enUs = {
   "Current Address": "Current Address",
   "Full address": "Full address",
   "Address Label": "Address Label",
+  "Recent Addresses": "Recent addresses",
+  "No recent addresses yet": "No recent addresses yet",
   "Home, Office, Airport...": "Home, Office, Airport...",
   "Approximate area": "Approximate area",
   "View details": "View details",
