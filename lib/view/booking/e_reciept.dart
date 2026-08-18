@@ -734,15 +734,6 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                       )
                     : const SizedBox(),
                 const SizedBox(height: 5),
-                widget.bookings?.ivaTax != null &&
-                        widget.bookings!.ivaTax != "0.00"
-                    ? eReceiptWidget(
-                        name: "Tax".tr,
-                        value:
-                            "${widget.bookings!.currencyCode} ${widget.bookings!.ivaTax}",
-                      )
-                    : const SizedBox(),
-                const SizedBox(height: 5),
                 widget.bookings?.serviceCharge != null &&
                         widget.bookings!.serviceCharge != "0.00"
                     ? eReceiptWidget(
@@ -764,7 +755,7 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                 eReceiptWidget(
                   name: "Total".tr,
                   value:
-                      "${widget.bookings!.currencyCode} ${widget.bookings!.total}",
+                      "${widget.bookings!.currencyCode} ${widget.bookings!.totalExcludingTax}",
                 ),
               ],
             ),

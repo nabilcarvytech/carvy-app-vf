@@ -2984,13 +2984,6 @@ myBookingListWidget(
                                     value:
                                         "${booking.currencyCode} ${booking.doorStepPrice ?? ""}")
                                 : const SizedBox(),
-                            booking.ivaTax != null &&
-                                    booking.ivaTax != "0.00"
-                                ? eReceiptWidget(
-                                    name: "Tax".tr,
-                                    value:
-                                        "${booking.currencyCode} ${booking.ivaTax}")
-                                : const SizedBox(),
                             booking.serviceCharge != null &&
                                     booking.serviceCharge != "0.00"
                                 ? eReceiptWidget(
@@ -3012,7 +3005,7 @@ myBookingListWidget(
                             eReceiptWidget(
                                 name: "Total".tr,
                                 value:
-                                    "${booking.currencyCode} ${booking.total}"),
+                                    "${booking.currencyCode} ${booking.totalExcludingTax}"),
                             if (_bookingHasSecurityDeposit(booking)) ...[
                               const SizedBox(height: 8),
                               Divider(

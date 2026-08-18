@@ -467,16 +467,6 @@ class _DigitalSignatureState extends State<DigitalSignature> {
                         "${widget.bookings!.currencyCode} ${widget.bookings!.doorStepPrice}"),
                   ],
                 ),
-              if (widget.bookings?.ivaTax != null &&
-                  widget.bookings!.ivaTax != "0.00")
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text("Tax:"),
-                    pw.Text(
-                        "${widget.bookings!.currencyCode} ${widget.bookings!.ivaTax}"),
-                  ],
-                ),
               if (widget.bookings?.serviceCharge != null &&
                   widget.bookings!.serviceCharge != "0.00")
                 pw.Row(
@@ -514,7 +504,7 @@ class _DigitalSignatureState extends State<DigitalSignature> {
                   pw.Text("Total:",
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                   pw.Text(
-                      "${widget.bookings!.currencyCode} ${widget.bookings!.total}",
+                      "${widget.bookings!.currencyCode} ${widget.bookings!.totalExcludingTax}",
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                 ],
               ),
@@ -1150,15 +1140,6 @@ class _DigitalSignatureState extends State<DigitalSignature> {
                                   )
                                 : const SizedBox(),
                             const SizedBox(height: 5),
-                            widget.bookings?.ivaTax != null &&
-                                    widget.bookings!.ivaTax != "0.00"
-                                ? eReceiptWidget(
-                                    name: "Tax".tr,
-                                    value:
-                                        "${widget.bookings!.currencyCode} ${widget.bookings!.ivaTax}",
-                                  )
-                                : const SizedBox(),
-                            const SizedBox(height: 5),
                             widget.bookings?.serviceCharge != null &&
                                     widget.bookings!.serviceCharge != "0.00"
                                 ? eReceiptWidget(
@@ -1189,7 +1170,7 @@ class _DigitalSignatureState extends State<DigitalSignature> {
                             eReceiptWidget(
                               name: "Total".tr,
                               value:
-                                  "${widget.bookings!.currencyCode} ${widget.bookings!.total}",
+                                  "${widget.bookings!.currencyCode} ${widget.bookings!.totalExcludingTax}",
                             ),
                           ],
                         ),

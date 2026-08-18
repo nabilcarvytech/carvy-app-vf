@@ -1269,6 +1269,7 @@ const Map<String, String> ruRU = {
   "Smoking Allowed": "Курение разрешено",
   "min_rental_duration_vehicle_days":
       "Минимальная длительность аренды для этого автомобиля: @days дней.",
+  "calendar_min_days_badge": "Мин. @days дн.",
   "International Travel Allowed": "Международные поездки разрешены",
   "Security Deposit (Caution)": "Гарантийный депозит (залог)",
   "receipt_security_deposit_on_site_info":

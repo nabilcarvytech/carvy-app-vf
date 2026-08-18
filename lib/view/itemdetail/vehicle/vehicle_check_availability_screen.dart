@@ -48,9 +48,25 @@ class VehicleCheckAvailability extends StatefulWidget {
 class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
   late BookingController bookingController;
   AddAddressController addAddressController = Get.find();
+
+  /// Ancre le badge « Min. X jours » au-dessus du premier jour sélectionné.
+  final LayerLink _minDaysBadgeLink = LayerLink();
   
   /// Incrémenté à chaque chargement réussi pour forcer un remount Syncfusion.
   int _calendarDataEpoch = 0;
+
+  bool _isStartDateCell(DateTime cellDate) {
+    DateTime? start;
+    if (bookingController.startDate.value.isNotEmpty) {
+      start = DateTime.tryParse(bookingController.startDate.value);
+    }
+    start ??=
+        bookingController.dateRangePickerController.selectedRange?.startDate;
+    if (start == null) return false;
+    return start.year == cellDate.year &&
+        start.month == cellDate.month &&
+        start.day == cellDate.day;
+  }
 
   Future<void> getData() async {
     print('📅 getData() appelé avec idFeatured: ${widget.idFeatured}');
@@ -281,58 +297,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                 ],
                               ),
                             ),
-                            Builder(
-                              builder: (context) {
-                                final minDays = bookingController
-                                    .resolveMinRentalDaysForBooking(
-                                        widget.itemDetails);
-                                if (minDays == null || minDays <= 1) {
-                                  return const SizedBox(height: 16);
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                      10, 8, 10, 12),
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: getColorBasedOnActiveModuleid()
-                                          .withOpacity(0.08),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: getColorBasedOnActiveModuleid()
-                                            .withOpacity(0.25),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.info_outline,
-                                          size: 18,
-                                          color:
-                                              getColorBasedOnActiveModuleid(),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            'min_rental_duration_info'
-                                                .trParams({
-                                              'days': minDays.toString(),
-                                            }),
-                                            style: regular2(context).copyWith(
-                                              color: notifires
-                                                  .getGrey2Whitecolor,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                            const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -368,60 +333,114 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                             ),
                             GetBuilder<BookingController>(
                               builder: (controller) {
+                                final minDays = bookingController
+                                        .resolveMinRentalDaysForBooking(
+                                            widget.itemDetails) ??
+                                    1;
                                 return Container(
                                   height: 400,
+                                  clipBehavior: Clip.none,
                                   padding: const EdgeInsets.only(left: 8, right: 8),
                                   margin: const EdgeInsets.all(0),
                                   decoration: BoxDecoration(
                                     color: whiteColor,
                                     borderRadius: BorderRadius.circular(0),
                                   ),
-                                  child: SfDateRangePicker(
-                                key: ValueKey(
-                                  'availability_cal_${widget.idFeatured}_$_calendarDataEpoch',
-                                ),
-                                minDate: RollingCalendarBounds.firstDate(),
-                                maxDate: RollingCalendarBounds.lastDate(),
-                                enablePastDates: false,
-                                onViewChanged: (args) {
-                                  RollingCalendarBounds.clampPickerView(
-                                    args,
-                                    bookingController.dateRangePickerController,
-                                  );
-                                },
-                                headerHeight: 0,
-                                headerStyle: DateRangePickerHeaderStyle(
-                                  backgroundColor: whiteColor,
-                                  textAlign: TextAlign.center,
-                                  textStyle: TextStyle(
-                                    color: blackColor,
-                                    fontWeight: FontWeight.bold,
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      SfDateRangePicker(
+                                        key: ValueKey(
+                                          'availability_cal_${widget.idFeatured}_$_calendarDataEpoch',
+                                        ),
+                                        minDate:
+                                            RollingCalendarBounds.firstDate(),
+                                        maxDate:
+                                            RollingCalendarBounds.lastDate(),
+                                        enablePastDates: false,
+                                        onViewChanged: (args) {
+                                          RollingCalendarBounds.clampPickerView(
+                                            args,
+                                            bookingController
+                                                .dateRangePickerController,
+                                          );
+                                        },
+                                        headerHeight: 0,
+                                        headerStyle:
+                                            DateRangePickerHeaderStyle(
+                                          backgroundColor: whiteColor,
+                                          textAlign: TextAlign.center,
+                                          textStyle: TextStyle(
+                                            color: blackColor,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        backgroundColor: whiteColor,
+                                        allowViewNavigation: false,
+                                        controller: bookingController
+                                            .dateRangePickerController,
+                                        selectionMode:
+                                            DateRangePickerSelectionMode.range,
+                                        onSelectionChanged: (args) =>
+                                            bookingController
+                                                .onSelectionChanged(
+                                          args,
+                                          itemDetails: widget.itemDetails,
+                                        ),
+                                        startRangeSelectionColor:
+                                            Colors.transparent,
+                                        endRangeSelectionColor:
+                                            Colors.transparent,
+                                        rangeSelectionColor:
+                                            Colors.transparent,
+                                        selectionColor: Colors.transparent,
+                                        cellBuilder: (context, cellDetails) {
+                                          final cell =
+                                              _CalendarAvailabilityCell(
+                                            cellDetails: cellDetails,
+                                            bookingController:
+                                                bookingController,
+                                            hideDailyPriceForCell:
+                                                _hideDailyPriceForCell,
+                                          );
+                                          if (minDays <= 1 ||
+                                              !_isStartDateCell(
+                                                  cellDetails.date)) {
+                                            return cell;
+                                          }
+                                          return CompositedTransformTarget(
+                                            link: _minDaysBadgeLink,
+                                            child: cell,
+                                          );
+                                        },
+                                      ),
+                                      Positioned(
+                                        left: 0,
+                                        top: 0,
+                                        child: Obx(() {
+                                          final hasSelection =
+                                              bookingController
+                                                  .startDate.value.isNotEmpty;
+                                          if (!hasSelection || minDays <= 1) {
+                                            return const SizedBox.shrink();
+                                          }
+                                          return CompositedTransformFollower(
+                                            link: _minDaysBadgeLink,
+                                            showWhenUnlinked: false,
+                                            targetAnchor: Alignment.topCenter,
+                                            followerAnchor:
+                                                Alignment.bottomCenter,
+                                            offset: const Offset(0, -2),
+                                            child: IgnorePointer(
+                                              child: _MinRentalStartBadge(
+                                                days: minDays,
+                                              ),
+                                            ),
+                                          );
+                                        }),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                backgroundColor: whiteColor,
-                                allowViewNavigation: false,
-                                controller:
-                                    bookingController.dateRangePickerController,
-                                selectionMode:
-                                    DateRangePickerSelectionMode.range,
-                                onSelectionChanged: (args) =>
-                                    bookingController.onSelectionChanged(
-                                  args,
-                                  itemDetails: widget.itemDetails,
-                                ),
-                                startRangeSelectionColor: Colors.transparent,
-                                endRangeSelectionColor: Colors.transparent,
-                                rangeSelectionColor: Colors.transparent,
-                                selectionColor: Colors.transparent,
-                                cellBuilder: (context, cellDetails) {
-                                  return _CalendarAvailabilityCell(
-                                    cellDetails: cellDetails,
-                                    bookingController: bookingController,
-                                    hideDailyPriceForCell:
-                                        _hideDailyPriceForCell,
-                                  );
-                                },
-                              ),
                                 );
                               },
                             ),
@@ -937,4 +956,68 @@ class _CalendarAvailabilityCell extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Badge ancré au-dessus du premier jour de la plage sélectionnée.
+class _MinRentalStartBadge extends StatelessWidget {
+  final int days;
+  const _MinRentalStartBadge({required this.days});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = getColorBasedOnActiveModuleid();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.18),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            'calendar_min_days_badge'.trParams({
+              'days': days.toString(),
+            }),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              height: 1.15,
+            ),
+          ),
+        ),
+        CustomPaint(
+          size: const Size(10, 6),
+          painter: _DownArrowPainter(color),
+        ),
+      ],
+    );
+  }
+}
+
+class _DownArrowPainter extends CustomPainter {
+  final Color color;
+  _DownArrowPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DownArrowPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

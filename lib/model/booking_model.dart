@@ -878,6 +878,16 @@ class Bookings {
   String? get doorStepPrice => _doorStepPrice;
   String? get totalGuest => _totalGuest;
   String? get total => _total;
+
+  /// Total affiché hors taxe : si `iva_tax` était additionné dans `total`,
+  /// il est retiré pour ne garder que le montant initial et les autres frais.
+  String get totalExcludingTax {
+    final totalVal = double.tryParse(_total ?? '') ?? 0;
+    final taxVal = double.tryParse(_ivaTax ?? '') ?? 0;
+    if (taxVal <= 0) return _total ?? '0.00';
+    final result = totalVal - taxVal;
+    return (result < 0 ? 0 : result).toStringAsFixed(2);
+  }
   String? get adminCommission => _adminCommission;
   String? get vendorCommision => _vendorCommision;
   String? get currencyCode => _currencyCode;

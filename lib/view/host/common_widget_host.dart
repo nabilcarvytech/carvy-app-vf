@@ -3465,13 +3465,6 @@ class VendorOrderListView extends StatelessWidget {
                                         value:
                                             "${list[index].currencyCode} ${list[index].doorStepPrice ?? ""}")
                                     : const SizedBox(),
-                                list[index].ivaTax != null &&
-                                        list[index].ivaTax != "0.00"
-                                    ? eReceiptWidget(
-                                        name: "Tax".tr,
-                                        value:
-                                            "${list[index].currencyCode} ${list[index].ivaTax}")
-                                    : const SizedBox(),
                                 list[index].serviceCharge != null &&
                                         list[index].serviceCharge != "0.00"
                                     ? eReceiptWidget(
@@ -3501,7 +3494,7 @@ class VendorOrderListView extends StatelessWidget {
                                 eReceiptWidget(
                                     name: "Total".tr,
                                     value:
-                                        "${list[index].currencyCode} ${list[index].total}"),
+                                        "${list[index].currencyCode} ${list[index].totalExcludingTax}"),
                               ],
                             ),
                           ],

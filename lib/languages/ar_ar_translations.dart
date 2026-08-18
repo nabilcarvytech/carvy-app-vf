@@ -1261,6 +1261,7 @@ const Map<String, String> arAR = {
   "min_rental_duration_vehicle_days":
       "الحد الأدنى لمدة إيجار هذه المركبة هو @days أيام.",
   "min_rental_duration_info": "الحد الأدنى للإيجار @days أيام",
+  "calendar_min_days_badge": "الحد الأدنى @days أيام",
   "International Travel Allowed": "السفر الدولي مسموح",
   "register_wizard_app_bar_title": "إنشاء حساب",
   "register_wizard_who_are_you": "من أنت؟",

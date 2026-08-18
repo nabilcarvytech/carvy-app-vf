@@ -1161,14 +1161,6 @@ class _HostErecieptState extends State<HostEreciept> {
                     )
                   : const SizedBox(),
               const SizedBox(height: 5),
-              widget.bookings.ivaTax != null && widget.bookings.ivaTax != "0.00"
-                  ? eReceiptWidget(
-                      name: "Tax".tr,
-                      value:
-                          "${widget.bookings.currencyCode ?? ""} ${widget.bookings.ivaTax ?? "0.00"}",
-                    )
-                  : const SizedBox(),
-              const SizedBox(height: 5),
               widget.bookings.serviceCharge != null &&
                       widget.bookings.serviceCharge != "0.00"
                   ? eReceiptWidget(
@@ -1199,7 +1191,7 @@ class _HostErecieptState extends State<HostEreciept> {
               eReceiptWidget(
                 name: "Total".tr,
                 value:
-                    "${widget.bookings.currencyCode ?? ""} ${widget.bookings.total ?? "0.00"}",
+                    "${widget.bookings.currencyCode ?? ""} ${widget.bookings.totalExcludingTax}",
               ),
             ],
           ),

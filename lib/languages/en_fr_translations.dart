@@ -1381,6 +1381,7 @@ const Map<String, String> frFR = {
   "min_rental_duration_vehicle_days":
       "La durée minimale de location pour ce véhicule est de @days jours.",
   "min_rental_duration_info": "@days jours minimum de location",
+  "calendar_min_days_badge": "Min. @days jours",
   "International Travel Allowed": "Voyage international autorisé",
   "register_wizard_app_bar_title": "Créer un compte",
   "register_wizard_who_are_you": "Qui êtes-vous ?",

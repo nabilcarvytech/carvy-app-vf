@@ -1233,6 +1233,7 @@ const Map<String, String> thTH = {
   "Smoking Allowed": "อนุญาตให้สูบบุหรี่",
   "min_rental_duration_vehicle_days":
       "ระยะเวลาการเช่าขั้นต่ำสำหรับยานพาหนะนี้คือ @days วัน",
+  "calendar_min_days_badge": "ขั้นต่ำ @days วัน",
   "International Travel Allowed": "อนุญาตให้เดินทางระหว่างประเทศ",
   "Security Deposit (Caution)": "เงินประกัน (มัดจำ)",
   "receipt_security_deposit_on_site_info":
