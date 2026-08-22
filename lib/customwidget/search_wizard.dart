@@ -127,16 +127,8 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
   }
 
   void _applyLocationSelection(Location location) {
+    filterController.applyCityLocationSelectionFromLocation(location);
     _searchController.text = location.cityName ?? '';
-    generalScopeController.homeSearchLocation.value = location.cityName ?? '';
-    generalScopeController.textEditingControllerCity.text =
-        location.cityName ?? '';
-
-    slatsearch =
-        location.latitude?.replaceAll('° N', '').replaceAll('° W', '') ?? '';
-    sLongSearch =
-        location.longitude?.replaceAll('° N', '').replaceAll('° W', '') ?? '';
-    filterController.setCity = location.cityName ?? '';
   }
 
   void _loadLocations() {

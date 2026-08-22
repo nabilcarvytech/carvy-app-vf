@@ -24,6 +24,10 @@ class _UserAddressState extends State<UserAddress> {
   AddAddressController addAddressController = Get.find();
 
   late GoogleMapController mapController;
+  late FocusNode _addressSearchFocusNode;
+  String _addressSearchQuery = '';
+  bool _showAddressSuggestions = false;
+
   void _onMapTapped(LatLng position) async {
     setState(() {
       addAddressController.markers.clear();
@@ -88,6 +92,7 @@ class _UserAddressState extends State<UserAddress> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _addressSearchFocusNode.dispose();
     super.dispose();
   }
 
@@ -119,14 +124,38 @@ class _UserAddressState extends State<UserAddress> {
   }
 
   bool shouldUpdateMapLocation = false;
+
   @override
   void initState() {
     super.initState();
+    _addressSearchFocusNode = FocusNode();
+    _addressSearchFocusNode.addListener(_onAddressSearchFocusChanged);
     addAddressController.ensureSuggestedLabelIfEmpty();
     addAddressController.fetchAddressHistory();
   }
 
-  Future<void> _applyRecentAddressChip(AddressHistoryModel item) async {
+  void _onAddressSearchFocusChanged() {
+    setState(() {
+      _showAddressSuggestions = _addressSearchFocusNode.hasFocus;
+      if (!_addressSearchFocusNode.hasFocus) {
+        _addressSearchQuery = '';
+      }
+    });
+  }
+
+  List<AddressHistoryModel> _filteredRecentAddresses() {
+    final query = _addressSearchQuery.trim().toLowerCase();
+    final recents = addAddressController.recentAddresses;
+    if (query.isEmpty) return recents.toList();
+    return recents.where((item) {
+      final label = item.label.toLowerCase();
+      final address = item.address.toLowerCase();
+      return label.contains(query) || address.contains(query);
+    }).toList();
+  }
+
+  Future<void> _applyRecentAddress(AddressHistoryModel item) async {
+    FocusScope.of(context).unfocus();
     final target = addAddressController.applyRecentAddress(item);
     if (target == null) return;
     try {
@@ -139,35 +168,82 @@ class _UserAddressState extends State<UserAddress> {
     if (mounted) setState(() {});
   }
 
-  Widget _buildRecentAddressChip(AddressHistoryModel item) {
+  Future<void> _openMapAddressPicker() async {
+    FocusScope.of(context).unfocus();
+    await Get.to(() => PickAddressWitjhMap());
+    if (!mounted) return;
+    await addAddressController.recordCurrentAddressInHistory();
+    setState(() {});
+  }
+
+  Widget _buildMapSearchOption() {
+    final accent = getColorBasedOnActiveModuleid();
+    return Material(
+      color: notifires.getBoxColor,
+      child: InkWell(
+        onTap: _openMapAddressPicker,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.map_outlined, color: accent, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Search new address on map'.tr,
+                  style: regular2(context).copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: accent,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right, color: accent.withOpacity(0.7)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentAddressTile(AddressHistoryModel item) {
     final label = item.label.trim();
     final address = item.address.trim();
-    final accent = getColorBasedOnActiveModuleid();
-    final shortAddress = addAddressController.shortenAddress(address, 52);
-    final singleLineText = label.isNotEmpty
-        ? '$shortAddress ($label)'
-        : shortAddress;
+    final displayLabel = label.isNotEmpty
+        ? label
+        : addAddressController.shortenAddress(address, 28);
 
     return Material(
       color: notifires.getBoxColor,
-      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: () => _applyRecentAddressChip(item),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          constraints: const BoxConstraints(minWidth: 140, maxWidth: 280),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: accent.withOpacity(0.35)),
-          ),
-          child: label.isNotEmpty
-              ? Column(
+        onTap: () => _applyRecentAddress(item),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(
+                  Icons.location_on_outlined,
+                  size: 22,
+                  color: notifires.getGrey3Whitecolor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      label,
+                      displayLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: regular2(context).copyWith(
@@ -175,41 +251,199 @@ class _UserAddressState extends State<UserAddress> {
                         color: notifires.getwhiteblackcolor,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      shortAddress,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: regular2(context).copyWith(
-                        fontSize: 12,
-                        height: 1.25,
-                        color: notifires.getGrey3Whitecolor,
+                    if (address.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        address,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: regular2(context).copyWith(
+                          fontSize: 13,
+                          height: 1.3,
+                          color: notifires.getGrey3Whitecolor,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                )
-              : Text(
-                  singleLineText,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: regular2(context).copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: notifires.getwhiteblackcolor,
-                  ),
                 ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAddressSuggestionsPanel() {
+    return Obx(() {
+      final isLoading = addAddressController.isAddressHistoryLoading.value;
+      final filtered = _filteredRecentAddresses();
+
+      return AnimatedSize(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        alignment: Alignment.topCenter,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: 8),
+          decoration: BoxDecoration(
+            color: notifires.getBoxColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: greyColor2.withOpacity(0.6)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildMapSearchOption(),
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else if (filtered.isEmpty)
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                  child: Text(
+                    'No recent addresses yet'.tr,
+                    style: regular2(context).copyWith(color: Colors.grey),
+                  ),
+                )
+              else ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+                  child: Text(
+                    'Your saved addresses'.tr,
+                    style: regular2(context).copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: notifires.getGrey3Whitecolor,
+                    ),
+                  ),
+                ),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    color: greyColor2.withOpacity(0.5),
+                    indent: 14,
+                    endIndent: 14,
+                  ),
+                  itemBuilder: (context, index) {
+                    return _buildRecentAddressTile(filtered[index]);
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildAddressSearchField() {
+    final accent = getColorBasedOnActiveModuleid();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Address'.tr,
+          style: regular3(context).copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Obx(() {
+          final isResolving = addAddressController.isAddressLoading.value;
+          return TextField(
+            controller: addAddressController.fullAddressController,
+            focusNode: _addressSearchFocusNode,
+            textInputAction: TextInputAction.search,
+            maxLines: 2,
+            minLines: 1,
+            onChanged: (value) {
+              setState(() => _addressSearchQuery = value);
+            },
+            style: regular2(context).copyWith(
+              fontWeight: FontWeight.w500,
+              color: notifires.getwhiteblackcolor,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Search or select an address'.tr,
+              hintStyle: regular2(context).copyWith(
+                color: notifires.getGrey3Whitecolor,
+                fontWeight: FontWeight.w400,
+              ),
+              filled: true,
+              fillColor: notifires.getBoxColor,
+              prefixIcon: Icon(Icons.search, color: accent),
+              suffixIcon: isResolving
+                  ? Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: accent,
+                        ),
+                      ),
+                    )
+                  : addAddressController.fullAddressController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            Icons.close,
+                            size: 20,
+                            color: notifires.getGrey3Whitecolor,
+                          ),
+                          onPressed: () {
+                            addAddressController.fullAddressController.clear();
+                            addAddressController.addressText.value = '';
+                            setState(() => _addressSearchQuery = '');
+                          },
+                        )
+                      : null,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 14,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: greyColor2.withOpacity(0.8)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: accent, width: 1.5),
+              ),
+            ),
+          );
+        }),
+        if (_showAddressSuggestions) _buildAddressSuggestionsPanel(),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // FocusScope.of(context).requestFocus(FocusNode());
-      },
+      onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        // backgroundColor: white,
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.all(18.0),
           child: Obx(() {
@@ -250,286 +484,119 @@ class _UserAddressState extends State<UserAddress> {
                   ),
                   child: Obx(
                     () => Stack(
-                            children: [
-                              SizedBox(
-                                height: 270,
-                                child: Container(
-                                    decoration: BoxDecoration(
-                                        borderRadius:
-                                            BorderRadius.circular(12)),
-                                    child: GoogleMap(
-                                        circles: addAddressController
-                                                .hasValidDoorstepCoordinates
-                                            ? {
-                                                Circle(
-                                                  circleId: const CircleId(
-                                                      "radius_circle"),
-                                                  center: LatLng(
-                                                    double.parse(
-                                                        addAddressController
-                                                            .doorSteplatitude
-                                                            .value),
-                                                    double.parse(
-                                                        addAddressController
-                                                            .doorSteplongitude
-                                                            .value),
-                                                  ),
-                                                  radius: 500,
-                                                  fillColor: Colors.blue
-                                                      .withOpacity(0.2),
-                                                  strokeColor: Colors.blue,
-                                                  strokeWidth: 2,
-                                                ),
-                                              }
-                                            : {},
-                                        scrollGesturesEnabled: true,
-                                        rotateGesturesEnabled: true,
-                                        zoomGesturesEnabled: true,
-                                        compassEnabled: true,
-                                        myLocationEnabled: false,
-                                        myLocationButtonEnabled: false,
-                                        zoomControlsEnabled: false,
-                                        markers: addAddressController.markers,
-                                        onMapCreated: _onMapCreated,
-                                        initialCameraPosition: CameraPosition(
-                                          target: addAddressController
-                                              .doorstepMapCenter,
-                                          zoom: 14,
-                                        ))),
-                              ),
-                              Positioned(
-                                top: 58,
-                                right: 16,
-                                child: Material(
-                                  elevation: 2,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: InkWell(
-                                    onTap: () {
-                                      _zoomOut();
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.only(
-                                          left: 12, right: 12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Text(
-                                        "-",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 24,
+                      children: [
+                        SizedBox(
+                          height: 220,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: GoogleMap(
+                              circles: addAddressController
+                                      .hasValidDoorstepCoordinates
+                                  ? {
+                                      Circle(
+                                        circleId:
+                                            const CircleId("radius_circle"),
+                                        center: LatLng(
+                                          double.parse(addAddressController
+                                              .doorSteplatitude.value),
+                                          double.parse(addAddressController
+                                              .doorSteplongitude.value),
                                         ),
+                                        radius: 500,
+                                        fillColor:
+                                            Colors.blue.withOpacity(0.2),
+                                        strokeColor: Colors.blue,
+                                        strokeWidth: 2,
                                       ),
-                                    ),
-                                  ),
-                                ),
+                                    }
+                                  : {},
+                              scrollGesturesEnabled: true,
+                              rotateGesturesEnabled: true,
+                              zoomGesturesEnabled: true,
+                              compassEnabled: true,
+                              myLocationEnabled: false,
+                              myLocationButtonEnabled: false,
+                              zoomControlsEnabled: false,
+                              markers: addAddressController.markers,
+                              onMapCreated: _onMapCreated,
+                              initialCameraPosition: CameraPosition(
+                                target: addAddressController.doorstepMapCenter,
+                                zoom: 14,
                               ),
-                              Positioned(
-                                top: 16,
-                                right: 16,
-                                child: Material(
-                                  elevation: 2,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: InkWell(
-                                    onTap: () {
-                                      _zoomIn();
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.only(
-                                          left: 6, right: 6, top: 1, bottom: 1),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(Icons.add),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Obx(() {
-                          if (addAddressController.isAddressLoading.value) {
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    "Retrieving your location...".tr,
-                                    maxLines: 4,
-                                    style: regular3(context).copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-                          final addr = addAddressController
-                                  .addressText.value.isNotEmpty
-                              ? addAddressController.addressText.value
-                              : addAddressController.fullAddressController.text;
-                          if (addr.isEmpty) {
-                            return Text(
-                              "Select a location on the map or use the search field."
-                                  .tr,
-                              maxLines: 4,
-                              style: regular3(context).copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey,
-                              ),
-                            );
-                          }
-                          return Text(
-                            addr,
-                            maxLines: 4,
-                            style: regular3(context)
-                                .copyWith(fontWeight: FontWeight.bold),
-                          );
-                        }),
-                      ),
-                      GestureDetector(
-                        onTap: () async {
-                          await Get.to(() => PickAddressWitjhMap());
-                          if (!mounted) return;
-                          await addAddressController.recordCurrentAddressInHistory();
-                          setState(() {});
-                        },
-                        child: Container(
-                          height: 30,
-                          width: 80,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: themeColor, width: 2),
-                          ),
-                          child: Text(
-                            'Change',
-                            style: regular2(context).copyWith(),
-                            textAlign: TextAlign.center,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                        Positioned(
+                          top: 58,
+                          right: 16,
+                          child: Material(
+                            elevation: 2,
+                            borderRadius: BorderRadius.circular(8),
+                            child: InkWell(
+                              onTap: _zoomOut,
+                              child: Container(
+                                padding: const EdgeInsets.only(
+                                    left: 12, right: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  "-",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 24,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 16,
+                          right: 16,
+                          child: Material(
+                            elevation: 2,
+                            borderRadius: BorderRadius.circular(8),
+                            child: InkWell(
+                              onTap: _zoomIn,
+                              child: Container(
+                                padding: const EdgeInsets.only(
+                                    left: 6, right: 6, top: 1, bottom: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.add),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                Divider(
-                  color: greyColor2,
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+                _buildAddressSearchField(),
+                const SizedBox(height: 20),
                 Padding(
-                  padding: const EdgeInsets.only(left: 10),
+                  padding: const EdgeInsets.only(left: 2),
                   child: Text(
-                    'Recent Addresses'.tr,
+                    'Address Label'.tr,
                     style: regular3(context).copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
-                Obx(() {
-                  if (addAddressController.isAddressHistoryLoading.value) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Center(
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                    );
-                  }
-                  if (addAddressController.recentAddresses.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      child: Text(
-                        'No recent addresses yet'.tr,
-                        style: regular2(context).copyWith(color: Colors.grey),
-                      ),
-                    );
-                  }
-                  return SizedBox(
-                    height: 76,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      itemCount: addAddressController.recentAddresses.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        return _buildRecentAddressChip(
-                          addAddressController.recentAddresses[index],
-                        );
-                      },
-                    ),
-                  );
-                }),
-                const SizedBox(height: 12),
-                Divider(
-                  color: greyColor2,
-                ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(left: 10),
-                  child: Text(
-                    'Current Address'.tr,
-                    style: regular3(context),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFieldAdvance(
-                          hintTxt: 'Full address'.tr,
-                          textEditingControllerCommon:
-                              addAddressController.fullAddressController,
-                          inputType: TextInputType.streetAddress,
-                          inputAlignment: TextAlign.start),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.only(left: 10),
-                  child: Text(
-                    'Address Label'.tr,
-                    style: regular3(context),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFieldAdvance(
-                          hintTxt: 'Home, Office, Airport...'.tr,
-                          textEditingControllerCommon:
-                              addAddressController.addressLabelController,
-                          inputType: TextInputType.text,
-                          inputAlignment: TextAlign.start),
-                    ),
-                  ],
+                TextFieldAdvance(
+                  hintTxt: 'Home, Office, Airport...'.tr,
+                  textEditingControllerCommon:
+                      addAddressController.addressLabelController,
+                  inputType: TextInputType.text,
+                  inputAlignment: TextAlign.start,
                 ),
                 const SizedBox(height: 30),
               ],

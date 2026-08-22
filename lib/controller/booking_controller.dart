@@ -2589,11 +2589,47 @@ class BookingController extends GetxController implements GetxService {
     return day.add(Duration(days: m));
   }
 
+  bool _isDateBlockedOnCalendar(DateTime date) {
+    final d = DateTime(date.year, date.month, date.day);
+    return alreadySelectedList.any(
+      (a) => a.year == d.year && a.month == d.month && a.day == d.day,
+    );
+  }
+
   bool _isCalendarDateAvailable(DateTime date) {
+    if (_isDateBlockedOnCalendar(date)) return false;
     final d = DateTime(date.year, date.month, date.day);
     return availableDates.any(
       (a) => a.year == d.year && a.month == d.month && a.day == d.day,
     );
+  }
+
+  /// Retire de [availableDates] les jours présents dans [alreadySelectedList].
+  void _reconcileCalendarAvailabilityLists() {
+    if (alreadySelectedList.isEmpty || availableDates.isEmpty) return;
+
+    final keptDates = <DateTime>[];
+    final keptPrices = <double>[];
+    for (var i = 0; i < availableDates.length; i++) {
+      final day = availableDates[i];
+      if (_isDateBlockedOnCalendar(day)) continue;
+      keptDates.add(day);
+      if (i < availableDatesPrice.length) {
+        final raw = availableDatesPrice[i];
+        if (raw is num) {
+          keptPrices.add(raw.toDouble());
+        } else {
+          keptPrices.add(double.tryParse(raw.toString()) ?? 0);
+        }
+      }
+    }
+
+    availableDates
+      ..clear()
+      ..addAll(keptDates);
+    availableDatesPrice
+      ..clear()
+      ..addAll(keptPrices);
   }
 
   /// Première date de fin disponible ≥ minimum requis (dans la fenêtre calendrier).
@@ -3594,12 +3630,10 @@ class BookingController extends GetxController implements GetxService {
                   // Utiliser le prix de l'item si disponible, sinon le basePrice
                   double priceForDate = basePriceDouble;
                   if (dateItem is Map && dateItem['price'] != null) {
-                    try {
-                      priceForDate = (dateItem['price'] as num).toDouble();
-                    } catch (e) {
-                      debugPrint(
-                          '⚠️ [fetchDataCalendar] Erreur parsing prix de date: $e');
-                    }
+                    priceForDate = double.tryParse(
+                          dateItem['price'].toString(),
+                        ) ??
+                        basePriceDouble;
                   }
 
                   availableDatesPrice.add(priceForDate);
@@ -3673,6 +3707,8 @@ class BookingController extends GetxController implements GetxService {
               }
             }
           }
+
+          _reconcileCalendarAvailabilityLists();
 
           // Logs de résumé final
           debugPrint('📋 Total dates disponibles: ${availableDates.length}');

@@ -55,15 +55,32 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
   /// Force le cellBuilder à relire startDate/endDate après chaque sélection.
   int _selectionEpoch = 0;
 
+  /// Invalide le cache Syncfusion des cellules après fetch ou changement de mois.
+  int _availabilityDataEpoch = 0;
+
+  void _bumpAvailabilityDataEpoch() {
+    _availabilityDataEpoch++;
+  }
+
+  void _navigateCalendarMonth(int monthDelta) {
+    final current = bookingController.dateRangePickerController.displayDate ??
+        DateTime.now();
+    bookingController.dateRangePickerController.displayDate =
+        DateTime(current.year, current.month + monthDelta, 1);
+    setState(_bumpAvailabilityDataEpoch);
+  }
+
   Future<void> getData() async {
     print('📅 getData() appelé avec idFeatured: ${widget.idFeatured}');
     try {
       await bookingController.fetchDataCalendar(widget.idFeatured);
       print('✅ fetchDataCalendar terminé');
-      // Ne PAS remonter SfDateRangePicker (ValueKey / setState) après le fetch :
-      // Syncfusion crash ("native peer has been collected") si le RenderObject
-      // est détruit pendant drawCustomcellSelection.
-      // GetBuilder + cellBuilder relisent déjà availableDates après safeUpdate().
+      // Ne PAS remonter SfDateRangePicker (ValueKey / _calendarDataEpoch) :
+      // Syncfusion crash si le RenderObject est détruit pendant drawCustomcellSelection.
+      // On force uniquement le re-rendu des cellules via _availabilityDataEpoch.
+      if (mounted) {
+        setState(_bumpAvailabilityDataEpoch);
+      }
     } catch (e) {
       print('❌ Erreur dans getData(): $e');
     }
@@ -299,13 +316,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     Icons.arrow_back_ios,
                                     color: getColorBasedOnActiveModuleid(),
                                   ),
-                                  onPressed: () {
-                                    final newDate =
-                                        DateTime(date.year, date.month - 1, 1);
-                                    bookingController.dateRangePickerController
-                                        .displayDate = newDate;
-                                    setState(() {});
-                                  },
+                                  onPressed: () => _navigateCalendarMonth(-1),
                                 ),
                                 Text("$monthName $yearText",
                                     style: heading2(context)),
@@ -314,13 +325,7 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                     Icons.arrow_forward_ios,
                                     color: getColorBasedOnActiveModuleid(),
                                   ),
-                                  onPressed: () {
-                                    final newDate =
-                                        DateTime(date.year, date.month + 1, 1);
-                                    bookingController.dateRangePickerController
-                                        .displayDate = newDate;
-                                    setState(() {});
-                                  },
+                                  onPressed: () => _navigateCalendarMonth(1),
                                 ),
                               ],
                             ),
@@ -409,7 +414,8 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
                                             '${cellDetails.date.year}-'
                                             '${cellDetails.date.month}-'
                                             '${cellDetails.date.day}-'
-                                            '$_selectionEpoch',
+                                            '$_selectionEpoch-'
+                                            '$_availabilityDataEpoch',
                                           ),
                                           cellDetails: cellDetails,
                                           bookingController: bookingController,

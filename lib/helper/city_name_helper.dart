@@ -54,6 +54,35 @@ class CityNameHelper {
         .replaceAll('ê', 'e');
   }
 
+  /// Jeton canonique pour comparaison stricte (Rabat ≠ Salé, pas de `contains`).
+  static String canonicalMatchToken(String? rawName) {
+    final trimmed = (rawName ?? '').trim();
+    if (trimmed.isEmpty) return '';
+
+    final segment = trimmed.split(',').first.trim();
+    if (segment.isEmpty) return '';
+
+    final key = translationKeyForCity(segment);
+    const tokenByKey = {
+      'city_sale': 'sale',
+      'city_rabat': 'rabat',
+      'city_casablanca': 'casablanca',
+      'city_marrakech': 'marrakech',
+    };
+    if (key != null && tokenByKey.containsKey(key)) {
+      return tokenByKey[key]!;
+    }
+    return _normalizeCityToken(segment);
+  }
+
+  /// Correspondance stricte entre deux libellés de ville (i18n + 1er segment).
+  static bool citiesMatch(String? a, String? b) {
+    final ta = canonicalMatchToken(a);
+    final tb = canonicalMatchToken(b);
+    if (ta.isEmpty || tb.isEmpty) return false;
+    return ta == tb;
+  }
+
   /// Clé GetX (`city_sale`, …) ou `null` si ville non référencée.
   static String? translationKeyForCity(String? rawName) {
     final trimmed = (rawName ?? '').trim();

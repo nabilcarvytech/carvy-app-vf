@@ -246,33 +246,48 @@ class _SearchScreenState extends State<SearchScreen> {
                                       hintText: "Search location".tr,
                                       border: InputBorder.none),
                                   getPlaceDetailWithLatLng:
-                                      (Prediction prediction) {
+                                      (Prediction prediction) async {
+                                    _searchController.applyCityLocationSelection(
+                                      cityName: prediction.description ?? '',
+                                      latitude: prediction.lat?.toString(),
+                                      longitude: prediction.lng?.toString(),
+                                    );
+                                    _searchController
+                                        .setBoolForCurrentLocation
+                                        .value = false;
+                                    generalScopeController
+                                            .textEditingControllerCity
+                                            .selection =
+                                        TextSelection.fromPosition(
+                                            TextPosition(
+                                                offset: (prediction.description ??
+                                                        '')
+                                                    .length));
+                                    if (prediction.placeId != null &&
+                                        prediction.placeId!.isNotEmpty) {
+                                      await _searchController
+                                          .getPlaceDetailFromId(
+                                              prediction.placeId);
+                                      final resolved =
+                                          _searchController.resolveSearchCity(
+                                        fallback: prediction.description,
+                                      );
+                                      if (resolved.isNotEmpty) {
+                                        _searchController.setCity = resolved;
+                                        generalScopeController
+                                                .homeSearchLocation.value =
+                                            resolved;
+                                        generalScopeController
+                                                .textEditingControllerCity
+                                                .text =
+                                            resolved;
+                                      }
+                                    }
+                                    if (!mounted) return;
                                     setState(() {
-                                      slatsearch = prediction.lat.toString();
-                                      sLongSearch = prediction.lng.toString();
-                                      _searchController.getPlaceDetailFromId(
-                                          prediction.placeId);
-                                      _searchController
-                                          .setBoolForCurrentLocation
-                                          .value = false;
-                                      generalScopeController.citySelected =
-                                          generalScopeController
-                                              .textEditingControllerCity.text;
-                                      generalScopeController
-                                          .textEditingControllerCity
-                                          .text = prediction.description!;
-                                      generalScopeController.homeSearchLocation
-                                          .value = prediction.description!;
-                                      generalScopeController
-                                              .textEditingControllerCity
-                                              .selection =
-                                          TextSelection.fromPosition(
-                                              TextPosition(
-                                                  offset: prediction
-                                                      .description!.length));
                                       FocusScope.of(context).unfocus();
-                                      search();
                                     });
+                                    search();
                                   },
                                   itemClick: (Prediction prediction) {},
                                   itemBuilder:

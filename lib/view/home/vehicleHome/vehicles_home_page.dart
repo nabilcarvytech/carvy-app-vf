@@ -1409,37 +1409,9 @@ class _VehicleHomePageState extends State<VehicleHomePage>
                                       color: getColorBasedOnActiveModuleid())
                                   : null,
                           onTap: () {
-                            // Nettoyer les coordonnées (retirer ° N, ° W, ° S, ° E)
-                            String cleanLat = (location.latitude ?? '')
-                                .replaceAll(RegExp(r'[°\s]'), '')
-                                .replaceAll('N', '')
-                                .replaceAll('S', '')
-                                .trim();
-                            String cleanLng = (location.longitude ?? '')
-                                .replaceAll(RegExp(r'[°\s]'), '')
-                                .replaceAll('E', '')
-                                .replaceAll('W', '')
-                                .trim();
-
-                            print("🏙️ VILLE SÉLECTIONNÉE (HOME):");
-                            print("   - cityName: '$cityName'");
-                            print(
-                                "   - lat: '${location.latitude}' -> '$cleanLat'");
-                            print(
-                                "   - lng: '${location.longitude}' -> '$cleanLng'");
-
-                            // Mettre à jour le nom de la ville
-                            generalScopeController.homeSearchLocation.value =
-                                cityName;
-                            generalScopeController
-                                .textEditingControllerCity.text = cityName;
-
-                            // Mettre à jour les coordonnées NETTOYÉES
-                            slatsearch = cleanLat;
-                            sLongSearch = cleanLng;
-
-                            // Mettre à jour setCity dans le SearchController
-                            filterController.setCity = cityName;
+                            filterController.applyCityLocationSelectionFromLocation(
+                              location,
+                            );
                             safePopAndAction(context, () {
                               filterController.submitMethod(context);
                             });

@@ -585,18 +585,9 @@ homeLocations(List<Location> list, notifire) {
                   padding: const EdgeInsets.only(right: 15, top: 5, bottom: 5),
                   child: InkWell(
                     onTap: () {
-                      if (list[index].latitude != null &&
-                          list[index].longitude != null) {
-                        slatsearch = list[index].latitude;
-                        sLongSearch = list[index].longitude;
-                        generalScopeController.homeSearchLocation.value =
-                            list[index].cityName!;
-                        generalScopeController.textEditingControllerCity.text =
-                            list[index].cityName!;
-                      } else {
-                        slatsearch = "";
-                        sLongSearch = "";
-                      }
+                      filterController.applyCityLocationSelectionFromLocation(
+                        list[index],
+                      );
                       filterController.setDefaultDates(
                         startDateCustomDate:
                             generalScopeController.startDateCustomDate,
@@ -701,9 +692,7 @@ Widget _searchAvailabilityBadge(dynamic item) {
   try {
     if (Get.isRegistered<SearchControllerHome>()) {
       final sc = Get.find<SearchControllerHome>();
-      city = sc.setCity.trim().isNotEmpty
-          ? sc.setCity.trim()
-          : generalScopeController.homeSearchLocation.value.trim();
+      city = sc.resolveSearchCity();
     }
   } catch (_) {}
 

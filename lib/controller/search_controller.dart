@@ -9,6 +9,7 @@ import 'package:google_places_flutter/model/prediction.dart';
 import 'package:intl/intl.dart';
 import 'package:carvy/services/geocoding_service.dart';
 import 'package:carvy/services/location_service.dart';
+import 'package:carvy/helper/city_name_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/odometer_model.dart';
 import 'package:carvy/model/items_model.dart';
@@ -26,7 +27,8 @@ import '../model/amenities_model.dart';
 import '../model/make_type_model.dart';
 import '../model/item_type_model.dart';
 import '../model/fuel_type_model.dart';
-import '../model/transmission_model.dart'; // NOUVEAU: Import du modèle Transmission
+import '../model/transmission_model.dart';
+import '../model/vehicle_home_model.dart';
 import '../view/search/after_search.dart';
 import '../work_space.dart';
 import 'package:uuid/uuid.dart';
@@ -43,6 +45,7 @@ class SearchControllerHome extends GetxController implements GetxService {
   var desildetoSendparametersBasedOnPage = false.obs;
   clearMethod() {
     generalScopeController.citySelected = null;
+    selectedLocationId = null;
     generalScopeController.textEditingControllerCity.text = "";
     generalScopeController.startDate.value = "";
     generalScopeController.endDate.value = "";
@@ -720,6 +723,7 @@ class SearchControllerHome extends GetxController implements GetxService {
     endTimeSearch.value = '';
     avalibleSlots.clear();
     setBoolForCurrentLocation.value = false;
+    selectedLocationId = null;
     sLongSearch = "";
     slatsearch = "";
     generalScopeController.slat = "";
@@ -971,6 +975,15 @@ class SearchControllerHome extends GetxController implements GetxService {
       metaPayload = {"make_type": cleanedMakeTypes};
     }
 
+    final String resolvedCity = resolveSearchCity();
+    debugPrint(
+      '🔍 [DEBUG SEARCH STATE] setCity="$setCity" homeSearchLocation="${generalScopeController.homeSearchLocation.value}" '
+      'resolvedCity="$resolvedCity" selectedLocationId=$selectedLocationId',
+    );
+    if (setCity.trim().isEmpty && resolvedCity.isNotEmpty) {
+      setCity = resolvedCity;
+    }
+
     Map<String, dynamic> map = {
       "title": title,
       "price": price,
@@ -981,7 +994,9 @@ class SearchControllerHome extends GetxController implements GetxService {
       "Slongitude": sLongSearch,
       "check_in": checkIn,
       "check_out": checkout,
-      "city": setCity,
+      "city": resolvedCity,
+      if (selectedLocationId != null && selectedLocationId!.trim().isNotEmpty)
+        "city_id": selectedLocationId!.trim(),
       "zip_code": setZipCode,
       "country": setCountry,
       "state": setState,
@@ -1014,9 +1029,7 @@ class SearchControllerHome extends GetxController implements GetxService {
     };
 
     // Préparer une URL GET lisible pour le backend (debug uniquement)
-    final String cityForUrl = setCity.isNotEmpty
-        ? setCity
-        : generalScopeController.homeSearchLocation.value;
+    final String cityForUrl = resolvedCity;
     final String categoryIdForUrl = globalItemType.value;
 
     final Uri baseUri = Uri.parse(Config.baseurl);
@@ -1047,7 +1060,9 @@ class SearchControllerHome extends GetxController implements GetxService {
     print("   - setpriceforrecentvalue: '$setpriceforrecentvalue'");
     print("   - slatsearch: '$slatsearch'");
     print("   - sLongSearch: '$sLongSearch'");
-    print("   - setCity: '$setCity'");
+    print("   - setCity (raw): '$setCity'");
+    print("   - resolvedCity (API city): '$resolvedCity'");
+    print("   - selectedLocationId (API city_id): '$selectedLocationId'");
     print("   - cityForUrl (location): '$cityForUrl'");
     print("   - categoryId (globalItemType): '$categoryIdForUrl'");
     print("   - fuel_type: ${selectedFuelTypes.toList()}");
@@ -1057,6 +1072,10 @@ class SearchControllerHome extends GetxController implements GetxService {
     print("   - Map envoyée (POST ${Config.itemSearch}): $map");
     print("   🔵 [SEARCH_DEBUG_URL] $searchDebugUri");
     print("📤 [FRONT SEARCH] Payload envoyé : $map");
+
+    print(
+      '🔍 [DEBUG PAYLOAD SEARCH] city: ${map['city']}, city_id: ${map['city_id']}, selectedLocationId: $selectedLocationId',
+    );
 
     // Appel RÉEL à l'API de recherche (item-search)
     final dynamic response = await httpPost(Config.itemSearch, map);
@@ -1147,6 +1166,7 @@ class SearchControllerHome extends GetxController implements GetxService {
       setCity = "";
       setCountry = "";
       setState = "";
+      selectedLocationId = null;
       placeRadius = "";
       centralLat = "";
       featuresvalues.clear();
@@ -1161,6 +1181,9 @@ class SearchControllerHome extends GetxController implements GetxService {
       slatsearch = search['Slatitude'] ?? '';
       sLongSearch = search['Slongitude'] ?? '';
       setCity = search['city'] ?? '';
+      final recentCityId = search['city_id']?.toString().trim();
+      selectedLocationId =
+          (recentCityId != null && recentCityId.isNotEmpty) ? recentCityId : null;
       setZipCode = search['zip_code'] ?? '';
       setCountry = search['country'] ?? '';
       setState = search['state'] ?? '';
@@ -1282,6 +1305,7 @@ class SearchControllerHome extends GetxController implements GetxService {
   AmenitiesModel? sizeModel;
   AmenitiesModel? collectionmodel;
   String setCity = "";
+  String? selectedLocationId;
   String setZipCode = "";
   String setCountry = "";
   String setState = "";
@@ -1289,8 +1313,149 @@ class SearchControllerHome extends GetxController implements GetxService {
   dynamic centralLng = "";
   dynamic placeRadius = "";
 
+  /// Nettoie lat/lng issus de l'API (ex. "31° N" → "31").
+  static String cleanSearchCoordinate(String? raw) {
+    if (raw == null) return '';
+    return raw
+        .replaceAll(RegExp(r'[°\s]'), '')
+        .replaceAll('N', '')
+        .replaceAll('S', '')
+        .replaceAll('E', '')
+        .replaceAll('W', '')
+        .trim();
+  }
+
+  /// Ville canonique pour l'API à partir d'un libellé (1er segment, villes MA connues).
+  static String _canonicalCityForApi(String raw) {
+    final segment = raw.trim().split(',').first.trim();
+    if (segment.isEmpty) return '';
+
+    final lower = segment.toLowerCase();
+    if (lower == 'all locations' || lower == 'all location') return '';
+
+    final trKey = CityNameHelper.translationKeyForCity(segment);
+    if (trKey != null) {
+      const canonicalByKey = {
+        'city_sale': 'Salé',
+        'city_rabat': 'Rabat',
+        'city_casablanca': 'Casablanca',
+        'city_marrakech': 'Marrakech',
+      };
+      return canonicalByKey[trKey] ?? segment;
+    }
+    return segment;
+  }
+
+  /// Ville effective pour `item-search` : UI [homeSearchLocation] puis [setCity].
+  String resolveSearchCity({String? fallback}) {
+    var raw = generalScopeController.homeSearchLocation.value.trim();
+    if (raw.isEmpty ||
+        raw.toLowerCase() == 'all locations' ||
+        raw.toLowerCase() == 'all location') {
+      raw = setCity.trim();
+    }
+    if (raw.isEmpty && fallback != null) {
+      raw = fallback.trim();
+    }
+    final canonical = _canonicalCityForApi(raw);
+    if (canonical.isNotEmpty && setCity != canonical) {
+      setCity = canonical;
+    }
+    return canonical;
+  }
+
+  /// Alimente ville + coordonnées avant une recherche (Popular Region, bottom sheets, etc.).
+  void applyCityLocationSelection({
+    required String cityName,
+    String? latitude,
+    String? longitude,
+    String? radius,
+    String? locationId,
+  }) {
+    // Singleton GetX : effacer l'état location précédent avant toute nouvelle sélection.
+    selectedLocationId = null;
+    setCity = '';
+    setZipCode = '';
+    setCountry = '';
+    setState = '';
+    centralLat = '';
+    centralLng = '';
+    placeRadius = '';
+    slatsearch = '';
+    sLongSearch = '';
+
+    final city = _canonicalCityForApi(cityName.trim());
+    if (city.isEmpty) {
+      debugPrint(
+        '📍 [LOCATION SELECT] reset only — cityName vide après canonisation: "$cityName"',
+      );
+      update();
+      return;
+    }
+
+    setCity = city;
+    final cleanId = locationId?.trim();
+    selectedLocationId =
+        (cleanId != null && cleanId.isNotEmpty) ? cleanId : null;
+    generalScopeController.homeSearchLocation.value = city;
+    generalScopeController.textEditingControllerCity.text = city;
+
+    final cleanLat = cleanSearchCoordinate(latitude);
+    final cleanLng = cleanSearchCoordinate(longitude);
+    if (cleanLat.isNotEmpty && cleanLng.isNotEmpty) {
+      slatsearch = cleanLat;
+      sLongSearch = cleanLng;
+      centralLat = cleanLat;
+      centralLng = cleanLng;
+    }
+
+    if (radius != null && radius.trim().isNotEmpty) {
+      placeRadius = radius.trim();
+    }
+
+    debugPrint(
+      '📍 [LOCATION SELECT] city="$city" city_id=$selectedLocationId '
+      'lat=$slatsearch lng=$sLongSearch',
+    );
+    update();
+  }
+
+  /// Variante à partir du modèle [Location] (home-data / vehicle-reference).
+  void applyCityLocationSelectionFromLocation(
+    Location location, {
+    String? radius,
+  }) {
+    applyCityLocationSelection(
+      cityName: location.cityName ?? '',
+      latitude: location.latitude,
+      longitude: location.longitude,
+      locationId: location.id,
+      radius: radius,
+    );
+  }
+
+  /// Réinitialise ville, ID et coordonnées de recherche.
+  void resetSearchLocationState() {
+    selectedLocationId = null;
+    setCity = "";
+    setZipCode = "";
+    setCountry = "";
+    setState = "";
+    centralLat = "";
+    centralLng = "";
+    placeRadius = "";
+    slatsearch = "";
+    sLongSearch = "";
+    generalScopeController.slat = "";
+    generalScopeController.sLong = "";
+    generalScopeController.homeSearchLocation.value = "";
+    generalScopeController.textEditingControllerCity.clear();
+    update();
+  }
+
   Future<void> getPlaceDetailFromId(placeId) async {
     setCity = "";
+    selectedLocationId = null;
     setZipCode = "";
     setCountry = "";
     setState = "";
@@ -1346,7 +1511,7 @@ class SearchControllerHome extends GetxController implements GetxService {
               setState = state;
             }
             if (city != null) {
-              setCity = city;
+              setCity = _canonicalCityForApi(city);
             }
           } else {
             throw Exception('Failed to fetch suggestion');
@@ -1361,6 +1526,13 @@ class SearchControllerHome extends GetxController implements GetxService {
     } else {
       throw Exception('Failed to fetch place details');
     }
+
+    if (setCity.trim().isEmpty) {
+      final resolved = resolveSearchCity();
+      if (resolved.isNotEmpty) {
+        setCity = resolved;
+      }
+    }
   }
 
   String aroundCurrentLocation = "Around Current Location".tr;
@@ -1370,6 +1542,7 @@ class SearchControllerHome extends GetxController implements GetxService {
   Future<void> getUserLocationForBetterSearch(BuildContext context) async {
     SearchControllerHome filterController = Get.find();
     setCity = "";
+    selectedLocationId = null;
     setZipCode = "";
     setCountry = "";
     setState = "";
@@ -1409,6 +1582,15 @@ class SearchControllerHome extends GetxController implements GetxService {
 
       generalScopeController.homeSearchLocation.value = fullAddress;
       generalScopeController.textEditingControllerCity.text = fullAddress;
+      centralLat = position.latitude.toString();
+      centralLng = position.longitude.toString();
+
+      final geocodedCity = resolved?.city.trim() ?? '';
+      if (geocodedCity.isNotEmpty) {
+        setCity = _canonicalCityForApi(geocodedCity);
+      } else {
+        setCity = resolveSearchCity(fallback: fullAddress);
+      }
       update();
       if (filterController.hitApiOnMap == true) {
         Navigator.pop(context);

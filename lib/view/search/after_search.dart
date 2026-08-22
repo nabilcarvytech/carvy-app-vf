@@ -57,16 +57,14 @@ class _AfterSearchState extends State<AfterSearch> {
   bool showloading = false;
 
   String get _searchedCity {
-    if (filterController.setCity.trim().isNotEmpty) {
-      return filterController.setCity.trim();
-    }
-    final fromHome = generalScopeController.homeSearchLocation.value.trim();
-    if (fromHome.isNotEmpty) return fromHome;
-    return widget.cityName?.toString().trim() ?? '';
+    return filterController.resolveSearchCity(
+      fallback: widget.cityName?.toString(),
+    );
   }
 
   bool _itemIsDelivery(dynamic item) {
     final type = VehicleAvailabilityHelper.readType(item);
+    if (type == VehicleAvailabilityType.excluded) return false;
     if (type == VehicleAvailabilityType.delivery) return true;
     try {
       if (item.isDelivery == true) return true;
@@ -101,6 +99,12 @@ class _AfterSearchState extends State<AfterSearch> {
           .where((e) => _itemIsDelivery(e))
           .toList(growable: true);
     }
+
+    VehicleAvailabilityHelper.sanitizeResultLists(
+      onSiteList: onSiteList,
+      deliveryList: deliveryList,
+      searchedCity: city,
+    );
     _rebuildCombinedList();
   }
 
@@ -256,6 +260,15 @@ class _AfterSearchState extends State<AfterSearch> {
             .where((e) => _itemIsDelivery(e))
             .toList(growable: true);
       }
+
+      final city = _searchedCity;
+      VehicleAvailabilityHelper.applyToList(pageOnSite, searchedCity: city);
+      VehicleAvailabilityHelper.applyToList(pageDelivery, searchedCity: city);
+      VehicleAvailabilityHelper.sanitizeResultLists(
+        onSiteList: pageOnSite,
+        deliveryList: pageDelivery,
+        searchedCity: city,
+      );
 
       final fetchedCount = pageOnSite.length + pageDelivery.length;
       print(
@@ -1072,37 +1085,9 @@ class _AfterSearchState extends State<AfterSearch> {
                                       color: getColorBasedOnActiveModuleid())
                                   : null,
                           onTap: () {
-                            // Nettoyer les coordonnées (retirer ° N, ° W, ° S, ° E)
-                            String cleanLat = (location.latitude ?? '')
-                                .replaceAll(RegExp(r'[°\s]'), '')
-                                .replaceAll('N', '')
-                                .replaceAll('S', '')
-                                .trim();
-                            String cleanLng = (location.longitude ?? '')
-                                .replaceAll(RegExp(r'[°\s]'), '')
-                                .replaceAll('E', '')
-                                .replaceAll('W', '')
-                                .trim();
-
-                            print("🏙️ VILLE SÉLECTIONNÉE:");
-                            print("   - cityName: '$cityName'");
-                            print(
-                                "   - lat: '${location.latitude}' -> '$cleanLat'");
-                            print(
-                                "   - lng: '${location.longitude}' -> '$cleanLng'");
-
-                            // Mettre à jour le nom de la ville
-                            generalScopeController.homeSearchLocation.value =
-                                cityName;
-                            generalScopeController
-                                .textEditingControllerCity.text = cityName;
-
-                            // Mettre à jour les coordonnées NETTOYÉES
-                            slatsearch = cleanLat;
-                            sLongSearch = cleanLng;
-
-                            // Mettre à jour setCity dans le SearchController
-                            filterController.setCity = cityName;
+                            filterController.applyCityLocationSelectionFromLocation(
+                              location,
+                            );
 
                             Navigator.pop(context);
                             onRefresh();

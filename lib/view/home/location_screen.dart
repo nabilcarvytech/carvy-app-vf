@@ -5,6 +5,7 @@ import 'package:carvy/customwidget/data_not_found.dart';
 import 'package:carvy/customwidget/project_bar.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/helper/city_name_helper.dart';
+import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:carvy/utils/common_widget.dart';
 import 'package:carvy/utils/theme_style.dart';
 import '../../../controller/home_controller.dart';
@@ -58,16 +59,15 @@ class _LocationScreenState extends State<LocationScreen> {
                             onTap: () {},
                             child: InkWell(
                               onTap: () {
-                                if (widget.list![index].latitude != null &&
-                                    widget.list![index].longitude != null) {
-                                  slatsearch = widget.list![index].latitude;
-                                  sLongSearch = widget.list![index].longitude;
-                                  generalScopeController.homeSearchLocation
-                                      .value = widget.list![index].cityName!;
-                                } else {
-                                  slatsearch = "";
-                                  sLongSearch = "";
-                                }
+                                final item = widget.list![index];
+                                if (item is! Location) return;
+                                final cityName = item.cityName?.trim() ?? '';
+                                if (cityName.isEmpty) return;
+
+                                _searchController
+                                    .applyCityLocationSelectionFromLocation(
+                                  item,
+                                );
                                 setState(() {});
                                 _searchController.setDefaultDates(
                                   startDateCustomDate: generalScopeController
