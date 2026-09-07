@@ -24,16 +24,7 @@ class MyBooking extends StatefulWidget {
   final bool? fromPropBooking;
   int? initialTabIndex;
 
-  /// `true` quand on arrive via [Get.offAll] post-paiement.
-  /// Évite endImmediately + double fetch pendant la transition.
-  final bool fromPaymentOffAll;
-
-  MyBooking({
-    super.key,
-    this.fromPropBooking,
-    this.initialTabIndex,
-    this.fromPaymentOffAll = false,
-  });
+  MyBooking({super.key, this.fromPropBooking, this.initialTabIndex});
   @override
   State<MyBooking> createState() => _MyBookingState();
 }
@@ -58,20 +49,6 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   /// Route poussée (profil) ou [Get.offAll] post-paiement — pas l'onglet HomeMain.
   Future<void> _prepareStandaloneEntry() async {
     if (!mounted || _disposed || _isEmbeddedInHomeMain()) return;
-
-    // Post-paiement : ne PAS endImmediately (casse le verrou → écran noir) et
-    // ne PAS refetch (déjà géré par _navigateToBookingsAfterPayment).
-    if (widget.fromPaymentOffAll || NavigationGuard.isPostPaymentLocked) {
-      paymentFlowLog(
-        'MyBooking — payment offAll entry',
-        'skip unlock+fetch (postPaymentLock)',
-      );
-      blackScreenLog('MyBooking payment entry — skip endImmediately/fetch');
-      if (mounted && !_disposed) {
-        setState(() => _isTransitioning = false);
-      }
-      return;
-    }
 
     paymentFlowLog(
       'MyBooking — standalone entry',
@@ -177,47 +154,23 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
     // Frame 2 : monte l'IndexedStack (pas de TabBarView — un seul onglet actif).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _disposed || tabController == null) return;
+      paymentFlowLog('STEP 10b2 — mounting IndexedStack',
+          'activeIndex=${tabController!.index}, isNavigating=${NavigationGuard.isNavigating}');
+      renderDebugLog(
+        'MyBooking._mountIndexedStack',
+        'STEP 10b2 — IndexedStack mount scheduled, activeIndex=${tabController!.index}',
+      );
+      setState(() => _stackReady = true);
 
-      void mountStackAndMaybeFetch() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || _disposed || tabController == null) return;
-        paymentFlowLog('STEP 10b2 — mounting IndexedStack',
-            'activeIndex=${tabController!.index}, isNavigating=${NavigationGuard.isNavigating}');
-        renderDebugLog(
-          'MyBooking._mountIndexedStack',
-          'STEP 10b2 — IndexedStack mount scheduled, activeIndex=${tabController!.index}',
-        );
-        setState(() => _stackReady = true);
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || _disposed || tabController == null) return;
-          if (NavigationGuard.isNavigating) {
-            paymentFlowLog('STEP 10c — fetch deferred, scheduling retry');
-            _scheduleFetchAfterNavigation();
-            return;
-          }
-          // Post-paiement : le fetch est déjà fait par _navigateToBookingsAfterPayment.
-          if (widget.fromPaymentOffAll) {
-            paymentFlowLog('STEP 10c — fetch skipped (payment offAll)');
-            return;
-          }
-          _fetchActiveTabRecord();
-        });
-      }
-
-      if (widget.fromPaymentOffAll && NavigationGuard.isNavigating) {
-        paymentFlowLog(
-          'STEP 10b2 — IndexedStack deferred until NavigationGuard idle',
-        );
-        blackScreenLog('MyBooking IndexedStack deferred (postPayment)');
-        NavigationGuard.runWhenIdle(() async {
-          if (!mounted || _disposed) return;
-          WidgetsBinding.instance
-              .addPostFrameCallback((_) => mountStackAndMaybeFetch());
-        });
-        return;
-      }
-
-      mountStackAndMaybeFetch();
+        if (NavigationGuard.isNavigating) {
+          paymentFlowLog('STEP 10c — fetch deferred, scheduling retry');
+          _scheduleFetchAfterNavigation();
+          return;
+        }
+        _fetchActiveTabRecord();
+      });
     });
   }
 
@@ -287,18 +240,11 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
   void dispose() {
     _disposed = true;
     paymentFlowLog('MyBooking.dispose', 'tabController disposed');
-    blackScreenLog('MyBooking.dispose');
     final controller = tabController;
-    tabController = null;
     if (controller != null) {
-      try {
-        controller.removeListener(_tabListener);
-      } catch (_) {}
-      try {
-        controller.dispose();
-      } catch (e) {
-        blackScreenLog('MyBooking TabController.dispose error', e);
-      }
+      controller.removeListener(_tabListener);
+      controller.dispose();
+      tabController = null;
     }
     super.dispose();
   }

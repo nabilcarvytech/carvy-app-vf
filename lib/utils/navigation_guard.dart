@@ -1,3 +1,4 @@
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:carvy/controller/booking_record_controller.dart';
@@ -10,32 +11,15 @@ class NavigationGuard {
 
   static final RxBool _navigating = false.obs;
 
-  /// Verrou dédié post-paiement : empêche [endImmediately] de réactiver trop tôt
-  /// les rebuilds (écran noir / TabController disposed / Duplicate GlobalKeys).
-  static bool _postPaymentLock = false;
-
   /// Observable pour que les cellules puissent se mettre en silence pendant la transition.
   static RxBool get isNavigatingObs => _navigating;
 
-  static bool get isNavigating => _navigating.value || _postPaymentLock;
-
-  static bool get isPostPaymentLocked => _postPaymentLock;
+  static bool get isNavigating => _navigating.value;
 
   static set isNavigating(bool value) {
     if (_navigating.value == value) return;
     _navigating.value = value;
-    blackScreenLog(
-      'NavigationGuard._navigating=$value postPaymentLock=$_postPaymentLock '
-      'effectiveIsNavigating=$isNavigating',
-    );
-  }
-
-  /// Début navigation post-paiement (Get.offAll MyBooking).
-  static void beginPostPayment() {
-    _postPaymentLock = true;
-    _navigating.value = true;
-    blackScreenLog('NavigationGuard.beginPostPayment');
-    blackScreenSnapshot(source: 'NavigationGuard.beginPostPayment');
+    blackScreenLog('NavigationGuard.isNavigating=$value');
   }
 
   static void begin() {
@@ -47,8 +31,7 @@ class NavigationGuard {
   static void endAfterFrame() {
     blackScreenLog('NavigationGuard.endAfterFrame scheduled');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _postPaymentLock = false;
-      _navigating.value = false;
+      isNavigating = false;
       blackScreenSnapshot(source: 'NavigationGuard.endAfterFrame.fired');
     });
   }
@@ -69,28 +52,9 @@ class NavigationGuard {
     await action();
   }
 
-  /// Ne casse PAS le verrou post-paiement (sinon écran noir).
   static void endImmediately() {
-    if (_postPaymentLock) {
-      blackScreenLog(
-        'NavigationGuard.endImmediately IGNORED',
-        'postPaymentLock=true',
-      );
-      return;
-    }
     blackScreenLog('NavigationGuard.endImmediately');
     isNavigating = false;
-  }
-
-  /// Forcer la fin du verrou post-paiement (fin de navigate after payment).
-  static void endPostPaymentAfterFrame() {
-    blackScreenLog('NavigationGuard.endPostPaymentAfterFrame scheduled');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _postPaymentLock = false;
-      _navigating.value = false;
-      blackScreenLog('NavigationGuard.endPostPaymentAfterFrame fired');
-      blackScreenSnapshot(source: 'NavigationGuard.endPostPaymentAfterFrame');
-    });
   }
 
   /// `true` seulement quand les Obx / rebuilds locaux peuvent s'exécuter en sécurité.
