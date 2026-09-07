@@ -175,7 +175,10 @@ class BookingRecordController extends GetxController implements GetxService {
     _lastOffsetZeroFetchType = null;
     Bookings.suppressParseDebugLogs = false;
     _fetchBlockedUntil = null;
-    NavigationGuard.endImmediately();
+    // Ne pas endImmediately pendant un offAll post-paiement.
+    if (!NavigationGuard.isPostPaymentLocked) {
+      NavigationGuard.endImmediately();
+    }
     if (_isControllerActive() && !NavigationGuard.isNavigating) {
       isLoading.value = false;
     }

@@ -340,9 +340,9 @@ class BookingController extends GetxController implements GetxService {
       paymentFlowLog('STEP 8-pre3 — PaymentController deleted (force)');
     }
 
-    NavigationGuard.begin();
-    paymentFlowLog('STEP 8a — NavigationGuard.isNavigating=true (no Rx yet)');
-    blackScreenLog('NAV NavigationGuard.begin()');
+    NavigationGuard.beginPostPayment();
+    paymentFlowLog('STEP 8a — NavigationGuard.beginPostPayment()');
+    blackScreenLog('NAV NavigationGuard.beginPostPayment()');
 
     paymentFlowLog('STEP 9 — scheduling Get.offAll(MyBooking) post-frame…');
     final navCompleter = Completer<void>();
@@ -353,6 +353,7 @@ class BookingController extends GetxController implements GetxService {
         final navFuture = Get.offAll(() => MyBooking(
               fromPropBooking: false,
               initialTabIndex: tabIndex,
+              fromPaymentOffAll: true,
             ));
         (navFuture ?? Future<void>.value()).whenComplete(() {
           blackScreenLog('NAV Get.offAll(MyBooking) future complete');
@@ -385,8 +386,8 @@ class BookingController extends GetxController implements GetxService {
 
     if (Get.isRegistered<BookingRecordController>()) {
       final recordController = Get.find<BookingRecordController>();
-      recordController.restoreListeners();
-      paymentFlowLog('STEP 12d — restoreListeners() before STEP 13 fetch');
+      // Listeners restent muets jusqu'à endPostPayment — sync fetch only.
+      paymentFlowLog('STEP 12d — fetch while postPaymentLock still ON');
       final type = BookingRecordController.typeForTabIndex(tabIndex);
       paymentFlowLog('STEP 13 — getBookingRecord($type)');
       try {
@@ -418,11 +419,11 @@ class BookingController extends GetxController implements GetxService {
       blackScreenCatch('nav:safeSnackbar', e, st);
     }
 
-    NavigationGuard.endAfterFrame();
-    blackScreenLog('NAV NavigationGuard.endAfterFrame() scheduled');
     if (Get.isRegistered<BookingRecordController>()) {
       Get.find<BookingRecordController>().restoreListeners();
     }
+    NavigationGuard.endPostPaymentAfterFrame();
+    blackScreenLog('NAV NavigationGuard.endPostPaymentAfterFrame() scheduled');
     paymentFlowLog('STEP 14 — _navigateToBookingsAfterPayment END');
     blackScreenSnapshot(source: 'nav:end');
   }

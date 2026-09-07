@@ -539,6 +539,23 @@ Future<void> showNotification() async {
         }
         return;
       }
+
+      // Confirmation déjà affichée (dialog succès) : ne pas ré-afficher une
+      // notif locale pendant / juste après la réservation (écran noir iPad).
+      if (isBookingConfirm) {
+        blackScreenLog(
+          'OS foreground booking_confirmed swallowed',
+          'preventDefault only — no local notif / no UI side-effects',
+        );
+        try {
+          event.preventDefault();
+        } catch (e, st) {
+          blackScreenCatch('OS.foreground.preventDefault.booking_confirmed', e, st);
+        }
+        blackScreenSnapshot(source: 'OS.foreground:booking_confirmed_swallowed');
+        return;
+      }
+
       print('📩 [ONESIGNAL_DEBUG] Notification reçue en premier plan : ${event.notification.body}');
       print('📩 [ONESIGNAL_DEBUG] Titre : ${event.notification.title}');
       print('📩 [ONESIGNAL_DEBUG] Données additionnelles : ${event.notification.additionalData}');
