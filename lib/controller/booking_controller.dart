@@ -27,6 +27,7 @@ import 'package:carvy/utils/rolling_calendar_bounds.dart';
 import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/utils/payment_flow_debug.dart';
+import 'package:carvy/utils/black_screen_debug.dart';
 import 'package:carvy/utils/snackbar_service.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import '../api/config.dart';
@@ -320,6 +321,8 @@ class BookingController extends GetxController implements GetxService {
   }) async {
     paymentFlowLog('STEP 8 — _navigateToBookingsAfterPayment START',
         'tabIndex=$tabIndex');
+    blackScreenLog('NAV post-payment START', 'tabIndex=$tabIndex');
+    blackScreenSnapshot(source: 'nav:start', extra: {'tabIndex': tabIndex});
 
     detachPaymentMethodUi();
     detachOtpOverlay();
@@ -339,25 +342,36 @@ class BookingController extends GetxController implements GetxService {
 
     NavigationGuard.begin();
     paymentFlowLog('STEP 8a — NavigationGuard.isNavigating=true (no Rx yet)');
+    blackScreenLog('NAV NavigationGuard.begin()');
 
     paymentFlowLog('STEP 9 — scheduling Get.offAll(MyBooking) post-frame…');
     final navCompleter = Completer<void>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final navFuture = Get.offAll(() => MyBooking(
-            fromPropBooking: false,
-            initialTabIndex: tabIndex,
-          ));
-      (navFuture ?? Future<void>.value()).whenComplete(() {
+      blackScreenLog('NAV Get.offAll(MyBooking) executing');
+      blackScreenSnapshot(source: 'nav:offAll:frame');
+      try {
+        final navFuture = Get.offAll(() => MyBooking(
+              fromPropBooking: false,
+              initialTabIndex: tabIndex,
+            ));
+        (navFuture ?? Future<void>.value()).whenComplete(() {
+          blackScreenLog('NAV Get.offAll(MyBooking) future complete');
+          if (!navCompleter.isCompleted) navCompleter.complete();
+        });
+      } catch (e, st) {
+        blackScreenCatch('nav:Get.offAll', e, st);
         if (!navCompleter.isCompleted) navCompleter.complete();
-      });
+      }
     });
     await navCompleter.future;
     paymentFlowLog('STEP 10 — Get.offAll(MyBooking) completed');
+    blackScreenSnapshot(source: 'nav:after_offAll');
 
     paymentFlowLog(
         'STEP 11 — waiting ${_postNavigationSettleDelay.inMilliseconds}ms');
     await Future.delayed(_postNavigationSettleDelay);
     paymentFlowLog('STEP 12 — settle delay done, applying post-nav mutations');
+    blackScreenLog('NAV settle delay done');
 
     isProcessingBooking.value = false;
     paymentFlowLog('STEP 12a — isProcessingBooking=false');
@@ -375,28 +389,42 @@ class BookingController extends GetxController implements GetxService {
       paymentFlowLog('STEP 12d — restoreListeners() before STEP 13 fetch');
       final type = BookingRecordController.typeForTabIndex(tabIndex);
       paymentFlowLog('STEP 13 — getBookingRecord($type)');
-      await recordController.getBookingRecord(
-        type: type,
-        offset: 0,
-        bypassNavigationGuard: true,
-      );
-      paymentFlowLog('STEP 13b — getBookingRecord completed');
+      try {
+        await recordController.getBookingRecord(
+          type: type,
+          offset: 0,
+          bypassNavigationGuard: true,
+        );
+        paymentFlowLog('STEP 13b — getBookingRecord completed');
+        blackScreenLog('NAV getBookingRecord OK',
+            'listLen=${recordController.bookingsList.length}');
+      } catch (e, st) {
+        blackScreenCatch('nav:getBookingRecord', e, st);
+      }
     }
 
-    Get.safeSnackbar(
-      snackTitle,
-      snackMessage,
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Colors.green,
-      colorText: Colors.white,
-      duration: const Duration(seconds: 2),
-    );
+    blackScreenSnapshot(source: 'nav:before_snackbar');
+    try {
+      Get.safeSnackbar(
+        snackTitle,
+        snackMessage,
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+      blackScreenLog('NAV safeSnackbar requested');
+    } catch (e, st) {
+      blackScreenCatch('nav:safeSnackbar', e, st);
+    }
 
     NavigationGuard.endAfterFrame();
+    blackScreenLog('NAV NavigationGuard.endAfterFrame() scheduled');
     if (Get.isRegistered<BookingRecordController>()) {
       Get.find<BookingRecordController>().restoreListeners();
     }
     paymentFlowLog('STEP 14 — _navigateToBookingsAfterPayment END');
+    blackScreenSnapshot(source: 'nav:end');
   }
 
   /// Retour arrière puis refresh (extension de réservation, etc.).

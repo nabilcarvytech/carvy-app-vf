@@ -17,6 +17,7 @@ import '../../utils/common_widget.dart';
 import '../../utils/navigation_guard.dart';
 import '../../utils/render_debug.dart';
 import '../../utils/payment_flow_debug.dart';
+import '../../utils/black_screen_debug.dart';
 import '../../work_space.dart';
 
 class MyBooking extends StatefulWidget {
@@ -401,29 +402,46 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    if (Get.isRegistered<PaymentController>()) {
-      renderDebugLog('MyBooking.build', 'blocked — PaymentController still alive');
-      paymentFlowLog('MyBooking.build BLOCKED', 'PaymentController registered');
-      return const SizedBox.shrink();
-    }
-    if (NavigationGuard.isNavigating && !_routeReady) {
-      renderDebugLog('MyBooking.build', 'blocked — NavigationGuard during STEP 10b');
-      paymentFlowLog('MyBooking.build BLOCKED', 'NavigationGuard + !routeReady');
-      return const SizedBox.shrink();
-    }
+    try {
+      blackScreenLog('MyBooking.build ENTER', {
+        'routeReady': _routeReady,
+        'stackReady': _stackReady,
+        'disposed': _disposed,
+        'isTransitioning': _isTransitioning,
+        'isNavigating': NavigationGuard.isNavigating,
+        'paymentCtrlRegistered': Get.isRegistered<PaymentController>(),
+      });
 
-    renderDebugLog(
-      'MyBooking.build',
-      'routeReady=$_routeReady, stackReady=$_stackReady, disposed=$_disposed, '
-      'tabIndex=${tabController?.index}, isTransitioning=$_isTransitioning',
-    );
-    notifires = Provider.of<ColorNotifires>(context, listen: true);
+      if (Get.isRegistered<PaymentController>()) {
+        renderDebugLog(
+            'MyBooking.build', 'blocked — PaymentController still alive');
+        paymentFlowLog(
+            'MyBooking.build BLOCKED', 'PaymentController registered');
+        blackScreenLog('MyBooking.build BLOCKED PaymentController');
+        return const SizedBox.shrink();
+      }
+      if (NavigationGuard.isNavigating && !_routeReady) {
+        renderDebugLog(
+            'MyBooking.build', 'blocked — NavigationGuard during STEP 10b');
+        paymentFlowLog(
+            'MyBooking.build BLOCKED', 'NavigationGuard + !routeReady');
+        blackScreenLog('MyBooking.build BLOCKED NavigationGuard');
+        return const SizedBox.shrink();
+      }
 
-    if (!_routeReady || !_tabControllerUsable) {
-      renderDebugLog('MyBooking.build', 'shell only (IndexedStack NOT mounted yet)');
-      paymentFlowLog('MyBooking.build', 'shell only — waiting TabController');
-      return _buildShellScaffold(context, body: const SizedBox.shrink());
-    }
+      renderDebugLog(
+        'MyBooking.build',
+        'routeReady=$_routeReady, stackReady=$_stackReady, disposed=$_disposed, '
+        'tabIndex=${tabController?.index}, isTransitioning=$_isTransitioning',
+      );
+      notifires = Provider.of<ColorNotifires>(context, listen: true);
+
+      if (!_routeReady || !_tabControllerUsable) {
+        renderDebugLog(
+            'MyBooking.build', 'shell only (IndexedStack NOT mounted yet)');
+        paymentFlowLog('MyBooking.build', 'shell only — waiting TabController');
+        return _buildShellScaffold(context, body: const SizedBox.shrink());
+      }
 
     return PopScope(
       canPop: false,
@@ -487,5 +505,13 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
         ),
       ),
     );
+    } catch (e, st) {
+      blackScreenCatch('MyBooking.build', e, st, extra: {
+        'routeReady': _routeReady,
+        'stackReady': _stackReady,
+        'disposed': _disposed,
+      });
+      return const SizedBox.shrink();
+    }
   }
 }

@@ -21,6 +21,7 @@ import 'package:carvy/view/chat/conversation_screen.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/view/review/review_popup_widget.dart';
 import 'package:carvy/utils/navigation_guard.dart';
+import 'package:carvy/utils/black_screen_debug.dart';
 import 'package:carvy/work_space.dart';
 
 late AndroidNotificationChannel channel;
@@ -83,34 +84,56 @@ void showFlutterNotificationfromFirebase(RemoteMessage message) async {
 }
 
 Future<void> showOneSignalNotification(OSNotification notification) async {
-  final AndroidNotificationDetails androidPlatformChannelSpecifics =
-      AndroidNotificationDetails(
-    channel.id,
-    channel.name,
-    channelDescription: channel.description,
-    importance: Importance.max,
-    priority: Priority.high,
-    icon: 'launch_background',
-  );
-
-  const DarwinNotificationDetails iOSPlatformChannelSpecifics =
-      DarwinNotificationDetails(
-    presentAlert: true,
-    presentBadge: true,
-    presentSound: true,
-  );
-
-  final NotificationDetails platformChannelSpecifics = NotificationDetails(
-    android: androidPlatformChannelSpecifics,
-    iOS: iOSPlatformChannelSpecifics,
-  );
-
-  String payloadData = jsonEncode({
-    'route': 'desired_route',
-    'data': notification.additionalData,
+  blackScreenLog('showOneSignalNotification START', {
+    'title': notification.title,
+    'notifId': notification.notificationId,
+    'additionalData': notification.additionalData,
   });
+  blackScreenSnapshot(
+    source: 'showOneSignalNotification:before',
+    extra: {
+      'type': notification.additionalData?['type']?.toString(),
+      'bookingId': notification.additionalData?['bookingId']?.toString(),
+    },
+  );
+
+  if (NavigationGuard.isNavigating) {
+    blackScreenLog(
+      'showOneSignalNotification SKIPPED',
+      'NavigationGuard.isNavigating=true',
+    );
+    return;
+  }
 
   try {
+    final AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      channel.id,
+      channel.name,
+      channelDescription: channel.description,
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: 'launch_background',
+    );
+
+    const DarwinNotificationDetails iOSPlatformChannelSpecifics =
+        DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    final NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+      iOS: iOSPlatformChannelSpecifics,
+    );
+
+    String payloadData = jsonEncode({
+      'route': 'desired_route',
+      'data': notification.additionalData,
+    });
+
+    blackScreenLog('showOneSignalNotification calling plugin.show…');
     await flutterLocalNotificationsPlugin.show(
       notification.hashCode,
       notification.title,
@@ -118,8 +141,13 @@ Future<void> showOneSignalNotification(OSNotification notification) async {
       platformChannelSpecifics,
       payload: payloadData,
     );
-  } catch (e) {
-    //
+    blackScreenLog('showOneSignalNotification plugin.show OK');
+    blackScreenSnapshot(source: 'showOneSignalNotification:after_ok');
+  } catch (e, st) {
+    blackScreenCatch('showOneSignalNotification', e, st, extra: {
+      'title': notification.title,
+      'additionalData': '${notification.additionalData}',
+    });
   }
 }
 
@@ -475,7 +503,42 @@ Future<void> showNotification() async {
   await setupFlutterNotifications();
   if (!isOneSignalListenerAdded) {
     OneSignal.Notifications.addForegroundWillDisplayListener((event) {
-      if (NavigationGuard.isNavigating) return;
+      final data = event.notification.additionalData;
+      final type = data?['type']?.toString();
+      final bookingId = data?['bookingId']?.toString() ??
+          data?['booking_id']?.toString();
+      final isBookingConfirm = type != null &&
+          (type.toLowerCase() == 'booking_confirmed' ||
+              type.toUpperCase() == 'BOOKING_CONFIRMED');
+
+      blackScreenLog('OS foreground WillDisplay ENTER', {
+        'title': event.notification.title,
+        'type': type,
+        'bookingId': bookingId,
+        'isBookingConfirm': isBookingConfirm,
+        'notifId': event.notification.notificationId,
+      });
+      blackScreenSnapshot(
+        source: 'OS.foreground:enter',
+        extra: {
+          'type': type,
+          'bookingId': bookingId,
+          'isBookingConfirm': isBookingConfirm,
+        },
+      );
+
+      if (NavigationGuard.isNavigating) {
+        blackScreenLog(
+          'OS foreground SKIPPED (navigating)',
+          'preventDefault + return — type=$type bookingId=$bookingId',
+        );
+        try {
+          event.preventDefault();
+        } catch (e, st) {
+          blackScreenCatch('OS.foreground.preventDefault.navigating', e, st);
+        }
+        return;
+      }
       print('📩 [ONESIGNAL_DEBUG] Notification reçue en premier plan : ${event.notification.body}');
       print('📩 [ONESIGNAL_DEBUG] Titre : ${event.notification.title}');
       print('📩 [ONESIGNAL_DEBUG] Données additionnelles : ${event.notification.additionalData}');
@@ -565,10 +628,33 @@ Future<void> showNotification() async {
         }
         
         if (!isChatOpen) {
-          showOneSignalNotification(event.notification);
+          blackScreenLog(
+            'OS foreground → showOneSignalNotification',
+            'isBookingConfirm=$isBookingConfirm type=$type',
+          );
+          // ignore: unawaited_futures
+          showOneSignalNotification(event.notification).then((_) {
+            blackScreenLog('OS foreground showOneSignalNotification DONE');
+            blackScreenSnapshot(source: 'OS.foreground:after_show');
+          }).catchError((Object e, StackTrace st) {
+            blackScreenCatch('OS.foreground.showOneSignalNotification', e, st);
+          });
+        } else {
+          blackScreenLog('OS foreground skip local notif', 'isChatOpen=true');
         }
+      } else {
+        blackScreenLog(
+          'OS foreground already processed',
+          event.notification.notificationId,
+        );
       }
-      event.preventDefault();
+      try {
+        event.preventDefault();
+        blackScreenLog('OS foreground preventDefault OK');
+      } catch (e, st) {
+        blackScreenCatch('OS.foreground.preventDefault', e, st);
+      }
+      blackScreenSnapshot(source: 'OS.foreground:exit');
     });
     isOneSignalListenerAdded = true;
   }

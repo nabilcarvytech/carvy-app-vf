@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:carvy/utils/black_screen_debug.dart';
 
 /// Affichage sécurisé de snackbars GetX — évite `No Overlay widget found`
 /// après [Get.back], [Get.off] ou transitions de paiement.
@@ -25,6 +26,10 @@ class SnackbarService {
       if (Get.context == null) {
         if (kDebugMode) {
           debugPrint('[SnackbarService] Ignoré (Get.context null): $title');
+          blackScreenSnapshot(source: 'SnackbarService:no_context', extra: {
+            'title': title,
+            'message': message,
+          });
         }
         return;
       }
@@ -33,6 +38,11 @@ class SnackbarService {
       if (overlay == null) {
         if (kDebugMode) {
           debugPrint('[SnackbarService] Ignoré (pas d\'Overlay): $title');
+          blackScreenSnapshot(source: 'SnackbarService:no_overlay', extra: {
+            'title': title,
+            'message': message,
+            'route': Get.currentRoute,
+          });
         }
         return;
       }

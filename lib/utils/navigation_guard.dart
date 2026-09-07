@@ -2,6 +2,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:carvy/controller/booking_record_controller.dart';
+import 'package:carvy/utils/black_screen_debug.dart';
 
 /// Verrou global pendant les transitions [Get.offAll] / [Get.back] atomiques.
 /// Bloque les mutations Rx et les handlers push pendant le démontage des routes.
@@ -18,16 +19,20 @@ class NavigationGuard {
   static set isNavigating(bool value) {
     if (_navigating.value == value) return;
     _navigating.value = value;
+    blackScreenLog('NavigationGuard.isNavigating=$value');
   }
 
   static void begin() {
     isNavigating = true;
+    blackScreenSnapshot(source: 'NavigationGuard.begin');
   }
 
   /// Réactive les fetchs / listeners après la frame suivante.
   static void endAfterFrame() {
+    blackScreenLog('NavigationGuard.endAfterFrame scheduled');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       isNavigating = false;
+      blackScreenSnapshot(source: 'NavigationGuard.endAfterFrame.fired');
     });
   }
 
@@ -48,6 +53,7 @@ class NavigationGuard {
   }
 
   static void endImmediately() {
+    blackScreenLog('NavigationGuard.endImmediately');
     isNavigating = false;
   }
 
