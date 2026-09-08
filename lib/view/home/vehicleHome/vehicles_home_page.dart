@@ -9,6 +9,7 @@ import 'package:carvy/customwidget/shimmer_widgets.dart';
 import 'package:carvy/helper/city_name_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
+import 'package:carvy/helper/responsive_layout_helper.dart';
 import 'package:carvy/view/home/location_screen.dart';
 import 'package:carvy/view/home/top_categories.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
@@ -1168,7 +1169,7 @@ class _VehicleHomePageState extends State<VehicleHomePage>
             }
             final items = homeData.mostViewedItems ?? [];
             return Padding(
-              padding: const EdgeInsets.all(12),
+              padding: VehicleListingLayout.of(context).pagePadding,
               child: vehicalVerticalView(items, true, false, stateSetter),
             );
           }

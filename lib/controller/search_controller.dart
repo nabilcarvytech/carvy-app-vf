@@ -779,15 +779,7 @@ class SearchControllerHome extends GetxController implements GetxService {
   }
 
   Future submitMethod(BuildContext context, [bool? apply]) async {
-    print("📍 submitMethod appelé - apply: $apply");
-    print(
-        "   - homeSearchLocation: '${generalScopeController.homeSearchLocation.value}'");
-    print(
-        "   - textEditingControllerCity: '${generalScopeController.textEditingControllerCity.text}'");
-    print("   - startDate: '${startDate.value}'");
-    print("   - endDates: '${endDates.value}'");
-    print("   - slatsearch: '$slatsearch'");
-    print("   - sLongSearch: '$sLongSearch'");
+    logCityStateDebug('SUBMIT start', extra: 'apply=$apply');
 
     if (apply != true) {
       if (generalScopeController.textEditingControllerCity.text.isEmpty ||
@@ -798,7 +790,7 @@ class SearchControllerHome extends GetxController implements GetxService {
             "All Locations"; // BUG FIX: était == au lieu de =
       }
       if (generalScopeController.homeSearchLocation.value == "All Locations") {
-        print("❌ BLOQUÉ: All Locations - Please Select location");
+        debugPrint('❌ [SUBMIT] BLOQUÉ — All Locations, sélection requise');
         showErrorToastMessage("Please Select location".tr);
         return;
       }
@@ -823,8 +815,18 @@ class SearchControllerHome extends GetxController implements GetxService {
 
     // Déjà sur les résultats : ne pas empiler un second AfterSearch.
     if (apply == true && aftersearch) {
+      debugPrint(
+        '⚠️ [SUBMIT] IGNORÉ — apply=true mais aftersearch=true (déjà sur résultats)',
+      );
+      logCityStateDebug('SUBMIT blocked');
       return;
     }
+
+    logCityStateDebug(
+      'SUBMIT navigate → AfterSearch',
+      extra:
+          'checkIn=${generalScopeController.startDateCustomDate.value} checkOut=${generalScopeController.endDateCustomDate.value}',
+    );
 
     if (webPlateForm) {
       Get.toNamed(
@@ -976,12 +978,11 @@ class SearchControllerHome extends GetxController implements GetxService {
     }
 
     final String resolvedCity = resolveSearchCity();
-    debugPrint(
-      '🔍 [DEBUG SEARCH STATE] setCity="$setCity" homeSearchLocation="${generalScopeController.homeSearchLocation.value}" '
-      'resolvedCity="$resolvedCity" selectedLocationId=$selectedLocationId',
-    );
+    logCityStateDebug('SEARCH ITEMS before payload');
+
     if (setCity.trim().isEmpty && resolvedCity.isNotEmpty) {
       setCity = resolvedCity;
+      debugPrint('🔄 [SEARCH ITEMS] setCity synchronisé depuis resolvedCity="$resolvedCity"');
     }
 
     Map<String, dynamic> map = {
@@ -1074,8 +1075,12 @@ class SearchControllerHome extends GetxController implements GetxService {
     print("📤 [FRONT SEARCH] Payload envoyé : $map");
 
     print(
-      '🔍 [DEBUG PAYLOAD SEARCH] city: ${map['city']}, city_id: ${map['city_id']}, selectedLocationId: $selectedLocationId',
+      '🔍 [DEBUG PAYLOAD SEARCH] city: ${map['city']}, city_id: ${map['city_id']}, '
+      'selectedLocationId: $selectedLocationId, '
+      'Slatitude: ${map['Slatitude']}, Slongitude: ${map['Slongitude']}, '
+      'central_Latitude: ${map['central_Latitude']}, central_longitude: ${map['central_longitude']}',
     );
+    logCityStateDebug('SEARCH ITEMS payload ready');
 
     // Appel RÉEL à l'API de recherche (item-search)
     final dynamic response = await httpPost(Config.itemSearch, map);
@@ -1307,6 +1312,25 @@ class SearchControllerHome extends GetxController implements GetxService {
   String setCity = "";
   String? selectedLocationId;
   String setZipCode = "";
+
+  /// Logs détaillés pour diagnostiquer la persistance ville / coords / city_id.
+  void logCityStateDebug(String tag, {String? extra}) {
+    final resolved = resolveSearchCity();
+    debugPrint(
+      '🏙️ [$tag]\n'
+      '   setCity              = "$setCity"\n'
+      '   homeSearchLocation   = "${generalScopeController.homeSearchLocation.value}"\n'
+      '   textEditingCity      = "${generalScopeController.textEditingControllerCity.text}"\n'
+      '   selectedLocationId   = $selectedLocationId\n'
+      '   resolveSearchCity()  = "$resolved"\n'
+      '   slatsearch           = $slatsearch\n'
+      '   sLongSearch          = $sLongSearch\n'
+      '   centralLat/Lng       = $centralLat / $centralLng\n'
+      '   placeRadius          = $placeRadius\n'
+      '   aftersearch          = $aftersearch'
+      '${extra != null ? '\n   → $extra' : ''}',
+    );
+  }
   String setCountry = "";
   String setState = "";
   dynamic centralLat = "";
@@ -1372,6 +1396,12 @@ class SearchControllerHome extends GetxController implements GetxService {
     String? radius,
     String? locationId,
   }) {
+    debugPrint(
+      '📍 [LOCATION SELECT] START — input cityName="$cityName" locationId=$locationId '
+      'lat=$latitude lng=$longitude',
+    );
+    logCityStateDebug('LOCATION SELECT before reset');
+
     // Singleton GetX : effacer l'état location précédent avant toute nouvelle sélection.
     selectedLocationId = null;
     setCity = '';
@@ -1414,9 +1444,10 @@ class SearchControllerHome extends GetxController implements GetxService {
     }
 
     debugPrint(
-      '📍 [LOCATION SELECT] city="$city" city_id=$selectedLocationId '
-      'lat=$slatsearch lng=$sLongSearch',
+      '📍 [LOCATION SELECT] DONE — city="$city" city_id=$selectedLocationId '
+      'lat=$slatsearch lng=$sLongSearch central=$centralLat/$centralLng',
     );
+    logCityStateDebug('LOCATION SELECT after assign');
     update();
   }
 
@@ -1425,6 +1456,10 @@ class SearchControllerHome extends GetxController implements GetxService {
     Location location, {
     String? radius,
   }) {
+    debugPrint(
+      '📍 [LOCATION FROM MODEL] raw cityName="${location.cityName}" id="${location.id}" '
+      'lat="${location.latitude}" lng="${location.longitude}"',
+    );
     applyCityLocationSelection(
       cityName: location.cityName ?? '',
       latitude: location.latitude,
@@ -1436,6 +1471,8 @@ class SearchControllerHome extends GetxController implements GetxService {
 
   /// Réinitialise ville, ID et coordonnées de recherche.
   void resetSearchLocationState() {
+    debugPrint('🧹 [RESET LOCATION] resetSearchLocationState()');
+    logCityStateDebug('RESET before');
     selectedLocationId = null;
     setCity = "";
     setZipCode = "";
@@ -1450,6 +1487,7 @@ class SearchControllerHome extends GetxController implements GetxService {
     generalScopeController.sLong = "";
     generalScopeController.homeSearchLocation.value = "";
     generalScopeController.textEditingControllerCity.clear();
+    logCityStateDebug('RESET after');
     update();
   }
 

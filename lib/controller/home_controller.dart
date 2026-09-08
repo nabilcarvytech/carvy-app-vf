@@ -526,6 +526,13 @@ class HomeController extends GetxController implements GetxService {
           print("🔵 [HOME_DATA] Advanced filters: $apiParams");
         }
 
+        debugPrint(
+          '🏠 [HOME_DATA] GET ${Config.homeDataApi} — PAS de city/city_id\n'
+          '   params: $apiParams\n'
+          '   UI homeSearchLocation="${generalScopeController.homeSearchLocation.value}" '
+          'setCity="${filterController.setCity}" selectedLocationId=${filterController.selectedLocationId}',
+        );
+
         var response = await httpGet(Config.homeDataApi, apiParams);
 
         print("🔵 [HOME_DATA] Response received from API");

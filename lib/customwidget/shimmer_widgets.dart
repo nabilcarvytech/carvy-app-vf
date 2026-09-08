@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/project_color.dart';
+import 'package:carvy/helper/responsive_layout_helper.dart';
 import 'package:carvy/utils/theme_style.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -939,78 +940,58 @@ Widget recentSearchShimmerWidgetBookable() {
 }
 
 Widget verticleShimmerWidgetBookable() {
-  return SizedBox(
-    child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 1,
-          crossAxisSpacing: 0,
-          mainAxisSpacing: 10,
-          mainAxisExtent: 250,
-        ),
+  return Builder(
+    builder: (context) {
+      final layout = VehicleListingLayout.of(context);
+      return GridView.builder(
+        gridDelegate: layout.gridDelegate,
+        padding: layout.gridPadding,
         shrinkWrap: true,
-        itemCount: 8,
+        itemCount: layout.columnCount >= 3 ? 6 : 8,
         physics: const NeverScrollableScrollPhysics(),
         scrollDirection: Axis.vertical,
         itemBuilder: (context, index) {
           return Padding(
-            padding: const EdgeInsets.all(0),
-            child: Padding(
-              padding: const EdgeInsets.only(
-                  left: Dimensions.paddingSizeLarge,
-                  top: 5,
-                  bottom: 5,
-                  right: Dimensions.paddingSizeLarge),
-              child: SizedBox(
-                  child: Shimmer.fromColors(
-                baseColor: notifires.getBaseColor,
-                highlightColor: notifires.getHighlightColor,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 160,
+            padding: layout.cardPadding,
+            child: Shimmer.fromColors(
+              baseColor: notifires.getBaseColor,
+              highlightColor: notifires.getHighlightColor,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Container(
                       decoration: BoxDecoration(
                         color: notifires.getWhitetodarkgeryColor,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius:
+                            BorderRadius.circular(layout.cardBorderRadius),
                       ),
                     ),
-                    const SizedBox(
-                      height: 8,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 18,
+                    width: 90,
+                    decoration: BoxDecoration(
+                      color: notifires.getWhitetodarkgeryColor,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    Container(
-                      height: 18,
-                      width: 90,
-                      decoration: BoxDecoration(
-                        color: notifires.getWhitetodarkgeryColor,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
+                  ),
+                  const SizedBox(height: 5),
+                  Container(
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: notifires.getWhitetodarkgeryColor,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    const SizedBox(
-                      height: 5,
-                    ),
-                    Container(
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: notifires.getWhitetodarkgeryColor,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 5,
-                    ),
-                    Container(
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: notifires.getWhitetodarkgeryColor,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
             ),
           );
-        }),
+        },
+      );
+    },
   );
 }
 

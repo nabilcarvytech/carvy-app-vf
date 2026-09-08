@@ -23,6 +23,7 @@ import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/form_elements.dart';
 import 'package:carvy/customwidget/project_color.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
+import 'package:carvy/helper/responsive_layout_helper.dart';
 import 'package:carvy/helper/vehicle_availability_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/utils/render_debug.dart';
@@ -585,8 +586,16 @@ homeLocations(List<Location> list, notifire) {
                   padding: const EdgeInsets.only(right: 15, top: 5, bottom: 5),
                   child: InkWell(
                     onTap: () {
+                      final loc = list[index];
+                      debugPrint(
+                        '🏠 [POPULAR REGION TAP] index=$index city="${loc.cityName}" '
+                        'id="${loc.id}" lat="${loc.latitude}" lng="${loc.longitude}"',
+                      );
+                      filterController.logCityStateDebug(
+                        'POPULAR REGION before select',
+                      );
                       filterController.applyCityLocationSelectionFromLocation(
-                        list[index],
+                        loc,
                       );
                       filterController.setDefaultDates(
                         startDateCustomDate:
@@ -597,6 +606,7 @@ homeLocations(List<Location> list, notifire) {
                         endDates: filterController.endDates,
                       );
 
+                      debugPrint('🏠 [POPULAR REGION TAP] → submitMethod(apply=true)');
                       filterController.submitMethod(context, true);
                     },
                     child: Stack(
@@ -761,21 +771,22 @@ Widget _searchAvailabilityBadge(dynamic item) {
 
 Widget itemVerticalView(
     list, shrink, fromWishList, StateSetter setState, openDetailInButtMSheet) {
-  return GridView.builder(
-    shrinkWrap: shrink,
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 1,
-      crossAxisSpacing: 5,
-      mainAxisExtent: 240,
-      mainAxisSpacing: 3,
-    ),
-    physics: shrink == false
-        ? const BouncingScrollPhysics()
-        : const NeverScrollableScrollPhysics(),
-    itemCount: shrink == true
-        ? (list != null && list!.length > 4 ? 4 : (list?.length ?? 0))
-        : (list?.length ?? 0),
-    itemBuilder: (context, index) {
+  return Builder(
+    builder: (gridContext) {
+      final layout = VehicleListingLayout.of(gridContext);
+      final totalItems = list?.length ?? 0;
+      final itemCount =
+          shrink ? layout.previewItemCount(totalItems) : totalItems;
+
+      return GridView.builder(
+        shrinkWrap: shrink,
+        padding: layout.gridPadding,
+        gridDelegate: layout.gridDelegate,
+        physics: shrink == false
+            ? const BouncingScrollPhysics()
+            : const NeverScrollableScrollPhysics(),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
       String? serviceType = "";
       ItemInfo? itemInfoData;
       if (list != null && list.length > index && list[index] != null) {
@@ -814,7 +825,7 @@ Widget itemVerticalView(
         final double parsedRating = VehicleCardHelper.resolveItemRating(item);
 
         return Padding(
-          padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
+          padding: layout.cardPadding,
           child: GestureDetector(
             onTap: () {
               Navigator.push(
@@ -839,31 +850,27 @@ Widget itemVerticalView(
             },
             child: Container(
               width: double.infinity,
-              height: 230,
+              height: double.infinity,
               decoration: BoxDecoration(
                 color: blackColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(layout.cardBorderRadius),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
                     blurRadius: 4,
-                    offset: Offset(0, 4),
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: double.infinity,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      color: grey5,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  Expanded(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius:
+                          BorderRadius.circular(layout.cardBorderRadius),
                       child: Stack(
+                        fit: StackFit.expand,
                         children: [
                           Positioned.fill(
                             child: myNetworkImageWithShimmer(item.image),
@@ -872,7 +879,7 @@ Widget itemVerticalView(
                             child: Align(
                               alignment: Alignment.bottomCenter,
                               child: Container(
-                                height: 80,
+                                height: layout.isTablet ? 88 : 80,
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     begin: Alignment.topCenter,
@@ -895,21 +902,23 @@ Widget itemVerticalView(
                               children: [
                                 Row(
                                   children: [
-                                    SizedBox(
+                                    const SizedBox(
                                       width: 8,
                                     ),
-                                    Text(
-                                      (item.name ?? '').length > 21
-                                          ? (item.name ?? '').substring(0, 20)
-                                          : (item.name ?? ''),
-                                      style: heading3Grey1(context).copyWith(
-                                        color: whiteColor,
-                                        overflow: TextOverflow.ellipsis,
+                                    Expanded(
+                                      child: Text(
+                                        item.name ?? '',
+                                        style:
+                                            heading3Grey1(context).copyWith(
+                                          color: whiteColor,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        maxLines: 1,
                                       ),
                                     ),
-                                    const Spacer(),
+                                    const SizedBox(width: 6),
                                     Container(
-                                      padding: EdgeInsets.all(4),
+                                      padding: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
                                           borderRadius:
                                               BorderRadius.circular(7),
@@ -917,7 +926,7 @@ Widget itemVerticalView(
                                               .withValues(alpha: .4)),
                                       child: Row(
                                         children: [
-                                          Icon(
+                                          const Icon(
                                             Icons.star,
                                             color: orangeColor,
                                             size: 14,
@@ -926,12 +935,13 @@ Widget itemVerticalView(
                                           Text(
                                             parsedRating.toStringAsFixed(1),
                                             style: boldstyle(context).copyWith(
-                                                color: whiteColor, fontSize: 9),
+                                                color: whiteColor,
+                                                fontSize: 9),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    SizedBox(
+                                    const SizedBox(
                                       width: 5,
                                     )
                                   ],
@@ -941,12 +951,12 @@ Widget itemVerticalView(
                                   price: item.price,
                                   showPerDay: serviceType == "booking",
                                   chipStyle: regular3(context).copyWith(
-                                    fontSize: 12,
+                                    fontSize: layout.isTablet ? 11 : 12,
                                     color: whiteColor,
                                   ),
                                   priceStyle: boldstyle(context).copyWith(
                                     color: getColorBasedOnActiveModuleid(),
-                                    fontSize: 14,
+                                    fontSize: layout.isTablet ? 13 : 14,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   perDayStyle: regular(context).copyWith(
@@ -1011,12 +1021,10 @@ Widget itemVerticalView(
                                           } catch (e) {
                                             print("❌ [Wishlist] Error toggling wishlist: $e");
                                           } finally {
-                                            // CRITICAL: Always reset loading state, no matter what
                                             wishListLoadingHorizontal = -1;
                                             try {
                                               setState(() {});
                                             } catch (e) {
-                                              // Widget might be disposed, but we still reset the loading state
                                               print("⚠️ [Wishlist] setState failed (widget disposed): $e");
                                             }
                                           }
@@ -1029,59 +1037,57 @@ Widget itemVerticalView(
                       ),
                     ),
                   ),
-                  SizedBox(
-                    height: 10,
-                  ),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 7,
-                      ),
-                      Icon(
-                        CupertinoIcons.location,
-                        size: 20,
-                        color: getColorBasedOnActiveModuleid(),
-                      ),
-                      SizedBox(
-                        width: 5,
-                      ),
-                      Expanded(
-                        child: Text(
-                          locationText,
-                          overflow: TextOverflow.ellipsis,
-                          style: regular3(context).copyWith(
-                            fontSize: 12,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(7, 8, 5, 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.location,
+                          size: layout.isTablet ? 18 : 20,
+                          color: getColorBasedOnActiveModuleid(),
+                        ),
+                        const SizedBox(
+                          width: 5,
+                        ),
+                        Expanded(
+                          child: Text(
+                            locationText,
+                            overflow: TextOverflow.ellipsis,
+                            style: regular3(context).copyWith(
+                              fontSize: layout.isTablet ? 11 : 12,
+                            ),
+                            maxLines: 1,
                           ),
-                          maxLines: 1,
                         ),
-                      ),
-                      Spacer(),
-                      if (itemInfoData != null &&
-                          itemInfoData!.hostFirstName != null)
-                        Row(
-                          children: [
-                            Icon(
-                              CupertinoIcons.person,
-                              size: 17,
-                              color: getColorBasedOnActiveModuleid(),
+                        if (itemInfoData != null &&
+                            itemInfoData!.hostFirstName != null)
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  CupertinoIcons.person,
+                                  size: 17,
+                                  color: getColorBasedOnActiveModuleid(),
+                                ),
+                                const SizedBox(
+                                  width: 5,
+                                ),
+                                Flexible(
+                                  child: Text(
+                                    "${"By".tr} - ${itemInfoData?.hostFirstName ?? ""}",
+                                    overflow: TextOverflow.ellipsis,
+                                    style: regular3(context).copyWith(
+                                      fontSize: layout.isTablet ? 11 : 12,
+                                    ),
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(
-                              width: 5,
-                            ),
-                            Text(
-                              "${"By".tr} - ${itemInfoData?.hostFirstName ?? ""}",
-                              overflow: TextOverflow.ellipsis,
-                              style: regular3(context).copyWith(
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                            ),
-                          ],
-                        ),
-                      SizedBox(
-                        width: 5,
-                      )
-                    ],
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1091,6 +1097,8 @@ Widget itemVerticalView(
       } else {
         return Container();
       }
+    },
+      );
     },
   );
 }

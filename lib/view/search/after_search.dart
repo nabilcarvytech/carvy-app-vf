@@ -8,6 +8,7 @@ import 'package:carvy/controller/home_controller.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
+import 'package:carvy/helper/responsive_layout_helper.dart';
 import 'package:carvy/helper/vehicle_availability_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/items_model.dart';
@@ -83,6 +84,16 @@ class _AfterSearchState extends State<AfterSearch> {
     final combined = data?.items ?? [];
     final city = _searchedCity;
 
+    final apiOnSite = typedOnSite.length;
+    final apiDelivery = typedDelivery.length;
+    final apiCombined = combined.length;
+
+    debugPrint(
+      '🔎 [HYDRATE] searchedCity="$city" widget.cityName="${widget.cityName}"\n'
+      '   API raw — on_site: $apiOnSite, delivery: $apiDelivery, items: $apiCombined',
+    );
+    filterController.logCityStateDebug('HYDRATE before sanitize');
+
     // Complète availabilityType si le backend ne l'envoie pas sur chaque item.
     VehicleAvailabilityHelper.applyToList(typedOnSite, searchedCity: city);
     VehicleAvailabilityHelper.applyToList(typedDelivery, searchedCity: city);
@@ -106,6 +117,13 @@ class _AfterSearchState extends State<AfterSearch> {
       searchedCity: city,
     );
     _rebuildCombinedList();
+
+    debugPrint(
+      '🔎 [HYDRATE] after sanitize — onSite: ${onSiteList.length}, '
+      'delivery: ${deliveryList.length}, total: ${list.length} '
+      '(removed: on_site ${apiOnSite - onSiteList.length}, '
+      'delivery ${apiDelivery - deliveryList.length})',
+    );
   }
 
   /// Durée demandée (jours calendaires inclusifs), alignée sur [BookingController.getDaysInBetween].
@@ -154,6 +172,8 @@ class _AfterSearchState extends State<AfterSearch> {
   }
 
   Future<void> searchMethod() async {
+    debugPrint('🔎 [AFTER SEARCH] searchMethod() start');
+    filterController.logCityStateDebug('AFTER SEARCH searchMethod start');
     showloading = false;
     filterController.offset = 0;
     itemModel = null;
@@ -952,9 +972,11 @@ class _AfterSearchState extends State<AfterSearch> {
       body: Column(
         children: [
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 10, right: 10, top: 10),
-              child: SmartRefresher(
+            child: VehicleListingLayout.constrainContent(
+              context,
+              Padding(
+                padding: VehicleListingLayout.of(context).pagePadding,
+                child: SmartRefresher(
                 controller: refreshController,
                 onRefresh: onRefresh,
                 onLoading: onLoading,
@@ -980,6 +1002,7 @@ class _AfterSearchState extends State<AfterSearch> {
                                 ? _buildSectionedSearchResults(stateSetter)
                                 : itemVerticalView(
                                     list, false, false, stateSetter, true),
+                ),
               ),
             ),
           ),
@@ -1085,6 +1108,13 @@ class _AfterSearchState extends State<AfterSearch> {
                                       color: getColorBasedOnActiveModuleid())
                                   : null,
                           onTap: () {
+                            debugPrint(
+                              '🔎 [AFTER SEARCH SHEET] select city="${location.cityName}" '
+                              'id="${location.id}"',
+                            );
+                            filterController.logCityStateDebug(
+                              'AFTER SEARCH sheet before',
+                            );
                             filterController.applyCityLocationSelectionFromLocation(
                               location,
                             );

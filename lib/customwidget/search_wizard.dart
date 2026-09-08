@@ -127,7 +127,12 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
   }
 
   void _applyLocationSelection(Location location) {
+    debugPrint(
+      '🧭 [SEARCH WIZARD] select city="${location.cityName}" id="${location.id}"',
+    );
+    filterController.logCityStateDebug('WIZARD before select');
     filterController.applyCityLocationSelectionFromLocation(location);
+    filterController.logCityStateDebug('WIZARD after select');
     _searchController.text = location.cityName ?? '';
   }
 
@@ -198,6 +203,9 @@ class _SearchWizardBottomSheetState extends State<SearchWizardBottomSheet> {
 
     filterController.startTimeSearch.value = _startTime;
     filterController.endTimeSearch.value = _endTime;
+
+    debugPrint('🧭 [SEARCH WIZARD] performSearch → submitMethod');
+    filterController.logCityStateDebug('WIZARD performSearch');
 
     Navigator.pop(context);
 

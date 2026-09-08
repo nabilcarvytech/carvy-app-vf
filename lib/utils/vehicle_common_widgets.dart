@@ -27,6 +27,7 @@ import '../helper/cancellation_policy_helper.dart';
 import '../helper/filter_label_helper.dart';
 import '../helper/vehicle_card_helper.dart';
 import '../work_space.dart';
+import '../helper/responsive_layout_helper.dart';
 import 'common_widget.dart';
 import 'package:google_places_flutter/google_places_flutter.dart';
 import 'package:google_places_flutter/model/prediction.dart';
@@ -233,20 +234,19 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
   if (list == null || list.isEmpty) {
     return Container();
   }
-  return GridView.builder(
-    primary: false,
-    shrinkWrap: shrink,
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 1,
-      crossAxisSpacing: 5,
-      mainAxisExtent: 240,
-      mainAxisSpacing: 3,
-    ),
-    physics: shrink == false
-        ? const BouncingScrollPhysics()
-        : const NeverScrollableScrollPhysics(),
-    itemCount: list.length,
-    itemBuilder: (context, index) {
+  return Builder(
+    builder: (gridContext) {
+      final layout = VehicleListingLayout.of(gridContext);
+      return GridView.builder(
+        primary: false,
+        shrinkWrap: shrink,
+        padding: layout.gridPadding,
+        gridDelegate: layout.gridDelegate,
+        physics: shrink == false
+            ? const BouncingScrollPhysics()
+            : const NeverScrollableScrollPhysics(),
+        itemCount: list.length,
+        itemBuilder: (context, index) {
       String? serviceType = '';
       ItemInfo? itemInfoData;
       if (list != null && list.length > index && list[index] != null) {
@@ -273,7 +273,7 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
             VehicleCardHelper.resolveItemRating(list[index]);
         return Padding(
           key: ValueKey('most-viewed-${item.id ?? index}'),
-          padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5, right: 5),
+          padding: layout.cardPadding,
           child: GestureDetector(
             onTap: () {
               Navigator.push(
@@ -298,42 +298,36 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
             },
             child: Container(
               width: double.infinity,
-              height: 230,
+              height: double.infinity,
               decoration: BoxDecoration(
                 color: notifires.getboxcolor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(layout.cardBorderRadius),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
                     blurRadius: 4,
-                    offset: Offset(0, 4),
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: double.infinity,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      color: grey5,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  Expanded(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius:
+                          BorderRadius.circular(layout.cardBorderRadius),
                       child: Stack(
+                        fit: StackFit.expand,
                         children: [
-                          // Image
                           Positioned.fill(
                             child: myNetworkImageWithShimmer(list[index].image),
                           ),
-
                           Positioned.fill(
                             child: Align(
                               alignment: Alignment.bottomCenter,
                               child: Container(
-                                height: 80, // adjust shadow height
+                                height: layout.isTablet ? 88 : 80,
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     begin: Alignment.topCenter,
@@ -348,7 +342,6 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                               ),
                             ),
                           ),
-
                           Positioned(
                             bottom: 7,
                             left: 0,
@@ -357,21 +350,23 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                               children: [
                                 Row(
                                   children: [
-                                    SizedBox(
+                                    const SizedBox(
                                       width: 8,
                                     ),
-                                    Text(
-                                      list[index].name!.length > 21
-                                          ? list[index].name!.substring(0, 20)
-                                          : list[index].name!,
-                                      style: heading3Grey1(context).copyWith(
-                                        color: whiteColor,
-                                        overflow: TextOverflow.ellipsis,
+                                    Expanded(
+                                      child: Text(
+                                        list[index].name ?? '',
+                                        style:
+                                            heading3Grey1(context).copyWith(
+                                          color: whiteColor,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        maxLines: 1,
                                       ),
                                     ),
-                                    const Spacer(),
+                                    const SizedBox(width: 6),
                                     Container(
-                                      padding: EdgeInsets.all(4),
+                                      padding: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
                                           borderRadius:
                                               BorderRadius.circular(7),
@@ -379,7 +374,7 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                                               .withValues(alpha: .4)),
                                       child: Row(
                                         children: [
-                                          Icon(
+                                          const Icon(
                                             Icons.star,
                                             color: orangeColor,
                                             size: 14,
@@ -388,12 +383,13 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                                           Text(
                                             parsedRating.toStringAsFixed(1),
                                             style: boldstyle(context).copyWith(
-                                                color: whiteColor, fontSize: 9),
+                                                color: whiteColor,
+                                                fontSize: 9),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    SizedBox(
+                                    const SizedBox(
                                       width: 5,
                                     )
                                   ],
@@ -403,12 +399,12 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                                   price: list.elementAt(index).price,
                                   showPerDay: serviceType == "booking",
                                   chipStyle: regular3(context).copyWith(
-                                    fontSize: 12,
+                                    fontSize: layout.isTablet ? 11 : 12,
                                     color: whiteColor,
                                   ),
                                   priceStyle: boldstyle(context).copyWith(
                                     color: getColorBasedOnActiveModuleid(),
-                                    fontSize: 14,
+                                    fontSize: layout.isTablet ? 13 : 14,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   perDayStyle: regular(context).copyWith(
@@ -419,7 +415,6 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                               ],
                             ),
                           ),
-
                           Positioned(
                             top: 10,
                             right: 10,
@@ -434,11 +429,11 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                                     : InkWell(
                                         child: list[index].isInWishlist == true
                                             ? SvgPicture.asset(
-                                                'assets/images/redHeart.svg', // Update the asset path to the SVG file
+                                                'assets/images/redHeart.svg',
                                                 height: 20,
                                               )
                                             : SvgPicture.asset(
-                                                'assets/images/whitHeart.svg', // Update the asset path to the SVG file
+                                                'assets/images/whitHeart.svg',
                                                 height: 20,
                                               ),
                                         onTap: () async {
@@ -468,12 +463,10 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                                             print(
                                                 "❌ [Wishlist] Error toggling wishlist: $e");
                                           } finally {
-                                            // CRITICAL: Always reset loading state, no matter what
                                             wishListLoadingHorizontal = -1;
                                             try {
                                               setState(() {});
                                             } catch (e) {
-                                              // Widget might be disposed, but we still reset the loading state
                                               print(
                                                   "⚠️ [Wishlist] setState failed (widget disposed): $e");
                                             }
@@ -487,58 +480,56 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
                       ),
                     ),
                   ),
-                  SizedBox(
-                    height: 10,
-                  ),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 7,
-                      ),
-                      Icon(
-                        CupertinoIcons.location,
-                        size: 20,
-                        color: getColorBasedOnActiveModuleid(),
-                      ),
-                      SizedBox(
-                        width: 5,
-                      ),
-                      Expanded(
-                        child: Text(
-                          locationText,
-                          overflow: TextOverflow.ellipsis,
-                          style: regular3(context).copyWith(
-                            fontSize: 12,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(7, 8, 5, 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.location,
+                          size: layout.isTablet ? 18 : 20,
+                          color: getColorBasedOnActiveModuleid(),
+                        ),
+                        const SizedBox(
+                          width: 5,
+                        ),
+                        Expanded(
+                          child: Text(
+                            locationText,
+                            overflow: TextOverflow.ellipsis,
+                            style: regular3(context).copyWith(
+                              fontSize: layout.isTablet ? 11 : 12,
+                            ),
+                            maxLines: 1,
                           ),
-                          maxLines: 1,
                         ),
-                      ),
-                      Spacer(),
-                      if (itemInfoData?.hostFirstName != null)
-                        Row(
-                          children: [
-                            Icon(
-                              CupertinoIcons.person,
-                              size: 17,
-                              color: getColorBasedOnActiveModuleid(),
+                        if (itemInfoData?.hostFirstName != null)
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  CupertinoIcons.person,
+                                  size: 17,
+                                  color: getColorBasedOnActiveModuleid(),
+                                ),
+                                const SizedBox(
+                                  width: 5,
+                                ),
+                                Flexible(
+                                  child: Text(
+                                    "${"By".tr} - ${itemInfoData?.hostFirstName ?? ""}",
+                                    overflow: TextOverflow.ellipsis,
+                                    style: regular3(context).copyWith(
+                                      fontSize: layout.isTablet ? 11 : 12,
+                                    ),
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(
-                              width: 5,
-                            ),
-                            Text(
-                              "${"By".tr} - ${itemInfoData?.hostFirstName ?? ""}",
-                              overflow: TextOverflow.ellipsis,
-                              style: regular3(context).copyWith(
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                            ),
-                          ],
-                        ),
-                      SizedBox(
-                        width: 5,
-                      )
-                    ],
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -868,6 +859,8 @@ Widget vehicalVerticalView(list, shrink, fromWishList, StateSetter setState) {
       } else {
         return Container();
       }
+    },
+      );
     },
   );
 }
