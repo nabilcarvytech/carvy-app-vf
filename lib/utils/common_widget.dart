@@ -926,7 +926,7 @@ Widget itemVerticalView(
                                               .withValues(alpha: .4)),
                                       child: Row(
                                         children: [
-                                          const Icon(
+                                          Icon(
                                             Icons.star,
                                             color: orangeColor,
                                             size: 14,
