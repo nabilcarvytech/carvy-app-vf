@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:carvy/helper/city_name_helper.dart';
+import 'package:carvy/helper/mongo_id_helper.dart';
 import 'package:carvy/model/items_model.dart';
 import 'package:carvy/model/vehicle_home_model.dart';
 import 'package:get/get.dart';
@@ -31,6 +33,23 @@ class VehicleAvailabilityType {
 class VehicleAvailabilityHelper {
   VehicleAvailabilityHelper._();
 
+  static const String _logTag = '[FLUTTER SEARCH]';
+
+  static String _itemLabel(dynamic item) {
+    final id = _itemId(item) ?? '?';
+    String? name;
+    if (item is Items) {
+      name = item.name;
+    } else if (item is ItemsData) {
+      name = item.name;
+    } else {
+      try {
+        name = item.name?.toString();
+      } catch (_) {}
+    }
+    return '${name ?? '?'} (id=$id)';
+  }
+
   static bool citiesMatch(String? a, String? b) =>
       CityNameHelper.citiesMatch(a, b);
 
@@ -39,6 +58,18 @@ class VehicleAvailabilityHelper {
     if (item is ItemsData) return item.city?.trim();
     try {
       return item.city?.toString().trim();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String? readVehicleLocationId(dynamic item) {
+    if (item is Items) return MongoIdHelper.normalize(item.vehicleLocationId);
+    if (item is ItemsData) {
+      return MongoIdHelper.normalize(item.vehicleLocationId);
+    }
+    try {
+      return MongoIdHelper.normalize(item.vehicleLocationId?.toString());
     } catch (_) {
       return null;
     }
@@ -54,13 +85,57 @@ class VehicleAvailabilityHelper {
     }
   }
 
-  /// Véhicule basé dans [searchedCity] (doit apparaître sur place, pas en livraison).
-  static bool isBasedInSearchedCity(dynamic item, String searchedCity) {
+  /// Véhicule basé dans la zone recherchée (ObjectId prioritaire, puis nom).
+  static bool isBasedInSearchedCity(
+    dynamic item,
+    String searchedCity, {
+    String? searchedLocationId,
+    bool logDecision = false,
+  }) {
+    final label = logDecision ? _itemLabel(item) : null;
+    final locationId = MongoIdHelper.normalize(searchedLocationId);
+    if (locationId != null) {
+      final itemLocationId = readVehicleLocationId(item);
+      if (itemLocationId != null) {
+        final match = MongoIdHelper.idsEqual(itemLocationId, locationId);
+        if (logDecision) {
+          debugPrint(
+            '$_logTag LOCAL item=$label match=$match '
+            'via=vehicleLocationId itemFk=$itemLocationId searchFk=$locationId',
+          );
+        }
+        return match;
+      }
+      if (logDecision) {
+        debugPrint(
+          '$_logTag LOCAL item=$label — no vehicleLocationId on item, '
+          'fallback to city text',
+        );
+      }
+    }
+
     final city = searchedCity.trim();
-    if (city.isEmpty) return false;
+    if (city.isEmpty) {
+      if (logDecision) {
+        debugPrint('$_logTag LOCAL item=$label match=false (empty search city)');
+      }
+      return false;
+    }
     final itemCity = readItemCity(item);
-    if (itemCity == null || itemCity.isEmpty) return false;
-    return citiesMatch(itemCity, city);
+    if (itemCity == null || itemCity.isEmpty) {
+      if (logDecision) {
+        debugPrint('$_logTag LOCAL item=$label match=false (empty item.city)');
+      }
+      return false;
+    }
+    final textMatch = citiesMatch(itemCity, city);
+    if (logDecision) {
+      debugPrint(
+        '$_logTag LOCAL item=$label match=$textMatch '
+        'via=cityText itemCity="$itemCity" searchCity="$city"',
+      );
+    }
+    return textMatch;
   }
 
   /// Marque un item comme disponible sur place (réaffectation depuis delivery_items).
@@ -104,12 +179,23 @@ class VehicleAvailabilityHelper {
     required List<dynamic> onSiteList,
     required List<dynamic> deliveryList,
     required String searchedCity,
+    String? searchedLocationId,
   }) {
     final city = searchedCity.trim();
-    if (city.isEmpty || deliveryList.isEmpty) return;
+    if (city.isEmpty &&
+        MongoIdHelper.normalize(searchedLocationId) == null) {
+      return;
+    }
+    if (deliveryList.isEmpty) return;
 
     final toMove = deliveryList
-        .where((item) => isBasedInSearchedCity(item, city))
+        .where(
+          (item) => isBasedInSearchedCity(
+            item,
+            city,
+            searchedLocationId: searchedLocationId,
+          ),
+        )
         .toList(growable: false);
 
     for (final item in toMove) {
@@ -139,17 +225,28 @@ class VehicleAvailabilityHelper {
     } catch (_) {}
   }
 
-  /// Déplace vers la livraison les véhicules hors ville (ex. Salé quand on cherche Rabat).
+  /// Déplace vers la livraison les véhicules hors zone (ex. Salé quand on cherche Rabat).
   static void reclassifyNonLocalOnSiteToDelivery({
     required List<dynamic> onSiteList,
     required List<dynamic> deliveryList,
     required String searchedCity,
+    String? searchedLocationId,
   }) {
     final city = searchedCity.trim();
-    if (city.isEmpty || onSiteList.isEmpty) return;
+    if (city.isEmpty &&
+        MongoIdHelper.normalize(searchedLocationId) == null) {
+      return;
+    }
+    if (onSiteList.isEmpty) return;
 
     final toMove = onSiteList
-        .where((item) => !isBasedInSearchedCity(item, city))
+        .where(
+          (item) => !isBasedInSearchedCity(
+            item,
+            city,
+            searchedLocationId: searchedLocationId,
+          ),
+        )
         .toList(growable: false);
 
     for (final item in toMove) {
@@ -161,16 +258,54 @@ class VehicleAvailabilityHelper {
     }
   }
 
-  /// Véhicule éligible à la section « sur place » pour [searchedCity].
-  static bool belongsInOnSiteSection(dynamic item, String searchedCity) {
+  /// Véhicule éligible à la section « sur place » pour la zone recherchée.
+  static bool belongsInOnSiteSection(
+    dynamic item,
+    String searchedCity, {
+    String? searchedLocationId,
+    bool logDecision = false,
+  }) {
     final city = searchedCity.trim();
-    if (city.isEmpty) return true;
+    if (city.isEmpty &&
+        MongoIdHelper.normalize(searchedLocationId) == null) {
+      if (logDecision) {
+        debugPrint(
+          '$_logTag ON_SITE item=${_itemLabel(item)} keep=true (no search filter)',
+        );
+      }
+      return true;
+    }
 
     final type = readType(item);
-    if (type == VehicleAvailabilityType.excluded) return false;
-    if (type == VehicleAvailabilityType.delivery) return false;
+    if (type == VehicleAvailabilityType.excluded) {
+      if (logDecision) {
+        debugPrint(
+          '$_logTag ON_SITE item=${_itemLabel(item)} keep=false (excluded type)',
+        );
+      }
+      return false;
+    }
+    if (type == VehicleAvailabilityType.delivery) {
+      if (logDecision) {
+        debugPrint(
+          '$_logTag ON_SITE item=${_itemLabel(item)} keep=false (delivery type)',
+        );
+      }
+      return false;
+    }
 
-    return isBasedInSearchedCity(item, city);
+    final localMatch = isBasedInSearchedCity(
+      item,
+      city,
+      searchedLocationId: searchedLocationId,
+      logDecision: logDecision,
+    );
+    if (logDecision) {
+      debugPrint(
+        '$_logTag ON_SITE item=${_itemLabel(item)} keep=$localMatch',
+      );
+    }
+    return localMatch;
   }
 
   static bool hasDeliveryLocations(dynamic itemInfo) {
@@ -180,54 +315,127 @@ class VehicleAvailabilityHelper {
     return locs is List && locs.isNotEmpty;
   }
 
-  /// Véhicule éligible à la section livraison pour [searchedCity].
+  /// Véhicule éligible à la section livraison pour la zone recherchée.
   static bool belongsInDeliverySection(
     dynamic item,
     String searchedCity, {
+    String? searchedLocationId,
     bool lenientWithoutDeliveryMetadata = false,
+    bool logDecision = false,
   }) {
+    final label = logDecision ? _itemLabel(item) : null;
     final city = searchedCity.trim();
-    if (city.isEmpty) return readType(item) == VehicleAvailabilityType.delivery;
+    final locationId = MongoIdHelper.normalize(searchedLocationId);
+    if (city.isEmpty && locationId == null) {
+      final keep = readType(item) == VehicleAvailabilityType.delivery;
+      if (logDecision) {
+        debugPrint('$_logTag DELIVERY item=$label keep=$keep (no search filter)');
+      }
+      return keep;
+    }
 
     final type = readType(item);
-    if (type == VehicleAvailabilityType.excluded) return false;
+    if (type == VehicleAvailabilityType.excluded) {
+      if (logDecision) {
+        debugPrint('$_logTag DELIVERY item=$label keep=false (excluded type)');
+      }
+      return false;
+    }
 
-    // Basés dans la ville recherchée → section sur place (réaffectés avant ce filtre).
-    if (isBasedInSearchedCity(item, city)) return false;
+    if (isBasedInSearchedCity(
+      item,
+      city,
+      searchedLocationId: searchedLocationId,
+      logDecision: false,
+    )) {
+      if (logDecision) {
+        debugPrint(
+          '$_logTag DELIVERY item=$label keep=false (vehicle is local to search zone)',
+        );
+      }
+      return false;
+    }
 
     final itemInfo = readItemInfo(item);
     final hasDeliveryMeta = hasDeliveryLocations(itemInfo);
 
     if (type == VehicleAvailabilityType.delivery) {
       if (!hasDeliveryMeta) {
-        // Bucket API delivery sans métadonnées : conserver (expand_location_delivery).
+        if (logDecision) {
+          debugPrint(
+            '$_logTag DELIVERY item=$label keep=true (delivery bucket, no metadata)',
+          );
+        }
         return true;
       }
       if (lenientWithoutDeliveryMetadata) {
-        // Fail-safe : faire confiance au bucket API si le filtrage strict vide tout.
+        if (logDecision) {
+          debugPrint(
+            '$_logTag DELIVERY item=$label keep=true (lenient mode, trust API bucket)',
+          );
+        }
         return true;
       }
-      return deliversToCity(itemInfo, city);
+      final keep = deliversToSearchedArea(
+        itemInfo,
+        searchedCity: city,
+        searchedLocationId: locationId,
+        debugItemLabel: label,
+        logDecision: logDecision,
+      );
+      if (logDecision) {
+        debugPrint('$_logTag DELIVERY item=$label keep=$keep (strict delivery FK/text)');
+      }
+      return keep;
     }
 
-    if (!hasDeliveryMeta) return false;
-    return deliversToCity(itemInfo, city);
+    if (!hasDeliveryMeta) {
+      if (logDecision) {
+        debugPrint('$_logTag DELIVERY item=$label keep=false (no delivery metadata)');
+      }
+      return false;
+    }
+    final keep = deliversToSearchedArea(
+      itemInfo,
+      searchedCity: city,
+      searchedLocationId: locationId,
+      debugItemLabel: label,
+      logDecision: logDecision,
+    );
+    if (logDecision) {
+      debugPrint('$_logTag DELIVERY item=$label keep=$keep (delivery metadata check)');
+    }
+    return keep;
   }
 
-  static void _filterOnSiteList(List<dynamic> onSiteList, String city) {
-    onSiteList.removeWhere((item) => !belongsInOnSiteSection(item, city));
+  static void _filterOnSiteList(
+    List<dynamic> onSiteList,
+    String city, {
+    String? searchedLocationId,
+  }) {
+    onSiteList.removeWhere(
+      (item) => !belongsInOnSiteSection(
+        item,
+        city,
+        searchedLocationId: searchedLocationId,
+        logDecision: true,
+      ),
+    );
   }
 
   static void _filterDeliveryList(
     List<dynamic> deliveryList,
     String city, {
+    String? searchedLocationId,
     required bool lenientWithoutDeliveryMetadata,
   }) {
     deliveryList.removeWhere(
       (item) => !belongsInDeliverySection(
         item,
         city,
+        searchedLocationId: searchedLocationId,
         lenientWithoutDeliveryMetadata: lenientWithoutDeliveryMetadata,
+        logDecision: true,
       ),
     );
   }
@@ -237,12 +445,35 @@ class VehicleAvailabilityHelper {
     required List<dynamic> onSiteList,
     required List<dynamic> deliveryList,
     required String searchedCity,
+    String? searchedLocationId,
   }) {
     final city = searchedCity.trim();
-    if (city.isEmpty) return;
+    final locationId = MongoIdHelper.normalize(searchedLocationId);
+    if (city.isEmpty && locationId == null) {
+      debugPrint(
+        '$_logTag sanitizeResultLists skipped — no searchedCity or searchedLocationId',
+      );
+      return;
+    }
 
-    final initialCount = onSiteList.length + deliveryList.length;
-    if (initialCount == 0) return;
+    final initialOnSite = onSiteList.length;
+    final initialDelivery = deliveryList.length;
+    final initialCount = initialOnSite + initialDelivery;
+    if (initialCount == 0) {
+      debugPrint(
+        '$_logTag sanitizeResultLists skipped — API lists empty '
+        '(searchedCity="$city" searchedLocationId=${locationId ?? "(null)"})',
+      );
+      return;
+    }
+
+    debugPrint(
+      '$_logTag sanitizeResultLists START\n'
+      '   searchedCity        = "$city"\n'
+      '   searchedLocationId  = ${locationId ?? "(null)"}\n'
+      '   on_site_items (in)  = $initialOnSite\n'
+      '   delivery_items (in) = $initialDelivery',
+    );
 
     final snapshotOnSite = List<dynamic>.from(onSiteList);
     final snapshotDelivery = List<dynamic>.from(deliveryList);
@@ -251,20 +482,26 @@ class VehicleAvailabilityHelper {
       onSiteList: onSiteList,
       deliveryList: deliveryList,
       searchedCity: city,
+      searchedLocationId: locationId,
     );
     reclassifyNonLocalOnSiteToDelivery(
       onSiteList: onSiteList,
       deliveryList: deliveryList,
       searchedCity: city,
+      searchedLocationId: locationId,
     );
-    _filterOnSiteList(onSiteList, city);
+    _filterOnSiteList(
+      onSiteList,
+      city,
+      searchedLocationId: locationId,
+    );
     _filterDeliveryList(
       deliveryList,
       city,
+      searchedLocationId: locationId,
       lenientWithoutDeliveryMetadata: false,
     );
 
-    // Fail-safe : ne jamais vider totalement si l'API avait renvoyé des items.
     if (onSiteList.isEmpty &&
         deliveryList.isEmpty &&
         initialCount > 0) {
@@ -279,20 +516,26 @@ class VehicleAvailabilityHelper {
         onSiteList: onSiteList,
         deliveryList: deliveryList,
         searchedCity: city,
+        searchedLocationId: locationId,
       );
       reclassifyNonLocalOnSiteToDelivery(
         onSiteList: onSiteList,
         deliveryList: deliveryList,
         searchedCity: city,
+        searchedLocationId: locationId,
       );
-      _filterOnSiteList(onSiteList, city);
+      _filterOnSiteList(
+        onSiteList,
+        city,
+        searchedLocationId: locationId,
+      );
       _filterDeliveryList(
         deliveryList,
         city,
+        searchedLocationId: locationId,
         lenientWithoutDeliveryMetadata: true,
       );
 
-      // Dernier recours : réaffectation + reclassement, filtre sur place strict.
       if (onSiteList.isEmpty && deliveryList.isEmpty) {
         onSiteList
           ..clear()
@@ -304,20 +547,35 @@ class VehicleAvailabilityHelper {
           onSiteList: onSiteList,
           deliveryList: deliveryList,
           searchedCity: city,
+          searchedLocationId: locationId,
         );
         reclassifyNonLocalOnSiteToDelivery(
           onSiteList: onSiteList,
           deliveryList: deliveryList,
           searchedCity: city,
+          searchedLocationId: locationId,
         );
-        _filterOnSiteList(onSiteList, city);
+        _filterOnSiteList(
+          onSiteList,
+          city,
+          searchedLocationId: locationId,
+        );
         _filterDeliveryList(
           deliveryList,
           city,
+          searchedLocationId: locationId,
           lenientWithoutDeliveryMetadata: true,
         );
       }
     }
+
+    debugPrint(
+      '$_logTag sanitizeResultLists END\n'
+      '   on_site_items (out)  = ${onSiteList.length} '
+      '(removed ${initialOnSite - onSiteList.length})\n'
+      '   delivery_items (out) = ${deliveryList.length} '
+      '(removed ${initialDelivery - deliveryList.length})',
+    );
   }
 
   static Map<String, dynamic>? _itemInfoMap(dynamic itemInfo) {
@@ -332,16 +590,72 @@ class VehicleAvailabilityHelper {
     return null;
   }
 
-  static bool deliversToCity(dynamic itemInfo, String searchedCity) {
-    if (searchedCity.trim().isEmpty) return false;
+  static bool deliversToSearchedArea(
+    dynamic itemInfo, {
+    required String searchedCity,
+    String? searchedLocationId,
+    String? debugItemLabel,
+    bool logDecision = false,
+  }) {
+    final locationId = MongoIdHelper.normalize(searchedLocationId);
+    final city = searchedCity.trim();
+    if (locationId == null && city.isEmpty) {
+      if (logDecision) {
+        debugPrint(
+          '$_logTag DELIVERY_FK item=${debugItemLabel ?? "?"} match=false '
+          '(no search city or locationId)',
+        );
+      }
+      return false;
+    }
+
     final info = _itemInfoMap(itemInfo);
-    if (info == null) return false;
+    if (info == null) {
+      if (logDecision) {
+        debugPrint(
+          '$_logTag DELIVERY_FK item=${debugItemLabel ?? "?"} match=false '
+          '(itemInfo unparseable)',
+        );
+      }
+      return false;
+    }
     final locs = info['deliveryLocations'];
-    if (locs is! List || locs.isEmpty) return false;
+    if (locs is! List || locs.isEmpty) {
+      if (logDecision) {
+        debugPrint(
+          '$_logTag DELIVERY_FK item=${debugItemLabel ?? "?"} match=false '
+          '(no deliveryLocations)',
+        );
+      }
+      return false;
+    }
 
     for (final loc in locs) {
+      if (locationId != null && loc is Map) {
+        final refId = MongoIdHelper.extractRefId(loc['location']);
+        if (refId != null && MongoIdHelper.idsEqual(refId, locationId)) {
+          if (logDecision) {
+            debugPrint(
+              '$_logTag DELIVERY_FK item=${debugItemLabel ?? "?"} match=true '
+              'via=deliveryLocationObjectId ref=$refId searchFk=$locationId',
+            );
+          }
+          return true;
+        }
+      }
+
+      if (city.isEmpty) continue;
+
       final label = CityNameHelper.deliveryLocationLabel(loc);
-      if (citiesMatch(label, searchedCity)) return true;
+      if (citiesMatch(label, city)) {
+        if (logDecision) {
+          debugPrint(
+            '$_logTag DELIVERY_FK item=${debugItemLabel ?? "?"} match=true '
+            'via=cityText label="$label" searchCity="$city"',
+          );
+        }
+        return true;
+      }
       if (loc is Map) {
         final candidates = <String?>[
           loc['locationName']?.toString(),
@@ -354,59 +668,124 @@ class VehicleAvailabilityHelper {
             (loc['location'] as Map)['city_name']?.toString(),
         ];
         for (final c in candidates) {
-          if (citiesMatch(c, searchedCity)) return true;
+          if (citiesMatch(c, city)) {
+            if (logDecision) {
+              debugPrint(
+                '$_logTag DELIVERY_FK item=${debugItemLabel ?? "?"} match=true '
+                'via=cityText candidate="$c" searchCity="$city"',
+              );
+            }
+            return true;
+          }
         }
       }
+    }
+    if (logDecision) {
+      debugPrint(
+        '$_logTag DELIVERY_FK item=${debugItemLabel ?? "?"} match=false '
+        '(no delivery zone matched searchFk=$locationId searchCity="$city")',
+      );
     }
     return false;
   }
 
-  /// Priorité : flag API → basé dans la ville → livraison vers la ville → local.
-  static String resolve({
+  /// Compat — ancien nom conservé pour les appels texte-only.
+  static bool deliversToCity(dynamic itemInfo, String searchedCity) {
+    return deliversToSearchedArea(
+      itemInfo,
+      searchedCity: searchedCity,
+    );
+  }
+
+  static String _resolveAvailability({
     dynamic apiType,
     String? itemCity,
     dynamic itemInfo,
+    String? itemLocationId,
     required String searchedCity,
+    String? searchedLocationId,
   }) {
     final fromApi = VehicleAvailabilityType.normalize(apiType);
     if (fromApi != null) return fromApi;
 
     final city = searchedCity.trim();
-    if (city.isEmpty) return VehicleAvailabilityType.local;
+    final locationId = MongoIdHelper.normalize(searchedLocationId);
+    if (city.isEmpty && locationId == null) {
+      return VehicleAvailabilityType.local;
+    }
+
+    if (locationId != null &&
+        itemLocationId != null &&
+        MongoIdHelper.idsEqual(itemLocationId, locationId)) {
+      return VehicleAvailabilityType.local;
+    }
 
     if (citiesMatch(itemCity, city)) {
       return VehicleAvailabilityType.local;
     }
-    if (deliversToCity(itemInfo, city)) {
+    if (deliversToSearchedArea(
+      itemInfo,
+      searchedCity: city,
+      searchedLocationId: locationId,
+    )) {
       return VehicleAvailabilityType.delivery;
     }
     return VehicleAvailabilityType.excluded;
   }
 
-  static void applyToItem(dynamic item, {required String searchedCity}) {
+  static void _setAvailabilityType(dynamic item, String type) {
     if (item is Items) {
-      item.availabilityType = resolve(
-        apiType: item.availabilityType,
-        itemCity: item.city,
-        itemInfo: item.itemInfo,
-        searchedCity: searchedCity,
-      );
+      item.availabilityType = type;
       return;
     }
     if (item is ItemsData) {
-      item.availabilityType = resolve(
-        apiType: item.availabilityType,
-        itemCity: item.city,
-        itemInfo: item.itemInfo,
-        searchedCity: searchedCity,
-      );
+      item.availabilityType = type;
+      return;
     }
+    try {
+      item.availabilityType = type;
+    } catch (_) {}
   }
 
-  static void applyToList(List? items, {required String searchedCity}) {
+  static void applyToItem(
+    dynamic item, {
+    required String searchedCity,
+    String? searchedLocationId,
+  }) {
+    dynamic apiType;
+    String? itemCity;
+    dynamic itemInfo;
+    try {
+      apiType = item.availabilityType;
+      itemCity = readItemCity(item);
+      itemInfo = readItemInfo(item);
+    } catch (_) {
+      return;
+    }
+
+    final resolved = _resolveAvailability(
+      apiType: apiType,
+      itemCity: itemCity,
+      itemInfo: itemInfo,
+      itemLocationId: readVehicleLocationId(item),
+      searchedCity: searchedCity,
+      searchedLocationId: searchedLocationId,
+    );
+    _setAvailabilityType(item, resolved);
+  }
+
+  static void applyToList(
+    List? items, {
+    required String searchedCity,
+    String? searchedLocationId,
+  }) {
     if (items == null || items.isEmpty) return;
     for (final item in items) {
-      applyToItem(item, searchedCity: searchedCity);
+      applyToItem(
+        item,
+        searchedCity: searchedCity,
+        searchedLocationId: searchedLocationId,
+      );
     }
   }
 

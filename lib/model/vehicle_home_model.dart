@@ -1,3 +1,7 @@
+import 'package:flutter/foundation.dart';
+
+import 'package:carvy/helper/mongo_id_helper.dart';
+
 import 'make_type_model.dart';
 import 'items_model.dart' show resolveMinRentalDaysForSearchItem;
 
@@ -116,6 +120,8 @@ class ItemsData {
   String? availabilityType;
   bool? isDelivery;
   String? deliveryPrice;
+  /// VehicleLocation catalogue ObjectId when populated by API.
+  String? vehicleLocationId;
   ItemsData({
     this.id,
     this.name,
@@ -140,6 +146,7 @@ class ItemsData {
     this.availabilityType,
     this.isDelivery,
     this.deliveryPrice,
+    this.vehicleLocationId,
   });
   set wishlistSetter(bool value) {
     isInWishlist = value;
@@ -212,6 +219,7 @@ class ItemsData {
 
     return ItemsData(
       id: json['id']?.toString() ?? json['_id']?.toString(),
+      vehicleLocationId: MongoIdHelper.extractRefId(vehicleLocation),
       name: json['name'],
       itemRating: json['item_rating'],
       mobile: json['mobile'],
@@ -548,8 +556,16 @@ class Location {
   });
 
   factory Location.fromJson(Map<String, dynamic> json) {
+    final rawId = json['_id']?.toString() ?? json['id']?.toString();
+    final parsedId = MongoIdHelper.parseLocationId(json);
+    debugPrint(
+      '[FLUTTER SEARCH] Location.fromJson city="${json['city_name']}"\n'
+      '   raw _id/id     = "$rawId"\n'
+      '   isValidObjectId= ${MongoIdHelper.isValid(rawId)}\n'
+      '   stored id      = ${parsedId ?? "(null — rejected index or invalid)"}',
+    );
     return Location(
-      id: json['id']?.toString() ?? json['_id']?.toString(),
+      id: parsedId,
       cityName: json['city_name'],
       description: json['description'],
       image: json['image'],

@@ -436,10 +436,7 @@ class HomeController extends GetxController implements GetxService {
     if (sc.selectedTransmissions.isNotEmpty) return true;
     if (sc.selectedOdometers.isNotEmpty) return true;
     if (sc.selectedYears.isNotEmpty) return true;
-    final double defMin = double.tryParse("$minPricerange") ?? 0.0;
-    final double defMax = double.tryParse("$maxPriceRange") ?? 20000.0;
-    if ((sc.startRange.value - defMin).abs() > 0.01) return true;
-    if ((sc.endRage.value - defMax).abs() > 0.01) return true;
+    if (sc.hasActivePriceFilter) return true;
     return false;
   }
 

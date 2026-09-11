@@ -9,7 +9,9 @@ import 'package:google_places_flutter/model/prediction.dart';
 import 'package:intl/intl.dart';
 import 'package:carvy/services/geocoding_service.dart';
 import 'package:carvy/services/location_service.dart';
+import 'package:carvy/helper/catalogue_location_resolver.dart';
 import 'package:carvy/helper/city_name_helper.dart';
+import 'package:carvy/helper/mongo_id_helper.dart';
 import 'package:carvy/helper/web_router.dart';
 import 'package:carvy/model/odometer_model.dart';
 import 'package:carvy/model/items_model.dart';
@@ -22,6 +24,7 @@ import '../api/config.dart';
 import '../utils/safe_navigation.dart';
 import '../customwidget/custom_active_module_id_widget.dart';
 import '../customwidget/miscellaneous_project_elements.dart';
+import '../controller/home_controller.dart';
 import '../helper/http_service.dart';
 import '../model/amenities_model.dart';
 import '../model/make_type_model.dart';
@@ -447,6 +450,11 @@ class SearchControllerHome extends GetxController implements GetxService {
   bool showMore = true;
   RxDouble startRange = 0.0.obs;
   RxDouble endRage = 0.0.obs;
+
+  /// Plafond UI du slider prix (aligné sur [VehicleFilter]).
+  static const double uiMaxPriceLimit = 20000.0;
+
+  bool _priceFilterUserModified = false;
   // Filtre: n'afficher que les véhicules remboursables (politiques flexibles)
   RxBool isRefundableOnly = false.obs;
   // Filtre: Type d'assurance sélectionné ('BASIC' | 'FULL' | '')
@@ -713,8 +721,7 @@ class SearchControllerHome extends GetxController implements GetxService {
     sizevalue = [];
     searchFilterList.clear();
     maketypesValus = [];
-    startRange.value = double.tryParse("$minPricerange") ?? 0.0;
-    endRage.value = double.tryParse("$maxPriceRange") ?? 0.0;
+    resetPriceFilterState();
     startDate.value = '';
     isRefundableOnly.value = false;
     selectedInsurance.value = '';
@@ -930,9 +937,7 @@ class SearchControllerHome extends GetxController implements GetxService {
     BuildContext context,
     dynamic meta,
   ) async {
-    if (price == "0.0-0.0") {
-      price = "";
-    }
+    price = normalizeSearchPriceParam(price);
     if (desildetoSendparametersBasedOnPage.value == true) {
       limit = "50";
       offset = 0;
@@ -966,7 +971,10 @@ class SearchControllerHome extends GetxController implements GetxService {
       }
       sanitizedMeta.removeWhere((key, value) {
         if (value == null) return true;
-        if (value is String && value.trim().isEmpty) return true;
+        if (value is String &&
+            (value.trim().isEmpty || MongoIdHelper.isNullPlaceholder(value))) {
+          return true;
+        }
         if (value is List && cleanList(value).isEmpty) return true;
         return false;
       });
@@ -985,9 +993,24 @@ class SearchControllerHome extends GetxController implements GetxService {
       debugPrint('🔄 [SEARCH ITEMS] setCity synchronisé depuis resolvedCity="$resolvedCity"');
     }
 
+    final String? rawCityId = selectedLocationId;
+    selectedLocationId = MongoIdHelper.sanitizeNullableString(selectedLocationId);
+    if (!MongoIdHelper.isValid(selectedLocationId)) {
+      _tryResolveCatalogueLocationId(cityName: resolvedCity);
+    }
+    final String? validCityId = MongoIdHelper.normalize(selectedLocationId);
+    if (validCityId == null &&
+        rawCityId != null &&
+        !MongoIdHelper.isNullPlaceholder(rawCityId)) {
+      debugPrint(
+        '⚠️ [SEARCH ITEMS] Invalid city_id "$rawCityId" — omitted from payload',
+      );
+    }
+    selectedLocationId = validCityId;
+
     Map<String, dynamic> map = {
       "title": title,
-      "price": price,
+      if (price.isNotEmpty) "price": price,
       "facility": facility,
       "limit": limit,
       "offset": "$offset",
@@ -996,8 +1019,7 @@ class SearchControllerHome extends GetxController implements GetxService {
       "check_in": checkIn,
       "check_out": checkout,
       "city": resolvedCity,
-      if (selectedLocationId != null && selectedLocationId!.trim().isNotEmpty)
-        "city_id": selectedLocationId!.trim(),
+      if (validCityId != null) "city_id": validCityId,
       "zip_code": setZipCode,
       "country": setCountry,
       "state": setState,
@@ -1082,6 +1104,15 @@ class SearchControllerHome extends GetxController implements GetxService {
     );
     logCityStateDebug('SEARCH ITEMS payload ready');
 
+    debugPrint(
+      '[FLUTTER SEARCH] searchItems POST ${Config.baseurl}${Config.itemSearch}\n'
+      '   city               = "${map['city']}"\n'
+      '   city_id            = ${map['city_id'] ?? "(omitted)"}\n'
+      '   selectedLocationId = ${selectedLocationId ?? "(null)"}\n'
+      '   validCityId        = ${validCityId ?? "(null)"}\n'
+      '   payload            = ${jsonEncode(map)}',
+    );
+
     // Appel RÉEL à l'API de recherche (item-search)
     final dynamic response = await httpPost(Config.itemSearch, map);
 
@@ -1108,61 +1139,127 @@ class SearchControllerHome extends GetxController implements GetxService {
   /// Prix figé au clic « Appliquer » (évite une course avec initState du filtre).
   String? _pendingAppliedPriceRange;
 
+  double get defaultPriceMin => double.tryParse("$minPricerange") ?? 10.0;
+
+  double get defaultPriceMax => uiMaxPriceLimit;
+
+  void markPriceFilterModified() {
+    _priceFilterUserModified = true;
+  }
+
+  void resetPriceFilterState() {
+    startRange.value = 0.0;
+    endRage.value = 0.0;
+    _priceFilterUserModified = false;
+    _pendingAppliedPriceRange = null;
+  }
+
+  bool isInactivePriceRange(double start, double end) {
+    if (start == 0 && end == 0) return true;
+
+    final defMin = defaultPriceMin;
+    final uiMax = defaultPriceMax;
+    final legacyMax = double.tryParse("$maxPriceRange") ?? uiMax;
+
+    bool matches(double min, double max) {
+      return (start - min).abs() < 0.01 && (end - max).abs() < 0.01;
+    }
+
+    return matches(defMin, uiMax) ||
+        matches(defMin, legacyMax) ||
+        matches(0, legacyMax);
+  }
+
+  bool isInactivePriceRangeString(String? priceRange) {
+    final raw = priceRange?.trim() ?? '';
+    if (raw.isEmpty || raw == '0-0' || raw == '0.0-0.0') return true;
+    final parts = raw.split('-');
+    if (parts.length != 2) return false;
+    final start = double.tryParse(parts[0].trim());
+    final end = double.tryParse(parts[1].trim());
+    if (start == null || end == null) return false;
+    return isInactivePriceRange(start, end);
+  }
+
+  bool shouldSendPriceFilter(double start, double end) {
+    return _priceFilterUserModified && !isInactivePriceRange(start, end);
+  }
+
+  bool get hasActivePriceFilter =>
+      shouldSendPriceFilter(startRange.value, endRage.value);
+
+  String buildPriceRangeParam(double start, double end) {
+    if (!shouldSendPriceFilter(start, end)) return '';
+    return '${start.round()}-${end.round()}';
+  }
+
+  String normalizeSearchPriceParam(String? price) {
+    final raw = price?.trim() ?? '';
+    if (raw.isEmpty || raw == '0-0' || raw == '0.0-0.0') return '';
+    if (isInactivePriceRangeString(raw)) return '';
+    return raw;
+  }
+
   void prepareFilterSheetOpen() {
     sendvalueInApiforrecentValue.value = false;
     debugPrint(
       '🔎 [FILTER] Ouverture feuille — startRange=${startRange.value} '
-      'endRage=${endRage.value} sendRecent=${sendvalueInApiforrecentValue.value}',
+      'endRage=${endRage.value} modified=$_priceFilterUserModified '
+      'sendRecent=${sendvalueInApiforrecentValue.value}',
     );
   }
 
   void lockPriceRangeForNextSearch(String priceRange) {
     sendvalueInApiforrecentValue.value = false;
-    _pendingAppliedPriceRange = priceRange;
-    final parts = priceRange.split('-');
-    if (parts.length == 2) {
-      final min = double.tryParse(parts[0].trim());
-      final max = double.tryParse(parts[1].trim());
-      if (min != null) startRange.value = min;
-      if (max != null) endRage.value = max;
+    final normalized = normalizeSearchPriceParam(priceRange);
+    _pendingAppliedPriceRange = normalized.isEmpty ? '' : normalized;
+    if (normalized.isNotEmpty) {
+      final parts = normalized.split('-');
+      if (parts.length == 2) {
+        final min = double.tryParse(parts[0].trim());
+        final max = double.tryParse(parts[1].trim());
+        if (min != null) startRange.value = min;
+        if (max != null) endRage.value = max;
+      }
     }
     debugPrint(
-      '🔎 [FILTER] Prix verrouillé pour la prochaine API: $priceRange '
+      '🔎 [FILTER] Prix verrouillé pour la prochaine API: '
+      '${normalized.isEmpty ? "(omitted)" : normalized} '
       '(startRange=${startRange.value} endRage=${endRage.value})',
     );
   }
 
-  /// Prix envoyé à [searchItems] — priorité au verrou post-« Appliquer ».
+  /// Prix envoyé à [searchItems] — omis si filtre non modifié ou plage par défaut.
   String resolveSearchPriceParam() {
     if (_pendingAppliedPriceRange != null) {
-      final locked = _pendingAppliedPriceRange!;
+      final locked = normalizeSearchPriceParam(_pendingAppliedPriceRange);
       _pendingAppliedPriceRange = null;
-      if (locked == '0-0' || locked == '0.0-0.0') {
-        debugPrint('🔎 [FILTER] API price (verrouillé): vide');
-        return '';
-      }
-      debugPrint('🔎 [FILTER] API price (verrouillé au clic): $locked');
+      debugPrint(
+        '🔎 [FILTER] API price (verrouillé au clic): '
+        '${locked.isEmpty ? "(omitted)" : locked}',
+      );
       return locked;
     }
 
     if (sendvalueInApiforrecentValue.value == true &&
         setpriceforrecentvalue.trim().isNotEmpty) {
-      debugPrint('🔎 [FILTER] API price (recherche récente): $setpriceforrecentvalue');
-      return setpriceforrecentvalue;
+      final recent = normalizeSearchPriceParam(setpriceforrecentvalue);
+      debugPrint(
+        '🔎 [FILTER] API price (recherche récente): '
+        '${recent.isEmpty ? "(omitted)" : recent}',
+      );
+      return recent;
     }
 
     sendvalueInApiforrecentValue.value = false;
-    final built =
-        '${startRange.value.round()}-${endRage.value.round()}';
-    if (built == '0-0') {
-      debugPrint('🔎 [FILTER] API price (controller): vide');
-      return '';
-    }
+    final resolved = buildPriceRangeParam(startRange.value, endRage.value);
     debugPrint(
-      '🔎 [FILTER] API price (controller): $built '
-      '(startRange=${startRange.value} endRage=${endRage.value})',
+      '🔎 [FILTER] API price (controller): '
+      '${resolved.isEmpty ? "(omitted)" : resolved} '
+      '(startRange=${startRange.value} endRage=${endRage.value} '
+      'modified=$_priceFilterUserModified)',
     );
-    return built;
+    return resolved;
   }
   Map<String, dynamic> globalSearchParams = {};
   void loadAndSendSearch(int index, BuildContext context) async {
@@ -1182,13 +1279,26 @@ class SearchControllerHome extends GetxController implements GetxService {
       centralLng = "";
       Map<String, dynamic> search = recentSearches[index];
       selectedtypesvalues.clear();
-      setpriceforrecentvalue = search['price'] ?? '';
+      final recentPrice = search['price']?.toString() ?? '';
+      if (isInactivePriceRangeString(recentPrice)) {
+        setpriceforrecentvalue = '';
+        sendvalueInApiforrecentValue.value = false;
+      } else {
+        setpriceforrecentvalue = recentPrice;
+        sendvalueInApiforrecentValue.value = true;
+        _priceFilterUserModified = true;
+        final parts = recentPrice.split('-');
+        if (parts.length == 2) {
+          final min = double.tryParse(parts[0].trim());
+          final max = double.tryParse(parts[1].trim());
+          if (min != null) startRange.value = min;
+          if (max != null) endRage.value = max;
+        }
+      }
       slatsearch = search['Slatitude'] ?? '';
       sLongSearch = search['Slongitude'] ?? '';
       setCity = search['city'] ?? '';
-      final recentCityId = search['city_id']?.toString().trim();
-      selectedLocationId =
-          (recentCityId != null && recentCityId.isNotEmpty) ? recentCityId : null;
+      selectedLocationId = MongoIdHelper.normalize(search['city_id']?.toString());
       setZipCode = search['zip_code'] ?? '';
       setCountry = search['country'] ?? '';
       setState = search['state'] ?? '';
@@ -1247,13 +1357,13 @@ class SearchControllerHome extends GetxController implements GetxService {
     VoidCallback? onMapRefresh,
     String? lockedPriceRange,
   }) {
+    sendvalueInApiforrecentValue.value = false;
     if (lockedPriceRange != null && lockedPriceRange.trim().isNotEmpty) {
       lockPriceRangeForNextSearch(lockedPriceRange.trim());
     } else {
-      sendvalueInApiforrecentValue.value = false;
-      final built =
-          '${startRange.value.round()}-${endRage.value.round()}';
-      lockPriceRangeForNextSearch(built == '0-0' ? '' : built);
+      lockPriceRangeForNextSearch(
+        buildPriceRangeParam(startRange.value, endRage.value),
+      );
     }
 
     void runAfterSheetClosed() {
@@ -1370,6 +1480,40 @@ class SearchControllerHome extends GetxController implements GetxService {
     return segment;
   }
 
+  /// Résout un ObjectId catalogue depuis home-data (nom ou coords proches).
+  void _tryResolveCatalogueLocationId({
+    String? cityName,
+    String? latitude,
+    String? longitude,
+  }) {
+    if (MongoIdHelper.isValid(selectedLocationId)) return;
+
+    try {
+      final homeController = Get.find<HomeController>();
+      final catalogue = homeController.homeDataModel?.data?.locations;
+      final resolved = CatalogueLocationResolver.resolveId(
+        catalogue: catalogue,
+        cityName: cityName ?? setCity,
+        latitude: double.tryParse((latitude ?? slatsearch ?? '').trim()),
+        longitude: double.tryParse((longitude ?? sLongSearch ?? '').trim()),
+      );
+      if (resolved != null) {
+        selectedLocationId = resolved;
+        debugPrint(
+          '[FLUTTER SEARCH] catalogue resolve OK city_id=$resolved '
+          '(city="${cityName ?? setCity}")',
+        );
+      } else {
+        debugPrint(
+          '[FLUTTER SEARCH] catalogue resolve — no ObjectId for '
+          'city="${cityName ?? setCity}"',
+        );
+      }
+    } catch (e) {
+      debugPrint('[FLUTTER SEARCH] catalogue resolve skipped: $e');
+    }
+  }
+
   /// Ville effective pour `item-search` : UI [homeSearchLocation] puis [setCity].
   String resolveSearchCity({String? fallback}) {
     var raw = generalScopeController.homeSearchLocation.value.trim();
@@ -1424,9 +1568,23 @@ class SearchControllerHome extends GetxController implements GetxService {
     }
 
     setCity = city;
-    final cleanId = locationId?.trim();
-    selectedLocationId =
-        (cleanId != null && cleanId.isNotEmpty) ? cleanId : null;
+    final rawLocationId = locationId?.trim();
+    selectedLocationId = MongoIdHelper.normalize(locationId);
+    debugPrint(
+      '[FLUTTER SEARCH] applyCityLocationSelection normalize\n'
+      '   raw locationId     = "${rawLocationId ?? "(null)"}"\n'
+      '   isNullPlaceholder  = ${MongoIdHelper.isNullPlaceholder(rawLocationId)}\n'
+      '   MongoIdHelper.valid= ${MongoIdHelper.isValid(rawLocationId)}\n'
+      '   after normalize    = ${selectedLocationId ?? "(null)"}',
+    );
+    if (selectedLocationId == null &&
+        rawLocationId != null &&
+        rawLocationId.isNotEmpty &&
+        !MongoIdHelper.isNullPlaceholder(rawLocationId)) {
+      debugPrint(
+        '[FLUTTER SEARCH] applyCityLocationSelection — rejected non-ObjectId "$rawLocationId"',
+      );
+    }
     generalScopeController.homeSearchLocation.value = city;
     generalScopeController.textEditingControllerCity.text = city;
 
@@ -1443,9 +1601,20 @@ class SearchControllerHome extends GetxController implements GetxService {
       placeRadius = radius.trim();
     }
 
+    if (selectedLocationId == null) {
+      _tryResolveCatalogueLocationId(
+        cityName: city,
+        latitude: cleanLat.isNotEmpty ? cleanLat : latitude,
+        longitude: cleanLng.isNotEmpty ? cleanLng : longitude,
+      );
+    }
+
     debugPrint(
-      '📍 [LOCATION SELECT] DONE — city="$city" city_id=$selectedLocationId '
-      'lat=$slatsearch lng=$sLongSearch central=$centralLat/$centralLng',
+      '[FLUTTER SEARCH] applyCityLocationSelection DONE\n'
+      '   city               = "$city"\n'
+      '   selectedLocationId = ${selectedLocationId ?? "(null)"}\n'
+      '   coords             = $slatsearch / $sLongSearch\n'
+      '   central            = $centralLat / $centralLng',
     );
     logCityStateDebug('LOCATION SELECT after assign');
     update();
@@ -1571,6 +1740,12 @@ class SearchControllerHome extends GetxController implements GetxService {
         setCity = resolved;
       }
     }
+
+    _tryResolveCatalogueLocationId(
+      cityName: setCity,
+      latitude: centralLat.toString(),
+      longitude: centralLng.toString(),
+    );
   }
 
   String aroundCurrentLocation = "Around Current Location".tr;
@@ -1629,6 +1804,12 @@ class SearchControllerHome extends GetxController implements GetxService {
       } else {
         setCity = resolveSearchCity(fallback: fullAddress);
       }
+
+      _tryResolveCatalogueLocationId(
+        cityName: setCity,
+        latitude: slatsearch,
+        longitude: sLongSearch,
+      );
       update();
       if (filterController.hitApiOnMap == true) {
         Navigator.pop(context);

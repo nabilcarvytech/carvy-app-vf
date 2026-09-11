@@ -1317,8 +1317,7 @@ void customDatePicker(BuildContext context, [bool? clesrdata]) {
 
     showLoading();
     try {
-      String price =
-          "${searchController.startRange.value}-${searchController.endRage.value}";
+      final price = searchController.resolveSearchPriceParam();
       var result = await searchController.searchItems(
         '',
         searchController.selectedtypesvalues.toString(),

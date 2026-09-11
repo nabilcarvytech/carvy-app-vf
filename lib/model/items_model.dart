@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:carvy/helper/mongo_id_helper.dart';
+
 /// Lit `min_rental_days` à la racine du JSON ou dans `item_info` (Map ou string JSON).
 /// Utilisé par les résultats de recherche et [ItemsData].
 int resolveMinRentalDaysForSearchItem(dynamic json) {
@@ -247,6 +249,7 @@ class Items {
   String? _availabilityType;
   bool? _isDelivery;
   String? _deliveryPrice;
+  String? _vehicleLocationId;
 
   Items({
     String? id,
@@ -274,6 +277,7 @@ class Items {
     String? availabilityType,
     bool? isDelivery,
     String? deliveryPrice,
+    String? vehicleLocationId,
   }) {
     _id = id;
     _name = name;
@@ -300,12 +304,14 @@ class Items {
     _availabilityType = availabilityType;
     _isDelivery = isDelivery;
     _deliveryPrice = deliveryPrice;
+    _vehicleLocationId = vehicleLocationId;
   }
 
   Items.fromJson(dynamic json) {
     // DEBUG: suivre exactement ce qui arrive depuis le backend pour la localisation
     final dynamic vehicleLocation = json['vehicleLocation'];
     final dynamic legacyLocation = json['location'];
+    _vehicleLocationId = MongoIdHelper.extractRefId(vehicleLocation);
 
     // ID Mongo -> Toujours traité comme String
     // Gérer à la fois 'id' et '_id' (MongoDB utilise '_id' par défaut)
@@ -495,6 +501,7 @@ class Items {
   set isDelivery(bool? value) => _isDelivery = value;
   String? get deliveryPrice => _deliveryPrice;
   set deliveryPrice(String? value) => _deliveryPrice = value;
+  String? get vehicleLocationId => _vehicleLocationId;
   set wishlistSetter(bool value) {
     _isInWishlist = value;
   }

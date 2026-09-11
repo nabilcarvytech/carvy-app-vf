@@ -63,11 +63,16 @@ class _VehicleFilterState extends State<VehicleFilter> {
 
 // Copy
   void validateRangeValues() {
-    double minPrice = double.parse("${minPricerange!}");
-    double maxPrice = _uiMaxPriceLimit;
+    final double minPrice = double.tryParse("$minPricerange") ?? _sliderMinBound;
+    final double maxPrice = _uiMaxPriceLimit;
 
     double startValue = filterController.startRange.value;
     double endValue = filterController.endRage.value;
+
+    if (startValue == 0 && endValue == 0) {
+      currentRangeValues = RangeValues(minPrice, maxPrice);
+      return;
+    }
 
     startValue = startValue < minPrice ? minPrice : startValue;
     startValue = startValue > maxPrice ? maxPrice : startValue;
@@ -79,15 +84,12 @@ class _VehicleFilterState extends State<VehicleFilter> {
   }
 
   void _syncPriceUiFromController() {
-    final double minPrice = double.tryParse("$minPricerange") ?? 0.0;
-    if (filterController.startRange.value == 0 &&
-        filterController.endRage.value == 0) {
-      filterController.startRange.value = minPrice;
-      filterController.endRage.value = _uiMaxPriceLimit;
-    }
     validateRangeValues();
-    filterController.startRange.value = currentRangeValues.start;
-    filterController.endRage.value = currentRangeValues.end;
+    if (filterController.startRange.value != 0 ||
+        filterController.endRage.value != 0) {
+      filterController.startRange.value = currentRangeValues.start;
+      filterController.endRage.value = currentRangeValues.end;
+    }
     final startStr = currentRangeValues.start.toStringAsFixed(0);
     final endStr = currentRangeValues.end.toStringAsFixed(0);
     _syncingPriceFieldsFromSlider = true;
@@ -177,6 +179,9 @@ class _VehicleFilterState extends State<VehicleFilter> {
       filterController.startRange.value = start;
       filterController.endRage.value = end;
     });
+    if (applyDefaultsForEmpty == false) {
+      filterController.markPriceFilterModified();
+    }
 
     final minStr = start.round().toString();
     final maxStr = end.round().toString();
@@ -284,11 +289,10 @@ class _VehicleFilterState extends State<VehicleFilter> {
                   child: InkWell(
                       onTap: () {
                         filterController.clearFilter();
-                        final double minPrice = double.tryParse("$minPricerange") ?? 0.0;
-                        final double maxPrice = _uiMaxPriceLimit;
-                        currentRangeValues = RangeValues(minPrice, maxPrice);
-                        filterController.startRange.value = minPrice;
-                        filterController.endRage.value = maxPrice;
+                        final double minPrice =
+                            double.tryParse("$minPricerange") ?? _sliderMinBound;
+                        currentRangeValues =
+                            RangeValues(minPrice, _uiMaxPriceLimit);
                         filterController.selectedModelYear = [];
                         _updatePriceFieldsFromSlider(currentRangeValues);
                         setState(() {});
@@ -319,10 +323,22 @@ class _VehicleFilterState extends State<VehicleFilter> {
                       child: CustomsButtons(
                         onPressed: () {
                           _commitPriceRangeForApply();
+                          final start = filterController.startRange.value == 0 &&
+                                  filterController.endRage.value == 0
+                              ? currentRangeValues.start
+                              : filterController.startRange.value;
+                          final end = filterController.startRange.value == 0 &&
+                                  filterController.endRage.value == 0
+                              ? currentRangeValues.end
+                              : filterController.endRage.value;
+                          if (!filterController.isInactivePriceRange(start, end)) {
+                            filterController.markPriceFilterModified();
+                          }
                           final lockedPrice =
-                              '${filterController.startRange.value.round()}-${filterController.endRage.value.round()}';
+                              filterController.buildPriceRangeParam(start, end);
                           debugPrint(
-                            '🔎 [FILTER] Bouton Appliquer — envoi prix: $lockedPrice '
+                            '🔎 [FILTER] Bouton Appliquer — envoi prix: '
+                            '${lockedPrice.isEmpty ? "(omitted)" : lockedPrice} '
                             '(minField=${_minPriceController.text} maxField=${_maxPriceController.text})',
                           );
                           if (widget.mode == true) {
@@ -500,6 +516,8 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                                                 .value =
                                                             values.end;
                                                       });
+                                                      filterController
+                                                          .markPriceFilterModified();
                                                       _updatePriceFieldsFromSlider(
                                                           values);
                                                     },

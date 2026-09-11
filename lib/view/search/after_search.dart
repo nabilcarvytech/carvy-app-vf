@@ -8,6 +8,7 @@ import 'package:carvy/controller/home_controller.dart';
 import 'package:carvy/customwidget/custom_active_module_id_widget.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:carvy/customwidget/shimmer_widgets.dart';
+import 'package:carvy/helper/mongo_id_helper.dart';
 import 'package:carvy/helper/responsive_layout_helper.dart';
 import 'package:carvy/helper/vehicle_availability_helper.dart';
 import 'package:carvy/helper/web_router.dart';
@@ -63,6 +64,10 @@ class _AfterSearchState extends State<AfterSearch> {
     );
   }
 
+  String? get _searchedLocationId {
+    return MongoIdHelper.normalize(filterController.selectedLocationId);
+  }
+
   bool _itemIsDelivery(dynamic item) {
     final type = VehicleAvailabilityHelper.readType(item);
     if (type == VehicleAvailabilityType.excluded) return false;
@@ -83,21 +88,39 @@ class _AfterSearchState extends State<AfterSearch> {
     final typedDelivery = data?.deliveryItems ?? [];
     final combined = data?.items ?? [];
     final city = _searchedCity;
+    final locationId = _searchedLocationId;
 
     final apiOnSite = typedOnSite.length;
     final apiDelivery = typedDelivery.length;
     final apiCombined = combined.length;
 
     debugPrint(
-      '🔎 [HYDRATE] searchedCity="$city" widget.cityName="${widget.cityName}"\n'
-      '   API raw — on_site: $apiOnSite, delivery: $apiDelivery, items: $apiCombined',
+      '[FLUTTER SEARCH] after_search hydrate API response\n'
+      '   searchedCity        = "$city"\n'
+      '   searchedLocationId  = ${locationId ?? "(null)"}\n'
+      '   widget.cityName     = "${widget.cityName}"\n'
+      '   on_site_items (API) = $apiOnSite\n'
+      '   delivery_items (API)= $apiDelivery\n'
+      '   items combined (API)= $apiCombined',
     );
     filterController.logCityStateDebug('HYDRATE before sanitize');
 
     // Complète availabilityType si le backend ne l'envoie pas sur chaque item.
-    VehicleAvailabilityHelper.applyToList(typedOnSite, searchedCity: city);
-    VehicleAvailabilityHelper.applyToList(typedDelivery, searchedCity: city);
-    VehicleAvailabilityHelper.applyToList(combined, searchedCity: city);
+    VehicleAvailabilityHelper.applyToList(
+      typedOnSite,
+      searchedCity: city,
+      searchedLocationId: locationId,
+    );
+    VehicleAvailabilityHelper.applyToList(
+      typedDelivery,
+      searchedCity: city,
+      searchedLocationId: locationId,
+    );
+    VehicleAvailabilityHelper.applyToList(
+      combined,
+      searchedCity: city,
+      searchedLocationId: locationId,
+    );
 
     if (typedOnSite.isNotEmpty || typedDelivery.isNotEmpty) {
       onSiteList = List<dynamic>.from(typedOnSite);
@@ -115,14 +138,17 @@ class _AfterSearchState extends State<AfterSearch> {
       onSiteList: onSiteList,
       deliveryList: deliveryList,
       searchedCity: city,
+      searchedLocationId: locationId,
     );
     _rebuildCombinedList();
 
     debugPrint(
-      '🔎 [HYDRATE] after sanitize — onSite: ${onSiteList.length}, '
-      'delivery: ${deliveryList.length}, total: ${list.length} '
-      '(removed: on_site ${apiOnSite - onSiteList.length}, '
-      'delivery ${apiDelivery - deliveryList.length})',
+      '[FLUTTER SEARCH] after_search hydrate after sanitize\n'
+      '   on_site (UI)  = ${onSiteList.length} '
+      '(Δ ${apiOnSite - onSiteList.length})\n'
+      '   delivery (UI) = ${deliveryList.length} '
+      '(Δ ${apiDelivery - deliveryList.length})\n'
+      '   total (UI)    = ${list.length}',
     );
   }
 
@@ -282,12 +308,22 @@ class _AfterSearchState extends State<AfterSearch> {
       }
 
       final city = _searchedCity;
-      VehicleAvailabilityHelper.applyToList(pageOnSite, searchedCity: city);
-      VehicleAvailabilityHelper.applyToList(pageDelivery, searchedCity: city);
+      final locationId = _searchedLocationId;
+      VehicleAvailabilityHelper.applyToList(
+        pageOnSite,
+        searchedCity: city,
+        searchedLocationId: locationId,
+      );
+      VehicleAvailabilityHelper.applyToList(
+        pageDelivery,
+        searchedCity: city,
+        searchedLocationId: locationId,
+      );
       VehicleAvailabilityHelper.sanitizeResultLists(
         onSiteList: pageOnSite,
         deliveryList: pageDelivery,
         searchedCity: city,
+        searchedLocationId: locationId,
       );
 
       final fetchedCount = pageOnSite.length + pageDelivery.length;
