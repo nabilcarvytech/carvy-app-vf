@@ -25,8 +25,8 @@ class _UserAddressState extends State<UserAddress> {
 
   late GoogleMapController mapController;
   late FocusNode _addressSearchFocusNode;
+  final ScrollController _scrollController = ScrollController();
   String _addressSearchQuery = '';
-  bool _showAddressSuggestions = false;
 
   void _onMapTapped(LatLng position) async {
     setState(() {
@@ -93,7 +93,30 @@ class _UserAddressState extends State<UserAddress> {
   void dispose() {
     _debounceTimer?.cancel();
     _addressSearchFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  double _suggestionsPanelMaxHeight(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final available = media.size.height -
+        media.padding.top -
+        media.padding.bottom -
+        media.viewInsets.bottom -
+        320;
+    return available.clamp(160.0, 280.0);
+  }
+
+  void _scrollToAddressField() {
+    if (!_scrollController.hasClients) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   Future<void> updateMapLocation(LatLng newPosition) async {
@@ -129,18 +152,8 @@ class _UserAddressState extends State<UserAddress> {
   void initState() {
     super.initState();
     _addressSearchFocusNode = FocusNode();
-    _addressSearchFocusNode.addListener(_onAddressSearchFocusChanged);
     addAddressController.ensureSuggestedLabelIfEmpty();
     addAddressController.fetchAddressHistory();
-  }
-
-  void _onAddressSearchFocusChanged() {
-    setState(() {
-      _showAddressSuggestions = _addressSearchFocusNode.hasFocus;
-      if (!_addressSearchFocusNode.hasFocus) {
-        _addressSearchQuery = '';
-      }
-    });
   }
 
   List<AddressHistoryModel> _filteredRecentAddresses() {
@@ -274,18 +287,18 @@ class _UserAddressState extends State<UserAddress> {
     );
   }
 
-  Widget _buildAddressSuggestionsPanel() {
+  Widget _buildSavedAddressesPanel() {
+    final double maxHeight = _suggestionsPanelMaxHeight(context);
+    final String query = _addressSearchQuery.trim();
+
     return Obx(() {
       final isLoading = addAddressController.isAddressHistoryLoading.value;
       final filtered = _filteredRecentAddresses();
 
-      return AnimatedSize(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        alignment: Alignment.topCenter,
-        child: Container(
+      return Container(
           width: double.infinity,
           margin: const EdgeInsets.only(top: 8),
+          constraints: BoxConstraints(maxHeight: maxHeight),
           decoration: BoxDecoration(
             color: notifires.getBoxColor,
             borderRadius: BorderRadius.circular(12),
@@ -320,7 +333,9 @@ class _UserAddressState extends State<UserAddress> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
                   child: Text(
-                    'No recent addresses yet'.tr,
+                    query.isEmpty
+                        ? 'No recent addresses yet'.tr
+                        : 'No matching saved addresses'.tr,
                     style: regular2(context).copyWith(color: Colors.grey),
                   ),
                 )
@@ -328,7 +343,9 @@ class _UserAddressState extends State<UserAddress> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
                   child: Text(
-                    'Your saved addresses'.tr,
+                    query.isEmpty
+                        ? 'Your saved addresses'.tr
+                        : 'Quick suggestions'.tr,
                     style: regular2(context).copyWith(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -336,26 +353,48 @@ class _UserAddressState extends State<UserAddress> {
                     ),
                   ),
                 ),
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => Divider(
-                    height: 1,
-                    color: greyColor2.withOpacity(0.5),
-                    indent: 14,
-                    endIndent: 14,
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: greyColor2.withOpacity(0.5),
+                      indent: 14,
+                      endIndent: 14,
+                    ),
+                    itemBuilder: (context, index) {
+                      return _buildRecentAddressTile(filtered[index]);
+                    },
                   ),
-                  itemBuilder: (context, index) {
-                    return _buildRecentAddressTile(filtered[index]);
-                  },
                 ),
               ],
             ],
           ),
-        ),
-      );
+        );
     });
+  }
+
+  Widget _buildAddressLabelField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Address Label'.tr,
+          style: regular3(context).copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        TextFieldAdvance(
+          hintTxt: 'Home, Office, Airport...'.tr,
+          textEditingControllerCommon:
+              addAddressController.addressLabelController,
+          inputType: TextInputType.text,
+          inputAlignment: TextAlign.start,
+        ),
+      ],
+    );
   }
 
   Widget _buildAddressSearchField() {
@@ -377,6 +416,7 @@ class _UserAddressState extends State<UserAddress> {
             textInputAction: TextInputAction.search,
             maxLines: 2,
             minLines: 1,
+            onTap: _scrollToAddressField,
             onChanged: (value) {
               setState(() => _addressSearchQuery = value);
             },
@@ -434,7 +474,7 @@ class _UserAddressState extends State<UserAddress> {
             ),
           );
         }),
-        if (_showAddressSuggestions) _buildAddressSuggestionsPanel(),
+        _buildSavedAddressesPanel(),
       ],
     );
   }
@@ -444,6 +484,7 @@ class _UserAddressState extends State<UserAddress> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
+        resizeToAvoidBottomInset: true,
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.all(18.0),
           child: Obx(() {
@@ -472,12 +513,17 @@ class _UserAddressState extends State<UserAddress> {
         ),
         backgroundColor: notifires.getbgcolor,
         body: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.only(left: 10, right: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Card(
+          controller: _scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.only(
+            left: 10,
+            right: 10,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -579,31 +625,14 @@ class _UserAddressState extends State<UserAddress> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                _buildAddressSearchField(),
+                _buildAddressLabelField(),
                 const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.only(left: 2),
-                  child: Text(
-                    'Address Label'.tr,
-                    style: regular3(context).copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFieldAdvance(
-                  hintTxt: 'Home, Office, Airport...'.tr,
-                  textEditingControllerCommon:
-                      addAddressController.addressLabelController,
-                  inputType: TextInputType.text,
-                  inputAlignment: TextAlign.start,
-                ),
+                _buildAddressSearchField(),
                 const SizedBox(height: 30),
               ],
             ),
           ),
         ),
-      ),
     );
   }
 }

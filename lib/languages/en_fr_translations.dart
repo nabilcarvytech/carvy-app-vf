@@ -1155,6 +1155,8 @@ const Map<String, String> frFR = {
   "Search or select an address": "Rechercher ou sélectionner une adresse",
   "Search new address on map": "Chercher une nouvelle adresse sur la carte",
   "Your saved addresses": "Vos adresses enregistrées",
+  "Quick suggestions": "Suggestions rapides",
+  "No matching saved addresses": "Aucune adresse enregistrée correspondante",
   "Current Address": "Adresse actuelle",
   "Full address": "Adresse complète",
   "Address Label": "Libellé de l'adresse",

@@ -1315,6 +1315,8 @@ const Map<String, String> enUs = {
   "Search or select an address": "Search or select an address",
   "Search new address on map": "Search new address on map",
   "Your saved addresses": "Your saved addresses",
+  "Quick suggestions": "Quick suggestions",
+  "No matching saved addresses": "No matching saved addresses",
   "Home, Office, Airport...": "Home, Office, Airport...",
   "Approximate area": "Approximate area",
   "View details": "View details",
