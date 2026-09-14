@@ -122,7 +122,8 @@ class ItemDetails {
       String? monthlyDiscountValue,
       bool? hasDiscounts,
       ItemDetailsPriceDetails? priceDetails,
-      List<String>? categoryList}) {
+      List<String>? categoryList,
+      String? bookingConfirmation}) {
     _itemId = itemId;
     _title = title;
     _price = price;
@@ -174,6 +175,7 @@ class ItemDetails {
     _hasDiscounts = hasDiscounts;
     _priceDetails = priceDetails;
     _categoryList = categoryList;
+    _bookingConfirmation = bookingConfirmation;
   }
 
   ItemDetails.fromJson(dynamic json) {
@@ -290,6 +292,8 @@ class ItemDetails {
     _priceDetails = json['price_details'] is Map<String, dynamic>
         ? ItemDetailsPriceDetails.fromJson(json['price_details'])
         : null;
+    _bookingConfirmation = json['bookingConfirmation']?.toString() ??
+        json['booking_confirmation']?.toString();
   }
   String? _itemId;
   String? _title;
@@ -343,6 +347,7 @@ class ItemDetails {
   String? _monthlyDiscountValue;
   bool? _hasDiscounts;
   ItemDetailsPriceDetails? _priceDetails;
+  String? _bookingConfirmation;
 
   String? get itemId => _itemId;
   String? get title => _title;
@@ -396,6 +401,7 @@ class ItemDetails {
   String? get monthlyDiscountValue => _monthlyDiscountValue;
   bool? get hasDiscounts => _hasDiscounts;
   ItemDetailsPriceDetails? get priceDetails => _priceDetails;
+  String? get bookingConfirmation => _bookingConfirmation;
 
   set isInWishlist(bool? value) {
     _isInWishlist = value;

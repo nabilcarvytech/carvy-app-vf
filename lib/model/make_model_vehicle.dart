@@ -169,8 +169,11 @@ class Models {
       _makeId = makeIdValue.toString();
     }
     
-    // Champs String : Utiliser .toString() pour éviter les erreurs si le serveur renvoie un nombre
-    _name = json['name']?.toString();
+    // Champs String : fallbacks pour variantes de clés API (name, modelName, title)
+    _name = json['name']?.toString() ??
+        json['modelName']?.toString() ??
+        json['model_name']?.toString() ??
+        json['title']?.toString();
     _description = json['description']?.toString();
     _status = json['status']?.toString();
     _image = json['image'];

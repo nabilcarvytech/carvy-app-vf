@@ -59,6 +59,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   // Saisie manuelle du modèle si "Autre" est sélectionné
   bool _isOtherModelSelected = false;
   final TextEditingController _otherModelController = TextEditingController();
+  // Saisie manuelle de la marque si "Autre" est sélectionné
+  bool _isOtherMakeSelected = false;
+  final TextEditingController _otherMakeController = TextEditingController();
   
   // Champs pour l'étape Technique
   final TextEditingController _plateNumber1Controller = TextEditingController();
@@ -587,7 +590,13 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       'categories': _selectedCategoryIds.toList(growable: false),
       'makeId': _selectedMake?.id,
       'modelId': _selectedModel?.id,
-      'makeName': _selectedMake?.makeName,
+      'makeName': _isOtherMakeSelected
+          ? (_otherMakeController.text.trim().isEmpty
+              ? null
+              : _otherMakeController.text.trim())
+          : _selectedMake?.makeName,
+      'otherMakeName':
+          _isOtherMakeSelected ? _otherMakeController.text.trim() : null,
       'modelName': _isOtherModelSelected
           ? (_otherModelController.text.trim().isEmpty
               ? null
@@ -597,6 +606,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           _isOtherModelSelected ? _otherModelController.text.trim() : null,
       'fuelId': _selectedFuelType?.id,
       'transmission': _selectedTransmission,
+      'bookingConfirmation': vehicleController.bookingConfirmation.value,
       'odometerId': _selectedOdometer?.id,
       'year': _selectedYear ?? '',
       'seats': _seatsController.text,
@@ -664,6 +674,14 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           specs['makeName'] ??
           specs['brandName'],
     );
+    final String? otherMake =
+        _draftDisplayString(draftData['otherMakeName']);
+    if ((make == null || make.isEmpty || make.toLowerCase() == 'autre') &&
+        otherMake != null &&
+        otherMake.isNotEmpty) {
+      make = otherMake;
+    }
+
     String? model = _draftDisplayString(
       draftData['modelName'] ??
           draftData['model'] ??
@@ -828,6 +846,15 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         }
       }
 
+      final String? otherMakeName = data['otherMakeName']?.toString();
+      if (otherMakeName != null && otherMakeName.isNotEmpty) {
+        _isOtherMakeSelected = true;
+        _otherMakeController.text = otherMakeName;
+      } else if (_selectedMake != null &&
+          _isOtherReferenceName(_selectedMake!.makeName)) {
+        _isOtherMakeSelected = true;
+      }
+
       final String? modelId = data['modelId']?.toString();
       if (modelId != null && modelId.isNotEmpty) {
         _selectedModel = vehicleController.modelsList
@@ -837,6 +864,15 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       if (otherName != null && otherName.isNotEmpty) {
         _isOtherModelSelected = true;
         _otherModelController.text = otherName;
+        if (!_isValidMongoObjectId(_selectedModel?.id)) {
+          await _ensureOtherModelCatalogBinding();
+        }
+      } else if (_isOtherMakeSelected && _selectedModel == null) {
+        if (_findOtherModelInList() != null) {
+          _selectOtherModelAutomatically();
+        } else {
+          await _forceOtherModelUiMode();
+        }
       }
 
       final String? fuelId = data['fuelId']?.toString();
@@ -849,6 +885,11 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       if (tr != null && tr.isNotEmpty) {
         _selectedTransmission = tr.toUpperCase();
       }
+
+      vehicleController.bookingConfirmation.value =
+          VehicleController.normalizeBookingConfirmation(
+        data['bookingConfirmation']?.toString(),
+      );
 
       final String? odoId = data['odometerId']?.toString();
       if (odoId != null && odoId.isNotEmpty) {
@@ -1016,6 +1057,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       _selectedMake = null;
       _selectedModel = null;
       _selectedOdometer = null;
+      _isOtherMakeSelected = false;
+      _otherMakeController.clear();
+      _isOtherModelSelected = false;
+      _otherModelController.clear();
     });
 
     if (vehicleType != null) {
@@ -1031,29 +1076,240 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     }
   }
 
-  Future<void> _onMakeSelected(Makes? make) async {
+  static const Set<String> _otherReferenceNames = <String>{
+    'autre',
+    'other',
+    'autres',
+    'others',
+  };
+
+  bool _isOtherReferenceName(String? raw) {
+    final String normalized = (raw ?? '').trim().toLowerCase();
+    return _otherReferenceNames.contains(normalized);
+  }
+
+  Models? _findOtherModelInList() {
+    return vehicleController.modelsList.firstWhereOrNull(
+      (Models m) => _isOtherReferenceName(m.name),
+    );
+  }
+
+  void _logModelsFetchDiagnostic(
+    String phase, {
+    String? makeId,
+    String? typeId,
+  }) {
+    final List<String> names = vehicleController.modelsList
+        .map((Models m) => m.name ?? '<sans nom>')
+        .toList(growable: false);
+    debugPrint(
+      '[ADD_VEHICLE MODELS] $phase | typeId=${typeId ?? 'null'} | '
+      'makeId=${makeId ?? 'null'} | count=${vehicleController.modelsList.length} | '
+      'names=$names | otherMatch=${_findOtherModelInList()?.name ?? 'none'}',
+    );
+  }
+
+  bool _isValidMongoObjectId(String? raw) {
+    final String? id = raw?.trim();
+    if (id == null || id.isEmpty || id == '0' || id.toLowerCase() == 'null') {
+      return false;
+    }
+    return id.length == 24 && RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(id);
+  }
+
+  void _bindCatalogOtherModel(Models catalogOther) {
+    if (_selectedModel?.id == catalogOther.id) return;
     setState(() {
-      _selectedMake = make;
+      _selectedModel = catalogOther;
+      _isOtherModelSelected = true;
+    });
+    debugPrint(
+      '[ADD_VEHICLE MODELS] bound catalog Other model: id=${catalogOther.id} name=${catalogOther.name}',
+    );
+  }
+
+  Future<bool> _ensureOtherModelCatalogBinding() async {
+    if (!_isOtherModelSelected) {
+      return _selectedModel != null;
+    }
+
+    Models? catalogOther = _findOtherModelInList();
+    if (catalogOther == null &&
+        _selectedMake?.id != null &&
+        _selectedMake!.id!.isNotEmpty) {
+      await _loadModelsForOtherMake(
+        _selectedMake!,
+        _primarySelectedCategoryId(),
+      );
+      catalogOther = _findOtherModelInList();
+    }
+
+    if (catalogOther == null) {
+      debugPrint(
+        '[ADD_VEHICLE MODELS] catalog Other model not found after ensure',
+      );
+      return false;
+    }
+
+    _bindCatalogOtherModel(catalogOther);
+    return true;
+  }
+
+  void _selectOtherModelAutomatically() {
+    final Models? otherModel = _findOtherModelInList();
+    if (otherModel == null) return;
+    _bindCatalogOtherModel(otherModel);
+  }
+
+  Future<void> _forceOtherModelUiMode() async {
+    debugPrint(
+      '[ADD_VEHICLE MODELS] forcing free-text model UI (no API "Autre" entry)',
+    );
+    setState(() {
+      _isOtherModelSelected = true;
+    });
+    await _ensureOtherModelCatalogBinding();
+  }
+
+  Future<bool> _validateModelSelection({bool showErrors = true}) async {
+    if (!_isOtherModelSelected) {
+      if (_selectedModel == null) {
+        if (showErrors) {
+          showErrorToastMessage('Veuillez sélectionner un modèle');
+        }
+        return false;
+      }
+      return true;
+    }
+
+    if (_otherModelController.text.trim().isEmpty) {
+      if (showErrors) {
+        showErrorToastMessage('Veuillez saisir le nom du modèle');
+      }
+      return false;
+    }
+
+    if (!await _ensureOtherModelCatalogBinding()) {
+      if (showErrors) {
+        showErrorToastMessage(
+          'Impossible de récupérer le modèle « Autre » du catalogue. Réessayez.',
+        );
+      }
+      return false;
+    }
+
+    if (!_isValidMongoObjectId(_selectedModel?.id)) {
+      if (showErrors) {
+        showErrorToastMessage(
+          'Le modèle du véhicule est requis. Veuillez sélectionner un modèle valide.',
+        );
+      }
+      return false;
+    }
+
+    return true;
+  }
+
+  Future<bool> _validateIdentiteStep() async {
+    if (_selectedCategoryIds.isEmpty) {
+      showErrorToastMessage(
+          'Veuillez sélectionner au moins une catégorie de véhicule');
+      return false;
+    }
+    if (_selectedMake == null) {
+      showErrorToastMessage('Veuillez sélectionner une marque');
+      return false;
+    }
+    if (_isOtherMakeSelected && _otherMakeController.text.trim().isEmpty) {
+      showErrorToastMessage('Veuillez saisir le nom de la marque');
+      return false;
+    }
+    if (!await _validateModelSelection()) {
+      return false;
+    }
+    if (_selectedOdometer == null) {
+      showErrorToastMessage('Veuillez sélectionner un kilométrage');
+      return false;
+    }
+    if (_selectedYear == null || _selectedYear!.isEmpty) {
+      showErrorToastMessage('Veuillez sélectionner l\'année');
+      return false;
+    }
+    if (_seatsController.text.isEmpty) {
+      showErrorToastMessage('Veuillez saisir le nombre de sièges');
+      return false;
+    }
+    if (_selectedFuelType == null) {
+      showErrorToastMessage('Veuillez sélectionner un type de carburant');
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _loadModelsForMake(Makes make, {String? typeId}) async {
+    await vehicleController.fetchVehicleModels(
+      typeId: typeId,
+      makeId: make.id,
+    );
+    _logModelsFetchDiagnostic(
+      typeId != null && typeId.isNotEmpty
+          ? 'fetch with typeId'
+          : 'fetch without typeId',
+      makeId: make.id,
+      typeId: typeId,
+    );
+  }
+
+  Future<void> _loadModelsForOtherMake(Makes make, String? typeId) async {
+    await _loadModelsForMake(make, typeId: typeId);
+
+    final bool needsFallback = vehicleController.modelsList.isEmpty ||
+        _findOtherModelInList() == null;
+    if (needsFallback && typeId != null && typeId.isNotEmpty) {
+      debugPrint(
+        '[ADD_VEHICLE MODELS] fallback retry without typeId (empty or no Autre match)',
+      );
+      await _loadModelsForMake(make);
+    }
+  }
+
+  Future<void> _handleMakeSelectionChanged(Makes? newValue) async {
+    final bool isOtherMake = _isOtherReferenceName(newValue?.makeName);
+
+    setState(() {
+      _selectedMake = newValue;
       _selectedModel = null;
       _isOtherModelSelected = false;
       _otherModelController.clear();
+      _isOtherMakeSelected = isOtherMake;
+      if (!isOtherMake) {
+        _otherMakeController.clear();
+      }
     });
 
-    if (make != null && make.id != null && make.id!.isNotEmpty) {
-      String? typeId;
-      if (_selectedVehicleType != null) {
-        if (_selectedVehicleType is Map<String, dynamic>) {
-          typeId = _selectedVehicleType['id']?.toString();
+    vehicleController.modelsList.clear();
+
+    if (newValue?.id != null && newValue!.id!.isNotEmpty) {
+      final String? typeId = _primarySelectedCategoryId();
+      if (isOtherMake) {
+        await _loadModelsForOtherMake(newValue, typeId);
+      } else {
+        await _loadModelsForMake(newValue, typeId: typeId);
+      }
+      if (!mounted) return;
+      if (isOtherMake) {
+        if (_findOtherModelInList() != null) {
+          _selectOtherModelAutomatically();
         } else {
-          typeId = _selectedVehicleType.id?.toString();
+          await _forceOtherModelUiMode();
         }
       }
-      await vehicleController.fetchVehicleModels(
-        typeId: typeId,
-        makeId: make.id,
-      );
       _scrollToField(_modelCardKey);
     }
+  }
+
+  Future<void> _onMakeSelected(Makes? make) async {
+    await _handleMakeSelectionChanged(make);
   }
 
   List<Models> _getAvailableModels() {
@@ -1064,6 +1320,12 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   void _nextStep() async {
     FocusManager.instance.primaryFocus?.unfocus();
     if (_currentStep < _totalSteps - 1) {
+      if (_currentStep == 0) {
+        if (!await _validateIdentiteStep()) {
+          return;
+        }
+      }
+
       // Recharger les données si nécessaire quand on arrive sur l'étape 4
       if (_currentStep == 3) {
         // Arrivée sur l'étape 4 (Localisation) - Recharger les locations si la liste est vide
@@ -1120,8 +1382,12 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       _goToStep(0);
       return;
     }
-    if (_selectedModel == null) {
-      showErrorToastMessage('Veuillez sélectionner un modèle');
+    if (_isOtherMakeSelected && _otherMakeController.text.trim().isEmpty) {
+      showErrorToastMessage('Veuillez saisir le nom de la marque');
+      _goToStep(0);
+      return;
+    }
+    if (!await _validateModelSelection()) {
       _goToStep(0);
       return;
     }
@@ -1227,7 +1493,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       final String? extractedBrandId = _selectedMake?.id?.trim();
       
       // Validation stricte des IDs avant soumission
-      if (extractedModelId == null || extractedModelId.isEmpty || extractedModelId == "0" || extractedModelId.toLowerCase() == "null") {
+      if (!_isValidMongoObjectId(extractedModelId)) {
         showErrorToastMessage('Le modèle du véhicule est requis. Veuillez sélectionner un modèle valide.');
         _goToStep(0); // Retourner à l'étape de sélection du modèle
         return;
@@ -1267,6 +1533,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         categoriesIds: categoriesForBackend,
         brandId: extractedBrandId,
         modelId: extractedModelId,
+        otherMakeName: _isOtherMakeSelected
+            ? _otherMakeController.text.trim()
+            : null,
         otherModelName: _isOtherModelSelected
             ? _otherModelController.text.trim()
             : null,
@@ -1306,6 +1575,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         hasAgeRestriction: _hasAgeRestriction,
         minAge: _minAgeController.text,
         allowsInternationalTravel: _allowsInternationalTravel,
+        bookingConfirmation: vehicleController.bookingConfirmation.value,
         imageFiles: vehicleController.selectedImages.toList(),
         registrationCardFront: vehicleController.registrationCardRecto.value,
         registrationCardBack: vehicleController.registrationCardVerso.value,
@@ -1340,8 +1610,14 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       _selectedVehicleType = null;
       _selectedMake = null;
       _selectedModel = null;
+      _isOtherMakeSelected = false;
+      _otherMakeController.clear();
+      _isOtherModelSelected = false;
+      _otherModelController.clear();
       _selectedFuelType = null;
       _selectedTransmission = 'MANUAL';
+      vehicleController.bookingConfirmation.value =
+          VehicleController.bookingConfirmationInstant;
       _selectedOdometer = null;
       _selectedInsurance = null;
       _hasAgeRestriction = false;
@@ -1384,6 +1660,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     _minRentalDaysController.dispose();
     _minAgeController.dispose();
     _addressController.dispose();
+    _otherMakeController.dispose();
+    _otherModelController.dispose();
     _mapIdleDebounce?.cancel();
     _pageController.dispose();
     _step1ScrollController.dispose();
@@ -1571,6 +1849,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           ),
           const SizedBox(height: 16),
 
+          _buildBookingConfirmationCard(),
+          const SizedBox(height: 16),
+
           // Carte Marque
           _buildCard(
             child: Column(
@@ -1604,25 +1885,20 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                             .toList(),
                         enabled: true,
                         onChanged: (Makes? newValue) async {
-                          setState(() {
-                            _selectedMake = newValue;
-                            _selectedModel = null;
-                            _isOtherModelSelected = false;
-                            _otherModelController.clear();
-                          });
-                          vehicleController.modelsList.clear();
-                          if (newValue != null && newValue.id != null && newValue.id!.isNotEmpty) {
-                            String? typeId = _primarySelectedCategoryId();
-                            await vehicleController.fetchVehicleModels(
-                              typeId: typeId,
-                              makeId: newValue.id,
-                            );
-                            _scrollToField(_modelCardKey);
-                          }
+                          await _handleMakeSelectionChanged(newValue);
                         },
                         hint: makesCount == 0 ? 'Chargement...'.tr : 'Sélectionnez une option'.tr,
                         icon: Icons.directions_car_rounded,
                       ),
+                      if (_isOtherMakeSelected) ...[
+                        const SizedBox(height: 12),
+                        _buildModernTextField(
+                          controller: _otherMakeController,
+                          hint: 'Saisissez la marque'.tr,
+                          icon: Icons.edit,
+                          keyboardType: TextInputType.text,
+                        ),
+                      ],
                     ],
                   );
                 }),
@@ -1655,32 +1931,52 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                     children: [
                       isLoading
                           ? const Center(child: CircularProgressIndicator())
-                          : _buildModernDropdown<Models>(
-                              key: UniqueKey(),
-                              value: _selectedModel,
-                              items: modelsList
-                                  .map((model) => DropdownMenuItem<Models>(
-                                        value: model,
-                                        child: Text(model.name ?? ''),
-                                      ))
-                                  .toList(),
-                              enabled: true,
-                              onChanged: (Models? model) {
-                                setState(() {
-                                  _selectedModel = model;
-                                  final String selectedName = (model?.name ?? '').toString();
-                                  _isOtherModelSelected = selectedName.toLowerCase() == 'autre';
-                                  debugPrint('SÉLECTION MODÈLE: $selectedName | IS_OTHER: $_isOtherModelSelected');
-                                });
-                                _scrollToField(_odometerCardKey);
-                              },
-                              hint: isLoading
-                                  ? 'Chargement...'.tr
-                                  : (modelsCount == 0
-                                      ? 'Aucun modèle disponible'.tr
-                                      : 'Sélectionnez un modèle'.tr),
-                              icon: Icons.directions_car,
-                            ),
+                          : (_isOtherModelSelected && modelsCount == 0)
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Text(
+                                    'Saisie libre du modèle'.tr,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                )
+                              : _buildModernDropdown<Models>(
+                                  key: UniqueKey(),
+                                  value: _selectedModel,
+                                  items: modelsList
+                                      .map((model) => DropdownMenuItem<Models>(
+                                            value: model,
+                                            child: Text(model.name ?? ''),
+                                          ))
+                                      .toList(),
+                                  enabled: true,
+                                  onChanged: (Models? model) {
+                                    setState(() {
+                                      _selectedModel = model;
+                                      _isOtherModelSelected =
+                                          _isOtherReferenceName(model?.name);
+                                      if (!_isOtherModelSelected) {
+                                        _otherModelController.clear();
+                                      }
+                                      debugPrint(
+                                        'SÉLECTION MODÈLE: ${model?.name} | IS_OTHER: $_isOtherModelSelected',
+                                      );
+                                    });
+                                    if (_isOtherModelSelected) {
+                                      _ensureOtherModelCatalogBinding();
+                                    }
+                                    _scrollToField(_odometerCardKey);
+                                  },
+                                  hint: isLoading
+                                      ? 'Chargement...'.tr
+                                      : (modelsCount == 0
+                                          ? 'Aucun modèle disponible'.tr
+                                          : 'Sélectionnez un modèle'.tr),
+                                  icon: Icons.directions_car,
+                                ),
                       if (_isOtherModelSelected) ...[
                         const SizedBox(height: 12),
                         _buildModernTextField(
@@ -4262,6 +4558,83 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   }
 
   // ========== WIDGETS RÉUTILISABLES ==========
+
+  Widget _buildBookingConfirmationCard() {
+    return _buildCard(
+      child: Obx(() {
+        final selected = vehicleController.bookingConfirmation.value;
+        final isInstant =
+            selected == VehicleController.bookingConfirmationInstant;
+        final isManual =
+            selected == VehicleController.bookingConfirmationManual;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Confirmation de réservation'.tr,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[900],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Choisissez comment les demandes de réservation sont traitées'.tr,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 12),
+            RadioListTile<String>(
+              title: Text(
+                'Confirmation instantanée'.tr,
+                style: TextStyle(
+                  fontWeight: isInstant ? FontWeight.bold : FontWeight.normal,
+                  color: isInstant ? vehicalThemColor : Colors.grey[900],
+                ),
+              ),
+              subtitle: Text(
+                'Les réservations sont confirmées automatiquement'.tr,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              value: VehicleController.bookingConfirmationInstant,
+              groupValue: selected,
+              onChanged: (String? value) {
+                if (value == null) return;
+                vehicleController.bookingConfirmation.value = value;
+              },
+              activeColor: vehicalThemColor,
+              contentPadding: EdgeInsets.zero,
+            ),
+            RadioListTile<String>(
+              title: Text(
+                'Approbation manuelle'.tr,
+                style: TextStyle(
+                  fontWeight: isManual ? FontWeight.bold : FontWeight.normal,
+                  color: isManual ? vehicalThemColor : Colors.grey[900],
+                ),
+              ),
+              subtitle: Text(
+                'Vous devez approuver chaque demande de réservation'.tr,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              value: VehicleController.bookingConfirmationManual,
+              groupValue: selected,
+              onChanged: (String? value) {
+                if (value == null) return;
+                vehicleController.bookingConfirmation.value = value;
+              },
+              activeColor: vehicalThemColor,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ],
+        );
+      }),
+    );
+  }
 
   Widget _buildCard({Key? key, required Widget child}) {
     return Container(

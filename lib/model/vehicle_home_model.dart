@@ -323,6 +323,7 @@ class ItemInfo {
   dynamic isVerified;
   dynamic isFeatured;
   dynamic bookingPoliciesId;
+  dynamic bookingConfirmation;
   dynamic weeklyDiscount;
   dynamic weeklyDiscountType;
   dynamic monthlyDiscount;
@@ -374,6 +375,7 @@ class ItemInfo {
     this.seatCapicity,
     this.fuelType,
     this.bookingPoliciesId,
+    this.bookingConfirmation,
     this.weeklyDiscount,
     this.weeklyDiscountType,
     this.monthlyDiscount,
@@ -433,6 +435,8 @@ class ItemInfo {
       fuelType: json['fuel_type'],
       seatCapicity: json['number_of_seats'],
       bookingPoliciesId: json['booking_policies_id'],
+      bookingConfirmation: json['bookingConfirmation']?.toString() ??
+          json['booking_confirmation']?.toString(),
       weeklyDiscount: json['weekly_discount'],
       weeklyDiscountType: json['weekly_discount_type'],
       monthlyDiscount: json['monthly_discount'],

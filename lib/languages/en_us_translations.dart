@@ -1294,7 +1294,14 @@ const Map<String, String> enUs = {
   "payment_method_default": "Payment method",
   "no_payment_methods_available": "No payment methods available",
   "booking_success_title": "Booking successful!",
+  "booking_success_title_pending": "Request submitted",
   "booking_success_message": "Your booking has been created successfully!",
+  "booking_request_submitted_message":
+      "Your booking request has been recorded.",
+  "booking_pending_manual_approval_message":
+      "Your booking request has been sent to the owner. It is currently pending approval. Processing usually takes place on business days between 8:00 AM and 6:00 PM.",
+  "booking_pending_snack_message":
+      "Your request has been sent to the owner.",
   "booking_id_label": "Booking ID:",
   "view_my_bookings": "View my bookings",
   "initial_total_price": "Initial total price",

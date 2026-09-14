@@ -232,6 +232,18 @@ class ItemDetailsController extends GetxController implements GetxService {
                             .priceDetails?.discountedDailyPriceMonthly,
                       );
                     }
+
+                    final dynamic bookingConfirmationRaw =
+                        itemDetails.bookingConfirmation ??
+                            itemDetailsJson?['bookingConfirmation'] ??
+                            itemDetailsJson?['booking_confirmation'] ??
+                            itemData['bookingConfirmation'] ??
+                            itemData['booking_confirmation'];
+                    if (bookingConfirmationRaw != null &&
+                        bookingConfirmationRaw.toString().trim().isNotEmpty) {
+                      parsedItemInfo.bookingConfirmation =
+                          bookingConfirmationRaw.toString();
+                    }
                     
                     // Mettre à jour itemInfo dans le controller (c'est cet objet qui sera transmis)
                     itemInfo = parsedItemInfo;

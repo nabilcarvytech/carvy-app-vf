@@ -14,6 +14,7 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:carvy/controller/add_address_controller.dart';
 import 'package:carvy/controller/items_detail_controller.dart';
+import 'package:carvy/controller/vehicle_controller.dart';
 import 'package:carvy/controller/kyc_controller.dart';
 import 'package:carvy/controller/push_notifications.dart';
 import 'package:carvy/controller/booking_record_controller.dart';
@@ -28,6 +29,7 @@ import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/utils/navigation_guard.dart';
 import 'package:carvy/utils/payment_flow_debug.dart';
 import 'package:carvy/utils/black_screen_debug.dart';
+import 'package:carvy/utils/safe_navigation.dart';
 import 'package:carvy/utils/snackbar_service.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import '../api/config.dart';
@@ -311,6 +313,63 @@ class BookingController extends GetxController implements GetxService {
   /// Notifie les GetBuilder sans toucher l'UI si le contrôleur est fermé.
   void notifyUi([List<Object>? ids, bool condition = true]) {
     safeUpdate(ids, condition);
+  }
+
+  /// Ferme la modale de succès puis navigue vers « Mes réservations ».
+  Future<void> _continueAfterBookingSuccessDialog({
+    required int tabIndex,
+    required String snackTitle,
+    required String snackMessage,
+  }) async {
+    if (_isContinuingAfterSuccessDialog) {
+      paymentFlowLog('STEP 6 — IGNORE duplicate success dialog tap');
+      return;
+    }
+    _isContinuingAfterSuccessDialog = true;
+    _awaitingBookingSuccessDialog = false;
+
+    paymentFlowLog('STEP 6 — « Voir mes réservations » button TAP');
+    try {
+      closeLoading();
+    } catch (_) {}
+
+    if (Get.isDialogOpen == true) {
+      paymentFlowLog('STEP 6a — closing success dialog (Get.back)');
+      Get.back(closeOverlays: false);
+    } else {
+      safeGetBack();
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+
+    try {
+      paymentFlowLog('STEP 7 — calling _navigateToBookingsAfterPayment');
+      await _navigateToBookingsAfterPayment(
+        tabIndex: tabIndex,
+        snackTitle: snackTitle,
+        snackMessage: snackMessage,
+      );
+      paymentFlowLog('STEP 7b — returned from _navigateToBookingsAfterPayment');
+    } catch (e, st) {
+      debugPrint('❌ [processBooking] Navigation post-succès échouée: $e\n$st');
+      NavigationGuard.endImmediately();
+      isProcessingBooking.value = false;
+      try {
+        await Get.offAll(
+          () => MyBooking(
+            fromPropBooking: false,
+            initialTabIndex: tabIndex,
+          ),
+        );
+      } catch (e2, st2) {
+        debugPrint('❌ [processBooking] Fallback offAll échoué: $e2\n$st2');
+      }
+    } finally {
+      _isContinuingAfterSuccessDialog = false;
+      if (isProcessingBooking.value) {
+        isProcessingBooking.value = false;
+      }
+    }
   }
 
   /// Navigation post-paiement : route atomique — aucune mutation Rx avant [Get.offAll].
@@ -829,6 +888,8 @@ class BookingController extends GetxController implements GetxService {
   RxBool showAddCouponBtn = false.obs;
   var isPaymentSuccess = false.obs;
   var isProcessingBooking = false.obs;
+  bool _awaitingBookingSuccessDialog = false;
+  bool _isContinuingAfterSuccessDialog = false;
   String currency = "";
   double discount = 0;
   double basePrice = 0;
@@ -1838,6 +1899,107 @@ class BookingController extends GetxController implements GetxService {
     return response;
   }
 
+  static const String _bookItemAuditTag = '[FLUTTER BOOKING AUDIT]';
+
+  /// Logs détaillés du payload POST `book-item` (audit réseau).
+  void _logBookItemRequestAudit({
+    required String url,
+    required Map<String, dynamic> requestBody,
+    required String authToken,
+  }) {
+    const encoder = JsonEncoder.withIndent('  ');
+    final String bodyJson = encoder.convert(requestBody);
+    final String tokenPreview = authToken.length > 20
+        ? '${authToken.substring(0, 20)}…'
+        : authToken;
+
+    debugPrint('$_bookItemAuditTag ══════ POST book-item REQUEST ══════');
+    debugPrint('$_bookItemAuditTag URL          : $url');
+    debugPrint('$_bookItemAuditTag Method        : POST');
+    debugPrint(
+      '$_bookItemAuditTag Headers       : Content-Type=application/json, '
+      'x-auth-token=$tokenPreview (len=${authToken.length})',
+    );
+    debugPrint(
+      '$_bookItemAuditTag Body keys     : ${requestBody.keys.toList()}',
+    );
+
+    final dynamic rootBookingConfirmation = requestBody['bookingConfirmation'];
+    debugPrint(
+      '$_bookItemAuditTag bookingConfirmation (root): '
+      '${rootBookingConfirmation ?? "(absent)"}',
+    );
+
+    final dynamic metaRaw = requestBody['meta'];
+    if (metaRaw is String && metaRaw.trim().isNotEmpty) {
+      try {
+        final dynamic decodedMeta = jsonDecode(metaRaw);
+        if (decodedMeta is Map) {
+          debugPrint(
+            '$_bookItemAuditTag meta keys      : ${decodedMeta.keys.toList()}',
+          );
+          debugPrint(
+            '$_bookItemAuditTag bookingConfirmation (meta): '
+            '${decodedMeta['bookingConfirmation'] ?? "(absent)"}',
+          );
+        }
+      } catch (e) {
+        debugPrint('$_bookItemAuditTag meta parse error: $e');
+        debugPrint('$_bookItemAuditTag meta raw       : $metaRaw');
+      }
+    } else {
+      debugPrint('$_bookItemAuditTag meta           : (empty or not a string)');
+    }
+
+    debugPrint('$_bookItemAuditTag Body JSON:\n$bodyJson');
+    debugPrint('$_bookItemAuditTag ══════ end REQUEST ══════');
+
+    // Doublon visible aussi via print (certains filtres de log ne montrent que print).
+    print('$_bookItemAuditTag POST $url');
+    print('$_bookItemAuditTag Body: $bodyJson');
+  }
+
+  /// Logs détaillés de la réponse HTTP `book-item`.
+  void _logBookItemResponseAudit(http.Response response) {
+    const encoder = JsonEncoder.withIndent('  ');
+
+    debugPrint('$_bookItemAuditTag ══════ POST book-item RESPONSE ══════');
+    debugPrint('$_bookItemAuditTag Status code   : ${response.statusCode}');
+    debugPrint(
+      '$_bookItemAuditTag Reason phrase  : ${response.reasonPhrase ?? "(n/a)"}',
+    );
+    debugPrint(
+      '$_bookItemAuditTag Content-Type   : '
+      '${response.headers['content-type'] ?? "(n/a)"}',
+    );
+    debugPrint(
+      '$_bookItemAuditTag Body length    : ${response.body.length}',
+    );
+
+    if (response.body.isEmpty) {
+      debugPrint('$_bookItemAuditTag Body JSON      : (empty)');
+    } else {
+      try {
+        final dynamic decoded = jsonDecode(response.body);
+        debugPrint(
+          '$_bookItemAuditTag Body JSON:\n${encoder.convert(decoded)}',
+        );
+      } catch (e) {
+        debugPrint('$_bookItemAuditTag Body JSON parse error: $e');
+        debugPrint('$_bookItemAuditTag Body raw:\n${response.body}');
+      }
+    }
+    debugPrint('$_bookItemAuditTag ══════ end RESPONSE ══════');
+
+    print(
+      '$_bookItemAuditTag RESPONSE status=${response.statusCode} '
+      'bodyLen=${response.body.length}',
+    );
+    if (response.body.isNotEmpty) {
+      print('$_bookItemAuditTag RESPONSE body: ${response.body}');
+    }
+  }
+
   // ========== FONCTION processBooking() POUR API NODE.JS PRODUCTION ==========
   /// Fonction async qui envoie une requête POST à l'API Node.js locale
   /// Gère les réponses 200 (succès avec booking_id et otp), 400/409 (erreurs)
@@ -2030,8 +2192,14 @@ class BookingController extends GetxController implements GetxService {
       }
       print('🛡️ [BOOKING] Injection du PlayerID: $playerId');
 
+      final String bookingConfirmation = _resolveBookingConfirmationForPayload(
+        itemDetails:
+            calendarSelectionItemDetails ?? spaceDetailController.itemInfo,
+      );
+
       Map<String, dynamic> requestBody = {
         "item_id": finalVehicleId.toString(),
+        "bookingConfirmation": bookingConfirmation,
         "check_in": checkInIso, // ISO 8601 String
         "check_out": checkOutIso, // ISO 8601 String
         "total_price": totalPriceDouble, // Double
@@ -2068,23 +2236,16 @@ class BookingController extends GetxController implements GetxService {
       // Utiliser Config.baseurl + Config.bookItem
       String url = '${Config.baseurl}${Config.bookItem}';
 
-      // ========== 10. DEBUG LOGS ==========
-      // Print du Body JSON complet et autres informations de debug
-      String requestBodyJson = jsonEncode(requestBody);
-      debugPrint('═══════════════════════════════════════════════════════');
-      debugPrint('📤 [processBooking] URL FINALE: $url');
+      // ========== 10. AUDIT LOGS (payload complet avant envoi réseau) ==========
+      _logBookItemRequestAudit(
+        url: url,
+        requestBody: requestBody,
+        authToken: authToken,
+      );
       debugPrint(
-          '📤 [processBooking] x-auth-token: ${authToken.length > 20 ? "${authToken.substring(0, 20)}..." : authToken} (longueur: ${authToken.length})');
-      debugPrint(
-          '📤 [processBooking] item_id (MongoDB): ${finalVehicleId.toString()}');
-      debugPrint('📤 [processBooking] check_in (ISO 8601): $checkInIso');
-      debugPrint('📤 [processBooking] check_out (ISO 8601): $checkOutIso');
-      debugPrint(
-          '📤 [processBooking] total_price: $totalPriceDouble (type: double)');
-      debugPrint('📤 [processBooking] wall_amt: $walletAmount (type: double)');
-      debugPrint('📤 [processBooking] Request Body JSON complet:');
-      debugPrint(requestBodyJson);
-      debugPrint('═══════════════════════════════════════════════════════');
+        '📤 [processBooking] item_id=$finalVehicleId check_in=$checkInIso '
+        'check_out=$checkOutIso total_price=$totalPriceDouble',
+      );
 
       // ========== 11. ENVOI DE LA REQUÊTE POST ==========
       paymentFlowLog('STEP 3 — POST book-item API…', url);
@@ -2104,13 +2265,8 @@ class BookingController extends GetxController implements GetxService {
         },
       );
 
-      // ========== 11. DEBUG: PRINT STATUS CODE ET RÉPONSE BRUTE ==========
-      debugPrint('═══════════════════════════════════════════════════════');
-      debugPrint('📥 [processBooking] Status Code: ${response.statusCode}');
-      debugPrint('📥 Réponse brute du serveur: ${response.body}');
-      debugPrint(
-          '📥 [processBooking] Response Body Length: ${response.body.length}');
-      debugPrint('═══════════════════════════════════════════════════════'      );
+      // ========== 11. AUDIT LOGS (réponse API) ==========
+      _logBookItemResponseAudit(response);
 
       paymentFlowLog('STEP 4 — API response',
           'statusCode=${response.statusCode}, bodyLength=${response.body.length}');
@@ -2238,28 +2394,44 @@ class BookingController extends GetxController implements GetxService {
         debugPrint('🔍 [processBooking] otp.pickup: $otpPickup');
         debugPrint('🔍 [processBooking] otp.drop: $otpDrop');
 
+        final bool isPendingManualApproval =
+            _isBookingPendingManualApproval(
+          sentBookingConfirmation: bookingConfirmation,
+          dataMap: dataMap,
+          responseData: responseData,
+        );
+        debugPrint(
+          '🔍 [processBooking] isPendingManualApproval=$isPendingManualApproval '
+          '(sentConfirmation=$bookingConfirmation, '
+          'booking_status=${dataMap['booking_status']})',
+        );
+
         // Construire le message de succès avec les codes OTP
-        String successMessage = 'booking_success_message'.tr;
+        String successMessage = isPendingManualApproval
+            ? 'booking_request_submitted_message'.tr
+            : 'booking_success_message'.tr;
         String instructionsMessage = '';
+        String otpMessage = '';
 
         if (bookingId != null) {
           successMessage +=
               '\n\n${'booking_id_label'.tr} 📋\n$bookingId';
         }
 
-        // Afficher les codes OTP si disponibles
-        if (otpPickup != null || otpDrop != null) {
-          successMessage += '\n\n🔐 Codes OTP:';
+        // Afficher les codes OTP si disponibles (réservation confirmée)
+        if (!isPendingManualApproval &&
+            (otpPickup != null || otpDrop != null)) {
+          otpMessage += '\n\n🔐 Codes OTP:';
           if (otpPickup != null) {
-            successMessage += '\n   • Pickup: $otpPickup';
+            otpMessage += '\n   • Pickup: $otpPickup';
           }
           if (otpDrop != null) {
-            successMessage += '\n   • Drop: $otpDrop';
+            otpMessage += '\n   • Drop: $otpDrop';
           }
         }
 
         // Instructions selon la méthode de paiement
-        if (selectedPaymentMethod != null) {
+        if (!isPendingManualApproval && selectedPaymentMethod != null) {
           String paymentMethodName =
               selectedPaymentMethod!.name ?? 'Méthode de paiement';
           if (paymentMethodName.toLowerCase().contains('cash') ||
@@ -2277,42 +2449,66 @@ class BookingController extends GetxController implements GetxService {
           }
         }
 
+        final String dialogTitle = isPendingManualApproval
+            ? 'booking_success_title_pending'.tr
+            : 'booking_success_title'.tr;
+        final String snackMessage = isPendingManualApproval
+            ? 'booking_pending_snack_message'.tr
+            : 'Votre reservation est confirmee !'.tr;
+
         // Afficher une boîte de dialogue de succès stylisée
         paymentFlowLog('STEP 5 — API 200 OK, opening success dialog',
-            'bookingId=$bookingId');
+            'bookingId=$bookingId pending=$isPendingManualApproval');
+        try {
+          closeLoading();
+        } catch (_) {}
+        _awaitingBookingSuccessDialog = true;
+        isProcessingBooking.value = false;
+
+        final double dialogMaxHeight =
+            MediaQuery.sizeOf(Get.context!).height * 0.82;
+
         Get.dialog(
           barrierDismissible: false,
           Dialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: Colors.white,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: dialogMaxHeight),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   // Icône de succès
                   Container(
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: (isPendingManualApproval
+                              ? Colors.orange
+                              : Colors.green)
+                          .withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
+                    child: Icon(
+                      isPendingManualApproval
+                          ? Icons.hourglass_top_rounded
+                          : Icons.check_circle,
+                      color:
+                          isPendingManualApproval ? Colors.orange : Colors.green,
                       size: 50,
                     ),
                   ),
                   const SizedBox(height: 20),
                   // Titre
                   Text(
-                    'booking_success_title'.tr,
+                    dialogTitle,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -2321,16 +2517,49 @@ class BookingController extends GetxController implements GetxService {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
-                  // Message principal
-                  SingleChildScrollView(
-                    child: Text(
-                      successMessage + instructionsMessage,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.black54,
-                        height: 1.5,
+                  // Message principal (scrollable sur petits écrans)
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: (dialogMaxHeight - 280).clamp(120.0, 400.0),
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        children: [
+                          Text(
+                            successMessage + otpMessage + instructionsMessage,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black54,
+                              height: 1.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          if (isPendingManualApproval) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.orange.withOpacity(0.25),
+                                ),
+                              ),
+                              child: Text(
+                                'booking_pending_manual_approval_message'.tr,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade800,
+                                  height: 1.45,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      textAlign: TextAlign.center,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -2338,21 +2567,12 @@ class BookingController extends GetxController implements GetxService {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        paymentFlowLog(
-                            'STEP 6 — « Voir mes réservations » button TAP');
-                        paymentFlowLog('STEP 6a — closing success dialog');
-                        Get.back(); // Fermer le dialogue
-                        paymentFlowLog(
-                            'STEP 7 — dialog closed, calling _navigateToBookingsAfterPayment');
-                        await _navigateToBookingsAfterPayment(
+                      onPressed: () {
+                        _continueAfterBookingSuccessDialog(
                           tabIndex: 0,
                           snackTitle: 'Succes'.tr,
-                          snackMessage:
-                              'Votre reservation est confirmee !'.tr,
+                          snackMessage: snackMessage,
                         );
-                        paymentFlowLog(
-                            'STEP 7b — returned from _navigateToBookingsAfterPayment');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: themeColor,
@@ -2371,7 +2591,8 @@ class BookingController extends GetxController implements GetxService {
                       ),
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -2434,9 +2655,7 @@ class BookingController extends GetxController implements GetxService {
       // Réinitialiser l'état immédiatement en cas d'erreur
       isProcessingBooking.value = false;
     } finally {
-      // S'assurer que l'état est toujours réinitialisé même si tout s'est bien passé
-      // (bien que cela devrait déjà être géré dans le cas de succès)
-      if (isProcessingBooking.value) {
+      if (!_awaitingBookingSuccessDialog && isProcessingBooking.value) {
         isProcessingBooking.value = false;
       }
     }
@@ -2563,6 +2782,109 @@ class BookingController extends GetxController implements GetxService {
   RxString hindTimeSEnd = "".obs;
   RxInt currentdatebool = 1.obs;
   RxInt currentdateboospace = 1.obs;
+
+  dynamic _readBookingConfirmationFrom(dynamic source) {
+    if (source == null) return null;
+    if (source is Map) {
+      return source['bookingConfirmation'] ?? source['booking_confirmation'];
+    }
+    try {
+      return (source as dynamic).bookingConfirmation;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Mode confirmation réservation pour POST book-item (`INSTANT` | `MANUAL`).
+  String _resolveBookingConfirmationForPayload({dynamic itemDetails}) {
+    String? raw;
+
+    raw = _readBookingConfirmationFrom(itemDetails)?.toString();
+    if (raw == null || raw.trim().isEmpty) {
+      raw = _readBookingConfirmationFrom(calendarSelectionItemDetails)
+          ?.toString();
+    }
+    if (raw == null || raw.trim().isEmpty) {
+      raw =
+          _readBookingConfirmationFrom(spaceDetailController.itemInfo)?.toString();
+    }
+    if (raw == null || raw.trim().isEmpty) {
+      raw = _readBookingConfirmationFrom(itemInfoDetails)?.toString();
+    }
+
+    final itemDetailsModel =
+        spaceDetailController.vehicleDetailModel?.data?.itemDetails;
+    if (raw == null || raw.trim().isEmpty) {
+      raw = itemDetailsModel?.bookingConfirmation;
+    }
+    if (raw == null || raw.trim().isEmpty) {
+      final String? itemInfoString = itemDetailsModel?.itemInfo;
+      if (itemInfoString != null && itemInfoString.trim().isNotEmpty) {
+        try {
+          final dynamic decoded = jsonDecode(itemInfoString);
+          if (decoded is Map) {
+            raw = _readBookingConfirmationFrom(decoded)?.toString();
+          }
+        } catch (_) {}
+      }
+    }
+
+    final normalized =
+        VehicleController.normalizeBookingConfirmation(raw);
+    debugPrint(
+      '$_bookItemAuditTag resolved bookingConfirmation=$normalized '
+      '(raw=${raw ?? "(null)"})',
+    );
+    return normalized;
+  }
+
+  bool _isPendingApprovalStatus(String? value) {
+    final status = value?.trim().toUpperCase() ?? '';
+    if (status.isEmpty) return false;
+    return status == 'PENDING' ||
+        status == 'WAITING' ||
+        status == 'AWAITING' ||
+        status == 'AWAITING_APPROVAL' ||
+        status == 'PENDING_APPROVAL' ||
+        status == 'ON_HOLD';
+  }
+
+  /// True si approbation manuelle (véhicule ou statut API).
+  bool _isBookingPendingManualApproval({
+    required String sentBookingConfirmation,
+    required Map<String, dynamic> dataMap,
+    Map<String, dynamic>? responseData,
+  }) {
+    if (sentBookingConfirmation.toUpperCase() ==
+        VehicleController.bookingConfirmationManual) {
+      return true;
+    }
+
+    final Iterable<dynamic> statusCandidates = [
+      dataMap['booking_status'],
+      dataMap['status'],
+      dataMap['bookingStatus'],
+      responseData?['booking_status'],
+      responseData?['status'],
+      responseData?['bookingStatus'],
+    ];
+
+    for (final candidate in statusCandidates) {
+      if (_isPendingApprovalStatus(candidate?.toString())) {
+        return true;
+      }
+    }
+
+    final String combinedMessage = [
+      dataMap['message']?.toString(),
+      responseData?['message']?.toString(),
+    ].whereType<String>().join(' ').toLowerCase();
+
+    return combinedMessage.contains('en attente') ||
+        combinedMessage.contains('pending') ||
+        combinedMessage.contains('approval') ||
+        combinedMessage.contains('validation');
+  }
 
   int? _resolveMinRentalDaysForBooking(dynamic itemDetails) {
     int? parse(dynamic d) {

@@ -73,6 +73,20 @@ class VehicleController extends GetxController implements GetxService {
   // Liste des Items pour compatibilité avec VehicleItemCard
   List<Items> myVehiclesItems = [];
 
+  static const String bookingConfirmationInstant = 'INSTANT';
+  static const String bookingConfirmationManual = 'MANUAL';
+
+  /// Mode de confirmation des réservations (`INSTANT` ou `MANUAL`).
+  RxString bookingConfirmation = bookingConfirmationInstant.obs;
+
+  static String normalizeBookingConfirmation(String? value) {
+    final normalized = (value ?? '').trim().toUpperCase();
+    if (normalized == bookingConfirmationManual) {
+      return bookingConfirmationManual;
+    }
+    return bookingConfirmationInstant;
+  }
+
   // ========== DONNÉES DE L'ÉTAPE 2 (Détails du véhicule) ==========
   // Plaque d'immatriculation
   String plateNumber1 = '';
@@ -242,7 +256,8 @@ class VehicleController extends GetxController implements GetxService {
     
     // Étape 1: Type de véhicule, marque, modèle, carburant
     // (Les sélections sont gérées dans add_vehicle_screen.dart, pas besoin de les réinitialiser ici)
-    
+    bookingConfirmation.value = bookingConfirmationInstant;
+
     // Étape 2: Détails du véhicule
     plateNumber1 = '';
     plateNumber2 = '';
@@ -618,7 +633,12 @@ class VehicleController extends GetxController implements GetxService {
                   }
                 }
               }
+              final List<String> parsedNames = modelsList
+                  .map((Models m) => m.name ?? '<sans nom>')
+                  .toList(growable: false);
               debugPrint('✅ [VEHICLE] modelsList mis à jour - longueur: ${modelsList.length}');
+              debugPrint(
+                  '[VEHICLE MODELS AUDIT] url=$url | count=${modelsList.length} | names=$parsedNames');
             } catch (e, stackTrace) {
               debugPrint('❌ [VEHICLE] Erreur lors du parsing Models (niveau liste): $e');
               debugPrint('❌ [VEHICLE] StackTrace: $stackTrace');
@@ -627,10 +647,14 @@ class VehicleController extends GetxController implements GetxService {
           } else {
             debugPrint('⚠️ [VEHICLE] response["success"] != true ou response["data"] est NULL');
             debugPrint('📋 [VEHICLE] Structure complète: $responseData');
+            debugPrint(
+                '[VEHICLE MODELS AUDIT] url=$url | count=0 | names=[] (success/data invalide)');
           }
         }
       } else {
         debugPrint('❌ [VEHICLE] Erreur HTTP: ${response.statusCode}');
+        debugPrint(
+            '[VEHICLE MODELS AUDIT] url=$url | count=0 | http=${response.statusCode}');
         showErrorToastMessage('Erreur lors de la récupération des modèles: ${response.statusCode}');
       }
     } on dio.DioException catch (e) {
@@ -1998,6 +2022,7 @@ class VehicleController extends GetxController implements GetxService {
     List<String>? categoriesIds,
     required String? brandId,
     required String? modelId,
+    String? otherMakeName,
     String? otherModelName,
     required String? fuelId,
     required String transmission, // "MANUAL" ou "AUTOMATIC"
@@ -2031,6 +2056,7 @@ class VehicleController extends GetxController implements GetxService {
     required bool hasAgeRestriction,
     required String minAge,
     required bool allowsInternationalTravel,
+    String bookingConfirmation = bookingConfirmationInstant,
     required List<XFile> imageFiles, // Fichiers images à uploader
     File? registrationCardFront, // Fichier recto à uploader
     File? registrationCardBack, // Fichier verso à uploader
@@ -2330,8 +2356,15 @@ class VehicleController extends GetxController implements GetxService {
         'ageRestriction': ageRestriction,
         'smokingAllowed': false,
         'internationalTravelAllowed': allowsInternationalTravel,
+        'bookingConfirmation':
+            normalizeBookingConfirmation(bookingConfirmation),
         'isActive': false,
       };
+
+      // Joindre la marque personnalisée si "Autre" a été saisi
+      if (otherMakeName != null && otherMakeName.trim().isNotEmpty) {
+        payload['otherMakeName'] = otherMakeName.trim();
+      }
 
       // Joindre le modèle personnalisé si "Autre" a été saisi
       if (otherModelName != null && otherModelName.trim().isNotEmpty) {
@@ -2342,12 +2375,15 @@ class VehicleController extends GetxController implements GetxService {
       debugPrint('📡 [VEHICLE->NODE] Auth token present: ${authToken.isNotEmpty}');
       debugPrint('🧪 [VEHICLE] vehicleTypeId (clean) = $cleanVehicleTypeId');
       debugPrint('🧪 [VEHICLE] categories[] = ${payload['categories']}');
+      debugPrint('🚀 [SENDING_TO_NODE] otherMakeName: ${payload['otherMakeName']}');
       debugPrint('🚀 [SENDING_TO_NODE] otherModelName: ${payload['otherModelName']}');
       debugPrint('🧪 [VEHICLE] brand/model/fuel = ${specs['brand']}/${specs['model']}/${specs['fuel']}');
       debugPrint('🧪 [VEHICLE] odometer/year/seats = ${specs['odometer']}/${specs['year']}/${specs['seats']}');
       debugPrint('🧪 [VEHICLE] pricing(base,deposit,currency) = ${pricing['basePrice']}/${(pricing['deposit'] as Map<String, dynamic>)['value']}/${pricing['currency']}');
       debugPrint('🧪 [VEHICLE] location(city,address) = ${location['city']}/${location['address']}');
       debugPrint('🧪 [VEHICLE] images/docs counts = ${imageUrls.length}/${documentUrls.values.where((e) => e != null && e!.isNotEmpty).length}');
+      debugPrint(
+          '🧪 [VEHICLE] bookingConfirmation = ${payload['bookingConfirmation']}');
       debugPrint('📦 [VEHICLE->NODE] Payload keys: ${payload.keys.toList()}');
       debugPrint('📦 [VEHICLE->NODE] Payload JSON: ${jsonEncode(payload)}');
 
