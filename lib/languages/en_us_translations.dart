@@ -1298,6 +1298,12 @@ const Map<String, String> enUs = {
   "booking_success_message": "Your booking has been created successfully!",
   "booking_request_submitted_message":
       "Your booking request has been recorded.",
+  "Confirmation instantanée": "Instant booking confirmation",
+  "Approbation manuelle": "Manual approval required",
+  "Les réservations sont confirmées automatiquement":
+      "Bookings are confirmed automatically",
+  "vehicle_detail_manual_booking_subtitle":
+      "The agency must approve each booking request.",
   "booking_pending_manual_approval_message":
       "Your booking request has been sent to the owner. It is currently pending approval. Processing usually takes place on business days between 8:00 AM and 6:00 PM.",
   "booking_pending_snack_message":

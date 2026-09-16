@@ -35,6 +35,8 @@ import 'package:carvy/view/wishlist/wish_list_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../controller/booking_controller.dart';
 import '../../../controller/items_detail_controller.dart';
+import '../../../controller/vehicle_controller.dart';
+import '../../../model/item_details_model.dart';
 import '../../../customwidget/miscellaneous_project_elements.dart';
 import '../../../utils/vehicle_common_widgets.dart';
 import '../../../work_space.dart';
@@ -429,6 +431,12 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
                                   ),
                                 ],
                               ),
+                            ),
+
+                            _buildBookingConfirmationBadge(
+                              context,
+                              itemDetails: itemDetails,
+                              itemInfo: currentItemInfo,
                             ),
 
                             if ((itemDetails?.hasDiscounts ??
@@ -1839,6 +1847,86 @@ class _VehicleDetailSScreenState extends State<VehicleDetailSScreen> {
     final cleaned = rawValue.replaceAll('%', '').replaceAll('-', '').trim();
     if (cleaned.isEmpty) return '0';
     return cleaned;
+  }
+
+  String _resolveBookingConfirmation({
+    ItemDetails? itemDetails,
+    ItemInfo? itemInfo,
+  }) {
+    final String? raw = itemDetails?.bookingConfirmation?.toString() ??
+        itemInfo?.bookingConfirmation?.toString();
+    return VehicleController.normalizeBookingConfirmation(raw);
+  }
+
+  Widget _buildBookingConfirmationBadge(
+    BuildContext context, {
+    required ItemDetails? itemDetails,
+    required ItemInfo? itemInfo,
+  }) {
+    final String mode = _resolveBookingConfirmation(
+      itemDetails: itemDetails,
+      itemInfo: itemInfo,
+    );
+    final bool isManual =
+        mode == VehicleController.bookingConfirmationManual;
+
+    final Color accent = isManual ? Colors.orange : Colors.green;
+    final Color background = accent.withOpacity(0.08);
+    final Color border = accent.withOpacity(0.35);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: border),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              isManual ? Icons.schedule : Icons.bolt,
+              color: isManual ? Colors.orange.shade700 : Colors.green.shade700,
+              size: 22,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isManual
+                        ? 'Approbation manuelle'.tr
+                        : 'Confirmation instantanée'.tr,
+                    style: regular2(context).copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: isManual
+                          ? Colors.orange.shade800
+                          : Colors.green.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    isManual
+                        ? 'vehicle_detail_manual_booking_subtitle'.tr
+                        : 'Les réservations sont confirmées automatiquement'.tr,
+                    style: regular2(context).copyWith(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: notifires.getGrey3Whitecolor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   int _getVehicleMinAge(ItemInfo? itemInfo) {

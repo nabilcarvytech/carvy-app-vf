@@ -1564,6 +1564,12 @@ const Map<String, String> frFR = {
   "booking_success_message": "Votre réservation a été créée avec succès !",
   "booking_request_submitted_message":
       "Votre demande de réservation a été enregistrée.",
+  "Confirmation instantanée": "Confirmation instantanée",
+  "Approbation manuelle": "Approbation manuelle",
+  "Les réservations sont confirmées automatiquement":
+      "Les réservations sont confirmées automatiquement",
+  "vehicle_detail_manual_booking_subtitle":
+      "L'agence doit valider chaque demande de réservation.",
   "booking_pending_manual_approval_message":
       "Votre demande de réservation a été transmise au propriétaire. Elle est actuellement en attente de validation. Le traitement s'effectue généralement les jours ouvrés entre 08h00 et 18h00.",
   "booking_pending_snack_message":
