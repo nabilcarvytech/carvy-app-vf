@@ -558,6 +558,8 @@ const Map<String, String> frFR = {
   "Not available": "Non disponible",
   "Past Dates": "Dates passées",
   "Edit": "Modifier",
+  "Modifier le véhicule": "Modifier le véhicule",
+  "Véhicule mis à jour avec succès": "Véhicule mis à jour avec succès",
   "List is empty": "La liste est vide",
   "What kind of place are you \nlistings?": "Quel type de lieu proposez-vous ?",
   "What kind of place do you host?": "Quel type de lieu accueillez-vous ?",

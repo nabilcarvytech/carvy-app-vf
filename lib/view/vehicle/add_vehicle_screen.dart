@@ -23,9 +23,15 @@ import 'package:get_storage/get_storage.dart';
 import 'package:carvy/work_space.dart';
 import 'package:carvy/services/google_places_service.dart';
 import 'package:collection/collection.dart';
+import 'package:carvy/model/my_items_model.dart';
 
 class AddVehicleScreen extends StatefulWidget {
-  const AddVehicleScreen({super.key});
+  /// Si présent, l'écran s'ouvre en mode édition avec pré-remplissage.
+  final Items? vehicle;
+
+  const AddVehicleScreen({super.key, this.vehicle});
+
+  bool get isEditMode => vehicle != null;
 
   @override
   State<AddVehicleScreen> createState() => _AddVehicleScreenState();
@@ -107,6 +113,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   int _currentStep = 0;
   final int _totalSteps = 8; // 8 étapes logiques
   bool _draftDialogShown = false;
+  bool _isInitializingEdit = false;
+
+  bool get _isEditMode => widget.isEditMode;
   
   // Noms des étapes
   final List<String> _stepNames = [
@@ -159,6 +168,11 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       
       // Charger les données initiales
       await _loadInitialData();
+
+      if (_isEditMode) {
+        await _initializeEditMode();
+        return;
+      }
 
       if (mounted && !_draftDialogShown) {
         await _offerDraftResumeIfNeeded();
@@ -460,6 +474,44 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     }
   }
 
+  String _resolveDeliveryLocationDisplayName(Map<String, dynamic> loc) {
+    final String id = (loc['locationId'] ?? loc['location'] ?? '')
+        .toString()
+        .trim();
+    final String storedName = (loc['locationName'] ?? '').toString().trim();
+    final bool storedLooksLikeId = storedName.length == 24 &&
+        RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(storedName);
+
+    if (id.isNotEmpty) {
+      final dynamic cityObj = vehicleController.locationsList.firstWhereOrNull(
+        (dynamic l) => _extractLocationId(l).trim() == id,
+      );
+      if (cityObj != null) {
+        final String catalogName = _extractLocationName(cityObj).trim();
+        if (catalogName.isNotEmpty) return catalogName;
+      }
+    }
+
+    if (storedName.isNotEmpty && !storedLooksLikeId) {
+      return storedName;
+    }
+    return 'Ville inconnue'.tr;
+  }
+
+  T? _dropdownValueInItems<T>(
+    T? selected,
+    List<T> items,
+    bool Function(T a, T b) equals,
+  ) {
+    if (selected == null) return null;
+    for (final T item in items) {
+      if (equals(item, selected) || identical(item, selected)) {
+        return item;
+      }
+    }
+    return null;
+  }
+
   List<Map<String, dynamic>> _buildDeliveryLocationsPayload() {
     if (!_hasHomeDelivery) return <Map<String, dynamic>>[];
 
@@ -582,6 +634,84 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     await vehicleController.fetchFeatures();
     await vehicleController.fetchPolicies();
     await vehicleController.fetchRules();
+  }
+
+  Future<void> _initializeEditMode() async {
+    final Items? seed = widget.vehicle;
+    if (seed == null) return;
+
+    _draftDialogShown = true;
+    if (mounted) {
+      setState(() => _isInitializingEdit = true);
+    }
+
+    final String? vehicleId = seed.id?.toString();
+    if (vehicleId == null || vehicleId.isEmpty || vehicleId == 'null') {
+      if (mounted) {
+        setState(() => _isInitializingEdit = false);
+        showErrorToastMessage(
+            'ID du véhicule invalide. Impossible de modifier ce véhicule.');
+        Get.back();
+      }
+      return;
+    }
+
+    vehicleController.editingVehicleId = vehicleId;
+    showLoading();
+
+    Map<String, dynamic> raw = <String, dynamic>{};
+    if (seed.sourceJson != null && seed.sourceJson!.isNotEmpty) {
+      raw.addAll(seed.sourceJson!);
+    } else {
+      raw.addAll(Map<String, dynamic>.from(seed.toJson()));
+    }
+
+    final Map<String, dynamic>? fetched =
+        await vehicleController.fetchVehicleDetailsMap(vehicleId);
+    if (fetched != null && fetched.isNotEmpty) {
+      fetched.forEach((String key, dynamic value) {
+        if (value != null) {
+          raw[key] = value;
+        }
+      });
+    }
+
+    final Map<String, dynamic> formData =
+        vehicleController.normalizeVehicleApiToFormData(raw);
+    await _applyFormDataFromMap(formData, 0);
+    _applyExistingMediaFromVehicle(raw, formData);
+
+    closeLoading();
+    if (mounted) {
+      setState(() => _isInitializingEdit = false);
+    }
+  }
+
+  void _applyExistingMediaFromVehicle(
+    Map<String, dynamic> raw,
+    Map<String, dynamic> formData,
+  ) {
+    vehicleController.selectedImages.clear();
+    vehicleController.uploadedImageUrls.clear();
+    vehicleController.mainImageIndex.value = 0;
+
+    if (formData['images'] is List) {
+      for (final dynamic img in formData['images'] as List) {
+        final String url = img?.toString() ?? '';
+        if (url.isNotEmpty) {
+          vehicleController.uploadedImageUrls.add(url);
+        }
+      }
+    }
+
+    final String? frontUrl = formData['registrationCardFront']?.toString();
+    final String? backUrl = formData['registrationCardBack']?.toString();
+    final String? authUrl = formData['ministryAuthorization']?.toString();
+    vehicleController.existingRegistrationCardFrontUrl.value =
+        frontUrl ?? '';
+    vehicleController.existingRegistrationCardBackUrl.value = backUrl ?? '';
+    vehicleController.existingMinistryAuthorizationUrl.value =
+        authUrl ?? '';
   }
 
   /// Données sérialisables pour POST `/api/vehicles/draft` (état courant du formulaire).
@@ -812,20 +942,35 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     Map<String, dynamic> data,
     int lastStep,
   ) async {
+    await _applyFormDataFromMap(data, lastStep);
+  }
+
+  Future<void> _applyFormDataFromMap(
+    Map<String, dynamic> data,
+    int lastStep,
+  ) async {
     if (!mounted) return;
     try {
       final dynamic catsRaw = data['categories'];
       if (catsRaw is List) {
         _selectedCategoryIds.clear();
         for (final dynamic e in catsRaw) {
-          final String id = e.toString();
-          if (id.isNotEmpty) _selectedCategoryIds.add(id);
+          final String id = e.toString().trim();
+          if (id.isEmpty) continue;
+          if (id.toUpperCase() == 'CAR' || id.toUpperCase() == 'VEHICLE') {
+            continue;
+          }
+          if (id.length == 24 &&
+              RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(id)) {
+            _selectedCategoryIds.add(id);
+          }
         }
         dynamic anchor;
         final String? primary = _primarySelectedCategoryId();
         if (primary != null) {
           anchor = vehicleController.categoriesList.firstWhereOrNull(
-            (dynamic c) => _extractCategoryId(c) == primary,
+            (dynamic c) =>
+                (_extractCategoryId(c) ?? '').trim() == primary.trim(),
           );
         }
         _selectedVehicleType = anchor;
@@ -834,16 +979,39 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       final String? typeId = _primarySelectedCategoryId();
       await vehicleController.fetchVehicleMakes(typeId: typeId);
 
-      final String? makeId = data['makeId']?.toString();
+      bool _sameId(String? a, String? b) {
+        final String left = (a ?? '').trim();
+        final String right = (b ?? '').trim();
+        return left.isNotEmpty && left == right;
+      }
+
+      final String? makeId = data['makeId']?.toString().trim();
+      final String? makeNameHint = data['makeName']?.toString().trim();
       if (makeId != null && makeId.isNotEmpty) {
-        _selectedMake = vehicleController.makesList
-            .firstWhereOrNull((Makes m) => m.id == makeId);
-        if (_selectedMake != null) {
-          await vehicleController.fetchVehicleModels(
-            typeId: typeId,
-            makeId: _selectedMake!.id,
-          );
-        }
+        _selectedMake = vehicleController.makesList.firstWhereOrNull(
+          (Makes m) => _sameId(m.id, makeId),
+        );
+      }
+      if (_selectedMake == null &&
+          makeNameHint != null &&
+          makeNameHint.isNotEmpty) {
+        _selectedMake = vehicleController.makesList.firstWhereOrNull(
+          (Makes m) =>
+              (m.makeName ?? '').trim().toLowerCase() ==
+              makeNameHint.toLowerCase(),
+        );
+      }
+      if (_selectedMake == null && makeId != null && makeId.isNotEmpty) {
+        await vehicleController.fetchVehicleMakes();
+        _selectedMake = vehicleController.makesList.firstWhereOrNull(
+          (Makes m) => _sameId(m.id, makeId),
+        );
+      }
+      if (_selectedMake != null) {
+        await vehicleController.fetchVehicleModels(
+          typeId: typeId,
+          makeId: _selectedMake!.id,
+        );
       }
 
       final String? otherMakeName = data['otherMakeName']?.toString();
@@ -855,10 +1023,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         _isOtherMakeSelected = true;
       }
 
-      final String? modelId = data['modelId']?.toString();
+      final String? modelId = data['modelId']?.toString().trim();
       if (modelId != null && modelId.isNotEmpty) {
         _selectedModel = vehicleController.modelsList
-            .firstWhereOrNull((Models m) => m.id == modelId);
+            .firstWhereOrNull((Models m) => _sameId(m.id, modelId));
       }
       final String? otherName = data['otherModelName']?.toString();
       if (otherName != null && otherName.isNotEmpty) {
@@ -875,10 +1043,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         }
       }
 
-      final String? fuelId = data['fuelId']?.toString();
+      final String? fuelId = data['fuelId']?.toString().trim();
       if (fuelId != null && fuelId.isNotEmpty) {
         _selectedFuelType = vehicleController.fuelTypesList
-            .firstWhereOrNull((FuelType f) => f.id == fuelId);
+            .firstWhereOrNull((FuelType f) => _sameId(f.id, fuelId));
       }
 
       final String? tr = data['transmission']?.toString();
@@ -891,10 +1059,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         data['bookingConfirmation']?.toString(),
       );
 
-      final String? odoId = data['odometerId']?.toString();
+      final String? odoId = data['odometerId']?.toString().trim();
       if (odoId != null && odoId.isNotEmpty) {
         _selectedOdometer = vehicleController.odometerList
-            .firstWhereOrNull((Getodometer o) => o.id == odoId);
+            .firstWhereOrNull((Getodometer o) => _sameId(o.id, odoId));
       }
 
       final yearStr = data['year']?.toString() ?? '';
@@ -912,7 +1080,22 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
               ? data['minRentalDays'].toString()
               : '1';
       final String? ins = data['insurance']?.toString();
-      _selectedInsurance = ins != null && ins.isNotEmpty ? ins : null;
+      if (ins != null && ins.isNotEmpty) {
+        if (ins == 'Basic' || ins == 'Full') {
+          _selectedInsurance = ins;
+        } else {
+          final String upper = ins.toUpperCase();
+          if (upper == 'BASIC') {
+            _selectedInsurance = 'Basic';
+          } else if (upper == 'FULL') {
+            _selectedInsurance = 'Full';
+          } else {
+            _selectedInsurance = ins;
+          }
+        }
+      } else {
+        _selectedInsurance = null;
+      }
       _hasAgeRestriction = data['hasAgeRestriction'] == true;
       _minAgeController.text = data['minAge']?.toString() ?? '18';
       _allowsInternationalTravel =
@@ -940,11 +1123,25 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           final dynamic item = dl[i];
           if (item is! Map) continue;
           final Map<String, dynamic> m = Map<String, dynamic>.from(item);
-          final String id = m['locationId']?.toString() ??
-              m['location']?.toString() ??
-              '';
+          final String id = (m['locationId']?.toString() ??
+                  m['location']?.toString() ??
+                  '')
+              .trim();
           if (id.isEmpty) continue;
-          final String name = m['locationName']?.toString() ?? '';
+          String name = (m['locationName']?.toString() ?? '').trim();
+          final dynamic cityObj =
+              vehicleController.locationsList.firstWhereOrNull(
+            (dynamic l) => _extractLocationId(l).trim() == id,
+          );
+          if (cityObj != null) {
+            final String catalogName = _extractLocationName(cityObj).trim();
+            if (catalogName.isNotEmpty) name = catalogName;
+          }
+          if (name.isEmpty ||
+              (name.length == 24 &&
+                  RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(name))) {
+            name = '';
+          }
           final double price = m['price'] is num
               ? (m['price'] as num).toDouble()
               : double.tryParse('${m['price']}') ?? 0.0;
@@ -952,7 +1149,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
               m['isFreeDelivery'] == true || price == 0;
           _deliveryLocations.add(<String, dynamic>{
             'locationId': id,
-            'locationName': name.isNotEmpty ? name : id,
+            'locationName': name,
             'price': isFree ? 0.0 : price,
             'isFreeDelivery': isFree,
           });
@@ -984,40 +1181,56 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         _updateMarker(_selectedLatLng);
       }
 
-      final String? locId = data['locationId']?.toString();
+      final String? locId = data['locationId']?.toString().trim();
+      final String? cityName = data['city']?.toString().trim();
       if (locId != null && locId.isNotEmpty) {
         _selectedLocation = vehicleController.locationsList.firstWhereOrNull(
-          (dynamic l) => _extractLocationId(l) == locId,
+          (dynamic l) => _sameId(_extractLocationId(l), locId),
         );
+      }
+      if (_selectedLocation == null &&
+          cityName != null &&
+          cityName.isNotEmpty) {
+        final String cityLower = cityName.toLowerCase();
+        _selectedLocation = vehicleController.locationsList.firstWhereOrNull(
+          (dynamic l) => _extractLocationName(l).trim().toLowerCase() == cityLower,
+        );
+      }
+      if (_selectedLocation != null) {
+        final String resolvedId = _extractLocationId(_selectedLocation);
+        if (resolvedId.isNotEmpty) {
+          vehicleController.selectedRegionId.value = resolvedId;
+        }
       }
 
       vehicleController.selectedFeatures.clear();
       final dynamic feat = data['selectedFeatures'];
       if (feat is List) {
         for (final dynamic e in feat) {
-          vehicleController.selectedFeatures.add(e.toString());
+          final String id = e.toString().trim();
+          if (id.isNotEmpty) vehicleController.selectedFeatures.add(id);
         }
       }
 
-      vehicleController.selectedPolicyId.value =
-          data['selectedPolicyId']?.toString() ?? '';
+      final String policyId = data['selectedPolicyId']?.toString().trim() ?? '';
+      if (policyId == 'flexible' || policyId == 'non-refundable') {
+        vehicleController.selectedPolicyId.value = policyId;
+      } else if (data['tierRetentionFees'] is Map &&
+          (data['tierRetentionFees'] as Map).isNotEmpty) {
+        vehicleController.selectedPolicyId.value = 'flexible';
+      } else {
+        vehicleController.selectedPolicyId.value = 'non-refundable';
+      }
 
       vehicleController.tierRetentionFees.clear();
+      vehicleController.tierSwitches.clear();
       final dynamic trf = data['tierRetentionFees'];
       if (trf is Map) {
         trf.forEach((dynamic k, dynamic v) {
-          vehicleController.tierRetentionFees[k.toString()] =
-              v?.toString() ?? '';
-        });
-      }
-
-      vehicleController.tierSwitches.clear();
-      final dynamic tsw = data['tierSwitches'];
-      if (tsw is Map) {
-        tsw.forEach((dynamic k, dynamic v) {
-          if (v is bool) {
-            vehicleController.tierSwitches[k.toString()] = v;
-          }
+          final String id = k.toString().trim();
+          if (id.isEmpty) return;
+          vehicleController.tierRetentionFees[id] = v?.toString() ?? '';
+          vehicleController.tierSwitches[id] = true;
         });
       }
 
@@ -1025,7 +1238,26 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       final dynamic rules = data['selectedRules'];
       if (rules is List) {
         for (final dynamic e in rules) {
-          vehicleController.selectedRules.add(e.toString());
+          final String rawId = e.toString().trim();
+          if (rawId.isEmpty) continue;
+          String? matchedId;
+          for (final dynamic rule in vehicleController.rulesList) {
+            if (rule is! Map) continue;
+            final String catalogId =
+                (rule['_id'] ?? rule['id'])?.toString().trim() ?? '';
+            final String catalogName = (rule['title'] ??
+                    rule['name'] ??
+                    rule['rule_name'] ??
+                    '')
+                .toString()
+                .trim()
+                .toLowerCase();
+            if (catalogId == rawId || catalogName == rawId.toLowerCase()) {
+              matchedId = catalogId.isNotEmpty ? catalogId : rawId;
+              break;
+            }
+          }
+          vehicleController.selectedRules.add(matchedId ?? rawId);
         }
       }
 
@@ -1335,11 +1567,13 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       }
 
       final int nextIndex = _currentStep + 1;
-      final Map<String, dynamic> snapshot = _collectDraftDataForAutosave();
-      await vehicleController.saveVehicleDraft(
-        lastStep: nextIndex,
-        data: snapshot,
-      );
+      if (!_isEditMode) {
+        final Map<String, dynamic> snapshot = _collectDraftDataForAutosave();
+        await vehicleController.saveVehicleDraft(
+          lastStep: nextIndex,
+          data: snapshot,
+        );
+      }
 
       if (!mounted) return;
       setState(() {
@@ -1431,9 +1665,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
             (_deliveryLocations[i]['price'] as num?)?.toDouble() ?? 0.0;
         if (price <= 0) {
           final cityName =
-              _deliveryLocations[i]['locationName']?.toString() ?? '';
+              _resolveDeliveryLocationDisplayName(_deliveryLocations[i]);
           showErrorToastMessage(
-            cityName.isNotEmpty
+            cityName != 'Ville inconnue'.tr
                 ? 'Saisissez un prix pour $cityName ou activez la livraison gratuite.'
                 : 'Saisissez un prix ou activez la livraison gratuite.',
           );
@@ -1528,6 +1762,14 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         vehicleController.ministryAuthorization.value
       ].where((f) => f != null).length}');
 
+      if (_isEditMode &&
+          vehicleController.uploadedImageUrls.isEmpty &&
+          vehicleController.selectedImages.isEmpty) {
+        showErrorToastMessage('Au moins une image est requise');
+        _goToStep(6);
+        return;
+      }
+
       final bool success = await vehicleController.submitVehicle(
         vehicleTypeId: vehicleTypeId,
         categoriesIds: categoriesForBackend,
@@ -1580,6 +1822,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         registrationCardFront: vehicleController.registrationCardRecto.value,
         registrationCardBack: vehicleController.registrationCardVerso.value,
         ministryAuthorization: vehicleController.ministryAuthorization.value,
+        updateVehicleId: _isEditMode ? vehicleController.editingVehicleId : null,
       );
 
       // La redirection et le snackbar sont maintenant gérés dans le controller (submitVehicle)
@@ -1700,12 +1943,16 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text('Ajouter un véhicule'.tr),
+        title: Text(
+          _isEditMode ? 'Modifier le véhicule'.tr : 'Ajouter un véhicule'.tr,
+        ),
         backgroundColor: vehicalThemColor,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Form(
+      body: Stack(
+        children: [
+          Form(
         key: _formKey,
         child: Column(
           children: [
@@ -1734,6 +1981,15 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
             _buildNavigationButtons(),
           ],
         ),
+      ),
+          if (_isInitializingEdit)
+            Container(
+              color: Colors.black26,
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1875,8 +2131,11 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildModernDropdown<Makes>(
-                        key: UniqueKey(),
-                        value: _selectedMake,
+                        value: _dropdownValueInItems(
+                          _selectedMake,
+                          makesList,
+                          (Makes a, Makes b) => (a.id ?? '').trim() == (b.id ?? '').trim(),
+                        ),
                         items: makesList
                             .map((make) => DropdownMenuItem<Makes>(
                                   value: make,
@@ -1944,8 +2203,12 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                   ),
                                 )
                               : _buildModernDropdown<Models>(
-                                  key: UniqueKey(),
-                                  value: _selectedModel,
+                                  value: _dropdownValueInItems(
+                                    _selectedModel,
+                                    modelsList,
+                                    (Models a, Models b) =>
+                                        (a.id ?? '').trim() == (b.id ?? '').trim(),
+                                  ),
                                   items: modelsList
                                       .map((model) => DropdownMenuItem<Models>(
                                             value: model,
@@ -2022,8 +2285,12 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildModernDropdown<Getodometer>(
-                        key: UniqueKey(),
-                        value: _selectedOdometer,
+                        value: _dropdownValueInItems(
+                          _selectedOdometer,
+                          odometersList,
+                          (Getodometer a, Getodometer b) =>
+                              (a.id ?? '').trim() == (b.id ?? '').trim(),
+                        ),
                         items: odometersList.map((odometer) {
                           return DropdownMenuItem<Getodometer>(
                             value: odometer,
@@ -2103,7 +2370,6 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 ),
                 const SizedBox(height: 12),
                 _buildModernDropdown<String>(
-                  key: UniqueKey(),
                   value: _selectedTransmission,
                   items: [
                     DropdownMenuItem<String>(
@@ -2181,8 +2447,12 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildModernDropdown<FuelType>(
-                        key: UniqueKey(),
-                        value: _selectedFuelType,
+                        value: _dropdownValueInItems(
+                          _selectedFuelType,
+                          fuelTypesList,
+                          (FuelType a, FuelType b) =>
+                              (a.id ?? '').trim() == (b.id ?? '').trim(),
+                        ),
                         items: fuelTypesList.map((fuelType) {
                                 return DropdownMenuItem<FuelType>(
                                   value: fuelType,
@@ -2470,7 +2740,6 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 ),
                 const SizedBox(height: 8),
                 _buildModernDropdown<String>(
-                  key: UniqueKey(),
                   value: _selectedInsurance,
                   items: [
                     DropdownMenuItem<String>(
@@ -2784,7 +3053,6 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _buildModernDropdown<String>(
-                                  key: UniqueKey(),
                                   value: _weeklyDiscountType,
                                   items: [
                                     DropdownMenuItem<String>(
@@ -2863,7 +3131,6 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _buildModernDropdown<String>(
-                                  key: UniqueKey(),
                                   value: _monthlyDiscountType,
                                   items: [
                                     DropdownMenuItem<String>(
@@ -2947,22 +3214,28 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                     .whereType<String>()
                                     .where((id) => id.isNotEmpty)
                                     .toSet();
+                                final availableLocations = locationsList
+                                    .where((location) {
+                                      final locationId =
+                                          _extractLocationId(location);
+                                      return locationId.isEmpty ||
+                                          !addedLocationIds.contains(locationId);
+                                    })
+                                    .toList();
 
                                 return Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
                                     _buildModernDropdown<dynamic>(
-                                      key: UniqueKey(),
-                                      value: _selectedDeliveryLocation,
-                                      items: locationsList
-                                          .where((location) {
-                                            final locationId =
-                                                _extractLocationId(location);
-                                            return locationId.isEmpty ||
-                                                !addedLocationIds
-                                                    .contains(locationId);
-                                          })
+                                      value: _dropdownValueInItems<dynamic>(
+                                        _selectedDeliveryLocation,
+                                        availableLocations,
+                                        (dynamic a, dynamic b) =>
+                                            _extractLocationId(a).trim() ==
+                                            _extractLocationId(b).trim(),
+                                      ),
+                                      items: availableLocations
                                           .map((location) {
                                             final name = location
                                                     is Map<String, dynamic>
@@ -3016,7 +3289,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                 );
                               }),
                               const SizedBox(height: 12),
-                              ListView.builder(
+                              Obx(() {
+                                vehicleController.locationsList.length;
+                                return ListView.builder(
                                 itemCount: _deliveryLocations.length,
                                 shrinkWrap: true,
                                 physics:
@@ -3026,8 +3301,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                   final priceController =
                                       _deliveryLocationPriceControllers[index];
                                   final locationName =
-                                      loc['locationName']?.toString() ??
-                                          'Ville inconnue';
+                                      _resolveDeliveryLocationDisplayName(loc);
                                   final isFree =
                                       _isDeliveryLocationFree(index);
 
@@ -3113,7 +3387,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                     ),
                                   );
                                 },
-                              ),
+                              );
+                              }),
                             ],
                           ),
                         )
@@ -3179,8 +3454,13 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildModernDropdown<dynamic>(
-                        key: UniqueKey(),
-                        value: _selectedLocation,
+                        value: _dropdownValueInItems<dynamic>(
+                          _selectedLocation,
+                          locationsList,
+                          (dynamic a, dynamic b) =>
+                              _extractLocationId(a).trim() ==
+                              _extractLocationId(b).trim(),
+                        ),
                         items: locationsList.map((location) {
                           // CORRECTION : L'API renvoie cityName en priorité
                           final name = location is Map<String, dynamic>
@@ -4063,7 +4343,11 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                         rule['desc']?.toString();
                       }
                       
-                      final isSelected = ruleId != null && selectedRules.contains(ruleId);
+                      final String catalogRuleId = (ruleId ?? '').trim();
+                      final isSelected = catalogRuleId.isNotEmpty &&
+                          selectedRules.any(
+                            (String id) => id.trim() == catalogRuleId,
+                          );
                       
                       return CheckboxListTile(
                         title: Text(
@@ -4134,6 +4418,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           // Zone d'upload avec bordure en pointillés (effet visuel)
           Obx(() {
             final selectedImages = vehicleController.selectedImages.toList();
+            final existingUrls = vehicleController.uploadedImageUrls.toList();
+            final int totalImages = existingUrls.length + selectedImages.length;
             final mainIdx = vehicleController.mainImageIndex.value;
             
             return Container(
@@ -4141,7 +4427,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: selectedImages.isEmpty ? Colors.grey[300]! : Colors.grey[200]!,
+                  color: totalImages == 0 ? Colors.grey[300]! : Colors.grey[200]!,
                   width: 2,
                   style: BorderStyle.solid,
                 ),
@@ -4153,7 +4439,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   ),
                 ],
               ),
-              child: selectedImages.isEmpty
+              child: totalImages == 0
                   ? // État vide : Zone d'upload avec icône grise
                   GestureDetector(
                       onTap: () => vehicleController.pickMultipleImages(),
@@ -4199,10 +4485,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                           mainAxisSpacing: 12,
                           childAspectRatio: 1,
                         ),
-                        itemCount: selectedImages.length + (selectedImages.length < 10 ? 1 : 0),
+                        itemCount: totalImages + (totalImages < 10 ? 1 : 0),
                         itemBuilder: (context, index) {
                           // Bouton pour ajouter plus d'images
-                          if (index == selectedImages.length) {
+                          if (index == totalImages) {
                             return GestureDetector(
                               onTap: () => vehicleController.pickMultipleImages(),
                               child: Container(
@@ -4224,6 +4510,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                             );
                           }
                           final bool isMain = index == mainIdx;
+                          final bool isExisting = index < existingUrls.length;
                           // Miniature avec sélection d'image principale et bouton de suppression
                           return Stack(
                             children: [
@@ -4237,12 +4524,23 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
-                                  child: Image.file(
-                                    File(selectedImages[index].path),
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                  ),
+                                  child: isExisting
+                                      ? Image.network(
+                                          existingUrls[index],
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                          errorBuilder: (_, __, ___) => Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(Icons.broken_image),
+                                          ),
+                                        )
+                                      : Image.file(
+                                          File(selectedImages[index - existingUrls.length].path),
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                        ),
                                 ),
                               ),
                               // Étoile de sélection (principale ou sélectionner)
@@ -4286,7 +4584,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                 top: 4,
                                 right: 4,
                                 child: GestureDetector(
-                                  onTap: () => vehicleController.removeImage(index),
+                                  onTap: () => vehicleController.removeImageAtCombinedIndex(index),
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
                                     decoration: BoxDecoration(
@@ -4398,10 +4696,18 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
               : vehicleController.ministryAuthorization.value;
       
       final hasCurrentFile = currentFile != null;
+      final String existingUrl = type == 'recto'
+          ? vehicleController.existingRegistrationCardFrontUrl.value
+          : type == 'verso'
+              ? vehicleController.existingRegistrationCardBackUrl.value
+              : vehicleController.existingMinistryAuthorizationUrl.value;
+      final bool hasExistingUrl = existingUrl.isNotEmpty;
       final currentFileName = hasCurrentFile ? path.basename(currentFile.path) : '';
       final isCurrentImage = hasCurrentFile && (currentFileName.toLowerCase().endsWith('.jpg') || 
                                                 currentFileName.toLowerCase().endsWith('.jpeg') || 
                                                 currentFileName.toLowerCase().endsWith('.png'));
+      final bool existingIsImage = hasExistingUrl &&
+          !existingUrl.toLowerCase().endsWith('.pdf');
       
       return GestureDetector(
         onTap: () => vehicleController.pickDocument(type),
@@ -4411,7 +4717,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: hasCurrentFile ? vehicalThemColor : Colors.grey[300]!,
+              color: (hasCurrentFile || hasExistingUrl) ? vehicalThemColor : Colors.grey[300]!,
               width: 2,
               style: BorderStyle.solid,
             ),
@@ -4438,7 +4744,23 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                       fit: BoxFit.cover,
                     ),
                   )
-                else if (hasCurrentFile)
+                else if (!hasCurrentFile && hasExistingUrl && existingIsImage)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      existingUrl,
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 120,
+                        height: 120,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.broken_image),
+                      ),
+                    ),
+                  )
+                else if (hasCurrentFile || (hasExistingUrl && !existingIsImage))
                   // Icône PDF
                   Container(
                     width: 120,
@@ -4833,7 +5155,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                             children: [
                               Text(
                                 _currentStep == _totalSteps - 1
-                                    ? 'Envoyer'.tr
+                                    ? (_isEditMode ? 'Update'.tr : 'Envoyer'.tr)
                                     : 'Suivant'.tr,
                                 style: const TextStyle(
                                   color: Colors.white,

@@ -524,6 +524,8 @@ const Map<String, String> enUs = {
   "Not available": "Not available",
   "Past Dates": "Past Dates",
   "Edit": "Edit",
+  "Modifier le véhicule": "Edit vehicle",
+  "Véhicule mis à jour avec succès": "Vehicle updated successfully",
   "List is empty": "List is empty",
   "What kind of place are you \nlistings?":
       "What kind of place are you listing?",

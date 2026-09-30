@@ -244,7 +244,15 @@ class Items {
       _bookedDates = null;
     }
     _metaData = json['metaData'] is String ? json['metaData'] : null;
+
+    if (json is Map) {
+      _sourceJson = Map<String, dynamic>.from(json as Map);
+    }
   }
+
+  /// JSON d'origine (specs, brand, make, etc.) — perdu par [toJson] historique.
+  Map<String, dynamic>? _sourceJson;
+  Map<String, dynamic>? get sourceJson => _sourceJson;
   String? _id;
   String? _title;
   String? _description;
@@ -371,6 +379,13 @@ class Items {
     }
     if (_metaData != null) {
       map['metaData'] = _metaData;
+    }
+    if (_sourceJson != null) {
+      _sourceJson!.forEach((String key, dynamic value) {
+        if (!map.containsKey(key) || map[key] == null) {
+          map[key] = value;
+        }
+      });
     }
 
     return map;

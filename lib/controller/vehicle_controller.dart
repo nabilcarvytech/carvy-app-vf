@@ -64,8 +64,16 @@ class VehicleController extends GetxController implements GetxService {
   RxBool isLoadingCategories = false.obs;
   RxList<dynamic> categoriesList = <dynamic>[].obs;
 
-  // Images uploadées
+  // Images uploadées / existantes (mode édition)
   RxList<String> uploadedImageUrls = <String>[].obs;
+
+  /// ID du véhicule en cours d'édition (null = mode ajout).
+  String? editingVehicleId;
+
+  /// URLs des documents déjà enregistrés côté serveur (mode édition).
+  RxString existingRegistrationCardFrontUrl = ''.obs;
+  RxString existingRegistrationCardBackUrl = ''.obs;
+  RxString existingMinistryAuthorizationUrl = ''.obs;
 
   // Liste des véhicules du vendor (Mes publications)
   RxBool isLoadingMyVehicles = false.obs;
@@ -299,11 +307,15 @@ class VehicleController extends GetxController implements GetxService {
     selectedImages.clear();
     uploadedImageUrls.clear();
     mainImageIndex.value = 0;
+    editingVehicleId = null;
     
     // Étape 8: Documents
     registrationCardRecto.value = null;
     registrationCardVerso.value = null;
     ministryAuthorization.value = null;
+    existingRegistrationCardFrontUrl.value = '';
+    existingRegistrationCardBackUrl.value = '';
+    existingMinistryAuthorizationUrl.value = '';
     
     // Reset final : remettre isSuccess à false pour le prochain ajout
     isSuccess.value = false;
@@ -342,8 +354,9 @@ class VehicleController extends GetxController implements GetxService {
     try {
       final List<XFile> images = await _imagePicker.pickMultiImage();
       if (images.isNotEmpty) {
-        // Limiter à 10 images au total
-        final int remainingSlots = 10 - selectedImages.length;
+        // Limiter à 10 images au total (existantes + nouvelles)
+        final int remainingSlots =
+            10 - selectedImages.length - uploadedImageUrls.length;
         if (remainingSlots > 0) {
           final List<XFile> imagesToAdd = images.take(remainingSlots).toList();
           selectedImages.addAll(imagesToAdd);
@@ -365,27 +378,45 @@ class VehicleController extends GetxController implements GetxService {
     }
   }
 
-  /// Définir l'image principale par son index
+  int get totalImageCount => uploadedImageUrls.length + selectedImages.length;
+
+  /// Définir l'image principale par son index (liste combinée existant + nouvelles).
   void setMainImage(int index) {
-    if (index >= 0 && index < selectedImages.length) {
+    if (index >= 0 && index < totalImageCount) {
       mainImageIndex.value = index;
     }
   }
 
-  /// Supprime une image de la liste
+  /// Supprime une image locale (nouvelle sélection).
   void removeImage(int index) {
     if (index < 0 || index >= selectedImages.length) return;
     selectedImages.removeAt(index);
-    if (selectedImages.isEmpty) {
+    _adjustMainImageIndexAfterRemoval(uploadedImageUrls.length + index);
+  }
+
+  /// Supprime une image à l'index combiné (URLs existantes puis fichiers locaux).
+  void removeImageAtCombinedIndex(int combinedIndex) {
+    if (combinedIndex < 0 || combinedIndex >= totalImageCount) return;
+    if (combinedIndex < uploadedImageUrls.length) {
+      uploadedImageUrls.removeAt(combinedIndex);
+    } else {
+      selectedImages.removeAt(combinedIndex - uploadedImageUrls.length);
+    }
+    _adjustMainImageIndexAfterRemoval(combinedIndex);
+  }
+
+  void _adjustMainImageIndexAfterRemoval(int removedIndex) {
+    if (totalImageCount == 0) {
       mainImageIndex.value = 0;
       return;
     }
-    if (index == mainImageIndex.value) {
-      // Si on supprime l'image principale, revenir à 0
+    if (removedIndex == mainImageIndex.value) {
       mainImageIndex.value = 0;
-    } else if (index < mainImageIndex.value) {
-      // Si on supprime avant la principale, l'index recule de 1
+    } else if (removedIndex < mainImageIndex.value) {
       mainImageIndex.value = mainImageIndex.value - 1;
+    }
+    if (mainImageIndex.value >= totalImageCount) {
+      mainImageIndex.value = totalImageCount - 1;
     }
   }
 
@@ -414,12 +445,15 @@ class VehicleController extends GetxController implements GetxService {
         switch (type) {
           case 'recto':
             registrationCardRecto.value = file;
+            existingRegistrationCardFrontUrl.value = '';
             break;
           case 'verso':
             registrationCardVerso.value = file;
+            existingRegistrationCardBackUrl.value = '';
             break;
           case 'authorization':
             ministryAuthorization.value = file;
+            existingMinistryAuthorizationUrl.value = '';
             break;
           default:
             debugPrint('❌ [VEHICLE] Type de document inconnu: $type');
@@ -2061,7 +2095,10 @@ class VehicleController extends GetxController implements GetxService {
     File? registrationCardFront, // Fichier recto à uploader
     File? registrationCardBack, // Fichier verso à uploader
     File? ministryAuthorization, // Fichier autorisation à uploader
+    String? updateVehicleId, // Si défini : PUT (mode édition)
   }) async {
+    final bool isUpdate =
+        updateVehicleId != null && updateVehicleId.trim().isNotEmpty;
     // Nettoyage de l'état UI AVANT d'envoyer la requête
     errorMessage.value = '';
     isLoading.value = true; // Assure-toi que c'est la seule variable de loader
@@ -2083,22 +2120,42 @@ class VehicleController extends GetxController implements GetxService {
       // ========== ÉTAPE 1 : UPLOAD DES IMAGES ==========
       debugPrint('📤 [VEHICLE] Étape 1 : Upload des images...');
       List<String> imageUrls = [];
+      if (isUpdate) {
+        imageUrls = List<String>.from(uploadedImageUrls);
+      }
       if (imageFiles.isNotEmpty) {
-        // Réordonner la liste pour mettre l'image principale en première position
-        final List<XFile> reordered = List<XFile>.from(imageFiles);
-        if (mainImageIndex.value >= 0 && mainImageIndex.value < reordered.length) {
-          final XFile selected = reordered.removeAt(mainImageIndex.value);
-          reordered.insert(0, selected);
+        final List<XFile> filesToUpload = List<XFile>.from(imageFiles);
+        if (!isUpdate) {
+          // Ajout : réordonner les nouvelles photos avant upload
+          if (mainImageIndex.value >= 0 &&
+              mainImageIndex.value < filesToUpload.length) {
+            final XFile selected =
+                filesToUpload.removeAt(mainImageIndex.value);
+            filesToUpload.insert(0, selected);
+          }
         }
-        imageUrls = await uploadVehicleImages(reordered);
-        // Ne passer à l'étape suivante que si l'upload a réussi (liste non vide)
-        if (imageUrls.isEmpty) {
+        final List<String> uploadedNew = await uploadVehicleImages(filesToUpload);
+        if (uploadedNew.isEmpty) {
           closeLoading();
-          showErrorToastMessage('Erreur lors de l\'upload des images. Veuillez réessayer.');
+          showErrorToastMessage(
+              'Erreur lors de l\'upload des images. Veuillez réessayer.');
           return false;
         }
-        debugPrint('✅ [VEHICLE] Étape 1 réussie : ${imageUrls.length} image(s) uploadée(s)');
-      } else {
+        if (isUpdate) {
+          imageUrls.addAll(uploadedNew);
+        } else {
+          imageUrls = uploadedNew;
+        }
+        debugPrint(
+            '✅ [VEHICLE] Étape 1 réussie : ${imageUrls.length} image(s) au total');
+      }
+      if (isUpdate &&
+          mainImageIndex.value >= 0 &&
+          mainImageIndex.value < imageUrls.length) {
+        final String mainUrl = imageUrls.removeAt(mainImageIndex.value);
+        imageUrls.insert(0, mainUrl);
+      }
+      if (imageUrls.isEmpty) {
         closeLoading();
         showErrorToastMessage('Au moins une image est requise');
         return false;
@@ -2358,8 +2415,10 @@ class VehicleController extends GetxController implements GetxService {
         'internationalTravelAllowed': allowsInternationalTravel,
         'bookingConfirmation':
             normalizeBookingConfirmation(bookingConfirmation),
-        'isActive': false,
       };
+      if (!isUpdate) {
+        payload['isActive'] = false;
+      }
 
       // Joindre la marque personnalisée si "Autre" a été saisi
       if (otherMakeName != null && otherMakeName.trim().isNotEmpty) {
@@ -2371,7 +2430,13 @@ class VehicleController extends GetxController implements GetxService {
         payload['otherModelName'] = otherModelName.trim();
       }
 
-      debugPrint('📡 [VEHICLE->NODE] Endpoint: POST ${Config.baseUrlWithoutV1}${Config.submitVehicle}');
+      final String baseUrl = Config.baseUrlWithoutV1;
+      final String url = isUpdate
+          ? '${baseUrl}${Config.submitVehicle}/$updateVehicleId'
+          : '${baseUrl}${Config.submitVehicle}';
+
+      debugPrint(
+          '📡 [VEHICLE->NODE] Endpoint: ${isUpdate ? 'PUT' : 'POST'} $url');
       debugPrint('📡 [VEHICLE->NODE] Auth token present: ${authToken.isNotEmpty}');
       debugPrint('🧪 [VEHICLE] vehicleTypeId (clean) = $cleanVehicleTypeId');
       debugPrint('🧪 [VEHICLE] categories[] = ${payload['categories']}');
@@ -2388,19 +2453,32 @@ class VehicleController extends GetxController implements GetxService {
       debugPrint('📦 [VEHICLE->NODE] Payload JSON: ${jsonEncode(payload)}');
 
       // Ajouter les URLs des documents directement dans le payload (au niveau racine)
-      if (documentUrls['registrationCardFront'] != null && documentUrls['registrationCardFront']!.isNotEmpty) {
-        payload['registrationCardFront'] = documentUrls['registrationCardFront'];
+      if (documentUrls['registrationCardFront'] != null &&
+          documentUrls['registrationCardFront']!.isNotEmpty) {
+        payload['registrationCardFront'] =
+            documentUrls['registrationCardFront'];
+      } else if (isUpdate &&
+          existingRegistrationCardFrontUrl.value.isNotEmpty) {
+        payload['registrationCardFront'] =
+            existingRegistrationCardFrontUrl.value;
       }
-      if (documentUrls['registrationCardBack'] != null && documentUrls['registrationCardBack']!.isNotEmpty) {
+      if (documentUrls['registrationCardBack'] != null &&
+          documentUrls['registrationCardBack']!.isNotEmpty) {
         payload['registrationCardBack'] = documentUrls['registrationCardBack'];
+      } else if (isUpdate &&
+          existingRegistrationCardBackUrl.value.isNotEmpty) {
+        payload['registrationCardBack'] =
+            existingRegistrationCardBackUrl.value;
       }
-      if (documentUrls['ministryAuthorization'] != null && documentUrls['ministryAuthorization']!.isNotEmpty) {
-        payload['ministryAuthorization'] = documentUrls['ministryAuthorization'];
+      if (documentUrls['ministryAuthorization'] != null &&
+          documentUrls['ministryAuthorization']!.isNotEmpty) {
+        payload['ministryAuthorization'] =
+            documentUrls['ministryAuthorization'];
+      } else if (isUpdate &&
+          existingMinistryAuthorizationUrl.value.isNotEmpty) {
+        payload['ministryAuthorization'] =
+            existingMinistryAuthorizationUrl.value;
       }
-
-      // Construire l'URL
-      final String baseUrl = Config.baseUrlWithoutV1;
-      final String url = '${baseUrl}${Config.submitVehicle}';
 
       // Créer une instance Dio
       final dio.Dio dioInstance = dio.Dio();
@@ -2417,12 +2495,10 @@ class VehicleController extends GetxController implements GetxService {
         },
       );
 
-      // Envoyer la requête POST avec JSON pur
-      final dio.Response response = await dioInstance.post(
-        url,
-        data: payload,
-        options: options,
-      );
+      // Envoyer la requête POST ou PUT avec JSON pur
+      final dio.Response response = isUpdate
+          ? await dioInstance.put(url, data: payload, options: options)
+          : await dioInstance.post(url, data: payload, options: options);
       debugPrint('📥 [NODE->VEHICLE] HTTP ${response.statusCode} | body: ${response.data}');
 
       closeLoading();
@@ -2431,18 +2507,27 @@ class VehicleController extends GetxController implements GetxService {
         final responseData = response.data;
         if (responseData is Map<String, dynamic>) {
           if (responseData['success'] == true || responseData['status'] == 200 || response.statusCode == 201) {
-            // --- NOUVEAU FLUX : RESTER SUR LA PAGE ---
-            
-            // 1. Arrêter immédiatement tous les loaders
             isLoading.value = false;
             isSubmittingVehicle.value = false;
+            update();
+            closeLoading();
+
+            if (isUpdate) {
+              clearFormFields();
+              await fetchMyVehicles();
+              showToastMessage('Véhicule mis à jour avec succès'.tr);
+              if (Get.isOverlaysOpen) {
+                Get.back(result: true);
+              } else if (Get.key.currentState?.canPop() == true) {
+                Get.back(result: true);
+              }
+              return true;
+            }
+
+            // --- NOUVEAU FLUX AJOUT : RESTER SUR LA PAGE ---
             isSuccess.value = true;
             update();
-            
-            // 2. BOUTON NUCLÉAIRE : Ferme TOUS les dialogues, overlays et snackbars ouverts
-            closeLoading();
-            Get.closeAllSnackbars(); // Fermer tous les snackbars GetX
-            // Fermer tous les toasts BotToast
+            Get.closeAllSnackbars();
             try {
               BotToast.closeAllLoading();
               BotToast.cleanAll();
@@ -2452,26 +2537,15 @@ class VehicleController extends GetxController implements GetxService {
             while (Get.isOverlaysOpen) {
               Get.back();
             }
-            
-            // 3. Vider le formulaire immédiatement
-              clearFormFields();
+            clearFormFields();
             await deleteVehicleDraftSilently();
-              
-            // 4. Rafraîchir les données en silence
             await fetchMyVehicles();
-            
-            // 5. Attendre un court instant pour s'assurer que tout est nettoyé
             await Future.delayed(const Duration(milliseconds: 100));
-            
-            // 6. Afficher un Toast avec le nombre de véhicules
-              final vehicleCount = myVehiclesItems.length;
-              showToastMessage('Véhicule n°$vehicleCount ajouté avec succès !');
-              
-              // Reset pour le prochain ajout
-              isSuccess.value = false;
+            final vehicleCount = myVehiclesItems.length;
+            showToastMessage('Véhicule n°$vehicleCount ajouté avec succès !');
+            isSuccess.value = false;
             update();
-            
-            return true; // IMPORTANT: return ici pour éviter d'exécuter le bloc suivant
+            return true;
           } else {
             isLoading.value = false;
             isSubmittingVehicle.value = false;
@@ -2571,6 +2645,441 @@ class VehicleController extends GetxController implements GetxService {
       debugPrint('❌ [VEHICLE] Erreur inattendue lors de la soumission: $e');
       return false;
     }
+  }
+
+  /// GET véhicule — `/api/vehicles/:id` puis fallback `/api/v1/vehicles/:id`.
+  Future<Map<String, dynamic>?> fetchVehicleDetailsMap(String vehicleId) async {
+    if (vehicleId.isEmpty || vehicleId == 'null') return null;
+    try {
+      final String? authToken = await _getSecureToken();
+      final List<String> urls = <String>[
+        '${Config.baseUrlWithoutV1}${Config.submitVehicle}/$vehicleId',
+        '${Config.baseurl}${Config.getVehicleDetails}/$vehicleId',
+      ];
+      for (final String url in urls) {
+        try {
+          final dio.Response response = await dio.Dio().get(
+            url,
+            options: dio.Options(
+              headers: <String, dynamic>{
+                if (authToken != null && authToken.isNotEmpty)
+                  'Authorization': 'Bearer $authToken',
+              },
+              validateStatus: (int? s) => s != null && s < 500,
+            ),
+          );
+          final Map<String, dynamic>? parsed =
+              _unwrapVehicleDetailsPayload(response.data, response.statusCode);
+          if (parsed != null) return parsed;
+        } catch (e) {
+          debugPrint('⚠️ [VEHICLE] fetchVehicleDetailsMap $url: $e');
+        }
+      }
+      final dynamic httpResponse =
+          await httpGet('${Config.getVehicleDetails}/$vehicleId', {});
+      return _unwrapVehicleDetailsPayload(httpResponse, null);
+    } catch (e) {
+      debugPrint('❌ [VEHICLE] fetchVehicleDetailsMap: $e');
+    }
+    return null;
+  }
+
+  static Map<String, dynamic>? _unwrapVehicleDetailsPayload(
+    dynamic payload,
+    int? statusCode,
+  ) {
+    if (payload is! Map) return null;
+    final Map<String, dynamic> response = Map<String, dynamic>.from(payload);
+    final bool okStatus = statusCode == 200 ||
+        statusCode == 201 ||
+        response['status'] == 200 ||
+        response['status'] == 201 ||
+        response['success'] == true ||
+        response['success'] == 200;
+    if (statusCode != null && statusCode >= 400 && !okStatus) return null;
+
+    dynamic data = response['data'] ?? response['vehicle'] ?? response['item'];
+    if (data == null &&
+        (response.containsKey('_id') || response.containsKey('id'))) {
+      data = response;
+    }
+    if (data is Map && data['items'] is List && (data['items'] as List).isNotEmpty) {
+      final dynamic first = (data['items'] as List).first;
+      if (first is Map) return Map<String, dynamic>.from(first);
+    }
+    if (data is Map && data['vehicle'] is Map) {
+      return Map<String, dynamic>.from(data['vehicle'] as Map);
+    }
+    if (data is Map && data['item'] is Map) {
+      return Map<String, dynamic>.from(data['item'] as Map);
+    }
+    if (data is Map &&
+        (data.containsKey('_id') ||
+            data.containsKey('id') ||
+            data.containsKey('specs') ||
+            data.containsKey('categories'))) {
+      return Map<String, dynamic>.from(data);
+    }
+    if (okStatus && data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+    return null;
+  }
+
+  static String? _extractMongoId(dynamic value) {
+    if (value == null) return null;
+    if (value is String) {
+      final String trimmed = value.trim();
+      return trimmed.isEmpty || trimmed.toLowerCase() == 'null'
+          ? null
+          : trimmed;
+    }
+    if (value is Map) {
+      return _extractMongoId(value['_id'] ?? value['id']);
+    }
+    final String s = value.toString().trim();
+    return s.isEmpty || s.toLowerCase() == 'null' ? null : s;
+  }
+
+  static bool _isLikelyMongoObjectId(String? raw) {
+    final String? id = raw?.trim();
+    if (id == null || id.isEmpty) return false;
+    return id.length == 24 && RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(id);
+  }
+
+  static String? _normalizeInsuranceCoverage(dynamic raw) {
+    if (raw == null) return null;
+    final String v = raw.toString().trim();
+    if (v.isEmpty || v.toLowerCase() == 'null') return null;
+    final String upper = v.toUpperCase();
+    if (upper == 'BASIC' || upper == 'BASE') return 'Basic';
+    if (upper == 'FULL' || upper == 'COMPLETE' || upper == 'COMPLET') {
+      return 'Full';
+    }
+    if (v == 'Basic' || v == 'Full') return v;
+    return v;
+  }
+
+  static bool _asBool(dynamic raw) {
+    if (raw == true || raw == 1) return true;
+    if (raw == false || raw == 0 || raw == null) return false;
+    final String s = raw.toString().trim().toLowerCase();
+    return s == 'true' || s == '1' || s == 'yes';
+  }
+
+  static String? _extractDisplayName(dynamic value) {
+    if (value == null) return null;
+    if (value is String) {
+      final String t = value.trim();
+      if (t.isEmpty || _isLikelyMongoObjectId(t)) return null;
+      return t;
+    }
+    if (value is Map) {
+      final String? name = value['name']?.toString() ??
+          value['makeName']?.toString() ??
+          value['cityName']?.toString() ??
+          value['title']?.toString();
+      final String t = (name ?? '').trim();
+      return t.isEmpty ? null : t;
+    }
+    return null;
+  }
+
+  static String _reverseDiscountType(dynamic raw) {
+    final String t = raw?.toString().toUpperCase() ?? '';
+    if (t == 'PERCENTAGE' || t == 'PERCENT') return 'percent';
+    if (t == 'FIXED') return 'fixed';
+    return raw?.toString() ?? 'percent';
+  }
+
+  /// Convertit la réponse API véhicule en map compatible avec le formulaire AddVehicleScreen.
+  Map<String, dynamic> normalizeVehicleApiToFormData(Map<String, dynamic> raw) {
+    Map<String, dynamic>? itemInfoMap;
+    if (raw['itemInfo'] != null) {
+      try {
+        final decoded = json.decode(raw['itemInfo'].toString());
+        if (decoded is Map) {
+          itemInfoMap = Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {}
+    } else if (raw['item_info'] != null) {
+      try {
+        final decoded = json.decode(raw['item_info'].toString());
+        if (decoded is Map) {
+          itemInfoMap = Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {}
+    }
+
+    final Map<String, dynamic> specs = raw['specs'] is Map
+        ? Map<String, dynamic>.from(raw['specs'] as Map)
+        : <String, dynamic>{};
+    final Map<String, dynamic> pricing = raw['pricing'] is Map
+        ? Map<String, dynamic>.from(raw['pricing'] as Map)
+        : <String, dynamic>{};
+    final Map<String, dynamic> location = raw['location'] is Map
+        ? Map<String, dynamic>.from(raw['location'] as Map)
+        : <String, dynamic>{};
+    final dynamic depositObj = pricing['deposit'];
+    final dynamic weeklyDisc = pricing['weeklyDiscount'];
+    final dynamic monthlyDisc = pricing['monthlyDiscount'];
+    final dynamic ageRestriction = raw['ageRestriction'];
+
+    final List<String> categories = <String>[];
+    void addCategoryId(dynamic value) {
+      final String? id = _extractMongoId(value);
+      if (id == null || id.isEmpty) return;
+      if (!_isLikelyMongoObjectId(id)) return;
+      if (!categories.contains(id)) categories.add(id);
+    }
+
+    if (raw['categories'] is List) {
+      for (final dynamic c in raw['categories'] as List) {
+        addCategoryId(c);
+      }
+    }
+    addCategoryId(raw['vehicleType']);
+    addCategoryId(raw['category']);
+    addCategoryId(raw['item_type_id']);
+    addCategoryId(raw['itemTypeId']);
+    // `type: "CAR"` est un libellé métier, pas un ObjectId de chip.
+
+    String plate1 = '';
+    String plate2 = '';
+    String plate3 = '';
+    final String plateRaw = raw['licencePlateNumber']?.toString() ??
+        raw['licence_plate_number']?.toString() ??
+        itemInfoMap?['licencePlateNumber']?.toString() ??
+        '';
+    if (plateRaw.contains('-')) {
+      final parts = plateRaw.split('-');
+      if (parts.length >= 3) {
+        plate1 = parts[0];
+        plate2 = parts[1];
+        plate3 = parts.sublist(2).join('-');
+      } else if (parts.length == 2) {
+        plate1 = parts[0];
+        plate2 = parts[1];
+      }
+    }
+
+    final Map<String, String> tierRetentionFees = <String, String>{};
+    if (raw['cancellationPolicies'] is List) {
+      for (final dynamic p in raw['cancellationPolicies'] as List) {
+        if (p is! Map) continue;
+        final String? policyId = _extractMongoId(p['policy']);
+        if (policyId == null || policyId.isEmpty) continue;
+        tierRetentionFees[policyId] = p['percentage']?.toString() ?? '';
+      }
+    }
+
+    List<dynamic> features = <dynamic>[];
+    if (raw['features'] is List) {
+      features = raw['features'] as List;
+    } else if (raw['features_id'] != null) {
+      try {
+        final decoded = json.decode(raw['features_id'].toString());
+        if (decoded is List) features = decoded;
+      } catch (_) {}
+    } else if (raw['amenitiesId'] != null) {
+      try {
+        final decoded = json.decode(raw['amenitiesId'].toString());
+        if (decoded is List) features = decoded;
+      } catch (_) {}
+    }
+
+    List<dynamic> rules = <dynamic>[];
+    dynamic rulesRaw = raw['rules'] ??
+        raw['vehicleRules'] ??
+        raw['vehicle_rules'] ??
+        raw['selectedRules'] ??
+        itemInfoMap?['rules'] ??
+        itemInfoMap?['vehicleRules'];
+    if (rulesRaw is String) {
+      try {
+        final decoded = json.decode(rulesRaw);
+        if (decoded is List) rulesRaw = decoded;
+      } catch (_) {}
+    }
+    if (rulesRaw is List) {
+      rules = rulesRaw;
+    }
+
+    final List<Map<String, dynamic>> deliveryLocations = <Map<String, dynamic>>[];
+    if (pricing['deliveryLocations'] is List) {
+      for (final dynamic loc in pricing['deliveryLocations'] as List) {
+        if (loc is! Map) continue;
+        final m = Map<String, dynamic>.from(loc);
+        final String id = _extractMongoId(m['location']) ?? '';
+        if (id.isEmpty) continue;
+        final double price = m['price'] is num
+            ? (m['price'] as num).toDouble()
+            : double.tryParse('${m['price']}') ?? 0.0;
+        deliveryLocations.add(<String, dynamic>{
+          'locationId': id,
+          'location': id,
+          'locationName': m['locationName']?.toString() ?? '',
+          'price': price,
+          'isFreeDelivery': price == 0,
+        });
+      }
+    }
+
+    double lat = 0;
+    double lng = 0;
+    if (location['coordinates'] is List &&
+        (location['coordinates'] as List).length >= 2) {
+      lng = ((location['coordinates'] as List)[0] as num).toDouble();
+      lat = ((location['coordinates'] as List)[1] as num).toDouble();
+    } else {
+      lat = double.tryParse(raw['latitude']?.toString() ?? '') ?? 0;
+      lng = double.tryParse(raw['longitude']?.toString() ?? '') ?? 0;
+    }
+
+    final String? makeId = _extractMongoId(
+      specs['brand'] ??
+          specs['make'] ??
+          raw['brand'] ??
+          raw['make'] ??
+          raw['vehicleMake'] ??
+          raw['makeId'] ??
+          itemInfoMap?['makeType'] ??
+          itemInfoMap?['makeId'] ??
+          itemInfoMap?['brand'],
+    );
+    final String? makeName = _extractDisplayName(
+      specs['brand'] ?? raw['brand'] ?? raw['make'] ?? raw['makeName'],
+    );
+    final String? modelId = _extractMongoId(
+      specs['model'] ??
+          raw['model'] ??
+          raw['modelId'] ??
+          itemInfoMap?['modelType'] ??
+          itemInfoMap?['modelId'],
+    );
+    final String? cityName = location['city']?.toString() ??
+        location['cityName']?.toString() ??
+        raw['city']?.toString() ??
+        raw['city_name']?.toString() ??
+        raw['cityName']?.toString();
+
+    final bool hasCancellationTiers = tierRetentionFees.isNotEmpty ||
+        (raw['cancellationPolicies'] is List &&
+            (raw['cancellationPolicies'] as List).isNotEmpty);
+    final String inferredPolicyId = hasCancellationTiers
+        ? 'flexible'
+        : 'non-refundable';
+
+    return <String, dynamic>{
+      'categories': categories,
+      'makeId': makeId,
+      'makeName': makeName ?? raw['otherMakeName']?.toString(),
+      'modelId': modelId,
+      'otherMakeName': raw['otherMakeName']?.toString(),
+      'otherModelName': raw['otherModelName']?.toString(),
+      'fuelId': _extractMongoId(
+        specs['fuel'] ?? raw['fuel'] ?? itemInfoMap?['fuelType'],
+      ),
+      'transmission': (specs['transmission'] ?? itemInfoMap?['transmission'])?.toString(),
+      'bookingConfirmation': raw['bookingConfirmation'] ?? raw['booking_confirmation'],
+      'odometerId': _extractMongoId(specs['odometer'] ?? itemInfoMap?['odometer']),
+      'year': (specs['year'] ?? itemInfoMap?['year'] ?? raw['year'])?.toString(),
+      'seats': (specs['seats'] ?? itemInfoMap?['seats'] ?? raw['seatCapacity'])?.toString(),
+      'plateNumber1': plate1,
+      'plateNumber2': plate2,
+      'plateNumber3': plate3,
+      'minRentalDays': raw['minRentalDays']?.toString() ?? '1',
+      'insurance': _normalizeInsuranceCoverage(
+        raw['insuranceCoverage'] ??
+            raw['insurance_coverage'] ??
+            raw['insurance'] ??
+            itemInfoMap?['insurance'],
+      ),
+      'hasAgeRestriction': ageRestriction is Map
+          ? _asBool(ageRestriction['enabled'])
+          : _asBool(raw['hasAgeRestriction']),
+      'minAge': ageRestriction is Map
+          ? ageRestriction['minimumAge']?.toString() ?? '18'
+          : (raw['minAge']?.toString() ?? '18'),
+      'allowsInternationalTravel': _asBool(
+        raw['internationalTravelAllowed'] ??
+            raw['international_travel_allowed'],
+      ),
+      'pricePerDay': (pricing['basePrice'] ?? raw['price'])?.toString(),
+      'deposit': depositObj is Map
+          ? depositObj['value']?.toString()
+          : raw['depositValue']?.toString(),
+      'hasWeeklyDiscount': weeklyDisc != null,
+      'weeklyDiscountValue': weeklyDisc is Map
+          ? weeklyDisc['value']?.toString()
+          : raw['weekly_discount']?.toString(),
+      'weeklyDiscountType': weeklyDisc is Map
+          ? _reverseDiscountType(weeklyDisc['type'])
+          : _reverseDiscountType(raw['weekly_discount_type']),
+      'hasMonthlyDiscount': monthlyDisc != null,
+      'monthlyDiscountValue': monthlyDisc is Map
+          ? monthlyDisc['value']?.toString()
+          : raw['monthly_discount']?.toString(),
+      'monthlyDiscountType': monthlyDisc is Map
+          ? _reverseDiscountType(monthlyDisc['type'])
+          : _reverseDiscountType(raw['monthly_discount_type']),
+      'hasHomeDelivery': deliveryLocations.isNotEmpty ||
+          _asBool(raw['hasHomeDelivery'] ?? pricing['hasHomeDelivery']),
+      'deliveryLocations': deliveryLocations,
+      'fullAddress': location['address']?.toString() ?? raw['address']?.toString(),
+      'address': location['address']?.toString() ?? raw['address']?.toString(),
+      'city': cityName,
+      'latitude': lat,
+      'longitude': lng,
+      'locationId': _extractMongoId(
+        raw['vehicleLocation'] ??
+            location['vehicleLocation'] ??
+            raw['locationId'] ??
+            location['_id'],
+      ),
+      'selectedFeatures': features
+          .map((e) => _extractMongoId(e) ?? e.toString().trim())
+          .where((String e) => e.isNotEmpty)
+          .toList(),
+      'selectedRules': rules
+          .map((e) => _extractMongoId(e) ?? e.toString().trim())
+          .where((String e) => e.isNotEmpty)
+          .toList(),
+      'selectedPolicyId': inferredPolicyId,
+      'tierRetentionFees': tierRetentionFees,
+      'images': _extractImageUrlsFromVehicleRaw(raw),
+      'registrationCardFront': raw['registrationCardFront']?.toString(),
+      'registrationCardBack': raw['registrationCardBack']?.toString(),
+      'ministryAuthorization': raw['ministryAuthorization']?.toString(),
+    };
+  }
+
+  static List<String> _extractImageUrlsFromVehicleRaw(Map<String, dynamic> raw) {
+    final List<String> urls = <String>[];
+    void addUrl(String? url) {
+      if (url != null && url.isNotEmpty && !urls.contains(url)) {
+        urls.add(url);
+      }
+    }
+
+    if (raw['images'] is List) {
+      for (final dynamic img in raw['images'] as List) {
+        if (img is String) {
+          addUrl(img);
+        } else if (img is Map) {
+          addUrl(img['url']?.toString());
+        }
+      }
+    }
+    if (raw['front_image'] is Map) {
+      addUrl((raw['front_image'] as Map)['url']?.toString());
+    }
+    if (raw['gallery'] is List) {
+      for (final dynamic g in raw['gallery'] as List) {
+        if (g is Map) addUrl(g['url']?.toString());
+      }
+    }
+    return urls;
   }
 
   // ========== MÉTHODES UTILITAIRES ==========

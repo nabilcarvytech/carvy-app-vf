@@ -27,7 +27,6 @@ import 'package:carvy/view/host/switch_splash_screen.dart';
 import 'package:carvy/view/host/vehiclehost/editvehicle/edit_vehicle_home_screen.dart';
 import 'package:carvy/view/host/vehiclehost/editvehicle/clean_edit_vehicle_screen.dart';
 import 'package:carvy/view/host/vehiclehost/editvehicle/standalone_edit_screen.dart';
-import 'package:carvy/view/host/vehiclehost/editvehicle/edit_vehicle_tab_screen.dart';
 import 'package:carvy/view/host/wallet/finance_screen.dart';
 import 'package:carvy/view/vehicle/add_vehicle_screen.dart';
 import 'package:carvy/work_space.dart';
@@ -1241,15 +1240,11 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                               return;
                                             }
                                             
-                                            // ✅ ID valide : Naviguer vers l'écran d'édition avec onglets (identique à l'ajout)
-                                            debugPrint('✅ [EDIT_TAB] Navigation vers EditVehicleTabScreen avec ID: $vehicleId');
+                                            // ✅ ID valide : ouvrir AddVehicleScreen en mode édition
+                                            debugPrint('✅ [EDIT] Navigation vers AddVehicleScreen(vehicle) ID: $vehicleId');
                                             closeLoading();
-                                            
-                                            // Navigation vers l'écran d'édition avec onglets (même structure que l'ajout)
                                             Get.to(
-                                              () => EditVehicleTabScreen(
-                                                vehicleId: vehicleId!,
-                                              ),
+                                              () => AddVehicleScreen(vehicle: vehicle),
                                             )?.then((value) {
                                               vehicleController.fetchMyVehicles();
                                               setState(() {});

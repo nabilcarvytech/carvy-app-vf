@@ -110,4 +110,14 @@ class Getodometer {
 
     return map;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Getodometer &&
+          runtimeType == other.runtimeType &&
+          _id == other._id;
+
+  @override
+  int get hashCode => _id?.hashCode ?? 0;
 }

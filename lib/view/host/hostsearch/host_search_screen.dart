@@ -18,8 +18,7 @@ import 'package:carvy/utils/theme_style.dart';
 import 'package:carvy/view/host/bottom_bar_host.dart';
 import 'package:carvy/view/host/common_widget_host.dart';
 import 'package:carvy/view/host/dash_board_screen.dart';
-import 'package:carvy/view/host/vehiclehost/editvehicle/edit_vehicle_home_screen.dart';
-import 'package:carvy/view/host/vehiclehost/editvehicle/clean_edit_vehicle_screen.dart';
+import 'package:carvy/view/vehicle/add_vehicle_screen.dart';
 import 'package:carvy/work_space.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -423,38 +422,18 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
                                         return;
                                       }
                                       
-                                      // ✅ ID valide : Récupérer les détails complets depuis le serveur
-                                      debugPrint('✅ [DEBUG_EDIT] ID validé, récupération des détails...');
-                                      
-                                      // Récupérer les détails complets du véhicule depuis le serveur
-                                      var detailedVehicle = await addItemsHostController.fetchVehicleDetails(vehicleId!);
-                                      
-                                      if (detailedVehicle != null) {
-                                        // Stocker le véhicule détaillé
-                                        addItemsHostController.item = detailedVehicle;
-                                        
-                                        // Remplir le formulaire avec les données détaillées
-                                        await addItemsHostController.populateFields(detailedVehicle);
-                                        
-                                        closeLoading(); // Fermer le loader en cas de succès
-                                        
-                                        // Naviguer vers l'écran d'édition d'origine avec le même UI que l'ajout
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => EditVehicleHomeScreen(
-                                              mode: ScreenMode.edit,
-                                            ),
-                                          ),
-                                        ).then((value) {
-                                          // Rafraîchir la liste après retour
-                                          vehicleController.fetchMyVehicles();
-                                          setState(() {});
-                                        });
-                                      } else {
-                                        closeLoading();
-                                        showErrorToastMessage('Impossible de charger les détails du véhicule pour édition.');
-                                      }
+                                      // ✅ ID valide : ouvrir AddVehicleScreen en mode édition
+                                      debugPrint('✅ [EDIT] Navigation vers AddVehicleScreen(vehicle) ID: $vehicleId');
+                                      closeLoading();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => AddVehicleScreen(vehicle: vehicle),
+                                        ),
+                                      ).then((value) {
+                                        vehicleController.fetchMyVehicles();
+                                        setState(() {});
+                                      });
                                       
                                       // ========== ANCIEN CODE (COMMENTÉ) ==========
                                       // Ancienne navigation vers CleanEditVehicleScreen (V2 temporaire)
