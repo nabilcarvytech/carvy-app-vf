@@ -82,7 +82,7 @@ class DoorStepAddress {
     return DoorStepAddress(
       addressLabel: label,
       fullAddress: json['full_address'],
-      city: json['city'],
+      city: json['city'] ?? json['cityName'] ?? json['city_name'],
       state: json['state'],
       country: json['country'],
       postalCode: json['postal_code'],

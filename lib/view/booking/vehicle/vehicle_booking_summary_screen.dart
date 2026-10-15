@@ -22,9 +22,13 @@ import 'package:carvy/view/itemdetail/vehicle/vehicle_check_availability_screen.
 import '../../../controller/general_controller.dart';
 import '../../../controller/booking_controller.dart';
 import '../../../controller/items_detail_controller.dart';
+import '../../../controller/add_address_controller.dart';
 import '../../../model/vehicle_home_model.dart';
+import '../../myaccount/addaddress/user_address.dart';
+import '../../../helper/vehicle_rules_helper.dart';
 import '../../../utils/common_widget.dart';
 import '../../../utils/vehicle_common_widgets.dart';
+import '../../../controller/vehicle_controller.dart';
 import '../../../work_space.dart';
 
 class VehicleBookingSummary extends StatefulWidget {
@@ -69,9 +73,21 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
   
   // État de validation de la politique d'annulation
   bool isPolicyAccepted = false;
+  bool _homeDeliveryReady = false;
 
-  getData(String coupon) async {
+  Future<void> getData(
+    String coupon, {
+    bool refreshDeliveryPreference = false,
+  }) async {
     setState(() {});
+    await bookingController.prepareHomeDelivery(
+      widget.itemDetails,
+      fallbackDoorstepPrice: widget.isAddDoorStepPrice,
+      autoSelectDeliveryIfServed: !_homeDeliveryReady ||
+          refreshDeliveryPreference ||
+          bookingController.wantsHomeDelivery.value,
+    );
+    _homeDeliveryReady = true;
     await bookingController.getDataBookingSummery(
         widget.idFeatured, coupon, "", widget.isAddDoorStepPrice,
         dailyPrice: widget.price);
@@ -100,6 +116,12 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
 
     // Utiliser addPostFrameCallback pour s'assurer que le framework Flutter est prêt
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final vc = Get.find<VehicleController>();
+        if (vc.rulesList.isEmpty) {
+          vc.fetchRules();
+        }
+      } catch (_) {}
       print(
           '✅ [initState] addPostFrameCallback exécuté - Framework Flutter prêt');
       debugPrint(
@@ -150,21 +172,18 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
         child: SizedBox(
           width: Dimensions.containerWidth,
           child: Scaffold(
-            bottomNavigationBar: bookingController.getItemPrices == null
-                ? SizedBox()
-                : SafeArea(
+            resizeToAvoidBottomInset: true,
+            bottomNavigationBar: SafeArea(
                     child: Container(
-                      height: 100,
                       width: Get.size.width,
                       color: notifires.getbgcolor,
                       child: Padding(
-                        padding: const EdgeInsets.all(20.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 10),
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(
-                              height: 10,
-                            ),
                             Obx(() {
                               // Réinitialiser hasSkippedKyc après une réservation réussie
                               if (bookingController.isPaymentSuccess.value ==
@@ -205,12 +224,15 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                 );
                               }
 
+                              final bool pricesReady =
+                                  bookingController.getItemPrices != null;
                               return ConstrainedBox(
                                 constraints: const BoxConstraints.expand(
                                     width: double.infinity, height: 50.0),
                                 child: ElevatedButton(
-                                    onPressed: (bookingController
-                                            .isProcessingBooking.value ||
+                                    onPressed: (!pricesReady ||
+                                            bookingController
+                                                .isProcessingBooking.value ||
                                             !isPolicyAccepted ||
                                             !bookingController
                                                 .vehicleBookingTunnelComplete
@@ -423,8 +445,9 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
                                                 BorderRadius.circular(12))),
-                                    child: bookingController
-                                            .isProcessingBooking.value
+                                    child: (!pricesReady ||
+                                            bookingController
+                                                .isProcessingBooking.value)
                                         ? const SizedBox(
                                             width: 20,
                                             height: 20,
@@ -1529,77 +1552,8 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             const SizedBox(
                                               height: 2,
                                             ),
-                                            widget.isAddDoorStepPrice == "0" ||
-                                                    widget.isAddDoorStepPrice ==
-                                                        ""
-                                                ? const SizedBox()
-                                                : Row(
-                                                    children: [
-                                                      Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                            "Doorstep price".tr,
-                                                            style: regular2(
-                                                                    context)
-                                                                .copyWith(
-                                                                    color: notifires
-                                                                        .getGrey3Whitecolor),
-                                                          )
-                                                        ],
-                                                      ),
-                                                      const Spacer(),
-                                                      Text(
-                                                        "${bookingController.currency} ${widget.isAddDoorStepPrice}",
-                                                        style: regular2(context)
-                                                            .copyWith(
-                                                                color: notifires
-                                                                    .getGrey3Whitecolor),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 10,
-                                                      )
-                                                    ],
-                                                  ),
-                                            const SizedBox(
-                                              height: 2,
-                                            ),
-                                            const SizedBox(
-                                              height: 7,
-                                            ),
-                                            const SizedBox(
-                                              height: 10,
-                                            ),
-                                            Row(
-                                              children: [
-                                                Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text('total_to_pay'.tr,
-                                                        style: heading3(context)
-                                                            .copyWith(
-                                                                color:
-                                                                    getColorBasedOnActiveModuleid(),
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w700))
-                                                  ],
-                                                ),
-                                                const Spacer(),
-                                                Text(
-                                                  "${bookingController.currency} ${double.tryParse(bookingController.getItemPrices!.data!.grossPrice ?? "0")?.toStringAsFixed(2) ?? bookingController.getItemPrices!.data!.grossPrice ?? "0.00"}",
-                                                  style: heading3(context).copyWith(
-                                                      color:
-                                                          getColorBasedOnActiveModuleid()),
-                                                ),
-                                                const SizedBox(
-                                                  width: 10,
-                                                )
-                                              ],
-                                            ),
+                                            _buildHomeDeliveryAndTotal(
+                                                context, notifires),
                                           ],
                                         ),
                                       ),
@@ -1719,18 +1673,15 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                         ),
                                       ),
                                     ),
-                                    widget.itemDetails!.rules!.isEmpty
+                                    _checkoutVehicleRules().isEmpty
                                         ? const SizedBox()
                                         : Padding(
                                             padding: const EdgeInsets.only(
                                                 left: 15, right: 15),
                                             child: GestureDetector(
-                                              onTap: () {
-                                                rulesbuttomSheet(context,
-                                                    title: 'Vehicle Rules'.tr,
-                                                    list: widget
-                                                        .itemDetails!.rules!);
-                                              },
+                                              onTap: () =>
+                                                  _openVehicleRulesSheet(
+                                                      context),
                                               child: Card(
                                                 color: notifires.getBoxColor,
                                                 child: Padding(
@@ -1762,17 +1713,9 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                       ),
                                                       const Spacer(),
                                                       InkWell(
-                                                        onTap: () {
-                                                          rulesbuttomSheet(
-                                                            context,
-                                                            title:
-                                                                'Vehicle Rules'
-                                                                    .tr,
-                                                            list:
-                                                                itemInfoDetails[
-                                                                    "rules"],
-                                                          );
-                                                        },
+                                                        onTap: () =>
+                                                            _openVehicleRulesSheet(
+                                                                context),
                                                         child: Icon(
                                                           Icons
                                                               .arrow_forward_ios,
@@ -1883,6 +1826,216 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _openProfileAddressEditor() async {
+    if (Get.isRegistered<AddAddressController>()) {
+      final addr = Get.find<AddAddressController>();
+      addr.preventDate.value = true;
+      addr.addressSavePopCount = 1;
+    }
+    await Get.to(() => const UserAddress());
+    if (!mounted) return;
+    await getData(
+      bookingController.textEditingController.text,
+      refreshDeliveryPreference: true,
+    );
+  }
+
+  Widget _deliveryModeChip({
+    required BuildContext context,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: selected
+                ? getColorBasedOnActiveModuleid().withOpacity(0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected
+                  ? getColorBasedOnActiveModuleid()
+                  : Colors.grey.withOpacity(0.35),
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: regular2(context).copyWith(
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected
+                  ? getColorBasedOnActiveModuleid()
+                  : notifires.getGrey3Whitecolor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHomeDeliveryAndTotal(BuildContext context, dynamic notifires) {
+    return Obx(() {
+      final zones = bookingController.deliveryZones.toList();
+      final fee = bookingController.homeDeliveryFee.value;
+      final city = bookingController.homeDeliveryCityLabel.value.trim();
+      final address = bookingController.customerFullAddress.value.trim();
+      final served = bookingController.deliveryCityServed.value;
+      final wantsDelivery = bookingController.wantsHomeDelivery.value &&
+          bookingController.hasHomeDeliverySelection;
+      final label = city.isNotEmpty
+          ? 'delivery_fee_city'.trParams({'city': city})
+          : 'delivery_fee'.tr;
+      final amountText = !wantsDelivery || fee <= 0
+          ? 'delivery_free'.tr
+          : '${bookingController.currency} ${fee.toStringAsFixed(2)}';
+      final gross = double.tryParse(
+            bookingController.getItemPrices?.data?.grossPrice ?? '0',
+          ) ??
+          0.0;
+      final showUnservedWarning =
+          zones.isNotEmpty && address.isNotEmpty && !served;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (zones.isNotEmpty) ...[
+            Row(
+              children: [
+                _deliveryModeChip(
+                  context: context,
+                  label: 'pickup_on_site'.tr,
+                  selected: !wantsDelivery,
+                  onTap: () => bookingController.selectPickup(),
+                ),
+                const SizedBox(width: 8),
+                _deliveryModeChip(
+                  context: context,
+                  label: 'home_delivery'.tr,
+                  selected: wantsDelivery,
+                  onTap: () {
+                    if (address.isEmpty) {
+                      _openProfileAddressEditor();
+                      return;
+                    }
+                    bookingController.selectProfileHomeDelivery();
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    address.isEmpty
+                        ? 'add_delivery_address'.tr
+                        : 'delivery_to_address'.trParams({'address': address}),
+                    style: regular2(context).copyWith(
+                      color: notifires.getGrey3Whitecolor,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'edit_address'.tr,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  onPressed: _openProfileAddressEditor,
+                  icon: Icon(
+                    Icons.edit_outlined,
+                    size: 20,
+                    color: getColorBasedOnActiveModuleid(),
+                  ),
+                ),
+              ],
+            ),
+            if (showUnservedWarning)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'delivery_city_not_served'.tr,
+                  style: regular2(context).copyWith(
+                    color: Colors.orange[800],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: regular2(context).copyWith(
+                    color: notifires.getGrey3Whitecolor,
+                  ),
+                ),
+              ),
+              Text(
+                amountText,
+                style: regular2(context).copyWith(
+                  color: notifires.getGrey3Whitecolor,
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
+          ),
+          const SizedBox(height: 19),
+          Row(
+            children: [
+              Text(
+                'total_to_pay'.tr,
+                style: heading3(context).copyWith(
+                  color: getColorBasedOnActiveModuleid(),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${bookingController.currency} ${gross.toStringAsFixed(2)}',
+                style: heading3(context).copyWith(
+                  color: getColorBasedOnActiveModuleid(),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
+          ),
+        ],
+      );
+    });
+  }
+
+  List<dynamic> _checkoutVehicleRules() {
+    return VehicleRulesHelper.mergeRaw([
+      widget.itemDetails?.rules,
+      vehicleDetailController.vehicleDetailModel?.data?.itemDetails?.vehicleRules,
+      itemInfoDetails['rules'],
+      itemInfoDetails['vehicle_rules'],
+      itemInfoDetails['customRules'],
+      itemInfoDetails['custom_rules'],
+    ]);
+  }
+
+  Future<void> _openVehicleRulesSheet(BuildContext context) async {
+    await VehicleRulesHelper.ensureCatalogLoaded();
+    final labels = VehicleRulesHelper.resolveDisplayLabels(
+      _checkoutVehicleRules(),
+    );
+    if (!context.mounted) return;
+    rulesbuttomSheet(
+      context,
+      title: 'Vehicle Rules'.tr,
+      list: labels,
     );
   }
 }

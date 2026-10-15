@@ -10,6 +10,7 @@ import 'package:carvy/utils/safe_rebuild.dart';
 import 'package:carvy/work_space.dart';
 import '../api/config.dart';
 import '../helper/http_service.dart';
+import '../helper/vehicle_rules_helper.dart';
 import '../model/item_details_model.dart';
 import '../model/vehicle_home_model.dart';
 
@@ -244,6 +245,17 @@ class ItemDetailsController extends GetxController implements GetxService {
                       parsedItemInfo.bookingConfirmation =
                           bookingConfirmationRaw.toString();
                     }
+
+                    parsedItemInfo.rules = VehicleRulesHelper.mergeRaw([
+                      parsedItemInfo.rules,
+                      itemDetails.vehicleRules,
+                      itemDetailsJson?['rules'],
+                      itemDetailsJson?['vehicle_rules'],
+                      itemDetailsJson?['customRules'],
+                      itemDetailsJson?['custom_rules'],
+                      itemData['rules'],
+                      itemData['customRules'],
+                    ]);
                     
                     // Mettre à jour itemInfo dans le controller (c'est cet objet qui sera transmis)
                     itemInfo = parsedItemInfo;

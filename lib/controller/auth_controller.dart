@@ -78,6 +78,7 @@ class AuthController extends GetxController implements GetxService {
   @override
   void onInit() {
     super.onInit();
+    hydrateSessionFromStorage();
     isHostMode.value = GetStorage().read('isHostMode') ?? false;
     
     // Récupérer le LoginModel depuis le stockage si l'utilisateur est déjà connecté

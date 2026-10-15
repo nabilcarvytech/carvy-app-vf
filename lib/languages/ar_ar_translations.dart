@@ -203,6 +203,7 @@ const Map<String, String> arAR = {
   "Login to access all functionality":
       "قم بتسجيل الدخول للوصول إلى جميع الميزات",
   "Do you want to exit?": "هل ترغب في الخروج؟",
+  "press_back_again_to_exit": "اضغط مرة أخرى للخروج",
   "You are not Login yet": "لم تقم بتسجيل الدخول بعد",
   "Use menu Button to Change Booking type":
       "استخدم زر القائمة لتغيير نوع الحجز",
@@ -1427,6 +1428,15 @@ const Map<String, String> arAR = {
   "initial_total_price": "السعر الإجمالي الأولي",
   "long_term_discount": "خصم المدة الطويلة",
   "home_delivery": "توصيل إلى المنزل",
+  "delivery_fee": "رسوم التوصيل",
+  "delivery_fee_city": "توصيل (@city)",
+  "delivery_free": "مجاني",
+  "pickup_on_site": "استلام في الموقع",
+  "delivery_to_address": "التوصيل إلى: @address",
+  "edit_address": "تعديل العنوان",
+  "delivery_city_not_served":
+      "مدينتك غير مشمولة بخدمة التوصيل إلى المنزل",
+  "add_delivery_address": "أضف عنوانًا للتوصيل إلى المنزل",
   "currency_mad": "درهم",
   "morocco": "المغرب",
   "Bluetooth": "بلوتوث",

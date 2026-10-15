@@ -687,6 +687,65 @@ class _VehicleFilterState extends State<VehicleFilter> {
                                   height: 15,
                                 ),
                                 Text(
+                                  'approval_mode'.tr,
+                                  style: heading2Grey1(context),
+                                ),
+                                const SizedBox(height: 8),
+                                Obx(() {
+                                  final selected = filterController
+                                      .selectedBookingConfirmation.value
+                                      .trim()
+                                      .toUpperCase();
+                                  return Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      ChoiceChip(
+                                        label: Text('approval_mode_all'.tr),
+                                        selected: selected.isEmpty,
+                                        onSelected: (v) {
+                                          if (v) {
+                                            filterController
+                                                .selectedBookingConfirmation
+                                                .value = '';
+                                            setState(() {});
+                                          }
+                                        },
+                                      ),
+                                      ChoiceChip(
+                                        label: Text('instant_booking'.tr),
+                                        selected: selected == 'INSTANT',
+                                        onSelected: (v) {
+                                          if (v) {
+                                            filterController
+                                                .selectedBookingConfirmation
+                                                .value = 'INSTANT';
+                                            setState(() {});
+                                          }
+                                        },
+                                      ),
+                                      ChoiceChip(
+                                        label: Text('manual_approval'.tr),
+                                        selected: selected == 'MANUAL',
+                                        onSelected: (v) {
+                                          if (v) {
+                                            filterController
+                                                .selectedBookingConfirmation
+                                                .value = 'MANUAL';
+                                            setState(() {});
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  );
+                                }),
+                                const SizedBox(
+                                  height: 5,
+                                ),
+                                buildDividervehicle(),
+                                const SizedBox(
+                                  height: 15,
+                                ),
+                                Text(
                                   "Make Type".tr,
                                   style: heading2Grey1(context),
                                 ),

@@ -1,4 +1,5 @@
 
+import 'package:carvy/helper/vehicle_rules_helper.dart';
 
 class ItemDetailsModel {
   ItemDetailsModel({
@@ -256,22 +257,23 @@ class ItemDetails {
     _itemInfo = json['item_info'] is String ? json['item_info'] : null;
     _isInWishlist = json['is_in_wishlist'] is bool ? json['is_in_wishlist'] : (json['is_in_wishlist']?.toString().toLowerCase() == 'true');
     
-    // Parsing vehicle_rules (peut être un tableau de strings ou un tableau d'objets)
-    if (json['vehicle_rules'] != null && json['vehicle_rules'] is List) {
-      _vehicleRules = (json['vehicle_rules'] as List).map<String>((rule) {
-        // Si c'est une String, on la prend directement
-        if (rule is String) {
-          return rule;
-        }
-        // Si c'est un objet avec une propriété 'description' ou 'rule', on l'extrait
-        else if (rule is Map) {
-          return rule['description']?.toString() ?? 
-                 rule['rule']?.toString() ?? 
-                 rule.toString();
-        }
-        // Sinon, on convertit en String
-        return rule.toString();
-      }).toList();
+    // Parsing vehicle_rules (strings, objets peuplés, ou ObjectIds)
+    final rawRules = json['vehicle_rules'] ??
+        json['rules'] ??
+        json['customRules'] ??
+        json['custom_rules'];
+    if (rawRules != null) {
+      _vehicleRules = VehicleRulesHelper.normalizeRawList(rawRules)
+          .map((rule) {
+            if (rule is Map) {
+              return VehicleRulesHelper.labelFromObject(rule) ??
+                  (rule['_id'] ?? rule['id'])?.toString() ??
+                  '';
+            }
+            return rule.toString();
+          })
+          .where((s) => s.trim().isNotEmpty)
+          .toList();
     } else {
       _vehicleRules = [];
     }

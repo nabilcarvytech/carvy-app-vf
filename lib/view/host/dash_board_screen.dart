@@ -553,7 +553,7 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
     return PopScope(
       canPop: false,
       onPopInvoked: (v) {
-        tobecomeHost(context);
+        // Le shell BottomHost gère le Retour. Ne pas changer de rôle ni déconnecter.
       },
       child: Scaffold(
           backgroundColor: notifires.getbgcolor,

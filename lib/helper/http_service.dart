@@ -18,6 +18,24 @@ import 'dart:developer' as developer;
 
 bool printHeaders = false;
 
+String _userTokenForRequest() {
+  restoreSessionIfTokenMissing();
+  return token;
+}
+
+/// Ne déconnecte pas si le JWT n'était pas encore rechargé en mémoire
+/// (redémarrage / SystemNavigator.pop). Un token réellement envoyé et
+/// rejeté par le serveur reste une expiration de session.
+void _onRejectedUserToken(String sentUserToken) {
+  if (sentUserToken.trim().isEmpty) {
+    restoreSessionIfTokenMissing();
+    developer.log(
+        '⚠️ [AUTH] Token API rejeté alors que le JWT mémoire est vide — session GetStorage conservée');
+    return;
+  }
+  loginExpireAlertoexitfromappt();
+}
+
 Future<dynamic> httpGet(String path, Map<String, dynamic> data) async {
   SearchControllerHome filterController = Get.find();
   connectionLost = false;
@@ -259,13 +277,14 @@ Future<dynamic> httpGet(String path, Map<String, dynamic> data) async {
         return {"error": "Token generation failed"};
       }
     }
+    final sentUserToken = _userTokenForRequest();
     var headers = {
       'Content-Type': 'application/json',
-      'x-auth-token': token,
+      'x-auth-token': sentUserToken,
       'Authorization': "Bearer $bearerToken",
     };
     print("Bearer Token: $bearerToken");
-    data['token'] = token;
+    data['token'] = sentUserToken;
     data['module_id'] = '2';
     data['default_currency_code'] =
         generalDataModel?.data?.metaData?.generalDefaultCurrency ?? '';
@@ -290,10 +309,7 @@ Future<dynamic> httpGet(String path, Map<String, dynamic> data) async {
     responseData = jsonDecode(response.body);
 
     if (responseData!['ResponseCode'] == 419) {
-      loginExpireAlertoexitfromappt();
-      Future.delayed(const Duration(seconds: 3), () {
-        logout();
-      });
+      _onRejectedUserToken(sentUserToken);
       return responseData;
     }
 
@@ -342,6 +358,7 @@ Future<dynamic> httpGet(String path, Map<String, dynamic> data) async {
 /// Utilise adminBaseUrl (sans /v1) pour les routes admin
 Future<dynamic> httpGetAdmin(String path, Map<String, dynamic> params) async {
   connectionLost = false;
+  restoreSessionIfTokenMissing();
 
   Map<String, dynamic>? responseData;
   try {
@@ -717,19 +734,12 @@ Future<dynamic> httpPost(path, data) async {
 
     // Check if we have the User Token
     print("🚨 [STOP CHECK] 2c. Checking User Token (global variable)...");
+    _userTokenForRequest();
     if (token.isEmpty) {
       print(
           "🚨 [STOP CHECK] 2. ERROR: User Token (global variable) is EMPTY! Cannot generate bearer.");
-      // We might try to load it here as a fallback
-      String? storageToken = GetStorage().read("raw_user_token");
-      if (storageToken != null && storageToken.isNotEmpty) {
-        token = storageToken;
-        print(
-            "🚨 [STOP CHECK] 2b. Attempted reload from storage. Token is now: '${token.length > 10 ? token.substring(0, 10) : token}...' (length: ${token.length})");
-      } else {
-        print(
-            "🚨 [STOP CHECK] 2c. No token in storage either. Will generate GUEST bearer token.");
-      }
+      print(
+          "🚨 [STOP CHECK] 2c. No token in storage either. Will generate GUEST bearer token.");
     } else {
       print(
           "🚨 [STOP CHECK] 2d. User Token is VALID: '${token.length > 10 ? token.substring(0, 10) : token}...' (length: ${token.length})");
@@ -936,10 +946,7 @@ Future<dynamic> httpPost(path, data) async {
     var responseData = json.decode(const Utf8Codec().decode(result.bodyBytes));
 
     if (responseData['ResponseCode'] == 419) {
-      loginExpireAlertoexitfromappt();
-      Future.delayed(const Duration(seconds: 3), () {
-        logout();
-      });
+      _onRejectedUserToken(token);
     }
     if (responseData['ResponseCode'] == 498) {
       log("❌ Token expired (498) — regenerating...");
@@ -976,10 +983,7 @@ Future<dynamic> httpPost(path, data) async {
       }
     }
     if (responseData['ResponseMsg'] == "The selected token is invalid.") {
-      loginExpireAlertoexitfromappt();
-      Future.delayed(const Duration(seconds: 3), () {
-        logout();
-      });
+      _onRejectedUserToken(token);
     }
     log("Response: $responseData");
     if (responseData is Map) {
@@ -1001,6 +1005,7 @@ Future<dynamic> httpPut(String path, Map<String, dynamic> data) async {
     SearchControllerHome filterController = Get.find();
     connectionLost = false;
 
+    restoreSessionIfTokenMissing();
     // Get token and bearer token (same logic as httpPost)
     String token = GetStorage().read("token") ?? "";
     String bearerToken = GetStorage().read("bearerToken") ?? "";
@@ -1051,10 +1056,7 @@ Future<dynamic> httpPut(String path, Map<String, dynamic> data) async {
 
     // Handle token expiration (same logic as httpPost)
     if (responseData['ResponseCode'] == 419) {
-      loginExpireAlertoexitfromappt();
-      Future.delayed(const Duration(seconds: 3), () {
-        logout();
-      });
+      _onRejectedUserToken(token);
     }
     if (responseData['ResponseCode'] == 498) {
       log("❌ Token expired (498) — regenerating...");
@@ -1074,10 +1076,7 @@ Future<dynamic> httpPut(String path, Map<String, dynamic> data) async {
       }
     }
     if (responseData['ResponseMsg'] == "The selected token is invalid.") {
-      loginExpireAlertoexitfromappt();
-      Future.delayed(const Duration(seconds: 3), () {
-        logout();
-      });
+      _onRejectedUserToken(token);
     }
     log("Response (PUT): $responseData");
     return responseData;
@@ -1096,6 +1095,7 @@ Future<dynamic> httpPut(String path, Map<String, dynamic> data) async {
 /// Par défaut, aucun body n'est envoyé (utile pour les endpoints "toggle-active" qui ne prennent pas de payload).
 Future<dynamic> httpPatch(String path) async {
   try {
+    restoreSessionIfTokenMissing();
     // Get token & bearer token (même approche que httpPut/httpPost)
     String token = GetStorage().read("token") ?? "";
     String bearerToken = GetStorage().read("bearerToken") ?? "";
@@ -1133,13 +1133,10 @@ Future<dynamic> httpPatch(String path) async {
     if (responseData is Map<String, dynamic>) {
       // Gérer la logique d'expiration token si la backend le renvoie
       if (responseData['ResponseCode'] == 419) {
-        loginExpireAlertoexitfromappt();
-        Future.delayed(const Duration(seconds: 3), () {
-          logout();
-        });
+        _onRejectedUserToken(token);
       }
       if (responseData['ResponseCode'] == 498) {
-        loginExpireAlertoexitfromappt();
+        _onRejectedUserToken(token);
       }
     }
 
@@ -1157,6 +1154,7 @@ Future<dynamic> httpPatch(String path) async {
 // ========== HTTP DELETE METHOD ==========
 Future<dynamic> httpDelete(String path) async {
   connectionLost = false;
+  restoreSessionIfTokenMissing();
   Map<String, dynamic>? responseData;
   
   try {
@@ -1193,10 +1191,7 @@ Future<dynamic> httpDelete(String path) async {
     responseData = jsonDecode(response.body);
     
     if (responseData!['ResponseCode'] == 419) {
-      loginExpireAlertoexitfromappt();
-      Future.delayed(const Duration(seconds: 3), () {
-        logout();
-      });
+      _onRejectedUserToken(token);
       return responseData;
     }
     
@@ -1237,6 +1232,7 @@ Future<dynamic> httpDelete(String path) async {
 
 Future<String?>? _tokenFuture;
 Future<String?> generateToken() async {
+  restoreSessionIfTokenMissing();
   if (_tokenFuture != null) {
     print("🕵️ [AUDIT] generateToken() already in progress, waiting...");
     return _tokenFuture;
@@ -1297,11 +1293,8 @@ Future<String?> generateToken() async {
 
       completer.complete(token);
     } else if (response.statusCode == 419) {
-      showErrorToastMessage("Session expired. Please log in again.");
-      loginExpireAlertoexitfromappt();
-      Future.delayed(const Duration(seconds: 3), () {
-        logout();
-      });
+      log("❌ Bearer generation returned 419 — session utilisateur conservée");
+      completer.complete(null);
     } else {
       log("❌ Token generation failed: ${data.toString()}");
       completer.complete(null);

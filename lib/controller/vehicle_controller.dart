@@ -233,6 +233,14 @@ class VehicleController extends GetxController implements GetxService {
                         errorString.contains('401');
     
     if (isTokenError && shouldRedirect) {
+      if (token.trim().isEmpty) {
+        restoreSessionIfTokenMissing();
+        if (token.trim().isNotEmpty) {
+          debugPrint(
+              '🔒 [VEHICLE] Erreur token avec JWT mémoire vide — session restaurée, pas de logout');
+          return;
+        }
+      }
       debugPrint('🔒 [VEHICLE] Token invalide détecté, redirection vers login...');
       closeLoading();
       showErrorToastMessage('Session expirée. Veuillez vous reconnecter.');
@@ -1359,56 +1367,34 @@ class VehicleController extends GetxController implements GetxService {
 
       final response = await httpGetAdmin(Config.vehicleReferenceRules, {});
       debugPrint('🔍 [DEBUG] Réponse depuis /api/vehicle-reference/rules: $response');
-      
-      // Parsing robuste : L'API renvoie { "success": true, "data": [...] }
-      if (response != null && response is Map<String, dynamic>) {
-        if (response['success'] == true && response['data'] != null) {
-          var dataObj = response['data'];
-          List<dynamic> list;
-          
-          if (dataObj is List) {
-            list = dataObj as List;
-          } else if (dataObj is Map<String, dynamic> && dataObj['data'] != null) {
-            list = dataObj['data'] as List;
-          } else if (dataObj is Map<String, dynamic> && dataObj['rules'] != null) {
-            list = dataObj['rules'] as List;
-          } else {
-            debugPrint('⚠️ [VEHICLE] Structure de data inattendue: ${dataObj.runtimeType}');
-            list = [];
-          }
-          
-          debugPrint('✅ [VEHICLE] Structure détectée - longueur: ${list.length}');
-          
+
+      final list = _vehicleReferenceList(response, nestedKeys: const ['rules']);
+      debugPrint('✅ [VEHICLE] Structure détectée - longueur: ${list.length}');
+
+      try {
+        final processedList = <Map<String, dynamic>>[];
+        for (final item in list) {
+          if (item is! Map) continue;
           try {
-            // Utiliser assignAll pour une mise à jour réactive complète
-            final processedList = <Map<String, dynamic>>[];
-            for (var item in list) {
-              if (item is Map<String, dynamic>) {
-                try {
-                  // S'assurer que l'id utilise _id si présent (mapping MongoDB)
-                  if (item['_id'] != null && item['id'] == null) {
-                    item['id'] = item['_id'].toString();
-                  }
-                  processedList.add(item);
-                } catch (e, stackTrace) {
-                  debugPrint('❌ [VEHICLE] Erreur sur l\'élément: $item');
-                  debugPrint('❌ [VEHICLE] Erreur: $e');
-                  debugPrint('❌ [VEHICLE] StackTrace: $stackTrace');
-                }
-              }
+            final map = Map<String, dynamic>.from(item);
+            final id = _extractMongoId(map['_id'] ?? map['id']);
+            if (id != null && id.isNotEmpty) {
+              map['_id'] = id;
+              map['id'] = id;
             }
-            // Utiliser assignAll pour déclencher la réactivité GetX
-            rulesList.assignAll(processedList);
-            debugPrint('✅ [VEHICLE] rulesList mis à jour - longueur: ${rulesList.length}');
+            processedList.add(map);
           } catch (e, stackTrace) {
-            debugPrint('❌ [VEHICLE] Erreur lors du parsing Rules: $e');
+            debugPrint('❌ [VEHICLE] Erreur sur l\'élément: $item');
+            debugPrint('❌ [VEHICLE] Erreur: $e');
             debugPrint('❌ [VEHICLE] StackTrace: $stackTrace');
-            showErrorToastMessage('Erreur lors du parsing des règles: $e');
           }
-        } else {
-          debugPrint('⚠️ [VEHICLE] response["success"] != true ou response["data"] est NULL');
-          debugPrint('📋 [VEHICLE] Structure complète: $response');
         }
+        rulesList.assignAll(processedList);
+        debugPrint('✅ [VEHICLE] rulesList mis à jour - longueur: ${rulesList.length}');
+      } catch (e, stackTrace) {
+        debugPrint('❌ [VEHICLE] Erreur lors du parsing Rules: $e');
+        debugPrint('❌ [VEHICLE] StackTrace: $stackTrace');
+        showErrorToastMessage('Erreur lors du parsing des règles: $e');
       }
     } catch (e) {
       debugPrint('❌ [VEHICLE] Erreur lors de la récupération des règles: $e');
@@ -2684,6 +2670,35 @@ class VehicleController extends GetxController implements GetxService {
     return null;
   }
 
+  static List<dynamic> _vehicleReferenceList(
+    dynamic payload, {
+    List<String> nestedKeys = const [],
+  }) {
+    if (payload is List) return List<dynamic>.from(payload);
+    if (payload is! Map) return const [];
+    final map = Map<String, dynamic>.from(payload);
+    final success = map['success'];
+    final status = map['status'];
+    final ok = success == true ||
+        success == 200 ||
+        success == '200' ||
+        status == 200 ||
+        status == 201 ||
+        status == true ||
+        status == '200';
+    dynamic data = map['data'] ?? map['rules'];
+    if (data == null && ok && map.containsKey('items')) data = map['items'];
+    if (data is List) return List<dynamic>.from(data);
+    if (data is Map) {
+      if (data['data'] is List) return List<dynamic>.from(data['data'] as List);
+      for (final key in nestedKeys) {
+        if (data[key] is List) return List<dynamic>.from(data[key] as List);
+      }
+    }
+    if (map['rules'] is List) return List<dynamic>.from(map['rules'] as List);
+    return const [];
+  }
+
   static Map<String, dynamic>? _unwrapVehicleDetailsPayload(
     dynamic payload,
     int? statusCode,
@@ -2735,7 +2750,12 @@ class VehicleController extends GetxController implements GetxService {
           : trimmed;
     }
     if (value is Map) {
-      return _extractMongoId(value['_id'] ?? value['id']);
+      return _extractMongoId(
+        value['_id'] ??
+            value['id'] ??
+            value[r'$oid'] ??
+            value['oid'],
+      );
     }
     final String s = value.toString().trim();
     return s.isEmpty || s.toLowerCase() == 'null' ? null : s;

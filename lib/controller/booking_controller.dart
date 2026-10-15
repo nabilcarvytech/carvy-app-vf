@@ -35,7 +35,10 @@ import 'package:carvy/view/host/common_widget_host.dart';
 import '../api/config.dart';
 import '../customwidget/miscellaneous_project_elements.dart';
 import '../customwidget/project_color.dart';
+import '../helper/city_name_helper.dart';
+import '../helper/delivery_fee_helper.dart';
 import '../helper/http_service.dart';
+import '../model/vehicle_home_model.dart';
 import '../model/book_date_real_estate.dart';
 import '../model/booking_model.dart';
 import '../model/booking_payment_method_model.dart';
@@ -664,6 +667,213 @@ class BookingController extends GetxController implements GetxService {
   bool checkDateResult = false;
   bool chack = false;
   bool addDoorStepPrice = false;
+
+  /// Total locatif (après remise / coupon) avant frais de livraison.
+  double rentalGrossWithoutDelivery = 0;
+
+  /// Zones `deliveryLocations` du véhicule en cours de checkout.
+  final RxList<DeliveryZoneOption> deliveryZones = <DeliveryZoneOption>[].obs;
+
+  /// `''` = retrait sur place, sinon clé de zone.
+  final RxString selectedDeliveryZoneKey = DeliveryFeeHelper.pickupKey.obs;
+  final RxDouble homeDeliveryFee = 0.0.obs;
+  final RxString homeDeliveryCityLabel = ''.obs;
+  final RxString customerDeliveryCity = ''.obs;
+  final RxString customerFullAddress = ''.obs;
+  final RxBool deliveryCityServed = false.obs;
+  final RxBool wantsHomeDelivery = false.obs;
+
+  bool get hasHomeDeliverySelection =>
+      selectedDeliveryZoneKey.value != DeliveryFeeHelper.pickupKey;
+
+  String resolveCustomerDeliveryCity() {
+    try {
+      final fromAddress = Get.find<AddAddressController>().effectiveCity;
+      if (fromAddress.isNotEmpty) return fromAddress;
+    } catch (_) {}
+    return DeliveryFeeHelper.cityFromStoredCustomerAddress();
+  }
+
+  String resolveCustomerFullAddress() {
+    try {
+      final addr = Get.find<AddAddressController>();
+      final line = addr.checkoutAddressLine.trim();
+      if (line.isNotEmpty) return line;
+      final fromAddress = addr.displayFullAddress.trim();
+      if (fromAddress.isNotEmpty) return fromAddress;
+    } catch (_) {}
+    return DeliveryFeeHelper.fullAddressFromStoredCustomerAddress();
+  }
+
+  List<dynamic> _deliveryLocationsForCheckout(ItemInfo? itemDetails) {
+    final fromItem = DeliveryFeeHelper.rawLocationsFromItem(itemDetails);
+    if (fromItem.isNotEmpty) return fromItem;
+    try {
+      final infoStr =
+          spaceDetailController.vehicleDetailModel?.data?.itemDetails?.itemInfo;
+      if (infoStr != null && infoStr.trim().isNotEmpty) {
+        final decoded = json.decode(infoStr);
+        if (decoded is Map) {
+          final locs = decoded['deliveryLocations'] ??
+              (decoded['pricing'] is Map
+                  ? decoded['pricing']['deliveryLocations']
+                  : null);
+          if (locs is List && locs.isNotEmpty) return locs;
+        }
+      }
+    } catch (_) {}
+    return const [];
+  }
+
+  List<DeliveryZoneOption> _withResolvedCityNames(
+      List<DeliveryZoneOption> zones) {
+    List<dynamic> catalogue = const [];
+    try {
+      catalogue = Get.find<VehicleController>().locationsList.toList();
+    } catch (_) {}
+    if (catalogue.isEmpty) return zones;
+    return zones.map((z) {
+      if (CityNameHelper.extractKnownCityToken(z.cityLabel) != null) {
+        return z;
+      }
+      for (final loc in catalogue) {
+        var id = '';
+        var name = '';
+        if (loc is Map) {
+          id = (loc['_id'] ?? loc['id'] ?? '').toString();
+          name = (loc['cityName'] ?? loc['city_name'] ?? loc['name'] ?? '')
+              .toString();
+        } else {
+          try {
+            id = (loc.id ?? '').toString();
+            name = (loc.cityName ?? loc.name ?? '').toString();
+          } catch (_) {}
+        }
+        if (id.isNotEmpty && id == z.key && name.trim().isNotEmpty) {
+          return DeliveryZoneOption(
+            key: z.key,
+            cityLabel: name.trim(),
+            price: z.price,
+          );
+        }
+      }
+      return z;
+    }).toList();
+  }
+
+  Future<void> prepareHomeDelivery(
+    ItemInfo? itemDetails, {
+    String? fallbackDoorstepPrice,
+    bool autoSelectDeliveryIfServed = true,
+  }) async {
+    try {
+      await Get.find<AddAddressController>().ensureDefaultProfileAddress();
+    } catch (_) {}
+
+    try {
+      final vc = Get.find<VehicleController>();
+      if (vc.locationsList.isEmpty) {
+        await vc.fetchLocations();
+      }
+    } catch (_) {}
+
+    deliveryZones.assignAll(
+      _withResolvedCityNames(
+        DeliveryFeeHelper.parseZones(
+          _deliveryLocationsForCheckout(itemDetails),
+        ),
+      ),
+    );
+    customerDeliveryCity.value = resolveCustomerDeliveryCity();
+    customerFullAddress.value = resolveCustomerFullAddress();
+
+    final matched = DeliveryFeeHelper.matchZone(
+      deliveryZones.toList(),
+      customerDeliveryCity.value,
+    );
+    deliveryCityServed.value = matched != null;
+
+    if (deliveryZones.isEmpty) {
+      final legacy = double.tryParse(fallbackDoorstepPrice ?? '') ?? 0;
+      if (addDoorStepPrice && legacy > 0) {
+        wantsHomeDelivery.value = true;
+        homeDeliveryFee.value = legacy;
+        homeDeliveryCityLabel.value = customerDeliveryCity.value;
+        selectedDeliveryZoneKey.value = 'legacy';
+      } else {
+        selectPickup(applyToGross: false);
+      }
+      return;
+    }
+
+    if (matched != null &&
+        (autoSelectDeliveryIfServed || wantsHomeDelivery.value)) {
+      wantsHomeDelivery.value = true;
+      selectDeliveryZone(matched.key, applyToGross: false);
+      return;
+    }
+
+    selectPickup(applyToGross: false);
+  }
+
+  void selectPickup({bool applyToGross = true}) {
+    wantsHomeDelivery.value = false;
+    selectDeliveryZone(DeliveryFeeHelper.pickupKey, applyToGross: applyToGross);
+  }
+
+  void selectProfileHomeDelivery({bool applyToGross = true}) {
+    wantsHomeDelivery.value = true;
+    final matched = DeliveryFeeHelper.matchZone(
+      deliveryZones.toList(),
+      customerDeliveryCity.value,
+    );
+    deliveryCityServed.value = matched != null;
+    if (matched == null) {
+      selectDeliveryZone(DeliveryFeeHelper.pickupKey, applyToGross: applyToGross);
+      return;
+    }
+    selectDeliveryZone(matched.key, applyToGross: applyToGross);
+  }
+
+  void selectDeliveryZone(String key, {bool applyToGross = true}) {
+    selectedDeliveryZoneKey.value = key;
+    if (key.isEmpty || key == DeliveryFeeHelper.pickupKey) {
+      homeDeliveryFee.value = 0;
+      homeDeliveryCityLabel.value = '';
+      addDoorStepPrice = false;
+    } else if (key == 'legacy') {
+      addDoorStepPrice = homeDeliveryFee.value > 0;
+    } else {
+      DeliveryZoneOption? zone;
+      for (final z in deliveryZones) {
+        if (z.key == key) {
+          zone = z;
+          break;
+        }
+      }
+      homeDeliveryFee.value = zone?.price ?? 0;
+      homeDeliveryCityLabel.value = zone?.cityLabel ?? '';
+      addDoorStepPrice = true;
+    }
+    if (applyToGross) {
+      applyHomeDeliveryToGross();
+    }
+  }
+
+  void captureRentalGrossWithoutDelivery() {
+    rentalGrossWithoutDelivery =
+        double.tryParse(getItemPrices?.data?.grossPrice ?? '0') ?? 0;
+  }
+
+  void applyHomeDeliveryToGross() {
+    if (getItemPrices?.data == null) return;
+    final total = rentalGrossWithoutDelivery + homeDeliveryFee.value;
+    getItemPrices = getItemPrices!.copyWith(
+      data: getItemPrices!.data!.copyWith(
+        grossPrice: total.toStringAsFixed(2),
+      ),
+    );
+  }
   dynamic idFeatured = "";
   RxString curreentStatus = "".obs;
   RxBool openOtpAfterImageSubmit = false.obs;
@@ -1025,7 +1235,9 @@ class BookingController extends GetxController implements GetxService {
         "wallet_amount": "$wallet",
         "start_time": startTimeForBackend,
         "end_time": endTimeForBackend,
-        "doorStep_price": "$isAddDoorStepPrice",
+        "doorStep_price": homeDeliveryFee.value > 0
+            ? homeDeliveryFee.value.toStringAsFixed(2)
+            : "$isAddDoorStepPrice",
       };
 
       print('📤 [getDataBookingSummery] Données de la requête préparées:');
@@ -1230,6 +1442,8 @@ class BookingController extends GetxController implements GetxService {
           try {
             getItemPrices = applySimplifiedVehicleBookingPrices(
                 GetItemPrices.fromJson(response));
+            captureRentalGrossWithoutDelivery();
+            applyHomeDeliveryToGross();
             print('✅ [getDataBookingSummery] Parsing JSON réussi');
             debugPrint('✅ [getDataBookingSummery] Parsing JSON réussi');
 
@@ -2227,8 +2441,9 @@ class BookingController extends GetxController implements GetxService {
         "start_time": startTimeForBackend,
         "end_time": endTimeForBackend,
         "onlinepayment": paymentStatus ?? "",
-        "doorStep_price": addDoorStepPrice.toString(),
-        "doorStep_address": addDoorStepPrice ? doorStepAddress() : "",
+        "doorStep_price": homeDeliveryFee.value.toStringAsFixed(2),
+        "doorStep_address":
+            hasHomeDeliverySelection ? doorStepAddress() : "",
         "oneSignalPlayerId": playerId,
       };
 

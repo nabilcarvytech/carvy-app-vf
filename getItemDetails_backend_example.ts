@@ -1,14 +1,43 @@
 // ============================================
 // EXEMPLE DE CODE BACKEND POUR getItemDetails
 // ============================================
-// 
-// Ce fichier montre comment ajouter les logs de debug
-// et mapper correctement les règles du véhicule dans votre contrôleur Node.js/Express.
 //
-// À intégrer dans votre contrôleur getItemDetails
+// Ce fichier montre comment peupler les règles véhicule
+// (rules / customRules) et renvoyer des libellés explicites
+// plutôt que des ObjectIds MongoDB.
+//
+// À intégrer dans votre contrôleur getItemDetails (Node.js / Express / Mongoose).
 //
 
-// ========== EXEMPLE DE FONCTION getItemDetails ==========
+const extractRuleLabel = (r: any): string => {
+  if (r == null) return '';
+  if (typeof r === 'string') {
+    // Un ObjectId brut n'est pas un libellé affichable.
+    if (/^[0-9a-fA-F]{24}$/.test(r.trim())) return '';
+    return r.trim();
+  }
+  if (typeof r === 'object') {
+    const label =
+      r.title ||
+      r.name ||
+      r.rule_name ||
+      r.ruleName ||
+      r.description ||
+      r.text ||
+      r.rule ||
+      r.label ||
+      '';
+    return String(label).trim();
+  }
+  return '';
+};
+
+const mapRulesToLabels = (rules: any): string[] => {
+  if (!Array.isArray(rules)) return [];
+  return rules
+    .map(extractRuleLabel)
+    .filter((label: string) => label.length > 0);
+};
 
 export const getItemDetails = async (req: Request, res: Response) => {
   try {
@@ -21,9 +50,10 @@ export const getItemDetails = async (req: Request, res: Response) => {
       });
     }
 
-    // Recherche du véhicule avec populate des règles
+    // Peupler les références de règles pour renvoyer titre / nom / description.
     const vehicle = await Vehicle.findById(item_id)
-      .populate('rules') // Assure-toi que le champ s'appelle bien 'rules' dans ton schéma
+      .populate('rules')
+      .populate('customRules')
       .lean();
 
     if (!vehicle) {
@@ -33,49 +63,11 @@ export const getItemDetails = async (req: Request, res: Response) => {
       });
     }
 
-    // ========== DEBUG RULES - AVANT MAPPING ==========
-    console.log('🔍 [DEBUG RULES] Raw rules array:', vehicle.rules);
-    console.log('🔍 [DEBUG RULES] Rules type:', typeof vehicle.rules);
-    console.log('🔍 [DEBUG RULES] Rules is array?', Array.isArray(vehicle.rules));
-    
-    // Vérifie si le populate a fonctionné
-    if (vehicle.rules && vehicle.rules.length > 0) {
-      console.log('🔍 [DEBUG RULES] First rule content:', vehicle.rules[0]);
-      console.log('🔍 [DEBUG RULES] First rule type:', typeof vehicle.rules[0]);
-      console.log('🔍 [DEBUG RULES] First rule keys:', Object.keys(vehicle.rules[0] || {}));
-    } else {
-      console.log('⚠️ [DEBUG RULES] Rules array is empty or undefined!');
-      console.log('⚠️ [DEBUG RULES] vehicle.rules value:', vehicle.rules);
-    }
-    // ========== FIN DEBUG RULES ==========
+    const vehicleRules = [
+      ...mapRulesToLabels(vehicle.rules),
+      ...mapRulesToLabels(vehicle.customRules),
+    ];
 
-    // ========== MAPPING DES RÈGLES ==========
-    // Convertit le tableau d'objets rules en tableau de strings
-    let vehicleRules: string[] = [];
-    
-    if (vehicle.rules && Array.isArray(vehicle.rules)) {
-      vehicleRules = vehicle.rules.map((r: any) => {
-        // Si c'est un objet avec un champ 'name' ou 'description'
-        if (typeof r === 'object' && r !== null) {
-          return r.name || r.description || r.title || r.rule || '';
-        }
-        // Si c'est déjà une string
-        if (typeof r === 'string') {
-          return r;
-        }
-        // Fallback: convertir en string
-        return String(r);
-      }).filter((rule: string) => rule.trim() !== ''); // Enlève les règles vides
-      
-      console.log('✅ [DEBUG RULES] Mapped vehicleRules:', vehicleRules);
-      console.log('✅ [DEBUG RULES] Mapped vehicleRules length:', vehicleRules.length);
-    } else {
-      console.log('⚠️ [DEBUG RULES] vehicle.rules is not an array or is null');
-      vehicleRules = [];
-    }
-    // ========== FIN MAPPING DES RÈGLES ==========
-
-    // Construction de la réponse JSON
     const responseData = {
       status: 200,
       message: "Vehicle details retrieved successfully",
@@ -85,28 +77,16 @@ export const getItemDetails = async (req: Request, res: Response) => {
           title: vehicle.title || "",
           price: vehicle.price?.toString() || "",
           description: vehicle.description || "",
-          
-          // ... autres champs ...
-          
-          // ========== IMPORTANT: Ajouter vehicle_rules dans la réponse ==========
-          vehicle_rules: vehicleRules, // Tableau de strings
-          // ========== FIN vehicle_rules ==========
-          
-          cancellation_reason: cancellationReason || "",
-          
-          // ... autres champs ...
+
+          // Tableau de strings (libellés), jamais d'ObjectIds.
+          vehicle_rules: vehicleRules,
+          rules: vehicle.rules,
+          customRules: vehicle.customRules,
         },
       },
     };
 
-    // ========== DEBUG FINAL - VÉRIFICATION DE LA RÉPONSE ==========
-    console.log('🔍 [DEBUG RULES] Final response vehicle_rules:', responseData.data.ItemDetails.vehicle_rules);
-    console.log('🔍 [DEBUG RULES] Final response vehicle_rules type:', typeof responseData.data.ItemDetails.vehicle_rules);
-    console.log('🔍 [DEBUG RULES] Final response vehicle_rules is array?', Array.isArray(responseData.data.ItemDetails.vehicle_rules));
-    // ========== FIN DEBUG FINAL ==========
-
     return res.status(200).json(responseData);
-
   } catch (error: any) {
     console.error('❌ [ERROR] getItemDetails error:', error);
     return res.status(500).json({
@@ -117,30 +97,8 @@ export const getItemDetails = async (req: Request, res: Response) => {
   }
 };
 
-// ============================================
-// NOTES IMPORTANTES:
-// ============================================
-//
-// 1. Assure-toi que ton schéma Vehicle a bien un champ 'rules' qui référence 
-//    une collection de règles (par exemple, un array de ObjectIds qui référence
-//    une collection 'Rule' ou 'VehicleRule').
-//
-// 2. Le populate() doit correspondre au nom du champ dans ton schéma.
-//    Si ton champ s'appelle différemment (ex: 'vehicleRules', 'rulesList'), 
-//    adapte le populate() en conséquence.
-//
-// 3. La structure des objets de règles peut varier. Le code ci-dessus essaie
-//    plusieurs propriétés communes : 'name', 'description', 'title', 'rule'.
-//    Adapte selon la structure réelle de tes règles en base.
-//
-// 4. Le champ 'vehicle_rules' dans la réponse JSON DOIT être un tableau de strings
-//    (string[]), pas un tableau d'objets. C'est ce que le modèle Flutter attend.
-//
-// 5. Si tes règles sont directement stockées comme un array de strings dans le document
-//    Vehicle (sans populate), tu peux simplifier le mapping :
-//
-//    const vehicleRules = Array.isArray(vehicle.rules) 
-//      ? vehicle.rules.map(r => String(r))
-//      : [];
-//
-
+// NOTES:
+// 1. Adapter le nom des champs (rules / customRules) au schéma Vehicle.
+// 2. Si les règles sont déjà des strings en base, mapRulesToLabels les conserve
+//    sauf si ce sont des ObjectIds 24 hex.
+// 3. L'app Flutter mappe aussi les IDs restants via /api/vehicle-reference/rules.

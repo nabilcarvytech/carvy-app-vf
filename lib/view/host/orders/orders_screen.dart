@@ -59,9 +59,16 @@ class _OrdersScreenState extends State<OrdersScreen>
     notifires = Provider.of<ColorNotifires>(context, listen: true);
     final bool isPushedRoute = Navigator.of(context).canPop();
     return PopScope(
-      canPop: !isPushedRoute,
+      canPop: false,
       onPopInvoked: (bool didPop) {
         if (didPop) return;
+        if (!isPushedRoute) {
+          if (generalController.currentIndexHost.value == 2) {
+            generalController.tabControllerHost.animateTo(0);
+            generalController.currentIndexHost.value = 0;
+          }
+          return;
+        }
         _onExitPushedOrders(context);
       },
       child: Align(

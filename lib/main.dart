@@ -114,6 +114,7 @@ void main() {
 Future<void> _bootstrapApp() async {
   await di.init();
   await GetStorage().initStorage;
+  hydrateSessionFromStorage();
 
   try {
     initializeIsHostMode();

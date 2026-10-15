@@ -459,6 +459,8 @@ class SearchControllerHome extends GetxController implements GetxService {
   RxBool isRefundableOnly = false.obs;
   // Filtre: Type d'assurance sélectionné ('BASIC' | 'FULL' | '')
   RxString selectedInsurance = ''.obs;
+  // Filtre: Mode d'approbation ('' = tous | 'INSTANT' | 'MANUAL')
+  RxString selectedBookingConfirmation = ''.obs;
   AmenitiesModel? amenitiesModelVehicle;
   Odometer? odometerModelVehicle;
   ItemTypeModel? vehicleTypeModel;
@@ -725,6 +727,7 @@ class SearchControllerHome extends GetxController implements GetxService {
     startDate.value = '';
     isRefundableOnly.value = false;
     selectedInsurance.value = '';
+    selectedBookingConfirmation.value = '';
     endDates.value = '';
     startTimeSearch.value = '';
     endTimeSearch.value = '';
@@ -1049,6 +1052,9 @@ class SearchControllerHome extends GetxController implements GetxService {
       if (isRefundableOnly.value) "isRefundable": true,
       if (selectedInsurance.value.trim().isNotEmpty)
         "insuranceType": selectedInsurance.value.trim(),
+      if (selectedBookingConfirmation.value.trim().isNotEmpty)
+        "bookingConfirmation":
+            selectedBookingConfirmation.value.trim().toUpperCase(),
     };
 
     // Préparer une URL GET lisible pour le backend (debug uniquement)

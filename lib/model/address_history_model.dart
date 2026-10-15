@@ -2,6 +2,7 @@ class AddressHistoryModel {
   final String id;
   final String address;
   final String label;
+  final String city;
   final double latitude;
   final double longitude;
   final DateTime? createdAt;
@@ -10,6 +11,7 @@ class AddressHistoryModel {
     required this.id,
     required this.address,
     required this.label,
+    this.city = '',
     required this.latitude,
     required this.longitude,
     this.createdAt,
@@ -29,9 +31,16 @@ class AddressHistoryModel {
 
   factory AddressHistoryModel.fromJson(Map<String, dynamic> json) {
     return AddressHistoryModel(
-      id: json['id']?.toString() ?? '',
-      address: json['address']?.toString() ?? '',
-      label: json['label']?.toString() ?? '',
+      id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
+      address: json['address']?.toString() ??
+          json['full_address']?.toString() ??
+          json['fullAddress']?.toString() ??
+          '',
+      label: json['label']?.toString() ??
+          json['address_label']?.toString() ??
+          json['addressLabel']?.toString() ??
+          '',
+      city: json['city']?.toString() ?? json['cityName']?.toString() ?? '',
       latitude: _toDouble(json['latitude'] ?? json['lat']),
       longitude: _toDouble(json['longitude'] ?? json['lng']),
       createdAt: _parseDate(json['createdAt'] ?? json['created_at']),
@@ -42,6 +51,7 @@ class AddressHistoryModel {
         'id': id,
         'address': address,
         'label': label,
+        'city': city,
         'latitude': latitude,
         'longitude': longitude,
         if (createdAt != null) 'created_at': createdAt!.toIso8601String(),

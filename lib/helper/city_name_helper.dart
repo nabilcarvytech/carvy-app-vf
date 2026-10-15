@@ -16,7 +16,16 @@ class CityNameHelper {
     'casablanca': 'city_casablanca',
     'الدار البيضاء': 'city_casablanca',
     'marrakech': 'city_marrakech',
+    'marrakesh': 'city_marrakech',
+    'marrakush': 'city_marrakech',
     'مراكش': 'city_marrakech',
+  };
+
+  static const Map<String, String> _tokenByTranslationKey = {
+    'city_sale': 'sale',
+    'city_rabat': 'rabat',
+    'city_casablanca': 'casablanca',
+    'city_marrakech': 'marrakech',
   };
 
   static const Map<String, String> _frToAr = {
@@ -54,25 +63,78 @@ class CityNameHelper {
         .replaceAll('ê', 'e');
   }
 
-  /// Jeton canonique pour comparaison stricte (Rabat ≠ Salé, pas de `contains`).
+  /// Jeton canonique pour comparaison (Rabat ≠ Salé).
+  /// Cherche une ville connue dans toute la chaîne (libellé + ville).
   static String canonicalMatchToken(String? rawName) {
     final trimmed = (rawName ?? '').trim();
     if (trimmed.isEmpty) return '';
 
-    final segment = trimmed.split(',').first.trim();
-    if (segment.isEmpty) return '';
+    final known = extractKnownCityToken(trimmed);
+    if (known != null && known.isNotEmpty) return known;
 
-    final key = translationKeyForCity(segment);
-    const tokenByKey = {
-      'city_sale': 'sale',
-      'city_rabat': 'rabat',
-      'city_casablanca': 'casablanca',
-      'city_marrakech': 'marrakech',
-    };
-    if (key != null && tokenByKey.containsKey(key)) {
-      return tokenByKey[key]!;
+    final segments = trimmed
+        .split(RegExp(r'[,/|]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (segments.isEmpty) return _normalizeCityToken(trimmed);
+    return _normalizeCityToken(segments.last);
+  }
+
+  /// Ville connue extraite d'un libellé / adresse (« Home Marrakesh, Marrakech »).
+  static String? extractKnownCityToken(String? rawName) {
+    final trimmed = (rawName ?? '').trim();
+    if (trimmed.isEmpty) return null;
+
+    final pieces = <String>[
+      trimmed,
+      ...trimmed.split(RegExp(r'[,/|]')).map((e) => e.trim()),
+      ...trimmed.split(RegExp(r'\s+')).map((e) => e.trim()),
+    ].where((e) => e.isNotEmpty).toList();
+
+    for (final piece in pieces) {
+      final key = translationKeyForCity(piece);
+      if (key != null) return _tokenByTranslationKey[key];
     }
-    return _normalizeCityToken(segment);
+
+    final normalized = _normalizeCityToken(trimmed);
+    for (final entry in _cityTranslationKeys.entries) {
+      final alias = _normalizeCityToken(entry.key);
+      if (alias.isEmpty || alias == 'sale') {
+        if (alias == 'sale' &&
+            RegExp(r'(^|[^a-z0-9])sale([^a-z0-9]|$)').hasMatch(normalized)) {
+          return _tokenByTranslationKey[entry.value];
+        }
+        continue;
+      }
+      if (normalized.contains(alias)) {
+        return _tokenByTranslationKey[entry.value];
+      }
+    }
+    return null;
+  }
+
+  static String extractCityDisplayName(String? rawName) {
+    final token = extractKnownCityToken(rawName);
+    if (token == null || token.isEmpty) {
+      final trimmed = (rawName ?? '').trim();
+      if (trimmed.isEmpty) return '';
+      final parts = trimmed
+          .split(RegExp(r'[,/|]'))
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      return parts.isEmpty ? trimmed : parts.last;
+    }
+    const keyByToken = {
+      'sale': 'city_sale',
+      'rabat': 'city_rabat',
+      'casablanca': 'city_casablanca',
+      'marrakech': 'city_marrakech',
+    };
+    final trKey = keyByToken[token];
+    if (trKey != null) return trKey.tr;
+    return token;
   }
 
   /// Correspondance stricte entre deux libellés de ville (i18n + 1er segment).

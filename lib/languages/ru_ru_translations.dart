@@ -206,6 +206,7 @@ const Map<String, String> ruRU = {
   "Login to access all functionality":
       "Войдите, чтобы получить доступ ко всем функциям",
   "Do you want to exit?": "Хотите выйти?",
+  "press_back_again_to_exit": "Нажмите ещё раз, чтобы выйти",
   "You are not Login yet": "Вы еще не вошли",
   "Use menu Button to Change Booking type":
       "Используйте кнопку меню, чтобы изменить тип бронирования",

@@ -143,7 +143,62 @@ DateTime now = DateTime.now();
 String timeZoneOffset = now.timeZoneOffset.toString();
 final database = FirebaseDatabase.instance.ref().child("users");
 String appName = "Carvy";
+
+/// Restaure JWT / user depuis GetStorage (survit à SystemNavigator.pop).
+/// Ne jamais appeler [logout] ni [GetStorage.erase] ici.
+bool hydrateSessionFromStorage() {
+  try {
+    String storedToken = GetStorage().read('token')?.toString().trim() ?? '';
+    if (storedToken.isEmpty) {
+      storedToken =
+          GetStorage().read('raw_user_token')?.toString().trim() ?? '';
+    }
+
+    Map<String, dynamic>? userJson;
+    final dynamic userData = GetStorage().read('user_data');
+    if (userData is Map) {
+      userJson = Map<String, dynamic>.from(userData);
+    } else if (userData is String && userData.trim().isNotEmpty) {
+      final decoded = jsonDecode(userData);
+      if (decoded is Map) userJson = Map<String, dynamic>.from(decoded);
+    }
+    if (userJson == null) {
+      final dynamic legacy = GetStorage().read('UserData');
+      if (legacy is String && legacy.trim().isNotEmpty) {
+        final decoded = jsonDecode(legacy);
+        if (decoded is Map) userJson = Map<String, dynamic>.from(decoded);
+      }
+    }
+
+    if (userJson != null) {
+      loginModel = LoginModel.fromJson(userJson);
+      final modelToken = loginModel?.data?.token?.toString().trim() ?? '';
+      if (modelToken.isNotEmpty) storedToken = modelToken;
+      if (loginModel?.data?.id != null) {
+        userId = loginModel!.data!.id;
+        GetStorage().write('userIdGlobal', userId);
+      }
+    }
+
+    if (storedToken.isNotEmpty) {
+      token = storedToken;
+      GetStorage().write('token', storedToken);
+      GetStorage().write('raw_user_token', storedToken);
+    }
+    return token.isNotEmpty;
+  } catch (e) {
+    debugPrint('⚠️ hydrateSessionFromStorage: $e');
+    return token.isNotEmpty;
+  }
+}
+
+bool restoreSessionIfTokenMissing() {
+  if (token.trim().isNotEmpty) return true;
+  return hydrateSessionFromStorage();
+}
+
 getUserDataLocallyToHandleTheState() async {
+  hydrateSessionFromStorage();
   AuthController authController = Get.find();
   authController.getUserLocation();
   if (await GetStorage().read("UserData") != null) {

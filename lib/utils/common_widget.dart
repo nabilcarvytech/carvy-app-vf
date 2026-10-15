@@ -50,6 +50,7 @@ import '../customwidget/custom_bottom_sheet.dart';
 import '../customwidget/miscellaneous_project_elements.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '../helper/cancellation_policy_helper.dart';
+import '../helper/vehicle_rules_helper.dart';
 import '../helper/city_name_helper.dart';
 import '../helper/http_service.dart';
 import '../helper/vehicle_card_helper.dart';
@@ -4819,6 +4820,14 @@ loginExpireAlert(BuildContext context) {
 }
 
 loginExpireAlertoexitfromappt() {
+  if (token.trim().isEmpty) {
+    hydrateSessionFromStorage();
+    if (token.trim().isNotEmpty) {
+      debugPrint(
+          '⚠️ [AUTH] Expiration ignorée : JWT encore présent en stockage');
+      return;
+    }
+  }
   int countdown = 3;
 
   Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -5046,6 +5055,7 @@ const Map<String, String> _kFoldedVehicleRuleToEnglishKey = {
 
 /// Politique d’annulation (EN/FR) + règles véhicule standard (EN/FR depuis l’API).
 String _translateRulesSheetLine(String text) {
+  if (VehicleRulesHelper.isObjectIdLike(text)) return '';
   final normalized = text.trim().toLowerCase();
   if (normalized.isEmpty) return text;
 
@@ -5173,18 +5183,52 @@ rulesbuttomSheet(
       final isCancellation = isCancellationPolicy ||
           CancellationPolicyHelper.isCancellationPolicyContext(title, list);
 
-      List<String> rulesList = CancellationPolicyHelper.resolveDisplayRules(
-        list,
-        isCancellationPolicy: isCancellation,
-      );
-      if (rulesList.isEmpty &&
-          !isCancellation &&
-          title != null &&
-          title.trim().isNotEmpty) {
-        rulesList = [title.trim()];
-      }
-      
-      return Padding(
+      return FutureBuilder<void>(
+        future: isCancellation
+            ? Future<void>.value()
+            : VehicleRulesHelper.ensureCatalogLoaded(),
+        builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
+          List<String> rulesList = isCancellation
+              ? CancellationPolicyHelper.resolveDisplayRules(
+                  list,
+                  isCancellationPolicy: true,
+                )
+              : VehicleRulesHelper.resolveDisplayLabels(list)
+                  .where((line) =>
+                      line.trim().isNotEmpty &&
+                      !VehicleRulesHelper.isObjectIdLike(line))
+                  .toList();
+
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !isCancellation &&
+              rulesList.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeDefault,
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 80),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Icon(
+                        Icons.close,
+                        color: notifires.getwhiteblackcolor,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                  const Expanded(
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: Dimensions.paddingSizeDefault,
         ),
@@ -5296,6 +5340,8 @@ rulesbuttomSheet(
             ),
           ],
         ),
+      );
+        },
       );
     },
   );

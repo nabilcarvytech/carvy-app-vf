@@ -502,11 +502,13 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
               style: heading2Grey1(context).copyWith(),
             ),
           ),
+          resizeToAvoidBottomInset: true,
           bottomNavigationBar: SafeArea(
-            child: SizedBox(
-              height: 70,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: SizedBox(
+                height: 52,
+                width: double.infinity,
                 child: Obx(
                   () => ElevatedButton(
                     onPressed: _canContinueBookingTimes()
@@ -539,7 +541,8 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
               ),
             ),
           ),
-          body: SingleChildScrollView(
+          body: SafeArea(
+            child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -579,6 +582,7 @@ class _VehicleSelectTimeScreenState extends State<VehicleSelectTimeScreen> {
                   ),
               ],
             ),
+          ),
           ),
         ),
       ),

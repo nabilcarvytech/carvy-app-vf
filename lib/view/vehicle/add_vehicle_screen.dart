@@ -116,6 +116,18 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   bool _isInitializingEdit = false;
 
   bool get _isEditMode => widget.isEditMode;
+
+  /// Champs / actions figés uniquement en édition (identité, plaque, photos, documents).
+  Widget _lockWhenEdit(Widget child, {bool locked = true}) {
+    if (!_isEditMode || !locked) return child;
+    return Opacity(
+      opacity: 0.55,
+      child: AbsorbPointer(
+        absorbing: true,
+        child: child,
+      ),
+    );
+  }
   
   // Noms des étapes
   final List<String> _stepNames = [
@@ -256,19 +268,21 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   : (c.name?.toString() ?? '');
               final bool selected = _selectedCategoryIds.contains(id);
               return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (selected) {
-                      _selectedCategoryIds.remove(id);
-                      if (_selectedVehicleType == c) {
-                        _selectedVehicleType = null;
-                      }
-                    } else {
-                      _selectedCategoryIds.add(id);
-                      _selectedVehicleType = c; // sert d’ancre pour chargement des modèles
-                    }
-                  });
-                },
+                onTap: _isEditMode
+                    ? null
+                    : () {
+                        setState(() {
+                          if (selected) {
+                            _selectedCategoryIds.remove(id);
+                            if (_selectedVehicleType == c) {
+                              _selectedVehicleType = null;
+                            }
+                          } else {
+                            _selectedCategoryIds.add(id);
+                            _selectedVehicleType = c; // sert d’ancre pour chargement des modèles
+                          }
+                        });
+                      },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -2081,7 +2095,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           const SizedBox(height: 24),
 
           // Carte Catégorie de véhicule
-          _buildCard(
+          _lockWhenEdit(_buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2102,14 +2116,14 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 }),
               ],
             ),
-          ),
+          )),
           const SizedBox(height: 16),
 
-          _buildBookingConfirmationCard(),
+          _lockWhenEdit(_buildBookingConfirmationCard()),
           const SizedBox(height: 16),
 
           // Carte Marque
-          _buildCard(
+          _lockWhenEdit(_buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2142,7 +2156,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                   child: Text(make.makeName ?? ''),
                                 ))
                             .toList(),
-                        enabled: true,
+                        enabled: !_isEditMode,
                         onChanged: (Makes? newValue) async {
                           await _handleMakeSelectionChanged(newValue);
                         },
@@ -2156,6 +2170,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                           hint: 'Saisissez la marque'.tr,
                           icon: Icons.edit,
                           keyboardType: TextInputType.text,
+                          enabled: !_isEditMode,
                         ),
                       ],
                     ],
@@ -2163,11 +2178,11 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 }),
               ],
             ),
-          ),
+          )),
           const SizedBox(height: 16),
 
           // Carte Modèle
-          _buildCard(
+          _lockWhenEdit(_buildCard(
             key: _modelCardKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2215,7 +2230,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                             child: Text(model.name ?? ''),
                                           ))
                                       .toList(),
-                                  enabled: true,
+                                  enabled: !_isEditMode,
                                   onChanged: (Models? model) {
                                     setState(() {
                                       _selectedModel = model;
@@ -2247,6 +2262,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                           hint: 'Saisissez le modèle'.tr,
                           icon: Icons.edit,
                           keyboardType: TextInputType.text,
+                          enabled: !_isEditMode,
                         ),
                       ],
                     ],
@@ -2254,7 +2270,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 }),
               ],
             ),
-          ),
+          )),
           const SizedBox(height: 16),
 
           // Carte Kilométrage (champ + slider + mappage automatique d'intervalle)
@@ -2316,7 +2332,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           const SizedBox(height: 16),
 
           // Carte Année
-          _buildCard(
+          _lockWhenEdit(_buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2341,7 +2357,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                         ),
                       )
                       .toList(),
-                  enabled: true,
+                  enabled: !_isEditMode,
                   onChanged: (String? year) {
                     setState(() {
                       _selectedYear = year;
@@ -2352,11 +2368,11 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 ),
               ],
             ),
-          ),
+          )),
           const SizedBox(height: 16),
 
           // Carte Transmission
-          _buildCard(
+          _lockWhenEdit(_buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2381,7 +2397,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                       child: Text('Automatique'.tr),
                     ),
                   ],
-                  enabled: true,
+                  enabled: !_isEditMode,
                   onChanged: (String? transmission) {
                     setState(() {
                       _selectedTransmission = transmission ?? 'MANUAL';
@@ -2392,11 +2408,11 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 ),
               ],
             ),
-          ),
+          )),
           const SizedBox(height: 16),
 
           // Carte Nombre de sièges
-          _buildCard(
+          _lockWhenEdit(_buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2414,14 +2430,15 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   hint: 'Ex: 5'.tr,
                   icon: Icons.event_seat,
                   keyboardType: TextInputType.number,
+                  enabled: !_isEditMode,
                 ),
               ],
             ),
-          ),
+          )),
           const SizedBox(height: 16),
 
           // Carte Type de carburant (déplacé depuis l'étape Technique)
-          _buildCard(
+          _lockWhenEdit(_buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2459,7 +2476,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                   child: Text(fuelType.name ?? ''),
                                 );
                               }).toList(),
-                        enabled: true,
+                        enabled: !_isEditMode,
                         onChanged: (FuelType? fuelType) {
                           setState(() {
                             _selectedFuelType = fuelType;
@@ -2473,7 +2490,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 }),
               ],
             ),
-          ),
+          )),
         ],
       ),
     );
@@ -2599,7 +2616,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           const SizedBox(height: 24),
 
           // Carte Plaque d'immatriculation
-          _buildCard(
+          _lockWhenEdit(_buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2629,6 +2646,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                         hint: '12345'.tr,
                         icon: Icons.confirmation_number,
                         keyboardType: TextInputType.number,
+                        enabled: !_isEditMode,
                         onChanged: (value) {
                           vehicleController.plateNumber1 = value;
                         },
@@ -2656,6 +2674,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                           hint: 'A'.tr,
                           icon: null,
                           keyboardType: TextInputType.text,
+                          enabled: !_isEditMode,
                           onChanged: (value) {
                             vehicleController.plateNumber2 = value;
                           },
@@ -2681,6 +2700,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                         hint: '45'.tr,
                         icon: null,
                         keyboardType: TextInputType.number,
+                        enabled: !_isEditMode,
                         onChanged: (value) {
                           vehicleController.plateNumber3 = value;
                         },
@@ -2690,7 +2710,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 ),
               ],
             ),
-          ),
+          )),
           const SizedBox(height: 16),
 
           // Carte Location & Assurance
@@ -4407,7 +4427,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Ajoutez au moins une photo de votre véhicule'.tr,
+            _isEditMode
+                ? 'Les photos du véhicule ne peuvent pas être modifiées'.tr
+                : 'Ajoutez au moins une photo de votre véhicule'.tr,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -4422,7 +4444,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
             final int totalImages = existingUrls.length + selectedImages.length;
             final mainIdx = vehicleController.mainImageIndex.value;
             
-            return Container(
+            return Opacity(
+              opacity: _isEditMode ? 0.55 : 1,
+              child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -4442,7 +4466,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
               child: totalImages == 0
                   ? // État vide : Zone d'upload avec icône grise
                   GestureDetector(
-                      onTap: () => vehicleController.pickMultipleImages(),
+                      onTap: _isEditMode
+                          ? null
+                          : () => vehicleController.pickMultipleImages(),
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 60),
                         child: Column(
@@ -4485,7 +4511,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                           mainAxisSpacing: 12,
                           childAspectRatio: 1,
                         ),
-                        itemCount: totalImages + (totalImages < 10 ? 1 : 0),
+                        itemCount: totalImages +
+                            (!_isEditMode && totalImages < 10 ? 1 : 0),
                         itemBuilder: (context, index) {
                           // Bouton pour ajouter plus d'images
                           if (index == totalImages) {
@@ -4548,7 +4575,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                 top: 6,
                                 left: 6,
                                 child: GestureDetector(
-                                  onTap: () => vehicleController.setMainImage(index),
+                                  onTap: _isEditMode
+                                      ? null
+                                      : () =>
+                                          vehicleController.setMainImage(index),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -4580,6 +4610,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                 ),
                               ),
                               // Bouton supprimer
+                              if (!_isEditMode)
                               Positioned(
                                 top: 4,
                                 right: 4,
@@ -4611,6 +4642,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                         },
                       ),
                     ),
+            ),
             );
           }),
         ],
@@ -4635,7 +4667,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Téléchargez les documents requis pour votre véhicule'.tr,
+            _isEditMode
+                ? 'Les documents du véhicule ne peuvent pas être modifiés'.tr
+                : 'Téléchargez les documents requis pour votre véhicule'.tr,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -4644,31 +4678,33 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           const SizedBox(height: 24),
           
           // Trois blocs de téléchargement alignés verticalement
-          Column(
-            children: [
-              // Carte grise (Recto)
-              _buildDocumentBlock(
-                title: 'Carte grise (Recto)'.tr,
-                type: 'recto',
-                file: vehicleController.registrationCardRecto.value,
-              ),
-              const SizedBox(height: 16),
-              
-              // Carte grise (Verso)
-              _buildDocumentBlock(
-                title: 'Carte grise (Verso)'.tr,
-                type: 'verso',
-                file: vehicleController.registrationCardVerso.value,
-              ),
-              const SizedBox(height: 16),
-              
-              // Autorisation du ministère
-              _buildDocumentBlock(
-                title: 'Autorisation du ministère'.tr,
-                type: 'authorization',
-                file: vehicleController.ministryAuthorization.value,
-              ),
-            ],
+          _lockWhenEdit(
+            Column(
+              children: [
+                // Carte grise (Recto)
+                _buildDocumentBlock(
+                  title: 'Carte grise (Recto)'.tr,
+                  type: 'recto',
+                  file: vehicleController.registrationCardRecto.value,
+                ),
+                const SizedBox(height: 16),
+
+                // Carte grise (Verso)
+                _buildDocumentBlock(
+                  title: 'Carte grise (Verso)'.tr,
+                  type: 'verso',
+                  file: vehicleController.registrationCardVerso.value,
+                ),
+                const SizedBox(height: 16),
+
+                // Autorisation du ministère
+                _buildDocumentBlock(
+                  title: 'Autorisation du ministère'.tr,
+                  type: 'authorization',
+                  file: vehicleController.ministryAuthorization.value,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -4710,7 +4746,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           !existingUrl.toLowerCase().endsWith('.pdf');
       
       return GestureDetector(
-        onTap: () => vehicleController.pickDocument(type),
+        onTap: _isEditMode ? null : () => vehicleController.pickDocument(type),
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -4835,7 +4871,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      if (!_isEditMode) const SizedBox(height: 4),
+                      if (!_isEditMode)
                       GestureDetector(
                         onTap: () => vehicleController.removeDocument(type),
                         child: Container(
@@ -4924,10 +4961,12 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
               ),
               value: VehicleController.bookingConfirmationInstant,
               groupValue: selected,
-              onChanged: (String? value) {
-                if (value == null) return;
-                vehicleController.bookingConfirmation.value = value;
-              },
+              onChanged: _isEditMode
+                  ? null
+                  : (String? value) {
+                      if (value == null) return;
+                      vehicleController.bookingConfirmation.value = value;
+                    },
               activeColor: vehicalThemColor,
               contentPadding: EdgeInsets.zero,
             ),
@@ -4945,10 +4984,12 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
               ),
               value: VehicleController.bookingConfirmationManual,
               groupValue: selected,
-              onChanged: (String? value) {
-                if (value == null) return;
-                vehicleController.bookingConfirmation.value = value;
-              },
+              onChanged: _isEditMode
+                  ? null
+                  : (String? value) {
+                      if (value == null) return;
+                      vehicleController.bookingConfirmation.value = value;
+                    },
               activeColor: vehicalThemColor,
               contentPadding: EdgeInsets.zero,
             ),
@@ -4983,72 +5024,23 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     IconData? icon,
     TextInputType keyboardType = TextInputType.text,
     Function(String)? onChanged,
+    bool enabled = true,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: enabled ? Colors.grey[100] : Colors.grey[200],
         borderRadius: BorderRadius.circular(12),
       ),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          hintText: hint,
-          filled: true,
-          fillColor: Colors.grey[100],
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: vehicalThemColor,
-              width: 2,
-            ),
-          ),
-          prefixIcon: icon != null ? Icon(icon, color: vehicalThemColor) : null,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-        ),
-        style: TextStyle(
-          color: Colors.grey[900],
-          fontSize: 15,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModernDropdown<T>({
-    required T? value,
-    required List<DropdownMenuItem<T>> items,
-    required Function(T?) onChanged,
-    required String hint,
-    required IconData icon,
-    bool enabled = true,
-    Key? key,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: DropdownButtonFormField<T>(
-        key: key,
-        value: value,
-        items: items,
         onChanged: enabled ? onChanged : null,
+        enabled: enabled,
+        readOnly: !enabled,
         decoration: InputDecoration(
           hintText: hint,
           filled: true,
-          fillColor: Colors.grey[100],
+          fillColor: enabled ? Colors.grey[100] : Colors.grey[200],
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -5068,7 +5060,68 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
-          prefixIcon: Icon(icon, color: vehicalThemColor),
+          prefixIcon: icon != null
+              ? Icon(icon, color: enabled ? vehicalThemColor : Colors.grey[500])
+              : null,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+        ),
+        style: TextStyle(
+          color: enabled ? Colors.grey[900] : Colors.grey[500],
+          fontSize: 15,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernDropdown<T>({
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required Function(T?) onChanged,
+    required String hint,
+    required IconData icon,
+    bool enabled = true,
+    Key? key,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: enabled ? Colors.grey[100] : Colors.grey[200],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButtonFormField<T>(
+        key: key,
+        value: value,
+        items: items,
+        onChanged: enabled ? onChanged : null,
+        decoration: InputDecoration(
+          hintText: hint,
+          filled: true,
+          fillColor: enabled ? Colors.grey[100] : Colors.grey[200],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: vehicalThemColor,
+              width: 2,
+            ),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          prefixIcon: Icon(
+            icon,
+            color: enabled ? vehicalThemColor : Colors.grey[500],
+          ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 16,
@@ -5084,41 +5137,52 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
   // ========== BOUTONS DE NAVIGATION ==========
   Widget _buildNavigationButtons() {
+    final bool isLastStep = _currentStep == _totalSteps - 1;
+    final bool showMidStepUpdate = _isEditMode && !isLastStep;
+
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.transparent,
-      child: Row(
-        children: [
-          if (_currentStep > 0)
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _previousStep,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+      child: Obx(() {
+        final bool isSubmitting = vehicleController.isSubmittingVehicle.value;
+        final bool isLoading = vehicleController.isLoading.value || isSubmitting;
+        final bool enabled = !isLoading;
+        return Row(
+          children: [
+            if (_currentStep > 0)
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: enabled ? _previousStep : null,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: BorderSide(color: Colors.grey[300]!),
                   ),
-                  side: BorderSide(color: Colors.grey[300]!),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.arrow_back_rounded, color: Colors.grey[700]),
-                    const SizedBox(width: 8),
-                    Text('Précédent'.tr,
-                        style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600)),
-                  ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.arrow_back_rounded, color: Colors.grey[700]),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'Précédent'.tr,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          if (_currentStep > 0) const SizedBox(width: 12),
-          Expanded(
-            flex: _currentStep == 0 ? 1 : 2,
-            child: Obx(() {
-              final bool isSubmitting = vehicleController.isSubmittingVehicle.value;
-              final bool isLoading = vehicleController.isLoading.value || isSubmitting;
-              final bool enabled = !isLoading;
-              return InkWell(
+            if (_currentStep > 0) const SizedBox(width: 12),
+            Expanded(
+              flex: (_currentStep == 0 && !showMidStepUpdate) ? 1 : 2,
+              child: InkWell(
                 onTap: enabled ? _nextStep : null,
                 child: Container(
                   height: 52,
@@ -5153,19 +5217,22 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                _currentStep == _totalSteps - 1
-                                    ? (_isEditMode ? 'Update'.tr : 'Envoyer'.tr)
-                                    : 'Suivant'.tr,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              Flexible(
+                                child: Text(
+                                  isLastStep
+                                      ? (_isEditMode ? 'Update'.tr : 'Envoyer'.tr)
+                                      : 'Suivant'.tr,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Icon(
-                                _currentStep == _totalSteps - 1
+                                isLastStep
                                     ? Icons.check_rounded
                                     : Icons.arrow_forward_rounded,
                                 color: Colors.white,
@@ -5174,11 +5241,36 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                           ),
                   ),
                 ),
-              );
-            }),
-          ),
-        ],
-      ),
+              ),
+            ),
+            if (showMidStepUpdate) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: OutlinedButton(
+                  onPressed: enabled ? _submitVehicle : null,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    minimumSize: const Size(0, 52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: BorderSide(color: vehicalThemColor),
+                  ),
+                  child: Text(
+                    'Update'.tr,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: vehicalThemColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      }),
     );
   }
 }

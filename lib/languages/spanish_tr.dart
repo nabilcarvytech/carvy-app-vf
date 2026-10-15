@@ -208,6 +208,7 @@ const Map<String, String> esES = {
   "Login to access all functionality":
       "Inicia sesión para acceder a todas las funciones",
   "Do you want to exit?": "¿Deseas salir?",
+  "press_back_again_to_exit": "Pulse atrás de nuevo para salir",
   "You are not Login yet": "Aún no has iniciado sesión",
   "Use menu Button to Change Booking type":
       "Usa el botón del menú para cambiar el tipo de reserva",

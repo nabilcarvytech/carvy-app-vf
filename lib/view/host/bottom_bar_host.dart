@@ -17,6 +17,7 @@ import 'package:carvy/view/myaccount/account_screen.dart';
 import 'package:carvy/work_space.dart';
 import '../../controller/global_scope_controller.dart';
 import '../../controller/push_notifications.dart';
+import '../../helper/double_back_to_exit.dart';
 import '../../utils/common_widget.dart';
 import '../chat/inbox_screen.dart';
 
@@ -40,6 +41,7 @@ class _BottomHostScreenState extends State<BottomHost>
     const AccountScreen(),
   ];
   bool darkMode = GetStorage().read("getDarkValue") ?? false;
+  final DoubleBackToExit _doubleBackToExit = DoubleBackToExit();
 
   @override
   void initState() {
@@ -134,20 +136,18 @@ class _BottomHostScreenState extends State<BottomHost>
                 )
               : PopScope(
                   canPop: false,
-                  onPopInvoked: (didPop) async {
+                  onPopInvokedWithResult: (didPop, _) {
                     if (didPop) return;
-                    
-                    // Si on n'est pas sur l'onglet principal (index 0), on y retourne
-                    if (generalController.currentIndexHost.value != 0) {
-                      generalController.tabControllerHost.animateTo(0);
-                      generalController.currentIndexHost.value = 0;
-                      return; // Empêche de fermer l'application
-                    } else {
-                      // Si on est déjà sur l'accueil (index 0), on affiche le popup "Souhaitez-vous quitter ?"
-                      if (!webPlateForm) {
-                        dialogExit(context);
-                      }
-                    }
+                    _doubleBackToExit.handle(
+                      context: context,
+                      isOnRootTab:
+                          generalController.currentIndexHost.value == 0,
+                      goToRootTab: () {
+                        generalController.tabControllerHost.animateTo(0);
+                        generalController.currentIndexHost.value = 0;
+                      },
+                      allowExit: !webPlateForm,
+                    );
                   },
                   child: Scaffold(
                     resizeToAvoidBottomInset: false,

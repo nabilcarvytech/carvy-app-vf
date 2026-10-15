@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:carvy/helper/mongo_id_helper.dart';
+import 'package:carvy/helper/vehicle_rules_helper.dart';
 
 import 'make_type_model.dart';
 import 'items_model.dart' show resolveMinRentalDaysForSearchItem;
@@ -411,7 +412,14 @@ class ItemInfo {
     // Log supprimé pour optimiser le parsing de 21+ véhicules
     return ItemInfo(
       serviceType: json['service_type'],
-      rules: List<String>.from(json['rules'] ?? []),
+      rules: VehicleRulesHelper.mergeRaw([
+        json['rules'],
+        json['vehicle_rules'],
+        json['vehicleRules'],
+        json['customRules'],
+        json['custom_rules'],
+        json['selectedRules'],
+      ]),
       vehicleType: json['vehicleType']?.toString() ?? json['item_type']?.toString() ?? 'CAR',
       type: typeValue,
       customModelName: json['customModelName']?.toString(),
@@ -459,7 +467,11 @@ class ItemInfo {
       reviewData: json['review_data'],
       totalReviews: json['total_reviews'],
       doorStepPrice: json['doorStep_price'],
-      deliveryLocations: (json['deliveryLocations'] as List<dynamic>?) ?? [],
+      deliveryLocations: (json['deliveryLocations'] as List<dynamic>?) ??
+          (json['pricing'] is Map
+              ? (json['pricing']['deliveryLocations'] as List<dynamic>?)
+              : null) ??
+          [],
       weeklyDiscountValue: json['weekly_discount_value'],
       monthlyDiscountValue: json['monthly_discount_value'],
       hasDiscounts: json['has_discounts'] is bool

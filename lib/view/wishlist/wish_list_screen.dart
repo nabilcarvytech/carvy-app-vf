@@ -36,6 +36,7 @@ class _WishListScreenState extends State<WishListScreen> {
     return PopScope(
       canPop: false,
       onPopInvoked: (v) {
+        if (generalController.currentIndex.value != 1) return;
         generalController.tabController.index = 0;
         generalController.currentIndex.value = 0;
       },

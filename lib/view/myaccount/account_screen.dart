@@ -65,9 +65,11 @@ class _AccounScreenState extends State<AccountScreen> {
       canPop: false,
       onPopInvoked: (v) {
         if (isHostMode.value == true) {
+          if (generalController.currentIndexHost.value != 4) return;
           generalController.tabControllerHost.index = 0;
           generalController.currentIndexHost.value = 0;
         } else {
+          if (generalController.currentIndex.value != 4) return;
           generalController.currentIndex.value = 0;
           generalController.tabController.index = 0;
         }

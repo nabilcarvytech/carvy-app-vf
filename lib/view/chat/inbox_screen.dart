@@ -296,6 +296,12 @@ class _InboxScreenState extends State<InboxScreen> {
     return PopScope(
       canPop: false,
       onPopInvoked: (v) {
+        if (generalController.currentIndexHost.value == 3) {
+          generalController.tabControllerHost.index = 0;
+          generalController.currentIndexHost.value = 0;
+          return;
+        }
+        if (generalController.currentIndex.value != 3) return;
         generalController.tabController.index = 0;
         generalController.currentIndex.value = 0;
       },

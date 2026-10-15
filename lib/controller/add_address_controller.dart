@@ -31,6 +31,9 @@ class AddAddressController extends GetxController implements GetxService {
   RxString fulladdress = "".obs;
   var preventDate = false.obs;
 
+  /// Nombre de `Get.back()` après sauvegarde si [preventDate] (2 = bottom sheet + formulaire).
+  int addressSavePopCount = 2;
+
   RxString addressText = "".obs;
   RxBool isAddressLoading = false.obs;
   RxBool isAddressHistoryLoading = false.obs;
@@ -92,6 +95,40 @@ class AddAddressController extends GetxController implements GetxService {
     return lat != null && lng != null;
   }
 
+  /// Adresse complète (rue, ville) sans le libellé Maison/Bureau.
+  String get displayFullAddress {
+    final full = fullAddressController.text.trim();
+    if (full.isNotEmpty) return full;
+    final composed = fulladdress.value.trim();
+    if (composed.contains(' · ')) {
+      final parts = composed.split(' · ');
+      return parts.last.trim();
+    }
+    return composed;
+  }
+
+  /// Ligne checkout : « Home Marrakesh, Marrakech ».
+  String get checkoutAddressLine {
+    final label = addressLabelController.text.trim();
+    final address = displayFullAddress.trim();
+    final city = effectiveCity;
+    if (label.isNotEmpty && address.isNotEmpty) {
+      if (address.toLowerCase().contains(label.toLowerCase())) {
+        return address;
+      }
+      return '$label, $address';
+    }
+    if (label.isNotEmpty && city.isNotEmpty) {
+      if (label.toLowerCase().contains(city.toLowerCase())) return label;
+      return '$label, $city';
+    }
+    if (address.isNotEmpty) return address;
+    return label;
+  }
+
+  /// Ville brute du profil (`address.city`) — jamais extraite du libellé.
+  String get effectiveCity => cityController.text.trim();
+
   bool get canConfirmDoorstepAddress {
     if (!hasValidDoorstepCoordinates) return false;
     if (isAddressLoading.value) return false;
@@ -144,13 +181,23 @@ class AddAddressController extends GetxController implements GetxService {
   }
 
   List<dynamic>? _extractAddressHistoryList(dynamic response) {
-    if (response == null || response is! Map) return null;
+    if (response == null) return null;
+    if (response is List) return response;
+    if (response is! Map) return null;
     final data = response['data'];
+    if (data is List) return data;
     if (data is Map) {
-      final nested = data['addressHistory'] ?? data['address_history'];
+      final nested = data['addressHistory'] ??
+          data['address_history'] ??
+          data['addresses'] ??
+          data['history'] ??
+          data['items'];
       if (nested is List) return nested;
     }
-    final topLevel = response['addressHistory'] ?? response['address_history'];
+    final topLevel = response['addressHistory'] ??
+        response['address_history'] ??
+        response['addresses'] ??
+        response['history'];
     if (topLevel is List) return topLevel;
     return null;
   }
@@ -171,9 +218,20 @@ class AddAddressController extends GetxController implements GetxService {
           .map((e) => AddressHistoryModel.fromJson(
                 Map<String, dynamic>.from(e),
               ))
-          .where((e) => e.address.trim().isNotEmpty)
+          .where((e) =>
+              e.address.trim().isNotEmpty ||
+              e.label.trim().isNotEmpty ||
+              e.city.trim().isNotEmpty)
           .toList();
 
+      parsed.sort((a, b) {
+        final da = a.createdAt;
+        final db = b.createdAt;
+        if (da != null && db != null) return db.compareTo(da);
+        if (db != null) return 1;
+        if (da != null) return -1;
+        return 0;
+      });
       recentAddresses.assignAll(parsed);
     } catch (e, st) {
       debugPrint('fetchAddressHistory: $e\n$st');
@@ -237,17 +295,25 @@ class AddAddressController extends GetxController implements GetxService {
 
   /// Applique une adresse récente aux champs et coordonnées actifs.
   LatLng? applyRecentAddress(AddressHistoryModel item) {
-    if (item.address.trim().isEmpty) return null;
+    if (item.address.trim().isEmpty &&
+        item.label.trim().isEmpty &&
+        item.city.trim().isEmpty) {
+      return null;
+    }
 
     _isInternalAddressWrite = true;
-    fullAddressController.text = item.address;
+    fullAddressController.text = item.address.trim().isNotEmpty
+        ? item.address.trim()
+        : item.city.trim();
     addressLabelController.text = item.label.trim().isNotEmpty
         ? item.label.trim()
         : GeocodingService.suggestAddressLabel(item.address);
     _isInternalAddressWrite = false;
     _labelManuallyEdited = true;
 
-    addressText.value = item.address;
+    cityController.text = item.city.trim();
+
+    addressText.value = fullAddressController.text;
     doorSteplatitude.value = item.latitude.toString();
     doorSteplongitude.value = item.longitude.toString();
     fulladdress.value = _composeDisplayAddress();
@@ -404,8 +470,14 @@ class AddAddressController extends GetxController implements GetxService {
         generalController.currentIndex.value = 0;
 
         if (preventDate.value == true) {
-          Get.back();
-          Get.back();
+          final pops = addressSavePopCount < 1 ? 1 : addressSavePopCount;
+          addressSavePopCount = 2;
+          preventDate.value = false;
+          for (var i = 0; i < pops; i++) {
+            if (Get.key.currentState?.canPop() == true) {
+              Get.back();
+            }
+          }
           return;
         }
         Get.to(const HomeMain(initialIndex: 0));
@@ -454,7 +526,8 @@ class AddAddressController extends GetxController implements GetxService {
           showToastMessage("${response["message"]}");
         }
       } else {
-        await _clearStaleAddressCache();
+        debugPrint(
+            'getDoorStepAddressp: pas d\'adresse porte-à-porte, conservation des champs / historique');
       }
     } catch (e) {
       debugPrint("getDoorStepAddressp: $e");
@@ -462,8 +535,23 @@ class AddAddressController extends GetxController implements GetxService {
         closeLoading();
         showErrorToastMessage("Something went wrong. Please try again.".tr);
       }
-      await _clearStaleAddressCache();
     }
+  }
+
+  /// Dernière adresse profil (porte-à-porte ou historique).
+  Future<void> ensureDefaultProfileAddress() async {
+    try {
+      await getDoorStepAddressp(false);
+    } catch (_) {}
+    if (checkoutAddressLine.trim().isNotEmpty &&
+        effectiveCity.trim().isNotEmpty) {
+      return;
+    }
+    if (recentAddresses.isEmpty) {
+      await fetchAddressHistory();
+    }
+    if (recentAddresses.isEmpty) return;
+    applyRecentAddress(recentAddresses.first);
   }
 
   void setAddressData() {

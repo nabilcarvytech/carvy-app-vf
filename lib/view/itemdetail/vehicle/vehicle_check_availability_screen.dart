@@ -203,36 +203,43 @@ class _VehicleCheckAvailabilityState extends State<VehicleCheckAvailability> {
         width: Dimensions.containerWidth,
         child: Scaffold(
             bottomNavigationBar: Obx(
-              () => bookingController.isDateAvailale.value == false
-                  ? const SizedBox()
-                  : SafeArea(
-                      child: SizedBox(
-                        height: 70,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                            child: ElevatedButton(
-                            onPressed: _openSelectTimeScreen,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: getColorBasedOnActiveModuleid(),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(13),
+              () {
+                final bool canContinue =
+                    bookingController.isDateAvailale.value == true;
+                return SafeArea(
+                  child: SizedBox(
+                    height: 70,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: ElevatedButton(
+                        onPressed:
+                            canContinue ? _openSelectTimeScreen : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: getColorBasedOnActiveModuleid(),
+                          disabledBackgroundColor: Colors.grey,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Next".tr,
+                              style: heading2(context).copyWith(
+                                color: canContinue
+                                    ? bgColor
+                                    : Colors.white70,
                               ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "Next".tr,
-                                  style: heading2(context)
-                                      .copyWith(color: bgColor),
-                                ),
-                              ],
-                            ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
+                  ),
+                );
+              },
             ),
             backgroundColor: notifires.getbgcolor,
             appBar: AppBar(

@@ -253,26 +253,23 @@ class _MyBookingState extends State<MyBooking> with TickerProviderStateMixin {
       !_disposed && _routeReady && tabController != null;
 
   void _onBackPressed(BuildContext context) {
-    final nav = Navigator.of(context);
-
-    if (nav.canPop()) {
-      try {
-        generalController.tabController.animateTo(0);
-      } catch (_) {}
-      generalController.currentIndex.value = 0;
-      nav.pop();
-      return;
-    }
-
     final inHomeShell =
         context.findAncestorWidgetOfExactType<HomeMain>() != null;
     if (inHomeShell) {
+      // L'onglet est dans IndexedStack : ne jamais pop la route (login).
+      if (generalController.currentIndex.value != 2) return;
       try {
         if (generalController.tabController.index != 0) {
           generalController.tabController.animateTo(0);
         }
       } catch (_) {}
       generalController.currentIndex.value = 0;
+      return;
+    }
+
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
       return;
     }
 

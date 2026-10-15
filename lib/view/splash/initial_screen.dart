@@ -87,6 +87,7 @@ class _InitialScreenState extends State<InitialScreen> {
   /// Logique de décision de la prochaine page (langue / onboarding / home / host)
   void _navigateToNextScreen() {
     try {
+      hydrateSessionFromStorage();
       // Vérifier si la langue a été choisie
       var lanValue = getData.read("lanValue");
       bool languageSelected = lanValue != null &&

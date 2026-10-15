@@ -50,10 +50,30 @@ class MongoIdHelper {
   }
 
   static String? extractRefId(dynamic ref) {
-    if (ref == null) return null;
-    if (ref is String) return normalize(ref);
-    if (ref is Map) {
-      return normalize(ref['_id']?.toString() ?? ref['id']?.toString());
+    return extractAny(ref);
+  }
+
+  /// ObjectId depuis string, `{_id}`, `{ $oid }`, ou `ObjectId("…")`.
+  static String? extractAny(dynamic value, {int depth = 0}) {
+    if (value == null || depth > 5) return null;
+    if (value is String) {
+      final t = value.trim();
+      if (t.isEmpty) return null;
+      final direct = normalize(t);
+      if (direct != null) return direct;
+      final objectIdWrap = RegExp(
+        r'''ObjectId\s*\(\s*['"]?([0-9a-fA-F]{24})''',
+      ).firstMatch(t);
+      if (objectIdWrap != null) return objectIdWrap.group(1);
+      if (t.length == 24 && _objectIdPattern.hasMatch(t)) return t;
+      return null;
+    }
+    if (value is Map) {
+      for (final key in ['_id', 'id', r'$oid', 'oid', r'$id']) {
+        if (!value.containsKey(key)) continue;
+        final found = extractAny(value[key], depth: depth + 1);
+        if (found != null) return found;
+      }
     }
     return null;
   }

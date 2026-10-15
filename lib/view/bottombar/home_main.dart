@@ -13,6 +13,7 @@ import '../../controller/auth_controller.dart';
 import '../../controller/global_scope_controller.dart';
 import '../../controller/push_notifications.dart';
 import '../../controller/wish_list_controller.dart';
+import '../../helper/double_back_to_exit.dart';
 import '../../utils/common_widget.dart';
 import '../../work_space.dart';
 import '../myaccount/account_screen.dart';
@@ -51,6 +52,9 @@ class _HomeMainScreenState extends State<HomeMain>
     const AccountScreen(),
   ];
   late final VoidCallback _tabListener;
+  final DoubleBackToExit _doubleBackToExit = DoubleBackToExit();
+  final GlobalKey<ScaffoldMessengerState> _exitMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
 
   @override
   void initState() {
@@ -183,21 +187,19 @@ class _HomeMainScreenState extends State<HomeMain>
                   ],
                 ),
               )
-            : PopScope(
+            : ScaffoldMessenger(
+                key: _exitMessengerKey,
+                child: PopScope(
                 canPop: false,
-                onPopInvoked: (didPop) async {
+                onPopInvokedWithResult: (didPop, _) {
                   if (didPop) return;
-                  
-                  // Si on n'est pas sur l'onglet principal (index 0), on y retourne
-                  if (generalController.currentIndex.value != 0) {
-                    _selectTab(0);
-                    return; // Empêche de fermer l'application
-                  } else {
-                    // Si on est déjà sur l'accueil (index 0), on affiche le popup "Souhaitez-vous quitter ?"
-                    if (!webPlateForm) {
-                      dialogExit(context);
-                    }
-                  }
+                  _doubleBackToExit.handle(
+                    context: context,
+                    isOnRootTab: generalController.currentIndex.value == 0,
+                    goToRootTab: () => _selectTab(0),
+                    allowExit: !webPlateForm,
+                    messenger: _exitMessengerKey.currentState,
+                  );
                 },
                 child: Scaffold(
                   resizeToAvoidBottomInset: false,
@@ -437,6 +439,7 @@ class _HomeMainScreenState extends State<HomeMain>
                   ),
                 ),
               ),
+            ),
             ));
   }
 }

@@ -202,6 +202,7 @@ const Map<String, String> thTH = {
   "You Are not Logged in": "คุณยังไม่ได้เข้าสู่ระบบ",
   "Login to access all functionality": "เข้าสู่ระบบเพื่อเข้าถึงฟังก์ชันทั้งหมด",
   "Do you want to exit?": "คุณต้องการออกหรือไม่?",
+  "press_back_again_to_exit": "กดย้อนกลับอีกครั้งเพื่อออก",
   "You are not Login yet": "คุณยังไม่ได้เข้าสู่ระบบ",
   "Use menu Button to Change Booking type":
       "ใช้ปุ่มเมนูเพื่อเปลี่ยนประเภทการจอง",
