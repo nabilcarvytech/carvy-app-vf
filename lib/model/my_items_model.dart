@@ -1,3 +1,5 @@
+import 'package:carvy/helper/vehicle_edit_lock_helper.dart';
+
 class MyItemsModel {
   MyItemsModel({
     num? status,
@@ -330,6 +332,15 @@ class Items {
   dynamic get notAvailableDates => _notAvailableDates;
   List<BookedDates>? get bookedDates => _bookedDates;
   String? get metaData => _metaData;
+
+  /// `true` si une réservation pending / confirmed / ongoing est signalée par l'API.
+  bool get hasActiveBooking {
+    try {
+      return VehicleEditLockHelper.isLocked(this);
+    } catch (_) {
+      return false;
+    }
+  }
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};

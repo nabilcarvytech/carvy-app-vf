@@ -6,6 +6,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
+import 'package:carvy/helper/delivery_fee_helper.dart';
 import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/address_history_model.dart';
 import 'package:carvy/model/door_step_address_model.dart';
@@ -127,7 +128,8 @@ class AddAddressController extends GetxController implements GetxService {
   }
 
   /// Ville brute du profil (`address.city`) — jamais extraite du libellé.
-  String get effectiveCity => cityController.text.trim();
+  String get effectiveCity =>
+      DeliveryFeeHelper.sanitizeCity(cityController.text);
 
   bool get canConfirmDoorstepAddress {
     if (!hasValidDoorstepCoordinates) return false;
@@ -161,7 +163,9 @@ class AddAddressController extends GetxController implements GetxService {
     _isInternalAddressWrite = false;
     addressText.value = display;
 
-    if (resolved.city.isNotEmpty) cityController.text = resolved.city;
+    if (resolved.city.isNotEmpty) {
+      cityController.text = DeliveryFeeHelper.sanitizeCity(resolved.city);
+    }
     if (resolved.state.isNotEmpty) stateController.text = resolved.state;
     if (resolved.country.isNotEmpty) countryController.text = resolved.country;
     if (resolved.postalCode.isNotEmpty) {
@@ -311,7 +315,7 @@ class AddAddressController extends GetxController implements GetxService {
     _isInternalAddressWrite = false;
     _labelManuallyEdited = true;
 
-    cityController.text = item.city.trim();
+    cityController.text = DeliveryFeeHelper.sanitizeCity(item.city);
 
     addressText.value = fullAddressController.text;
     doorSteplatitude.value = item.latitude.toString();
@@ -575,7 +579,7 @@ class AddAddressController extends GetxController implements GetxService {
     _isInternalAddressWrite = false;
     _labelManuallyEdited = label.isNotEmpty;
 
-    cityController.text = data.city?.toString() ?? '';
+    cityController.text = DeliveryFeeHelper.sanitizeCity(data.city?.toString());
     stateController.text = data.state?.toString() ?? '';
     countryController.text = data.country?.toString() ?? '';
     postalCodeController.text = data.postalCode?.toString() ?? '';

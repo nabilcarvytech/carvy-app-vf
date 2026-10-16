@@ -36,6 +36,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:carvy/view/auth/login_screen.dart';
 import 'package:carvy/controller/home_controller.dart';
 import 'package:carvy/controller/vehicle_controller.dart';
+import 'package:carvy/helper/vehicle_edit_lock_helper.dart';
 
 class DashBoardScreen extends StatefulWidget {
   final ScreenMode mode;
@@ -1092,6 +1093,8 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                   // Utiliser controller.myVehiclesItems au lieu de la liste locale
                                   final vehiclesList = vehicleController.myVehiclesItems;
                                   final isLoading = vehicleController.isLoadingMyVehicles.value;
+                                  vehicleController
+                                      .vehicleIdsWithActiveBookings.length;
                                   
                                   // Gestion du Loader : s'affiche uniquement si la liste est vide ET en chargement
                                   if (isLoading && vehiclesList.isEmpty) {
@@ -1138,7 +1141,7 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                         const SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: 1,
                                       crossAxisSpacing: 8,
-                                      mainAxisExtent: 335,
+                                      mainAxisExtent: 355,
                                       mainAxisSpacing: 8,
                                     ),
                                     itemCount: vehiclesList.length,
@@ -1162,6 +1165,13 @@ class _DashBoardScreenState extends State<DashBoardScreen> {
                                           deleteMethod(index);
                                         },
                                         onEdit: () async {
+                                          if (VehicleEditLockHelper.isLocked(
+                                              vehiclesList[index])) {
+                                            showErrorToastMessage(
+                                                'edit_blocked_active_booking'
+                                                    .tr);
+                                            return;
+                                          }
                                           // Afficher un loader pendant la récupération des détails
                                           showLoading();
                                           
@@ -1779,6 +1789,15 @@ class VehicleItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Iterable<String> extraLockedIds = const [];
+    try {
+      extraLockedIds =
+          Get.find<VehicleController>().vehicleIdsWithActiveBookings;
+    } catch (_) {}
+    final bool editLocked = VehicleEditLockHelper.isLocked(
+      _vehicle,
+      extraLockedIds: extraLockedIds,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
       child: InkWell(
@@ -1823,6 +1842,27 @@ class VehicleItemCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (editLocked)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.65),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'booking_in_progress_badge'.tr,
+                          style: regular(context).copyWith(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 5),
@@ -1995,21 +2035,43 @@ class VehicleItemCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: TextButton(
-                          onPressed: onEdit,
-                          style: TextButton.styleFrom(
-                            backgroundColor: getColorBasedOnActiveModuleid()
-                               ,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
+                        child: GestureDetector(
+                          onTap: editLocked
+                              ? () {
+                                  showErrorToastMessage(
+                                      'edit_blocked_active_booking'.tr);
+                                }
+                              : null,
+                          child: Opacity(
+                            opacity: editLocked ? 0.5 : 1,
+                            child: IgnorePointer(
+                              ignoring: editLocked,
+                              child: Tooltip(
+                                message: editLocked
+                                    ? 'edit_blocked_active_booking'.tr
+                                    : 'Edit'.tr,
+                                child: TextButton(
+                                  onPressed: editLocked ? null : onEdit,
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: editLocked
+                                        ? Colors.grey
+                                        : getColorBasedOnActiveModuleid(),
+                                    disabledBackgroundColor: Colors.grey,
+                                    disabledForegroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(25),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Edit'.tr,
+                                    style: TextStyle(
+                                        color: whiteColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            'Edit'.tr,
-                            style: TextStyle(
-                                color: whiteColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13),
                           ),
                         ),
                       ),
@@ -2039,7 +2101,21 @@ class VehicleItemCard extends StatelessWidget {
                     ],
                   ),
                 ),
-              )
+              ),
+              if (editLocked)
+                Padding(
+                  padding:
+                      const EdgeInsets.only(left: 10, right: 10, bottom: 6),
+                  child: Text(
+                    'edit_blocked_active_booking'.tr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: regular3(context).copyWith(
+                      fontSize: 11,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

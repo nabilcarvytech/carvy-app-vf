@@ -1332,4 +1332,58 @@ const Map<String, String> esES = {
   "already_have_account": "Ya tengo una cuenta:",
   "login_button": "Iniciar sesión",
   "next_button": "Siguiente",
+  "home_delivery": "Entrega a domicilio",
+  "delivery_fee": "Gastos de entrega",
+  "delivery_fee_city": "Entrega (@city)",
+  "delivery_free": "Gratis",
+  "pickup_on_site": "Recogida en el sitio",
+  "delivery_to_address": "Entrega en: @address",
+  "edit_address": "Editar dirección",
+  "select_my_address": "Seleccionar mi dirección",
+  "add_new_address": "Añadir una nueva dirección",
+  "address_not_served_for_this_vehicle":
+      "Esta dirección no está cubierta para la entrega a domicilio de este vehículo",
+  "delivery_city_not_served":
+      "Tu ciudad no está cubierta para la entrega a domicilio",
+  "add_delivery_address": "Añade una dirección para la entrega a domicilio",
+  "currency_mad": "MAD",
+  "vehicle_seats_count": "@count plazas",
+  "host_listed_by": "Por - @name",
+  "kyc_complete_license_later":
+      "Nota: Podrás completar tu perfil (permiso) más tarde en tu cuenta.",
+  "i_have_read_and_accept": "He leído y acepto ",
+  "cancellation_policy_link": "la política de cancelación",
+  "accept_cancellation_policy_before_continue":
+      "Acepta la política de cancelación antes de continuar.",
+  "accept_cancellation_policy_to_continue":
+      "Acepta la política de cancelación para continuar.",
+  "not_specified": "No especificada",
+  "payment_time_expired": "Tiempo de pago agotado",
+  "payment_session_timed_out":
+      "La sesión de pago ha caducado. Redirigiendo al resumen de la reserva...",
+  "OTP verification failed.": "Error al verificar el OTP.",
+  "Drop OTP?": "¿OTP de devolución?",
+  "Action": "Acción",
+  "Could not open the map": "No se pudo abrir el mapa",
+  "network_error_contact_server":
+      "Error de red: no se pudo contactar con el servidor",
+  "Images uploaded successfully": "Imágenes enviadas correctamente",
+  "Failed to upload images": "Error al enviar las imágenes",
+  "Invalid response from server": "Respuesta no válida del servidor",
+  "failed_to_upload_images_detail": "Error al enviar las imágenes: @error",
+  "vehicle_safety_photos_title": "Estado del vehículo: fotos de seguridad",
+  "vehicle_photo_front": "Delante",
+  "vehicle_photo_rear": "Detrás",
+  "vehicle_photo_preview": "Vista previa",
+  "vehicle_photo_protect_deposit":
+      "Protege tu fianza. Haz fotos del coche antes de salir. Así queda constancia del estado inicial en caso de litigio.",
+  "vehicle_photo_preexisting_damage": "¿Daños preexistentes?",
+  "vehicle_photo_report_scratch": "Marca cada arañazo con el dedo.",
+  "only_added_images_to_max":
+      "Solo se añadieron @remaining imágenes para alcanzar el máximo de @max",
+  "max_images_allowed": "Máximo @max imágenes permitidas",
+  "Please add at least 2 images": "Añade al menos 2 imágenes",
+  "edit_blocked_active_booking":
+      "Modificación no disponible: este vehículo tiene una reserva confirmada en curso",
+  "booking_in_progress_badge": "Reserva en curso",
 };

@@ -265,10 +265,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 color: Colors.redAccent,
               ),
               const SizedBox(height: 16),
-              Text('Payment Time Expired', style: regular3(context)),
+              Text('payment_time_expired'.tr, style: regular3(context)),
               const SizedBox(height: 12),
               Text(
-                'The payment session has timed out. Redirecting to booking summary...',
+                'payment_session_timed_out'.tr,
                 style: regular3(context),
                 textAlign: TextAlign.center,
               ),
@@ -615,7 +615,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     // Afficher un SnackBar pour informer l'utilisateur
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text("Veuillez accepter la politique d'annulation avant de continuer.".tr),
+                        content: Text("accept_cancellation_policy_before_continue".tr),
                         backgroundColor: Colors.orange,
                         duration: const Duration(seconds: 3),
                         action: SnackBarAction(
@@ -671,7 +671,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              "Veuillez accepter la politique d'annulation pour continuer.".tr,
+                              "accept_cancellation_policy_to_continue".tr,
                               textAlign: TextAlign.center,
                               style: regular2(context),
                             ),
@@ -713,7 +713,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         // Ouvrir la modale de détails de la politique
                         String policy = widget.itemDetails?.cancellationReasonTitle ?? 
                                        widget.itemDetails?.cancellationReason ?? 
-                                       'Non spécifiée';
+                                       'not_specified'.tr;
                         print('✅ [FIX_CONFIRMED] Policy chargée: $policy');
                         debugPrint('✅ [FIX_CONFIRMED] Policy chargée: $policy');
                         
@@ -752,7 +752,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 builder: (context) {
                                   String policy = widget.itemDetails?.cancellationReasonTitle ?? 
                                                  widget.itemDetails?.cancellationReason ?? 
-                                                 'Non spécifiée';
+                                                 'not_specified'.tr;
                                   return Text(
                                     policy,
                                     style: regular3(context).copyWith(
@@ -842,7 +842,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         // Afficher un SnackBar si l'utilisateur essaie de payer sans accepter
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text("Veuillez accepter la politique d'annulation avant de continuer.".tr),
+                            content: Text("accept_cancellation_policy_before_continue".tr),
                             backgroundColor: Colors.orange,
                             duration: const Duration(seconds: 3),
                             action: SnackBarAction(
@@ -867,7 +867,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
                 ),
                 child: Text(
-                  "Payer maintenant".tr,
+                  "Pay now".tr,
                   style: heading2(context).copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

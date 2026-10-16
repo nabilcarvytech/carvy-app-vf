@@ -372,9 +372,9 @@ class _MyBookingDropoffOtpActionState extends State<MyBookingDropoffOtpAction> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Enter OTP',
-                      style: TextStyle(
+                    Text(
+                      'Enter OTP'.tr,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -409,11 +409,11 @@ class _MyBookingDropoffOtpActionState extends State<MyBookingDropoffOtpAction> {
                     ),
                     const SizedBox(height: 20),
                     CustomsButtons(
-                      text: 'Submit',
+                      text: 'Submit'.tr,
                       backgroundColor: vehicalThemColor,
                       onPressed: () {
                         if (controller.dropOtpController.text.isEmpty) {
-                          showErrorToastMessage('Please fill the OTP');
+                          showErrorToastMessage('Please fill the OTP'.tr);
                           return;
                         }
                         controller
@@ -428,7 +428,7 @@ class _MyBookingDropoffOtpActionState extends State<MyBookingDropoffOtpAction> {
                           }
                         }).catchError((error) {
                           debugPrint('Error in OTP verification: $error');
-                          showErrorToastMessage('OTP verification failed.');
+                          showErrorToastMessage('OTP verification failed.'.tr);
                         });
                       },
                     ),

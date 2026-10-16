@@ -1326,6 +1326,10 @@ const Map<String, String> enUs = {
   "pickup_on_site": "Pickup on site",
   "delivery_to_address": "Deliver to: @address",
   "edit_address": "Edit address",
+  "select_my_address": "Select my address",
+  "add_new_address": "Add a new address",
+  "address_not_served_for_this_vehicle":
+      "This address is not served for home delivery by this vehicle",
   "delivery_city_not_served":
       "Your city is not served for home delivery",
   "add_delivery_address": "Add an address for home delivery",
@@ -1371,4 +1375,43 @@ const Map<String, String> enUs = {
   "otp_channel_modal_subtitle": "Choose SMS or WhatsApp to receive your verification code.",
   "otp_whatsapp_fallback_sms":
       "WhatsApp is not available. Sending via SMS...",
+  "vehicle_seats_count": "@count Seats",
+  "host_listed_by": "By - @name",
+  "kyc_complete_license_later":
+      "Note: You can complete your profile (license) later in your account.",
+  "i_have_read_and_accept": "I have read and accept ",
+  "cancellation_policy_link": "the cancellation policy",
+  "accept_cancellation_policy_before_continue":
+      "Please accept the cancellation policy before continuing.",
+  "accept_cancellation_policy_to_continue":
+      "Please accept the cancellation policy to continue.",
+  "not_specified": "Not specified",
+  "payment_time_expired": "Payment time expired",
+  "payment_session_timed_out":
+      "The payment session has timed out. Redirecting to booking summary...",
+  "OTP verification failed.": "OTP verification failed.",
+  "Drop OTP?": "Drop-off OTP?",
+  "Action": "Action",
+  "Could not open the map": "Could not open the map",
+  "network_error_contact_server":
+      "Network error: unable to contact the server",
+  "Images uploaded successfully": "Images uploaded successfully",
+  "Failed to upload images": "Failed to upload images",
+  "Invalid response from server": "Invalid response from server",
+  "failed_to_upload_images_detail": "Failed to upload images: @error",
+  "vehicle_safety_photos_title": "Vehicle condition: safety photos",
+  "vehicle_photo_front": "Front",
+  "vehicle_photo_rear": "Rear",
+  "vehicle_photo_preview": "Preview",
+  "vehicle_photo_protect_deposit":
+      "Protect your deposit. Take photos of the car before you start. This proves the initial condition in case of a dispute.",
+  "vehicle_photo_preexisting_damage": "Pre-existing damage?",
+  "vehicle_photo_report_scratch": "Mark each scratch with your finger.",
+  "only_added_images_to_max":
+      "Only added @remaining images to reach the maximum of @max",
+  "max_images_allowed": "Maximum @max images allowed",
+  "Please add at least 2 images": "Please add at least 2 images",
+  "edit_blocked_active_booking":
+      "Editing unavailable: this vehicle has a confirmed booking in progress",
+  "booking_in_progress_badge": "Booking in progress",
 };

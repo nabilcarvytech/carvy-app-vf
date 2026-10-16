@@ -8,13 +8,20 @@ class DeliveryZoneOption {
     required this.key,
     required this.cityLabel,
     required this.price,
+    this.matchLabel = '',
   });
 
   final String key;
   final String cityLabel;
   final double price;
+  final String matchLabel;
 
   bool get isFree => price <= 0;
+
+  String get matchingText {
+    final raw = matchLabel.trim();
+    return raw.isNotEmpty ? raw : cityLabel;
+  }
 }
 
 /// Matching ville client ↔ `deliveryLocations` du véhicule.
@@ -35,11 +42,22 @@ class DeliveryFeeHelper {
     final out = <DeliveryZoneOption>[];
     for (var i = 0; i < deliveryLocations.length; i++) {
       final item = deliveryLocations[i];
-      if (item is! Map) continue;
-      final map = Map<String, dynamic>.from(item);
+      Map<String, dynamic> map;
+      if (item is Map) {
+        map = Map<String, dynamic>.from(item);
+      } else if (item is String && item.trim().isNotEmpty) {
+        map = <String, dynamic>{'location': item.trim()};
+      } else {
+        continue;
+      }
+      final rawName = _rawCityName(map);
       final label = CityNameHelper.deliveryLocationLabel(map);
-      if (label == '-' && _locationId(map).isEmpty) continue;
-      final cityLabel = label == '-' ? _locationId(map) : label;
+      if (label == '-' && _locationId(map).isEmpty && rawName.isEmpty) {
+        continue;
+      }
+      final cityLabel = (label == '-' || label.trim().isEmpty)
+          ? (rawName.isNotEmpty ? rawName : _locationId(map))
+          : label;
       final key = _locationId(map).isNotEmpty
           ? _locationId(map)
           : 'zone_$i:${CityNameHelper.canonicalMatchToken(cityLabel)}';
@@ -47,6 +65,7 @@ class DeliveryFeeHelper {
         DeliveryZoneOption(
           key: key,
           cityLabel: cityLabel,
+          matchLabel: rawName.isNotEmpty ? rawName : cityLabel,
           price: parsePrice(map),
         ),
       );
@@ -76,18 +95,114 @@ class DeliveryFeeHelper {
     return locationId;
   }
 
+  static String _rawCityName(Map<String, dynamic> loc) {
+    final location = loc['location'];
+    final candidates = <String?>[
+      loc['locationName']?.toString(),
+      loc['cityName']?.toString(),
+      loc['city_name']?.toString(),
+      loc['name']?.toString(),
+      loc['city']?.toString(),
+      if (location is Map)
+        location['cityName']?.toString() ??
+            location['city_name']?.toString() ??
+            location['name']?.toString() ??
+            location['cityNameFr']?.toString(),
+    ];
+    for (final c in candidates) {
+      final cleaned = sanitizeCity(c);
+      if (cleaned.isNotEmpty && !_looksLikeObjectId(cleaned)) return cleaned;
+    }
+    return '';
+  }
+
+  static bool _looksLikeObjectId(String value) =>
+      RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(value.trim());
+
+  /// Enlève BOM / espaces insécables / marques bidi, puis trim.
+  static String sanitizeCity(String? raw) {
+    if (raw == null) return '';
+    return raw
+        .replaceAll('\u00A0', ' ')
+        .replaceAll(RegExp(r'[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
   static String _normalizeCity(String? raw) =>
-      (raw ?? '').trim().toLowerCase();
+      sanitizeCity(raw).toLowerCase();
+
+  static bool _citiesEqual(String? a, String? b) {
+    final na = _normalizeCity(a);
+    final nb = _normalizeCity(b);
+    if (na.isEmpty || nb.isEmpty) return false;
+    if (na == nb) return true;
+    if (CityNameHelper.citiesMatch(sanitizeCity(a), sanitizeCity(b))) {
+      return true;
+    }
+    final ta = CityNameHelper.canonicalMatchToken(sanitizeCity(a));
+    final tb = CityNameHelper.canonicalMatchToken(sanitizeCity(b));
+    return ta.isNotEmpty && tb.isNotEmpty && ta == tb;
+  }
+
+  static String catalogueNameForId(String id, List<dynamic> catalogue) {
+    final needle = id.trim().toLowerCase();
+    if (needle.isEmpty) return '';
+    for (final loc in catalogue) {
+      var locId = '';
+      var name = '';
+      if (loc is Map) {
+        locId = (loc['_id'] ?? loc['id'] ?? loc['locationId'] ?? '')
+            .toString();
+        name = (loc['cityName'] ??
+                loc['city_name'] ??
+                loc['name'] ??
+                loc['title'] ??
+                '')
+            .toString();
+      } else {
+        try {
+          locId = (loc.id ?? '').toString();
+          name = (loc.cityName ?? loc.name ?? '').toString();
+        } catch (_) {}
+      }
+      if (locId.trim().toLowerCase() == needle) {
+        return sanitizeCity(name);
+      }
+    }
+    return '';
+  }
 
   static DeliveryZoneOption? matchZone(
     List<DeliveryZoneOption> zones,
-    String? userCity,
-  ) {
-    final city = _normalizeCity(userCity);
+    String? userCity, {
+    List<dynamic> catalogue = const [],
+  }) {
+    final city = sanitizeCity(userCity);
     if (city.isEmpty || zones.isEmpty) return null;
     for (final zone in zones) {
-      if (_normalizeCity(zone.cityLabel) == city) {
+      final catName = catalogueNameForId(zone.key, catalogue);
+      if (_citiesEqual(zone.matchingText, city) ||
+          _citiesEqual(zone.cityLabel, city) ||
+          (catName.isNotEmpty && _citiesEqual(catName, city))) {
         return zone;
+      }
+    }
+    if (catalogue.isNotEmpty) {
+      for (final loc in catalogue) {
+        var locId = '';
+        var name = '';
+        if (loc is Map) {
+          locId = (loc['_id'] ?? loc['id'] ?? '').toString();
+          name = (loc['cityName'] ?? loc['city_name'] ?? loc['name'] ?? '')
+              .toString();
+        }
+        if (locId.isEmpty || !_citiesEqual(name, city)) continue;
+        for (final zone in zones) {
+          if (zone.key.trim().toLowerCase() == locId.trim().toLowerCase()) {
+            return zone;
+          }
+        }
       }
     }
     return null;
@@ -98,7 +213,7 @@ class DeliveryFeeHelper {
     String? city,
     String? fullAddress,
   }) {
-    return (city ?? '').trim();
+    return sanitizeCity(city);
   }
 
   static Map<String, dynamic>? _storedDoorStepMap() {
@@ -122,9 +237,15 @@ class DeliveryFeeHelper {
   static String cityFromStoredCustomerAddress() {
     final door = _storedDoorStepMap();
     if (door == null) return '';
-    return cityFromAddressFields(
+    final fromField = cityFromAddressFields(
       city: door['city']?.toString() ?? door['cityName']?.toString(),
     );
+    if (fromField.isNotEmpty) return fromField;
+    final full =
+        (door['full_address'] ?? door['fullAddress'])?.toString() ?? '';
+    final token = CityNameHelper.extractKnownCityToken(full);
+    if (token != null && token.isNotEmpty) return token;
+    return CityNameHelper.extractCityDisplayName(full);
   }
 
   static String fullAddressFromStoredCustomerAddress() {

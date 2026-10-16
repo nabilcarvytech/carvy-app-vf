@@ -1592,6 +1592,10 @@ const Map<String, String> frFR = {
   "pickup_on_site": "Retrait sur place",
   "delivery_to_address": "Livraison à : @address",
   "edit_address": "Modifier l'adresse",
+  "select_my_address": "Sélectionner mon adresse",
+  "add_new_address": "Ajouter une nouvelle adresse",
+  "address_not_served_for_this_vehicle":
+      "Cette adresse n'est pas desservie pour la livraison à domicile par ce véhicule",
   "delivery_city_not_served":
       "Votre ville n'est pas desservie pour la livraison à domicile",
   "add_delivery_address": "Ajoutez une adresse pour la livraison à domicile",
@@ -1620,4 +1624,43 @@ const Map<String, String> frFR = {
   "Small": "Citadine / Compacte",
   "Petite": "Citadine / Compacte",
   "Cet e-mail est déjà utilisé.": "Cet e-mail est déjà utilisé.",
+  "vehicle_seats_count": "@count places",
+  "host_listed_by": "Par - @name",
+  "kyc_complete_license_later":
+      "Note : Vous pourrez finaliser votre profil (permis) plus tard dans votre espace compte.",
+  "i_have_read_and_accept": "J'ai lu et j'accepte ",
+  "cancellation_policy_link": "la politique d'annulation",
+  "accept_cancellation_policy_before_continue":
+      "Veuillez accepter la politique d'annulation avant de continuer.",
+  "accept_cancellation_policy_to_continue":
+      "Veuillez accepter la politique d'annulation pour continuer.",
+  "not_specified": "Non spécifiée",
+  "payment_time_expired": "Délai de paiement expiré",
+  "payment_session_timed_out":
+      "La session de paiement a expiré. Redirection vers le récapitulatif de réservation...",
+  "OTP verification failed.": "Échec de la vérification OTP.",
+  "Drop OTP?": "OTP de restitution ?",
+  "Action": "Action",
+  "Could not open the map": "Impossible d'ouvrir la carte",
+  "network_error_contact_server":
+      "Erreur réseau : impossible de contacter le serveur",
+  "Images uploaded successfully": "Images envoyées avec succès",
+  "Failed to upload images": "Échec de l'envoi des images",
+  "Invalid response from server": "Réponse invalide du serveur",
+  "failed_to_upload_images_detail": "Échec de l'envoi des images : @error",
+  "vehicle_safety_photos_title": "État du véhicule : Photos de sécurité",
+  "vehicle_photo_front": "Avant",
+  "vehicle_photo_rear": "Arrière",
+  "vehicle_photo_preview": "Aperçu",
+  "vehicle_photo_protect_deposit":
+      "Protégez votre caution. Prenez des photos de la voiture avant de démarrer. Cela prouve l'état initial en cas de litige.",
+  "vehicle_photo_preexisting_damage": "Dégâts préexistants ?",
+  "vehicle_photo_report_scratch": "Signalez chaque rayure avec votre doigt.",
+  "only_added_images_to_max":
+      "Seulement @remaining image(s) ajoutée(s) pour atteindre le maximum de @max",
+  "max_images_allowed": "Maximum @max images autorisées",
+  "Please add at least 2 images": "Veuillez ajouter au moins 2 images",
+  "edit_blocked_active_booking":
+      "Modification impossible : ce véhicule a une réservation confirmée en cours",
+  "booking_in_progress_badge": "Réservation en cours",
 };

@@ -918,7 +918,7 @@ class _CalendarAvailabilityCell extends StatelessWidget {
           }
         }
       }
-      priceText ??= 'MAD 1000';
+      priceText ??= '${'currency_mad'.tr} 1000';
     }
 
     final today = DateTime(now.year, now.month, now.day);

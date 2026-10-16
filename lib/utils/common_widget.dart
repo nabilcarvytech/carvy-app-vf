@@ -2299,7 +2299,7 @@ myBookingListWidget(
                               } catch (error) {
                                 print("Error in OTP verification: $error");
                                 showErrorToastMessage(
-                                    "OTP verification failed.");
+                                    "OTP verification failed.".tr);
                               }
                             },
                           ),
@@ -3680,7 +3680,7 @@ myBookingListWidget(
                                                                             }
                                                                           } catch (error) {
                                                                             print("Error in OTP verification: $error");
-                                                                            showErrorToastMessage("OTP verification failed.");
+                                                                            showErrorToastMessage("OTP verification failed.".tr);
                                                                           }
                                                                         },
                                                                       ),
@@ -3857,7 +3857,7 @@ myBookingListWidget(
                                                                                 }
                                                                               }).catchError((error) {
                                                                                 print("Error in OTP verification: $error");
-                                                                                showErrorToastMessage("OTP verification failed.");
+                                                                                showErrorToastMessage("OTP verification failed.".tr);
                                                                               });
                                                                             },
                                                                           ),

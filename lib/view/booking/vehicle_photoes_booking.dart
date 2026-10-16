@@ -204,7 +204,7 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
       } catch (e) {
         print('🚨 [ERREUR_RESEAU] Impossible de joindre le serveur: $e');
         closeLoading();
-        showErrorToastMessage('Erreur réseau: Impossible de contacter le serveur');
+        showErrorToastMessage('network_error_contact_server'.tr);
         return;
       }
 
@@ -216,7 +216,7 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
           print('🎉 [RETOUR_API] Upload réussi - ouverture OTP automatique');
           BookingController bookingController = Get.find();
           showToastMessage(response['message']?.toString() ??
-              'Images uploaded successfully');
+              'Images uploaded successfully'.tr);
           bookingController.requestOtpOverlay(widget.id);
           generalController.currentIndex.value = 0;
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -225,16 +225,17 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
         } else {
           print('❌ [RETOUR_API] Échec upload - Code: $successValue');
           showErrorToastMessage(
-              response['error']?.toString() ?? 'Failed to upload images');
+              response['error']?.toString() ?? 'Failed to upload images'.tr);
         }
       } else {
         print('❌ [RETOUR_API] Réponse invalide - Clés disponibles: ${response?.keys?.join(", ")}');
-        showErrorToastMessage('Invalid response from server');
+        showErrorToastMessage('Invalid response from server'.tr);
       }
     } catch (e) {
       print('💥 [ERREUR_GENERALE] Erreur inattendue dans updateUploadImage: $e');
       closeLoading();
-      showErrorToastMessage('Failed to upload images: $e');
+      showErrorToastMessage(
+          'failed_to_upload_images_detail'.trParams({'error': '$e'}));
     }
   }
 
@@ -260,7 +261,8 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
               }
 
               if (imageListbase64.length > maxImages) {
-                showErrorToastMessage("Maximum $maxImages images allowed".tr);
+                showErrorToastMessage(
+                    'max_images_allowed'.trParams({'max': '$maxImages'}));
                 return;
               }
 
@@ -272,7 +274,7 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
         onBackButtonPressed: () => Get.back(),
         elevation: 0,
         // Nouveau titre demandé
-        title: 'État du véhicule : Photos de sécurité',
+        title: 'vehicle_safety_photos_title'.tr,
         backgroundColor: notifires.getbgcolor,
         iconColor: notifires.getwhiteblackcolor,
         titleColor: notifires.getwhiteblackcolor,
@@ -294,7 +296,7 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
                 Expanded(
                   child: _ChecklistTile(
                     icon: Icons.directions_car_filled_outlined,
-                    label: 'Avant',
+                    label: 'vehicle_photo_front'.tr,
                     primaryColor: primaryColor,
                     counter: _frontCount,
                     onTap: () {
@@ -307,8 +309,10 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
                           var toAdd = files;
                           if (files.length > remaining) {
                             showToastMessage(
-                                "Only added $remaining images to reach the maximum of $maxImages"
-                                    .tr);
+                                'only_added_images_to_max'.trParams({
+                                  'remaining': '$remaining',
+                                  'max': '$maxImages',
+                                }));
                             toAdd = files.sublist(0, remaining);
                           }
                           setState(() {
@@ -324,7 +328,7 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
                 Expanded(
                   child: _ChecklistTile(
                     icon: Icons.time_to_leave, // arrière stylisé
-                    label: 'Arrière',
+                    label: 'vehicle_photo_rear'.tr,
                     primaryColor: primaryColor,
                     counter: _rearCount,
                     onTap: () {
@@ -337,8 +341,10 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
                           var toAdd = files;
                           if (files.length > remaining) {
                             showToastMessage(
-                                "Only added $remaining images to reach the maximum of $maxImages"
-                                    .tr);
+                                'only_added_images_to_max'.trParams({
+                                  'remaining': '$remaining',
+                                  'max': '$maxImages',
+                                }));
                             toAdd = files.sublist(0, remaining);
                           }
                           setState(() {
@@ -369,8 +375,10 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
                     var toAdd = files;
                     if (files.length > remaining) {
                       showToastMessage(
-                          "Only added $remaining images to reach the maximum of $maxImages"
-                              .tr);
+                          'only_added_images_to_max'.trParams({
+                            'remaining': '$remaining',
+                            'max': '$maxImages',
+                          }));
                       toAdd = files.sublist(0, remaining);
                     }
                     setState(() {
@@ -385,7 +393,7 @@ class _VehiclePhotoesBookingState extends State<VehiclePhotoesBooking> {
             const SizedBox(height: 20),
 
             // Aperçu des images sélectionnées (toujours présent)
-            if (_vehicleImages.isNotEmpty) _buildSectionHeader('Aperçu', primaryColor),
+            if (_vehicleImages.isNotEmpty) _buildSectionHeader('vehicle_photo_preview'.tr, primaryColor),
             if (_vehicleImages.isNotEmpty) const SizedBox(height: 12),
             if (_vehicleImages.isNotEmpty)
               GridView.builder(
@@ -554,7 +562,7 @@ Widget _buildInfoBlock(Color accentColor) {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            'Protégez votre caution. Prenez des photos de la voiture avant de démarrer. Cela prouve l\'état initial en cas de litige.',
+            'vehicle_photo_protect_deposit'.tr,
             style: TextStyle(
               color: Colors.blueGrey.shade800,
               height: 1.3,
@@ -747,7 +755,7 @@ class _DamageTileState extends State<_DamageTile>
                 children: [
                   // Titre en gras demandé
                   Text(
-                    'Dégâts préexistants ?',
+                    'vehicle_photo_preexisting_damage'.tr,
                     style: TextStyle(
                       color: notifires.getwhiteblackcolor,
                       fontWeight: FontWeight.w700,
@@ -756,7 +764,7 @@ class _DamageTileState extends State<_DamageTile>
                   const SizedBox(height: 4),
                   // Message plus direct
                   Text(
-                    'Signalez chaque rayure avec votre doigt.',
+                    'vehicle_photo_report_scratch'.tr,
                     style: TextStyle(
                       color: notifires.getwhiteblackcolor.withOpacity(0.85),
                     ),

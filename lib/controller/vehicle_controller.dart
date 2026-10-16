@@ -17,7 +17,9 @@ import 'package:carvy/model/make_model_vehicle.dart';
 import 'package:carvy/model/fuel_type_model.dart';
 import 'package:carvy/model/odometer_model.dart';
 import 'package:carvy/model/location_host_model.dart';
+import 'package:carvy/model/booking_model.dart';
 import 'package:carvy/model/my_items_model.dart';
+import 'package:carvy/helper/vehicle_edit_lock_helper.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
 import 'package:bot_toast/bot_toast.dart';
 import '../helper/http_service.dart';
@@ -80,6 +82,9 @@ class VehicleController extends GetxController implements GetxService {
   var myVehicles = <Map<String, dynamic>>[].obs;
   // Liste des Items pour compatibilité avec VehicleItemCard
   List<Items> myVehiclesItems = [];
+
+  /// IDs véhicules ayant une réservation vendor `upcoming` ou `ongoing`.
+  final RxSet<String> vehicleIdsWithActiveBookings = <String>{}.obs;
 
   static const String bookingConfirmationInstant = 'INSTANT';
   static const String bookingConfirmationManual = 'MANUAL';
@@ -1081,56 +1086,38 @@ class VehicleController extends GetxController implements GetxService {
       // Utiliser la route publique vehicle-reference/locations
       final response = await httpGetAdmin(Config.vehicleReferenceLocations, {});
       debugPrint('🔍 [DEBUG] Réponse depuis /api/vehicle-reference/locations: $response');
-      
-      // Parsing robuste : L'API renvoie { "success": true, "data": [...] }
-      if (response != null && response is Map<String, dynamic>) {
-        if (response['success'] == true && response['data'] != null) {
-          var dataObj = response['data'];
-          List<dynamic> list;
-          
-          if (dataObj is List) {
-            list = dataObj as List;
-          } else if (dataObj is Map<String, dynamic> && dataObj['data'] != null) {
-            list = dataObj['data'] as List;
-          } else if (dataObj is Map<String, dynamic> && dataObj['locations'] != null) {
-            list = dataObj['locations'] as List;
-          } else {
-            debugPrint('⚠️ [VEHICLE] Structure de data inattendue: ${dataObj.runtimeType}');
-            list = [];
-          }
-          
-          debugPrint('✅ [VEHICLE] Structure détectée - longueur: ${list.length}');
-          
+
+      final list = _vehicleReferenceList(
+        response,
+        nestedKeys: const ['locations'],
+      );
+      debugPrint('✅ [VEHICLE] Structure détectée - longueur: ${list.length}');
+
+      try {
+        final processedList = <Map<String, dynamic>>[];
+        for (final item in list) {
+          if (item is! Map) continue;
           try {
-            // Utiliser assignAll pour une mise à jour réactive complète
-            final processedList = <Map<String, dynamic>>[];
-            for (var item in list) {
-              if (item is Map<String, dynamic>) {
-                try {
-                  // S'assurer que l'id utilise _id si présent (mapping MongoDB)
-                  if (item['_id'] != null && item['id'] == null) {
-                    item['id'] = item['_id'].toString();
-                  }
-                  processedList.add(item);
-                } catch (e, stackTrace) {
-                  debugPrint('❌ [VEHICLE] Erreur sur l\'élément: $item');
-                  debugPrint('❌ [VEHICLE] Erreur: $e');
-                  debugPrint('❌ [VEHICLE] StackTrace: $stackTrace');
-                }
-              }
+            final map = Map<String, dynamic>.from(item);
+            final id = _extractMongoId(map['_id'] ?? map['id']);
+            if (id != null && id.isNotEmpty) {
+              map['_id'] = id;
+              map['id'] = id;
             }
-            // Utiliser assignAll pour déclencher la réactivité GetX
-            locationsList.assignAll(processedList);
-            debugPrint('✅ [VEHICLE] locationsList mis à jour - longueur: ${locationsList.length}');
+            processedList.add(map);
           } catch (e, stackTrace) {
-            debugPrint('❌ [VEHICLE] Erreur lors du parsing Locations: $e');
+            debugPrint('❌ [VEHICLE] Erreur sur l\'élément: $item');
+            debugPrint('❌ [VEHICLE] Erreur: $e');
             debugPrint('❌ [VEHICLE] StackTrace: $stackTrace');
-            showErrorToastMessage('Erreur lors du parsing des localisations: $e');
           }
-        } else {
-          debugPrint('⚠️ [VEHICLE] response["success"] != true ou response["data"] est NULL');
-          debugPrint('📋 [VEHICLE] Structure complète: $response');
         }
+        locationsList.assignAll(processedList);
+        debugPrint(
+            '✅ [VEHICLE] locationsList mis à jour - longueur: ${locationsList.length}');
+      } catch (e, stackTrace) {
+        debugPrint('❌ [VEHICLE] Erreur lors du parsing Locations: $e');
+        debugPrint('❌ [VEHICLE] StackTrace: $stackTrace');
+        showErrorToastMessage('Erreur lors du parsing des localisations: $e');
       }
     } catch (e) {
       debugPrint('❌ [VEHICLE] Erreur lors de la récupération des localisations: $e');
@@ -1334,6 +1321,7 @@ class VehicleController extends GetxController implements GetxService {
           // isLoadingMyVehicles.value = false est appelé APRÈS que la liste soit totalement remplie
           isLoadingMyVehicles.value = false;
           update();
+          await refreshVehiclesWithActiveBookings();
         } else {
           debugPrint('⚠️ [VEHICLE] myItemsModel.data ou items est null');
           isLoadingMyVehicles.value = false;
@@ -1356,6 +1344,57 @@ class VehicleController extends GetxController implements GetxService {
       isLoadingMyVehicles.value = false;
       update();
     }
+  }
+
+  /// Charge les réservations vendor upcoming/ongoing pour verrouiller l'édition.
+  Future<void> refreshVehiclesWithActiveBookings() async {
+    try {
+      final results = await Future.wait([
+        _vendorBookingIdsForType('upcoming'),
+        _vendorBookingIdsForType('ongoing'),
+      ]);
+      final ids = <String>{...results[0], ...results[1]};
+      vehicleIdsWithActiveBookings
+        ..clear()
+        ..addAll(ids);
+      debugPrint(
+          '🔒 [VEHICLE] ${ids.length} véhicule(s) avec réservation active');
+    } catch (e) {
+      debugPrint('❌ [VEHICLE] refreshVehiclesWithActiveBookings: $e');
+    }
+  }
+
+  Future<Set<String>> _vendorBookingIdsForType(String type) async {
+    final ids = <String>{};
+    try {
+      final result = await httpPost(Config.vendorbookingRecord, {
+        'type': type,
+        'offset': '0',
+      });
+      if (result == null) return ids;
+      final model = BookingModel.fromJson(result);
+      for (final booking in model.data?.bookings ?? const <Bookings>[]) {
+        final status = booking.status;
+        if (status != null &&
+            status.toString().trim().isNotEmpty &&
+            !VehicleEditLockHelper.isActiveBookingStatus(status) &&
+            VehicleEditLockHelper.terminalStatuses.contains(
+              status.toString().trim().toLowerCase(),
+            )) {
+          continue;
+        }
+        void addId(dynamic raw) {
+          final v = raw?.toString().trim() ?? '';
+          if (v.isNotEmpty && v != 'null') ids.add(v);
+        }
+
+        addId(booking.itemid);
+        addId(booking.vehicleId);
+      }
+    } catch (e) {
+      debugPrint('❌ [VEHICLE] vendor bookings type=$type: $e');
+    }
+    return ids;
   }
 
   /// Récupère la liste des règles depuis l'API Node.js

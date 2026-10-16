@@ -24,7 +24,7 @@ import '../../../controller/booking_controller.dart';
 import '../../../controller/items_detail_controller.dart';
 import '../../../controller/add_address_controller.dart';
 import '../../../model/vehicle_home_model.dart';
-import '../../myaccount/addaddress/user_address.dart';
+import 'select_checkout_address_screen.dart';
 import '../../../helper/vehicle_rules_helper.dart';
 import '../../../utils/common_widget.dart';
 import '../../../utils/vehicle_common_widgets.dart';
@@ -243,7 +243,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                             if (!isPolicyAccepted) {
                                               ScaffoldMessenger.of(context).showSnackBar(
                                                 SnackBar(
-                                                  content: Text("Veuillez accepter la politique d'annulation avant de continuer.".tr),
+                                                  content: Text("accept_cancellation_policy_before_continue".tr),
                                                   backgroundColor: Colors.orange,
                                                   duration: const Duration(seconds: 3),
                                                   action: SnackBarAction(
@@ -463,7 +463,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                         ?.onlinePayment
                                                         .toString() ==
                                                     "Inactive"
-                                                ? "Confirm"
+                                                ? "Confirm".tr
                                                 : "Pay now".tr,
                                             style: heading2(context)
                                                 .copyWith(color: bgColor),
@@ -555,8 +555,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                       SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          "Note : Vous pourrez finaliser votre profil (permis) plus tard dans votre espace compte."
-                                              .tr,
+                                          "kyc_complete_license_later".tr,
                                           style: TextStyle(
                                             color: Colors.orange.shade900,
                                             fontSize: 13,
@@ -794,7 +793,10 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                                 .seatCapicity !=
                                                             null)
                                                           Text(
-                                                            "${widget.itemDetails!.seatCapicity} Seats",
+                                                            'vehicle_seats_count'.trParams({
+                                                              'count':
+                                                                  '${widget.itemDetails!.seatCapicity}',
+                                                            }),
                                                             style: regular3(
                                                                     context)
                                                                 .copyWith(
@@ -888,7 +890,10 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                   width: 5,
                                                 ),
                                                 Text(
-                                                  "By - ${widget.itemDetails!.hostFirstName ?? ""}",
+                                                  'host_listed_by'.trParams({
+                                                    'name':
+                                                        '${widget.itemDetails!.hostFirstName ?? ""}',
+                                                  }),
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   style: regular3(context)
@@ -1461,7 +1466,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                           ),
                                                           const Spacer(),
                                                           Text(
-                                                            "- ${savedAmount.toStringAsFixed(2)} MAD",
+                                                            "- ${savedAmount.toStringAsFixed(2)} ${'currency_mad'.tr}",
                                                             style: regular2(
                                                                     context)
                                                                 .copyWith(
@@ -1600,7 +1605,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                     ),
                                                     children: [
                                                       TextSpan(
-                                                        text: "J'ai lu et j'accepte ".tr,
+                                                        text: "i_have_read_and_accept".tr,
                                                       ),
                                                       WidgetSpan(
                                                         child: GestureDetector(
@@ -1608,7 +1613,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                             // Ouvrir la modale de détails de la politique
                                                             String policy = widget.itemDetails?.cancellationReasonTitle ?? 
                                                                            widget.itemDetails?.cancellationReason ?? 
-                                                                           'Non spécifiée';
+                                                                           'not_specified'.tr;
                                                             print('✅ [FIX_CONFIRMED] Policy chargée: $policy');
                                                             debugPrint('✅ [FIX_CONFIRMED] Policy chargée: $policy');
                                                             
@@ -1619,7 +1624,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                                     .cancellationReasonDescription);
                                                           },
                                                           child: Text(
-                                                            "la politique d'annulation".tr,
+                                                            "cancellation_policy_link".tr,
                                                             style: regular3(context).copyWith(
                                                               color: getColorBasedOnActiveModuleid(),
                                                               decoration: TextDecoration.underline,
@@ -1638,7 +1643,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                                                   // Tester tous les champs possibles
                                                   String policy = widget.itemDetails?.cancellationReasonTitle ?? 
                                                                  widget.itemDetails?.cancellationReason ?? 
-                                                                 'Non spécifiée';
+                                                                 'not_specified'.tr;
                                                   print('✅ [FIX_CONFIRMED] Policy chargée: $policy');
                                                   debugPrint('✅ [FIX_CONFIRMED] Policy chargée: $policy');
                                                   
@@ -1830,12 +1835,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
   }
 
   Future<void> _openProfileAddressEditor() async {
-    if (Get.isRegistered<AddAddressController>()) {
-      final addr = Get.find<AddAddressController>();
-      addr.preventDate.value = true;
-      addr.addressSavePopCount = 1;
-    }
-    await Get.to(() => const UserAddress());
+    await Get.to(() => const SelectCheckoutAddressScreen());
     if (!mounted) return;
     await getData(
       bookingController.textEditingController.text,
@@ -1847,35 +1847,41 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
     required BuildContext context,
     required String label,
     required bool selected,
+    required bool enabled,
     required VoidCallback onTap,
   }) {
+    final Color accent = getColorBasedOnActiveModuleid();
+    final Color textColor = !enabled
+        ? Colors.grey
+        : (selected ? accent : notifires.getwhiteblackcolor);
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          decoration: BoxDecoration(
-            color: selected
-                ? getColorBasedOnActiveModuleid().withOpacity(0.12)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected
-                  ? getColorBasedOnActiveModuleid()
-                  : Colors.grey.withOpacity(0.35),
+      child: Opacity(
+        opacity: enabled ? 1 : 0.55,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            decoration: BoxDecoration(
+              color: selected && enabled
+                  ? accent.withOpacity(0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: selected && enabled
+                    ? accent
+                    : Colors.grey.withOpacity(enabled ? 0.45 : 0.25),
+              ),
             ),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: regular2(context).copyWith(
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              color: selected
-                  ? getColorBasedOnActiveModuleid()
-                  : notifires.getGrey3Whitecolor,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: regular2(context).copyWith(
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: textColor,
+              ),
             ),
           ),
         ),
@@ -1902,8 +1908,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
             bookingController.getItemPrices?.data?.grossPrice ?? '0',
           ) ??
           0.0;
-      final showUnservedWarning =
-          zones.isNotEmpty && address.isNotEmpty && !served;
+      final showDeliveryDetails = wantsDelivery && served;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1915,6 +1920,7 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                   context: context,
                   label: 'pickup_on_site'.tr,
                   selected: !wantsDelivery,
+                  enabled: true,
                   onTap: () => bookingController.selectPickup(),
                 ),
                 const SizedBox(width: 8),
@@ -1922,54 +1928,47 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
                   context: context,
                   label: 'home_delivery'.tr,
                   selected: wantsDelivery,
+                  enabled: served,
                   onTap: () {
                     if (address.isEmpty) {
                       _openProfileAddressEditor();
                       return;
                     }
                     bookingController.selectProfileHomeDelivery();
+                    setState(() {});
                   },
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    address.isEmpty
-                        ? 'add_delivery_address'.tr
-                        : 'delivery_to_address'.trParams({'address': address}),
-                    style: regular2(context).copyWith(
-                      color: notifires.getGrey3Whitecolor,
+            if (showDeliveryDetails) ...[
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'delivery_to_address'.trParams({'address': address}),
+                      style: regular2(context).copyWith(
+                        color: notifires.getGrey3Whitecolor,
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  tooltip: 'edit_address'.tr,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                  onPressed: _openProfileAddressEditor,
-                  icon: Icon(
-                    Icons.edit_outlined,
-                    size: 20,
-                    color: getColorBasedOnActiveModuleid(),
+                  IconButton(
+                    tooltip: 'edit_address'.tr,
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 36, minHeight: 36),
+                    onPressed: _openProfileAddressEditor,
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 20,
+                      color: getColorBasedOnActiveModuleid(),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            if (showUnservedWarning)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'delivery_city_not_served'.tr,
-                  style: regular2(context).copyWith(
-                    color: Colors.orange[800],
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                ],
               ),
+            ],
+            const SizedBox(height: 10),
           ],
           Row(
             children: [

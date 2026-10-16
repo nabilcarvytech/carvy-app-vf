@@ -637,10 +637,10 @@ class _EReceiptScreenState extends State<EReceiptScreen> {
                                   await launchUrl(Uri.parse(url));
                                 } else {
                                   showErrorToastMessage(
-                                      "Could not open the map");
+                                      "Could not open the map".tr);
                                 }
                               } else {
-                                showErrorToastMessage("Location not found");
+                                showErrorToastMessage("Location not found".tr);
                               }
                             },
                             child: Container(

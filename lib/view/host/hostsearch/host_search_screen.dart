@@ -25,6 +25,7 @@ import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import '../../itemdetail/vehicle/vehicle_detail_screen.dart';
 import 'package:carvy/controller/vehicle_controller.dart';
+import 'package:carvy/helper/vehicle_edit_lock_helper.dart';
 
 class HostSearchScreen extends StatefulWidget {
   final ScreenMode? mode;
@@ -247,6 +248,8 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
                       // Gestion du Loader : s'affiche uniquement si la liste est vide ET en chargement
                       final isLoading = vehicleController.isLoadingMyVehicles.value;
                       final hasVehicles = vehicleController.myVehiclesItems.isNotEmpty;
+                      vehicleController
+                          .vehicleIdsWithActiveBookings.length;
                       
                       // Si on charge ET qu'on n'a pas encore de véhicules, afficher le loader
                       if (isLoading && !hasVehicles) {
@@ -279,7 +282,7 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
                                   const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 1,
                                 crossAxisSpacing: 8,
-                                mainAxisExtent: 335,
+                                mainAxisExtent: 355,
                                 mainAxisSpacing: 8,
                               ),
                               itemCount: itemsList.length,
@@ -344,6 +347,12 @@ class _HostSearchScreenState extends State<HostSearchScreen> {
                                     );
                                   },
                                   onEdit: () async {
+                                    if (VehicleEditLockHelper.isLocked(
+                                        itemsList[index])) {
+                                      showErrorToastMessage(
+                                          'edit_blocked_active_booking'.tr);
+                                      return;
+                                    }
                                     // Afficher un loader pendant la récupération des détails
                                     showLoading();
                                     

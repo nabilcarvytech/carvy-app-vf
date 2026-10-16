@@ -46,30 +46,37 @@ class _OrdersScreenState extends State<OrdersScreen>
     super.dispose();
   }
 
-  void _onExitPushedOrders(BuildContext context) {
-    generalController.tabController.index = 0;
-    generalController.currentIndex.value = 0;
-    if (Navigator.of(context).canPop()) {
+  bool get _openedFromDashboardShortcut => widget.fromPropBooking == true;
+
+  void _goToHostDashboard() {
+    try {
+      if (generalController.tabControllerHost.index != 0) {
+        generalController.tabControllerHost.animateTo(0);
+      }
+    } catch (_) {}
+    generalController.currentIndexHost.value = 0;
+  }
+
+  void _onBackPressed() {
+    if (_openedFromDashboardShortcut) {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+        return;
+      }
       Get.back();
+      return;
     }
+    _goToHostDashboard();
   }
 
   @override
   Widget build(BuildContext context) {
     notifires = Provider.of<ColorNotifires>(context, listen: true);
-    final bool isPushedRoute = Navigator.of(context).canPop();
     return PopScope(
-      canPop: false,
+      canPop: _openedFromDashboardShortcut,
       onPopInvoked: (bool didPop) {
         if (didPop) return;
-        if (!isPushedRoute) {
-          if (generalController.currentIndexHost.value == 2) {
-            generalController.tabControllerHost.animateTo(0);
-            generalController.currentIndexHost.value = 0;
-          }
-          return;
-        }
-        _onExitPushedOrders(context);
+        _onBackPressed();
       },
       child: Align(
         alignment: Alignment.center,
@@ -86,11 +93,9 @@ class _OrdersScreenState extends State<OrdersScreen>
                 scrolledUnderElevation: 0,
                 leadingWidth: 80,
                 centerTitle: true,
-                leading: !isPushedRoute
-                    ? const SizedBox()
-                    : IconButton(
+                leading: IconButton(
                         padding: const EdgeInsets.only(left: 12),
-                        onPressed: () => _onExitPushedOrders(context),
+                        onPressed: _onBackPressed,
                         icon: Icon(
                           Icons.arrow_back_ios_new,
                           color: whiteColor,

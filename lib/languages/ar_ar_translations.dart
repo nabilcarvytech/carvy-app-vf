@@ -1462,4 +1462,47 @@ const Map<String, String> arAR = {
   "Small": "مدمجة / صغيرة",
   "Petite": "مدمجة / صغيرة",
   "Cet e-mail est déjà utilisé.": "هذا البريد الإلكتروني مستخدم بالفعل.",
+  "select_my_address": "اختر عنواني",
+  "add_new_address": "إضافة عنوان جديد",
+  "address_not_served_for_this_vehicle":
+      "هذا العنوان غير مشمول بخدمة التوصيل إلى المنزل لهذه السيارة",
+  "vehicle_seats_count": "@count مقاعد",
+  "host_listed_by": "بواسطة - @name",
+  "kyc_complete_license_later":
+      "ملاحظة: يمكنك إكمال ملفك (رخصة القيادة) لاحقًا من حسابك.",
+  "i_have_read_and_accept": "لقد قرأت وأوافق على ",
+  "cancellation_policy_link": "سياسة الإلغاء",
+  "accept_cancellation_policy_before_continue":
+      "يرجى قبول سياسة الإلغاء قبل المتابعة.",
+  "accept_cancellation_policy_to_continue":
+      "يرجى قبول سياسة الإلغاء للمتابعة.",
+  "not_specified": "غير محدد",
+  "payment_time_expired": "انتهى وقت الدفع",
+  "payment_session_timed_out":
+      "انتهت صلاحية جلسة الدفع. جارٍ إعادة التوجيه إلى ملخص الحجز...",
+  "OTP verification failed.": "فشل التحقق من رمز OTP.",
+  "Drop OTP?": "رمز تسليم السيارة؟",
+  "Action": "إجراء",
+  "Could not open the map": "تعذر فتح الخريطة",
+  "network_error_contact_server":
+      "خطأ في الشبكة: تعذر الاتصال بالخادم",
+  "Images uploaded successfully": "تم رفع الصور بنجاح",
+  "Failed to upload images": "فشل رفع الصور",
+  "Invalid response from server": "استجابة غير صالحة من الخادم",
+  "failed_to_upload_images_detail": "فشل رفع الصور: @error",
+  "vehicle_safety_photos_title": "حالة المركبة: صور الأمان",
+  "vehicle_photo_front": "الأمام",
+  "vehicle_photo_rear": "الخلف",
+  "vehicle_photo_preview": "معاينة",
+  "vehicle_photo_protect_deposit":
+      "احمِ تأمينك. التقط صورًا للسيارة قبل الانطلاق لإثبات حالتها الأولية في حال النزاع.",
+  "vehicle_photo_preexisting_damage": "أضرار سابقة؟",
+  "vehicle_photo_report_scratch": "حدد كل خدش بإصبعك.",
+  "only_added_images_to_max":
+      "تمت إضافة @remaining صورة/صور فقط للوصول إلى الحد الأقصى @max",
+  "max_images_allowed": "الحد الأقصى @max صور",
+  "Please add at least 2 images": "يرجى إضافة صورتين على الأقل",
+  "edit_blocked_active_booking":
+      "التعديل غير ممكن: هذه المركبة لديها حجز مؤكد جارٍ",
+  "booking_in_progress_badge": "حجوزة جارية",
 };

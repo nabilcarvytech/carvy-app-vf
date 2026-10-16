@@ -686,10 +686,24 @@ class BookingController extends GetxController implements GetxService {
   bool get hasHomeDeliverySelection =>
       selectedDeliveryZoneKey.value != DeliveryFeeHelper.pickupKey;
 
+  List<dynamic> _locationCatalogue() {
+    try {
+      return Get.find<VehicleController>().locationsList.toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   String resolveCustomerDeliveryCity() {
     try {
-      final fromAddress = Get.find<AddAddressController>().effectiveCity;
-      if (fromAddress.isNotEmpty) return fromAddress;
+      final addr = Get.find<AddAddressController>();
+      final fromField = addr.effectiveCity;
+      if (fromField.isNotEmpty) return fromField;
+      final extracted = CityNameHelper.extractKnownCityToken(
+            addr.checkoutAddressLine,
+          ) ??
+          CityNameHelper.extractKnownCityToken(addr.displayFullAddress);
+      if (extracted != null && extracted.isNotEmpty) return extracted;
     } catch (_) {}
     return DeliveryFeeHelper.cityFromStoredCustomerAddress();
   }
@@ -733,9 +747,10 @@ class BookingController extends GetxController implements GetxService {
     } catch (_) {}
     if (catalogue.isEmpty) return zones;
     return zones.map((z) {
-      if (CityNameHelper.extractKnownCityToken(z.cityLabel) != null) {
-        return z;
-      }
+      final alreadyNamed =
+          CityNameHelper.extractKnownCityToken(z.cityLabel) != null &&
+              !RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(z.cityLabel.trim());
+      if (alreadyNamed) return z;
       for (final loc in catalogue) {
         var id = '';
         var name = '';
@@ -749,10 +764,14 @@ class BookingController extends GetxController implements GetxService {
             name = (loc.cityName ?? loc.name ?? '').toString();
           } catch (_) {}
         }
-        if (id.isNotEmpty && id == z.key && name.trim().isNotEmpty) {
+        if (id.isNotEmpty &&
+            id.trim().toLowerCase() == z.key.trim().toLowerCase() &&
+            name.trim().isNotEmpty) {
+          final resolved = name.trim();
           return DeliveryZoneOption(
             key: z.key,
-            cityLabel: name.trim(),
+            cityLabel: resolved,
+            matchLabel: resolved,
             price: z.price,
           );
         }
@@ -784,12 +803,14 @@ class BookingController extends GetxController implements GetxService {
         ),
       ),
     );
-    customerDeliveryCity.value = resolveCustomerDeliveryCity();
+    customerDeliveryCity.value =
+        DeliveryFeeHelper.sanitizeCity(resolveCustomerDeliveryCity());
     customerFullAddress.value = resolveCustomerFullAddress();
 
     final matched = DeliveryFeeHelper.matchZone(
       deliveryZones.toList(),
       customerDeliveryCity.value,
+      catalogue: _locationCatalogue(),
     );
     deliveryCityServed.value = matched != null;
 
@@ -822,17 +843,23 @@ class BookingController extends GetxController implements GetxService {
   }
 
   void selectProfileHomeDelivery({bool applyToGross = true}) {
-    wantsHomeDelivery.value = true;
+    customerDeliveryCity.value =
+        DeliveryFeeHelper.sanitizeCity(resolveCustomerDeliveryCity());
+    customerFullAddress.value = resolveCustomerFullAddress();
     final matched = DeliveryFeeHelper.matchZone(
       deliveryZones.toList(),
       customerDeliveryCity.value,
+      catalogue: _locationCatalogue(),
     );
     deliveryCityServed.value = matched != null;
     if (matched == null) {
+      wantsHomeDelivery.value = false;
       selectDeliveryZone(DeliveryFeeHelper.pickupKey, applyToGross: applyToGross);
       return;
     }
+    wantsHomeDelivery.value = true;
     selectDeliveryZone(matched.key, applyToGross: applyToGross);
+    update();
   }
 
   void selectDeliveryZone(String key, {bool applyToGross = true}) {
