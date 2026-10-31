@@ -6137,20 +6137,20 @@ void showOpenAppSettingsDialog(BuildContext context, String message) {
     builder: (BuildContext context) {
       return Platform.isIOS
           ? CupertinoAlertDialog(
-              title: const Text("Permission Required"),
+              title: Text("Permission Required".tr),
               content: Text(
                 message,
               ),
               actions: <Widget>[
                 CupertinoDialogAction(
-                  child: const Text("Cancel"),
+                  child: Text("Cancel".tr),
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
                 ),
                 CupertinoDialogAction(
-                  child: const Text(
-                    "Open Settings",
+                  child: Text(
+                    "Open Settings".tr,
                   ),
                   onPressed: () {
                     openAppSettings();
@@ -6162,7 +6162,7 @@ void showOpenAppSettingsDialog(BuildContext context, String message) {
           : AlertDialog(
               backgroundColor: notifires.getbgcolor,
               title: Text(
-                "Permission Required",
+                "Permission Required".tr,
                 style: heading3Grey1(context).copyWith(
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -6174,7 +6174,7 @@ void showOpenAppSettingsDialog(BuildContext context, String message) {
               actions: <Widget>[
                 TextButton(
                   child: Text(
-                    "Cancel",
+                    "Cancel".tr,
                     style: heading3Grey1(context).copyWith(
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -6185,7 +6185,7 @@ void showOpenAppSettingsDialog(BuildContext context, String message) {
                 ),
                 TextButton(
                   child: Text(
-                    "Open Settings",
+                    "Open Settings".tr,
                     style: heading3Grey1(context).copyWith(
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -6397,10 +6397,10 @@ class NotFoundPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Page Not Found')),
-      body: const Center(
+      appBar: AppBar(title: Text('Page Not Found'.tr)),
+      body: Center(
         child: Text(
-          'Oops! The page you are looking for does not exist.',
+          'Oops! The page you are looking for does not exist.'.tr,
           style: TextStyle(fontSize: 18, color: Colors.red),
         ),
       ),

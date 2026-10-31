@@ -237,7 +237,7 @@ class AgencyController extends GetxController implements GetxService {
   Future<void> submitRegistration() async {
     // Vérifier que toutes les données sont remplies
     if (!isFormComplete()) {
-      showErrorToastMessage('Veuillez remplir tous les champs obligatoires');
+      showErrorToastMessage('Veuillez remplir tous les champs obligatoires'.tr);
       return;
     }
 
@@ -293,7 +293,7 @@ class AgencyController extends GetxController implements GetxService {
         );
       } else {
         closeLoading();
-        showErrorToastMessage('Le fichier logo est introuvable');
+        showErrorToastMessage('Le fichier logo est introuvable'.tr);
         return;
       }
 

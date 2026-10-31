@@ -26,26 +26,26 @@ class CleanEditVehicleScreen extends StatelessWidget {
         }
         if (controller.errorMessage.isNotEmpty) {
           return Scaffold(
-            appBar: AppBar(title: const Text("Erreur")),
+            appBar: AppBar(title: Text("Erreur".tr)),
             body: Center(child: Text(controller.errorMessage)),
           );
         }
 
         return Scaffold(
-          appBar: AppBar(title: const Text("Modifier le véhicule (V2)")),
+          appBar: AppBar(title: Text("Modifier le véhicule (V2)".tr)),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Titre"),
+                Text("Titre".tr),
                 TextField(
                   controller: controller.titleController,
                   decoration: const InputDecoration(border: OutlineInputBorder())
                 ),
                 const SizedBox(height: 16),
                 
-                const Text("Prix"),
+                Text("Prix".tr),
                 TextField(
                   controller: controller.priceController,
                   keyboardType: TextInputType.number,
@@ -53,15 +53,15 @@ class CleanEditVehicleScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 
-                const Text("Marque"),
+                Text("Marque".tr),
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(border: OutlineInputBorder()),
-                  hint: const Text("Sélectionner une marque"),
+                  hint: Text("Sélectionner une marque".tr),
                   value: _getValidDropdownValue(controller.brandsList, controller.selectedBrandId),
                   items: controller.brandsList.map((item) {
                     return DropdownMenuItem<String>(
                       value: item['_id']?.toString() ?? item['id']?.toString(),
-                      child: Text(item['name']?.toString() ?? "Inconnu"),
+                      child: Text(item['name']?.toString() ?? "Inconnu".tr),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -73,7 +73,7 @@ class CleanEditVehicleScreen extends StatelessWidget {
                 const SizedBox(height: 32),
                 ElevatedButton(
                   onPressed: () => controller.saveChanges(),
-                  child: const Center(child: Text("Sauvegarder")),
+                  child: Center(child: Text("Sauvegarder".tr)),
                 )
               ],
             ),

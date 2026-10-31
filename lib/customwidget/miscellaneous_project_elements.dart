@@ -1976,7 +1976,7 @@ class ShortByState extends State<ShortBy> {
           Padding(
             padding: const EdgeInsets.only(left: 10, right: 10, top: 10),
             child: Text(
-              'Sort By',
+              'Sort By'.tr,
               style: heading3(context),
             ),
           ),
@@ -1987,7 +1987,7 @@ class ShortByState extends State<ShortBy> {
                 height: 40,
                 child: RadioListTile<String>(
                   title: Text(
-                    option,
+                    option.tr,
                     style: regular2(context),
                     overflow: TextOverflow.ellipsis,
                   ),

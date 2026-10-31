@@ -1040,7 +1040,7 @@ class AuthController extends GetxController implements GetxService {
     } else {
       final err = _extractApiError(map);
       if (_isDuplicateEmailMessage(err)) {
-        registerWizardEmailError.value = 'Cet email est déjà utilisé';
+        registerWizardEmailError.value = 'Cet email est déjà utilisé'.tr;
         onDuplicateEmail?.call();
       } else if (err.isNotEmpty) {
         showErrorToastMessage(err);
@@ -1148,7 +1148,7 @@ class AuthController extends GetxController implements GetxService {
       if (!isSuccess) {
         final err = (loginModel.error ?? loginModel.message ?? '').toString();
         if (_isDuplicateEmailMessage(err)) {
-          registerWizardEmailError.value = 'Cet email est déjà utilisé';
+          registerWizardEmailError.value = 'Cet email est déjà utilisé'.tr;
           registerWizardPhoneCodeSent.value = false;
           onDuplicateEmail?.call();
           return false;
@@ -1182,7 +1182,7 @@ class AuthController extends GetxController implements GetxService {
     } catch (e) {
       _dismissRegisterLoadingOverlay(context);
       if (_isDuplicateEmailMessage(e.toString())) {
-        registerWizardEmailError.value = 'Cet email est déjà utilisé';
+        registerWizardEmailError.value = 'Cet email est déjà utilisé'.tr;
         registerWizardPhoneCodeSent.value = false;
         onDuplicateEmail?.call();
         return false;
@@ -2249,7 +2249,7 @@ class AuthController extends GetxController implements GetxService {
           } else {
             final err = (loginModel.error ?? '').toString();
             if (_isDuplicateEmailMessage(err)) {
-              registerWizardEmailError.value = 'Cet email est déjà utilisé';
+              registerWizardEmailError.value = 'Cet email est déjà utilisé'.tr;
               registerWizardPhoneCodeSent.value = false;
               onRegisterWizardDuplicateEmail?.call();
               return;

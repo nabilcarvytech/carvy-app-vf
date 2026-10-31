@@ -59,14 +59,14 @@ class AgencyRegistrationPendingScreen extends StatelessWidget {
                       const SizedBox(height: 30),
                       // Titre
                       Text(
-                        'Inscription Envoyée !',
+                        'Inscription Envoyée !'.tr,
                         style: heading1(context),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 15),
                       // Message
                       Text(
-                        'Votre demande d\'inscription a été envoyée avec succès.',
+                        'Votre demande d\'inscription a été envoyée avec succès.'.tr,
                         style: regular2(context).copyWith(
                           color: notifires.getGrey3Whitecolor,
                         ),
@@ -74,7 +74,7 @@ class AgencyRegistrationPendingScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Votre compte est en attente de validation par notre équipe.',
+                        'Votre compte est en attente de validation par notre équipe.'.tr,
                         style: regular2(context).copyWith(
                           color: notifires.getGrey3Whitecolor,
                         ),
@@ -100,7 +100,7 @@ class AgencyRegistrationPendingScreen extends StatelessWidget {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    'Vous recevrez un email de confirmation une fois votre compte validé.',
+                                    'Vous recevrez un email de confirmation une fois votre compte validé.'.tr,
                                     style: regular3(context),
                                   ),
                                 ),
@@ -117,7 +117,7 @@ class AgencyRegistrationPendingScreen extends StatelessWidget {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    'Le délai de validation est généralement de 24 à 48 heures.',
+                                    'Le délai de validation est généralement de 24 à 48 heures.'.tr,
                                     style: regular3(context),
                                   ),
                                 ),
@@ -129,7 +129,7 @@ class AgencyRegistrationPendingScreen extends StatelessWidget {
                       const SizedBox(height: 40),
                       // Bouton pour retourner à la connexion
                       CustomsButtons(
-                        text: 'Retour à la connexion',
+                        text: 'Retour à la connexion'.tr,
                         backgroundColor: acentColor,
                         onPressed: () {
                           if (webPlateForm) {

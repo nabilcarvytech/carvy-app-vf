@@ -1296,7 +1296,7 @@ class _DigitalSignatureState extends State<DigitalSignature> {
                                           width: double.infinity,
                                           child:
                                               myNetworkImage(_userSignatureUrl))
-                                      : const Text("Signature not provided")
+                                      : Text("Signature not provided".tr)
                                   : Signature(
                                       controller: userSignController,
                                       height: 350,
@@ -1493,7 +1493,7 @@ class _DigitalSignatureState extends State<DigitalSignature> {
                                           width: double.infinity,
                                           child: myNetworkImage(
                                               _vendorSignatureUrl))
-                                      : const Text("Signature not provided")
+                                      : Text("Signature not provided".tr)
                                   : Signature(
                                       controller: vendorSignController,
                                       height: 350,

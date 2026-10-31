@@ -465,12 +465,12 @@ class ProfileController extends GetxController implements GetxService {
   }) async {
     if (formKey.currentState!.validate()) {
       if (textEditingPhoneUpdateController.text.isEmpty) {
-        showErrorToastMessage("Enter mobile number");
+        showErrorToastMessage("Enter mobile number".tr);
         return;
       }
       if (textEditingPhoneUpdateController.text.length < 8 ||
           textEditingPhoneUpdateController.text.length > 12) {
-        showErrorToastMessage("Check mobile number");
+        showErrorToastMessage("Check mobile number".tr);
         return;
       }
       AuthController controller = Get.find();

@@ -152,7 +152,7 @@ class VehicleRentalBillableDaysInfoBanner extends StatelessWidget {
                   if (hasOvertimeDay) ...[
                     const SizedBox(height: 4),
                     Text(
-                      '(Incluant 1 jour pour dépassement horaire)',
+                      'billing_extra_overtime_day'.tr,
                       style: regular2(context).copyWith(
                         color: Colors.blue.shade900,
                         fontSize: 12.5,
@@ -224,8 +224,8 @@ class VehicleReturnDateWithBillingBadgeRow extends StatelessWidget {
               color: carvyBlue,
               borderRadius: BorderRadius.circular(4),
             ),
-            child: const Text(
-              '+1j facturé',
+            child: Text(
+              'billing_plus_one_day_charged'.tr,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 10.5,

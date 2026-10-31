@@ -100,12 +100,12 @@ class _EditVehicleTabScreenState extends State<EditVehicleTabScreen>
 
         debugPrint('✅ [EDIT_TAB] Données du véhicule chargées avec succès');
       } else {
-        Get.snackbar('Erreur', 'Impossible de charger les données du véhicule');
+        Get.snackbar('Erreur'.tr, 'Impossible de charger les données du véhicule'.tr);
         Get.back();
       }
     } catch (e) {
       debugPrint('❌ [EDIT_TAB] Erreur lors du chargement: $e');
-      Get.snackbar('Erreur', 'Erreur lors du chargement des données');
+      Get.snackbar('Erreur'.tr, 'Erreur lors du chargement des données'.tr);
       Get.back();
     } finally {
       setState(() {

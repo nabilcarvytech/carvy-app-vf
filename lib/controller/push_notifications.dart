@@ -676,7 +676,7 @@ Future<void> showNotification() async {
           
           // Vérifier si l'utilisateur est connecté
           if (token.isEmpty) {
-            showErrorToastMessage("Please Login first");
+            showErrorToastMessage("Please Login first".tr);
             return;
           }
           
@@ -742,7 +742,7 @@ BookingController bookingController = Get.find();
 void handleNotificationClick(String? route, var data) {
   if (NavigationGuard.isNavigating) return;
   if (token.isEmpty) {
-    showErrorToastMessage("Please Login first");
+    showErrorToastMessage("Please Login first".tr);
     return;
   }
   

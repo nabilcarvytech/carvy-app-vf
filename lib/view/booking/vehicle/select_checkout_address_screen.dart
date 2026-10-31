@@ -74,11 +74,8 @@ class _SelectCheckoutAddressScreenState
     }
     final applied = _addr.applyRecentAddress(item);
     if (applied == null) return;
-    if (Get.isRegistered<BookingController>()) {
-      Get.find<BookingController>().selectProfileHomeDelivery();
-    }
     if (!mounted) return;
-    Navigator.of(context).pop(true);
+    Navigator.of(context).pop(item);
   }
 
   Future<void> _openAddAddressForm() async {
@@ -113,7 +110,7 @@ class _SelectCheckoutAddressScreenState
         backgroundColor: notifires.getbgcolor,
         title: 'select_my_address'.tr,
         titleColor: notifires.getwhiteblackcolor,
-        onBackButtonPressed: () => Get.back(),
+        onBackButtonPressed: () => Navigator.of(context).pop(),
       ),
       body: Column(
         children: [

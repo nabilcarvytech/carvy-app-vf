@@ -23,6 +23,7 @@ import '../../../controller/general_controller.dart';
 import '../../../controller/booking_controller.dart';
 import '../../../controller/items_detail_controller.dart';
 import '../../../controller/add_address_controller.dart';
+import '../../../model/address_history_model.dart';
 import '../../../model/vehicle_home_model.dart';
 import 'select_checkout_address_screen.dart';
 import '../../../helper/vehicle_rules_helper.dart';
@@ -1835,12 +1836,17 @@ class _VehicleBookingSummaryState extends State<VehicleBookingSummary> {
   }
 
   Future<void> _openProfileAddressEditor() async {
-    await Get.to(() => const SelectCheckoutAddressScreen());
-    if (!mounted) return;
-    await getData(
-      bookingController.textEditingController.text,
-      refreshDeliveryPreference: true,
+    final selected = await Navigator.of(context).push<AddressHistoryModel>(
+      MaterialPageRoute(
+        builder: (_) => const SelectCheckoutAddressScreen(),
+      ),
     );
+    if (!mounted || selected == null) return;
+    if (Get.isRegistered<AddAddressController>()) {
+      Get.find<AddAddressController>().applyRecentAddress(selected);
+    }
+    bookingController.selectProfileHomeDelivery();
+    if (mounted) setState(() {});
   }
 
   Widget _deliveryModeChip({

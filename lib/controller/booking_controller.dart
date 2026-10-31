@@ -1645,7 +1645,7 @@ class BookingController extends GetxController implements GetxService {
       }
     } catch (e) {
       error.value = true;
-      showErrorToastMessage("Failed to load wallet data");
+      showErrorToastMessage("Failed to load wallet data".tr);
     } finally {
       safeUpdate();
     }
@@ -4481,7 +4481,7 @@ class BookingController extends GetxController implements GetxService {
     } catch (e) {
       closeLoading();
       print("Error in OTP verification: $e");
-      showErrorToastMessage("Something went wrong, please try again.");
+      showErrorToastMessage("Something went wrong, please try again.".tr);
     }
     safeUpdate();
     return result;

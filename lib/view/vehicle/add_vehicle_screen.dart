@@ -169,7 +169,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         // Si le rafraîchissement échoue, vérifier si c'est un problème de token
         final currentToken = GetStorage().read('token') ?? token;
         if (currentToken.isEmpty) {
-          showErrorToastMessage('Session expirée. Veuillez vous reconnecter.');
+          showErrorToastMessage('Session expirée. Veuillez vous reconnecter.'.tr);
           Future.delayed(const Duration(seconds: 1), () {
             logout();
             Get.offAll(() => const LoginScreen());
@@ -195,14 +195,14 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           vehicleController.makesList.isEmpty) {
         // Ne pas rediriger immédiatement, peut-être que c'est juste un problème réseau
         // Mais afficher un message d'erreur
-        showErrorToastMessage('Impossible de charger les données. Vérifiez votre connexion.');
+        showErrorToastMessage('Impossible de charger les données. Vérifiez votre connexion.'.tr);
       }
     } catch (e) {
       final errorString = e.toString().toLowerCase();
       if (errorString.contains('invalid signature') || 
           errorString.contains('invalid token') ||
           errorString.contains('unauthorized')) {
-        showErrorToastMessage('Session expirée. Veuillez vous reconnecter.');
+        showErrorToastMessage('Session expirée. Veuillez vous reconnecter.'.tr);
         Future.delayed(const Duration(seconds: 1), () {
           logout();
           Get.offAll(() => const LoginScreen());
@@ -664,7 +664,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       if (mounted) {
         setState(() => _isInitializingEdit = false);
         showErrorToastMessage(
-            'ID du véhicule invalide. Impossible de modifier ce véhicule.');
+            'ID du véhicule invalide. Impossible de modifier ce véhicule.'.tr);
         Get.back();
       }
       return;
@@ -1421,7 +1421,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     if (!_isOtherModelSelected) {
       if (_selectedModel == null) {
         if (showErrors) {
-          showErrorToastMessage('Veuillez sélectionner un modèle');
+          showErrorToastMessage('Veuillez sélectionner un modèle'.tr);
         }
         return false;
       }
@@ -1430,7 +1430,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
     if (_otherModelController.text.trim().isEmpty) {
       if (showErrors) {
-        showErrorToastMessage('Veuillez saisir le nom du modèle');
+        showErrorToastMessage('Veuillez saisir le nom du modèle'.tr);
       }
       return false;
     }
@@ -1438,7 +1438,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     if (!await _ensureOtherModelCatalogBinding()) {
       if (showErrors) {
         showErrorToastMessage(
-          'Impossible de récupérer le modèle « Autre » du catalogue. Réessayez.',
+          'Impossible de récupérer le modèle « Autre » du catalogue. Réessayez.'.tr,
         );
       }
       return false;
@@ -1447,7 +1447,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     if (!_isValidMongoObjectId(_selectedModel?.id)) {
       if (showErrors) {
         showErrorToastMessage(
-          'Le modèle du véhicule est requis. Veuillez sélectionner un modèle valide.',
+          'Le modèle du véhicule est requis. Veuillez sélectionner un modèle valide.'.tr,
         );
       }
       return false;
@@ -1459,34 +1459,34 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   Future<bool> _validateIdentiteStep() async {
     if (_selectedCategoryIds.isEmpty) {
       showErrorToastMessage(
-          'Veuillez sélectionner au moins une catégorie de véhicule');
+          'Veuillez sélectionner au moins une catégorie de véhicule'.tr);
       return false;
     }
     if (_selectedMake == null) {
-      showErrorToastMessage('Veuillez sélectionner une marque');
+      showErrorToastMessage('Veuillez sélectionner une marque'.tr);
       return false;
     }
     if (_isOtherMakeSelected && _otherMakeController.text.trim().isEmpty) {
-      showErrorToastMessage('Veuillez saisir le nom de la marque');
+      showErrorToastMessage('Veuillez saisir le nom de la marque'.tr);
       return false;
     }
     if (!await _validateModelSelection()) {
       return false;
     }
     if (_selectedOdometer == null) {
-      showErrorToastMessage('Veuillez sélectionner un kilométrage');
+      showErrorToastMessage('Veuillez sélectionner un kilométrage'.tr);
       return false;
     }
     if (_selectedYear == null || _selectedYear!.isEmpty) {
-      showErrorToastMessage('Veuillez sélectionner l\'année');
+      showErrorToastMessage('Veuillez sélectionner l\'année'.tr);
       return false;
     }
     if (_seatsController.text.isEmpty) {
-      showErrorToastMessage('Veuillez saisir le nombre de sièges');
+      showErrorToastMessage('Veuillez saisir le nombre de sièges'.tr);
       return false;
     }
     if (_selectedFuelType == null) {
-      showErrorToastMessage('Veuillez sélectionner un type de carburant');
+      showErrorToastMessage('Veuillez sélectionner un type de carburant'.tr);
       return false;
     }
     return true;
@@ -1621,17 +1621,17 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     }
 
     if (_selectedCategoryIds.isEmpty) {
-      showErrorToastMessage('Veuillez sélectionner au moins une catégorie de véhicule');
+      showErrorToastMessage('Veuillez sélectionner au moins une catégorie de véhicule'.tr);
       _goToStep(1);
       return;
     }
     if (_selectedMake == null) {
-      showErrorToastMessage('Veuillez sélectionner une marque');
+      showErrorToastMessage('Veuillez sélectionner une marque'.tr);
       _goToStep(0);
       return;
     }
     if (_isOtherMakeSelected && _otherMakeController.text.trim().isEmpty) {
-      showErrorToastMessage('Veuillez saisir le nom de la marque');
+      showErrorToastMessage('Veuillez saisir le nom de la marque'.tr);
       _goToStep(0);
       return;
     }
@@ -1640,36 +1640,36 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       return;
     }
     if (_selectedOdometer == null) {
-      showErrorToastMessage('Veuillez sélectionner un kilométrage');
+      showErrorToastMessage('Veuillez sélectionner un kilométrage'.tr);
       _goToStep(0);
       return;
     }
     if (_selectedYear == null || _selectedYear!.isEmpty) {
-      showErrorToastMessage('Veuillez sélectionner l\'année');
+      showErrorToastMessage('Veuillez sélectionner l\'année'.tr);
       _goToStep(0);
       return;
     }
     if (_seatsController.text.isEmpty) {
-      showErrorToastMessage('Veuillez saisir le nombre de sièges');
+      showErrorToastMessage('Veuillez saisir le nombre de sièges'.tr);
       _goToStep(0);
       return;
     }
     if (_selectedFuelType == null) {
-      showErrorToastMessage('Veuillez sélectionner un type de carburant');
+      showErrorToastMessage('Veuillez sélectionner un type de carburant'.tr);
       _goToStep(0);
       return;
     }
     // Validation des images (maintenant dans une étape séparée ou intégrée ailleurs)
     // Les images seront gérées différemment selon le nouveau flux
     if (_pricePerDayController.text.isEmpty) {
-      showErrorToastMessage('Veuillez entrer un prix par jour');
+      showErrorToastMessage('Veuillez entrer un prix par jour'.tr);
       _goToStep(2);
       return;
     }
     if (_hasHomeDelivery) {
       if (_deliveryLocations.isEmpty) {
         showErrorToastMessage(
-            'Veuillez ajouter au moins une ville de livraison.');
+            'Veuillez ajouter au moins une ville de livraison.'.tr);
         _goToStep(2);
         return;
       }
@@ -1683,7 +1683,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           showErrorToastMessage(
             cityName != 'Ville inconnue'.tr
                 ? 'Saisissez un prix pour $cityName ou activez la livraison gratuite.'
-                : 'Saisissez un prix ou activez la livraison gratuite.',
+                : 'Saisissez un prix ou activez la livraison gratuite.'.tr,
           );
           _goToStep(2);
           return;
@@ -1697,7 +1697,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
       final double basePrice = double.tryParse(_pricePerDayController.text) ?? 0.0;
       if (basePrice <= 0) {
-        showErrorToastMessage('Le prix doit être supérieur à 0');
+        showErrorToastMessage('Le prix doit être supérieur à 0'.tr);
         return;
       }
 
@@ -1729,7 +1729,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       final double longitude = vehicleController.selectedLongitude.value;
 
       if (latitude == 0.0 || longitude == 0.0) {
-        showErrorToastMessage('Veuillez sélectionner une localisation sur la carte');
+        showErrorToastMessage('Veuillez sélectionner une localisation sur la carte'.tr);
         _goToStep(3);
         return;
       }
@@ -1742,19 +1742,19 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       
       // Validation stricte des IDs avant soumission
       if (!_isValidMongoObjectId(extractedModelId)) {
-        showErrorToastMessage('Le modèle du véhicule est requis. Veuillez sélectionner un modèle valide.');
+        showErrorToastMessage('Le modèle du véhicule est requis. Veuillez sélectionner un modèle valide.'.tr);
         _goToStep(0); // Retourner à l'étape de sélection du modèle
         return;
       }
       
       if (extractedFuelId == null || extractedFuelId.isEmpty || extractedFuelId == "0" || extractedFuelId.toLowerCase() == "null") {
-        showErrorToastMessage('Le type de carburant est requis. Veuillez sélectionner un type de carburant valide.');
+        showErrorToastMessage('Le type de carburant est requis. Veuillez sélectionner un type de carburant valide.'.tr);
         _goToStep(1); // Retourner à l'étape de sélection du carburant
         return;
       }
       
       if (extractedBrandId == null || extractedBrandId.isEmpty || extractedBrandId == "0" || extractedBrandId.toLowerCase() == "null") {
-        showErrorToastMessage('La marque du véhicule est requise. Veuillez sélectionner une marque valide.');
+        showErrorToastMessage('La marque du véhicule est requise. Veuillez sélectionner une marque valide.'.tr);
         _goToStep(0);
         return;
       }
@@ -1779,7 +1779,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       if (_isEditMode &&
           vehicleController.uploadedImageUrls.isEmpty &&
           vehicleController.selectedImages.isEmpty) {
-        showErrorToastMessage('Au moins une image est requise');
+        showErrorToastMessage('Au moins une image est requise'.tr);
         _goToStep(6);
         return;
       }

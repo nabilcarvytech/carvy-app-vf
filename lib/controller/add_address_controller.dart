@@ -6,6 +6,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:carvy/api/config.dart';
 import 'package:carvy/customwidget/miscellaneous_project_elements.dart';
+import 'package:carvy/helper/city_name_helper.dart';
 import 'package:carvy/helper/delivery_fee_helper.dart';
 import 'package:carvy/helper/http_service.dart';
 import 'package:carvy/model/address_history_model.dart';
@@ -315,7 +316,13 @@ class AddAddressController extends GetxController implements GetxService {
     _isInternalAddressWrite = false;
     _labelManuallyEdited = true;
 
-    cityController.text = DeliveryFeeHelper.sanitizeCity(item.city);
+    var city = DeliveryFeeHelper.sanitizeCity(item.city);
+    if (city.isEmpty) {
+      city = CityNameHelper.extractKnownCityToken(item.address) ??
+          CityNameHelper.extractKnownCityToken(item.label) ??
+          '';
+    }
+    cityController.text = city;
 
     addressText.value = fullAddressController.text;
     doorSteplatitude.value = item.latitude.toString();

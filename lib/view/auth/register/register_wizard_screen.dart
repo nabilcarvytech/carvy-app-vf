@@ -142,7 +142,7 @@ class _RegisterWizardScreenState extends State<RegisterWizardScreen> {
     if (!ok || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text("Impossible d'ouvrir ce lien"),
+        content: Text("Impossible d'ouvrir ce lien".tr),
         behavior: SnackBarBehavior.floating,
       ),
     );

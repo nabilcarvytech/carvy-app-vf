@@ -228,7 +228,7 @@ class WishListController extends GetxController implements GetxService {
         wishlistItems.clear();
       }
     } catch (e) {
-      showErrorToastMessage('Failed to load wishlist');
+      showErrorToastMessage('Failed to load wishlist'.tr);
       wishlistItems.clear();
     } finally {
       isLoading.value = false;
@@ -240,7 +240,7 @@ class WishListController extends GetxController implements GetxService {
   /// Retourne `true` si `status == 200`, sinon `false`.
   Future<bool> addTowishlist(dynamic itemId) async {
     if (token.isEmpty) {
-      showErrorToastMessage("You are not Login");
+      showErrorToastMessage("You are not Login".tr);
       return false;
     }
 
@@ -271,7 +271,7 @@ class WishListController extends GetxController implements GetxService {
         return false;
       }
     } catch (e) {
-      showErrorToastMessage('Failed to add to favorites');
+      showErrorToastMessage('Failed to add to favorites'.tr);
       addVishList.value = false;
       update();
       return false;
@@ -282,7 +282,7 @@ class WishListController extends GetxController implements GetxService {
   /// Retourne `true` si `status == 200`, sinon `false`.
   Future<bool> removeToWishlist(dynamic itemId) async {
     if (token.isEmpty) {
-      showErrorToastMessage("You are not Login");
+      showErrorToastMessage("You are not Login".tr);
       return false;
     }
 
@@ -339,7 +339,7 @@ class WishListController extends GetxController implements GetxService {
         return false;
       }
     } catch (e) {
-      showErrorToastMessage('Failed to remove from favorites');
+      showErrorToastMessage('Failed to remove from favorites'.tr);
       // ========== UX IMPROVEMENT: Revert optimistic update on exception ==========
       print(
           "⚠️ [Optimistic UI] Exception occurred - refreshing list to restore state");
